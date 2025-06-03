@@ -1,7 +1,7 @@
 :root {
   --color-bg: #181c24;
   --color-glass: rgba(36, 44, 64, 0.58);
-  --color-glass-solid: rgba(36, 44, 64, 0.94); /* fallback for no blur */
+  --color-glass-solid: rgba(36, 44, 64, 0.94);
   --color-border: rgba(255,255,255,0.10);
   --color-primary: #00ff88;
   --color-error: #ff4d4d;
@@ -12,32 +12,37 @@
   --blur: 20px;
 }
 
-html, body {
+/* Cover the entire screen and scrollable area with the background */
+html {
   height: 100%;
   min-height: 100vh;
   width: 100%;
-  margin: 0;
-  padding: 0;
+  background: linear-gradient(135deg, #13171d 0%, #212d41 100%) fixed;
+  /* 'fixed' ensures background stays during scroll */
 }
 
 body {
-  /* your existing background gradient */
-  background: linear-gradient(135deg, #13171d 0%, #212d41 100%);
+  min-height: 100vh;
+  min-height: 100dvh; /* Modern mobile browser fix */
+  height: 100%;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
   color: var(--color-text);
   font-family: 'Segoe UI', Arial, sans-serif;
-  min-height: 100vh;
-  width: 100vw;
   box-sizing: border-box;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  background: none; /* Remove any conflicting background */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* remove overflow-x to prevent horizontal scroll on small screens */
+  /* Prevent horizontal scroll if content is too wide */
   overflow-x: hidden;
 }
 
-/* Main card */
+/* Main card, as before */
 .auth-container, .glass-card {
   background: var(--color-glass);
   border-radius: 18px;
@@ -60,7 +65,7 @@ body {
   }
 }
 
-/* Headings */
+/* Rest of your CSS unchanged... */
 h2 {
   margin-top: 0;
   margin-bottom: 1.1em;
@@ -68,7 +73,6 @@ h2 {
   letter-spacing: 0.01em;
 }
 
-/* Forms */
 form {
   margin-bottom: 0.6em;
 }
@@ -97,7 +101,6 @@ input:focus {
   box-shadow: 0 0 0 2px var(--color-primary);
 }
 
-/* Buttons */
 button {
   background: var(--color-primary);
   color: #191a1d;
@@ -114,7 +117,6 @@ button:hover, button:focus {
   box-shadow: 0 4px 16px 0 var(--color-shadow);
 }
 
-/* Links */
 a {
   color: var(--color-primary);
   text-decoration: underline;
@@ -122,7 +124,6 @@ a {
 }
 a:hover { color: #fff; }
 
-/* Status/messages */
 #config-status, .success, .error, #login-message, #register-message {
   margin: 1.1em 0 0.3em 0;
   font-size: 1.04em;
@@ -137,13 +138,11 @@ a:hover { color: #fff; }
   color: var(--color-text-alt);
 }
 
-/* Mobile Responsive */
 @media (max-width: 480px) {
   .auth-container, .glass-card { padding: 1.1em 0.7em; width: 99vw; }
   h2 { font-size: 1.08em;}
 }
 
-/* Light mode support */
 @media (prefers-color-scheme: light) {
   :root {
     --color-bg: #f9fbff;
@@ -155,8 +154,11 @@ a:hover { color: #fff; }
     --color-text: #181c24;
     --color-text-alt: #1b3c2f;
   }
+  html {
+    background: linear-gradient(135deg, #f2fcff 0%, #e6f1f7 100%) fixed;
+  }
   body {
-    background: linear-gradient(135deg, #f2fcff 0%, #e6f1f7 100%);
     color: var(--color-text);
+    background: none;
   }
 }
