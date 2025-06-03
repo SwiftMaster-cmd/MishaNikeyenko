@@ -58,6 +58,26 @@ const configStatus = document.getElementById('config-status');
 const userInfo = document.getElementById('user-info');
 const logoutBtn = document.getElementById('logout-btn');
 
+// Snapchat button (main card)
+const snapchatBtn = document.getElementById('snapchat-btn');
+if (snapchatBtn) {
+  snapchatBtn.onclick = () => {
+    window.open('https://www.snapchat.com/web/f378013e-3442-57bb-b9e7-4b03a1ba0e5d/', '_blank', 'noopener,noreferrer');
+  };
+}
+
+// Profile toggle
+const profileToggleBtn = document.getElementById('profile-toggle-btn');
+const profileCard = document.getElementById('profile-card');
+let profileVisible = false;
+if (profileToggleBtn && profileCard) {
+  profileToggleBtn.onclick = () => {
+    profileVisible = !profileVisible;
+    profileCard.style.display = profileVisible ? "block" : "none";
+    profileToggleBtn.textContent = profileVisible ? "Hide Profile" : "Show Profile";
+  };
+}
+
 onAuthStateChanged(auth, user => {
   if (user) {
     showConfigStatus(db, user.uid, configStatus);
