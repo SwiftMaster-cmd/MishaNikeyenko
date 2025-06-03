@@ -2,25 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Deployment Test</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #111;
-      color: #0f0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    }
-    h1 {
-      font-size: 2rem;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login / Register</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>✅ GitHub + Netlify Deployment Successful</h1>
+  <div class="auth-container">
+    <h2 id="form-title">Login</h2>
+    <form id="auth-form">
+      <input type="text" id="username" placeholder="Username" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <input type="email" id="email" placeholder="Email" style="display: none;" />
+      <button type="submit">Submit</button>
+    </form>
+    <p id="toggle-form">Need an account? <a href="#" onclick="toggleForm()">Register</a></p>
+    <p id="output"></p>
+  </div>
+
+  <script src="auth.js"></script>
 </body>
 </html>
