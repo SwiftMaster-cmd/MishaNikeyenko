@@ -12,11 +12,11 @@ const firebaseConfig = {
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
-import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+import { getDatabase, ref as dbRef, get, child, push, remove, set, onValue } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
 // --- MODULE: Config Status ---
 function showConfigStatus(db, uid, element) {
-  get(child(ref(db), `users/${uid}/profile`))
+  get(child(dbRef(db), `users/${uid}/profile`))
     .then(snap => {
       if (snap.exists()) {
         element.innerHTML = "<span style='color:#00ff88'>✅ Config Works</span>";
@@ -31,7 +31,7 @@ function showConfigStatus(db, uid, element) {
 
 // --- MODULE: User Info ---
 function showUserInfo(db, user, element) {
-  get(child(ref(db), `users/${user.uid}/profile`)).then(snap => {
+  get(child(dbRef(db), `users/${user.uid}/profile`)).then(snap => {
     const profile = snap.exists() ? snap.val() : {};
     element.innerHTML = `
       <div style="margin-bottom:0.7em;">
@@ -49,6 +49,60 @@ function setupLogoutButton(auth, button) {
   button.onclick = () => signOut(auth).then(() => window.location.href = "index.html");
 }
 
+// --- MODULE: Links Manager ---
+function renderLinks(db, uid) {
+  const linksList = document.getElementById('links-list');
+  const linksRef = dbRef(db, `users/${uid}/links`);
+  onValue(linksRef, snapshot => {
+    linksList.innerHTML = "";
+    const data = snapshot.val();
+    if (!data) {
+      linksList.innerHTML = "<p style='opacity:.6'>No links yet.</p>";
+      return;
+    }
+    Object.entries(data).forEach(([linkId, link]) => {
+      const linkDiv = document.createElement('div');
+      linkDiv.className = "glass-card";
+      linkDiv.style.marginBottom = "0.8em";
+      linkDiv.innerHTML = `
+        <span style="font-weight:600">${link.title}</span>
+        <button data-id="${linkId}" class="open-link-btn" style="margin-left: 1.1em;">Open</button>
+        <button data-id="${linkId}" class="delete-link-btn" style="margin-left: 0.7em; color:var(--color-error);">Delete</button>
+        <div style="font-size:0.97em;opacity:.7;word-break:break-all;margin-top:0.15em">${link.url}</div>
+      `;
+      linksList.appendChild(linkDiv);
+    });
+    // Open link buttons
+    linksList.querySelectorAll('.open-link-btn').forEach(btn => {
+      btn.onclick = e => {
+        const id = btn.getAttribute('data-id');
+        window.open(data[id].url, '_blank', 'noopener,noreferrer');
+      };
+    });
+    // Delete link buttons
+    linksList.querySelectorAll('.delete-link-btn').forEach(btn => {
+      btn.onclick = e => {
+        const id = btn.getAttribute('data-id');
+        remove(dbRef(db, `users/${uid}/links/${id}`));
+      };
+    });
+  });
+}
+
+function setupAddLink(db, uid) {
+  const form = document.getElementById('add-link-form');
+  if (!form) return;
+  form.onsubmit = function(e) {
+    e.preventDefault();
+    const title = document.getElementById('link-title').value.trim();
+    const url = document.getElementById('link-url').value.trim();
+    if (!title || !url) return;
+    const newLinkRef = push(dbRef(db, `users/${uid}/links`));
+    set(newLinkRef, { title, url });
+    form.reset();
+  };
+}
+
 // --- APP INIT ---
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -57,15 +111,8 @@ const db = getDatabase(app);
 const configStatus = document.getElementById('config-status');
 const userInfo = document.getElementById('user-info');
 const logoutBtn = document.getElementById('logout-btn');
-const snapchatBtn = document.getElementById('snapchat-btn');
 
-if (snapchatBtn) {
-  snapchatBtn.onclick = () => {
-    window.open('https://www.snapchat.com/web/f378013e-3442-57bb-b9e7-4b03a1ba0e5d/', '_blank', 'noopener,noreferrer');
-  };
-}
-
-// Profile dropdown toggle
+// Profile dropdown toggle logic
 const profileToggleBtn = document.getElementById('profile-toggle-btn');
 const profileCard = document.getElementById('profile-card');
 let profileVisible = false;
@@ -78,6 +125,8 @@ function hideProfileCardOnClickOutside(event) {
   ) {
     profileCard.style.display = "none";
     profileVisible = false;
+    profileToggleBtn.textContent = "Profile";
+    document.removeEventListener('mousedown', hideProfileCardOnClickOutside);
   }
 }
 
@@ -99,6 +148,8 @@ onAuthStateChanged(auth, user => {
     showConfigStatus(db, user.uid, configStatus);
     showUserInfo(db, user, userInfo);
     setupLogoutButton(auth, logoutBtn);
+    setupAddLink(db, user.uid);
+    renderLinks(db, user.uid);
   } else {
     window.location.href = "index.html";
   }

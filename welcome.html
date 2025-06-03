@@ -18,14 +18,14 @@
     <button id="logout-btn" type="button">Sign Out</button>
   </div>
 
- <div class="main-card">
-  <button id="snapchat-btn" class="snapchat-main-btn" type="button">
-    🚀 Open Snapchat Link
-  </button>
-  <button id="firebase-btn" class="snapchat-main-btn" type="button">
-    🛠️ Open Firebase Console
-  </button>
-</div>
+  <div class="main-card">
+    <form id="add-link-form" autocomplete="off">
+      <input type="text" id="link-title" placeholder="Link Title" required />
+      <input type="url" id="link-url" placeholder="https://example.com" required />
+      <button type="submit" class="snapchat-main-btn">➕ Add Link</button>
+    </form>
+    <div id="links-list"></div>
+  </div>
 
   <script type="module" src="welcome.js"></script>
 </body>
