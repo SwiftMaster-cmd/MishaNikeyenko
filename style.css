@@ -1,5 +1,4 @@
 :root {
-  /* Shared glass/card variables */
   --color-glass: rgba(36, 44, 64, 0.72);
   --color-glass-solid: rgba(36, 44, 64, 0.98);
   --color-border: rgba(255,255,255,0.10);
@@ -25,85 +24,136 @@ body {
   background: #181c24;
   color: var(--color-text);
   font-family: 'Segoe UI', Arial, sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Main glass card/container */
-.auth-container, .glass-card {
+/* Header bar */
+.header-bar {
+  width: 100vw;
+  max-width: 100%;
+  position: fixed;
+  top: 0; left: 0;
+  background: var(--color-glass-solid);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65em 1.2em;
+  z-index: 100;
+  border-bottom: 1.5px solid var(--color-border);
+}
+.site-title {
+  font-size: 1.2em;
+  font-weight: bold;
+  letter-spacing: 0.03em;
+  color: var(--color-primary);
+}
+.profile-toggle-btn {
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: bold;
+  border: none;
+  font-size: 1.07em;
+  cursor: pointer;
+  border-radius: 7px;
+  padding: 0.52em 1.35em;
+  transition: background 0.18s, color 0.18s;
+}
+.profile-toggle-btn:hover,
+.profile-toggle-btn:focus {
+  background: var(--color-primary);
+  color: #191a1d;
+}
+
+/* Profile dropdown */
+.profile-card {
+  background: var(--color-glass-solid);
+  border-radius: 13px;
+  position: fixed;
+  top: 3.5em;
+  right: 1.4em;
+  min-width: 260px;
+  max-width: 90vw;
+  box-shadow: 0 4px 18px 0 var(--color-shadow);
+  padding: 1.5em 1.2em 1.1em 1.2em;
+  font-size: 1.04em;
+  z-index: 200;
+  display: none;
+  text-align: left;
+  animation: fadeInProfile 0.22s;
+}
+.profile-card.visible { display: block; }
+@keyframes fadeInProfile {
+  0% { opacity: 0; transform: translateY(-20px);}
+  100% { opacity: 1; transform: translateY(0);}
+}
+#user-info { margin-bottom: 0.8em; }
+#config-status, .success, .error {
+  margin: 0.9em 0 0.3em 0;
+  font-size: 1.02em;
+  font-weight: 500;
+  min-height: 1.1em;
+}
+.success { color: var(--color-success);}
+.error { color: var(--color-error);}
+#logout-btn {
+  width: 100%;
+  margin-top: 0.7em;
+  padding: 0.9em;
+  border-radius: 7px;
+  background: var(--color-primary);
+  color: #191a1d;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+#logout-btn:hover, #logout-btn:focus {
+  background: #00cc70;
+  color: #fff;
+}
+
+/* Main card in center of page */
+.main-card {
+  margin-top: 7em;
+  margin-bottom: 2em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.glass-card {
   background: var(--color-glass);
   border-radius: 18px;
   box-shadow: 0 6px 32px 0 var(--color-shadow), 0 1.5px 0 var(--color-primary);
   border: 1.5px solid var(--color-border);
   backdrop-filter: blur(var(--blur));
   -webkit-backdrop-filter: blur(var(--blur));
-  padding: 2.2em 2em 2em 2em;
+  padding: 1.2em 0;
   width: min(370px, 96vw);
-  margin: 2em auto 0 auto;
   text-align: center;
-  position: relative;
+  font-size: 1.15em;
+  font-weight: 600;
+  color: #191a1d;
+  margin-bottom: 0.8em;
+  cursor: pointer;
   transition: background 0.3s, box-shadow 0.3s;
 }
+.glass-card:hover, .glass-card:focus {
+  background: #00cc7077;
+  color: #fff;
+}
 
-/* Fallback for browsers (like Firefox) that don't support backdrop-filter */
+/* Fallback for Firefox/non-blur browsers */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .auth-container, .glass-card {
+  .glass-card, .profile-card, .header-bar {
     background: var(--color-glass-solid) !important;
   }
 }
 
-h2 {
-  margin-top: 0;
-  margin-bottom: 1.1em;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-form { margin-bottom: 0.6em; }
-
-input, button {
-  width: 100%;
-  padding: 0.95em;
-  margin: 0.45em 0;
-  border-radius: 7px;
-  border: none;
-  outline: none;
-  font-size: 1.07em;
-  box-sizing: border-box;
-  transition: box-shadow 0.22s, background 0.18s, border 0.18s;
-}
-
-input {
-  background: rgba(255,255,255,0.08);
-  color: var(--color-text);
-  border: 1.2px solid var(--color-border);
-  box-shadow: 0 1.5px 8px 0 rgba(0,0,0,0.07);
-}
-input:focus {
-  background: rgba(0,255,136,0.10);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary);
-}
-
-button {
-  background: var(--color-primary);
-  color: #191a1d;
-  font-weight: 700;
-  box-shadow: 0 2px 10px 0 var(--color-shadow);
-  cursor: pointer;
-  border: none;
-  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
-}
-button:hover, button:focus {
-  background: #00cc70;
-  color: #fff;
-  box-shadow: 0 4px 16px 0 var(--color-shadow);
-}
-
+/* Accessibility and responsive */
 a {
   color: var(--color-primary);
   text-decoration: underline;
@@ -111,23 +161,14 @@ a {
 }
 a:hover { color: #fff; }
 
-#config-status, .success, .error, #login-message, #register-message {
-  margin: 1.1em 0 0.3em 0;
-  font-size: 1.04em;
-  font-weight: 500;
-  min-height: 1.2em;
+@media (max-width: 600px) {
+  .header-bar { padding: 0.4em 0.7em; }
+  .main-card { margin-top: 5.5em;}
+  .profile-card { right: 0.4em; min-width: 75vw;}
+  .glass-card { width: 99vw;}
 }
-.success { color: var(--color-success);}
-.error { color: var(--color-error);}
-#user-info {
-  margin-bottom: 1.3em;
-  font-size: 1.03em;
-  color: var(--color-text-alt);
-}
-
 @media (max-width: 480px) {
-  .auth-container, .glass-card { padding: 1.1em 0.7em; width: 99vw; }
-  h2 { font-size: 1.08em;}
+  .profile-card { min-width: 90vw;}
 }
 
 /* Light mode support */
