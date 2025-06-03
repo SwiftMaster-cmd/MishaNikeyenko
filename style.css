@@ -1,48 +1,32 @@
 :root {
-  --color-bg: #181c24;
-  --color-glass: rgba(36, 44, 64, 0.58);
-  --color-glass-solid: rgba(36, 44, 64, 0.94);
+  --color-glass: rgba(36, 44, 64, 0.66);
+  --color-glass-solid: rgba(36, 44, 64, 0.96);
   --color-border: rgba(255,255,255,0.10);
   --color-primary: #00ff88;
   --color-error: #ff4d4d;
   --color-success: #00ff88;
   --color-shadow: #00ff8822;
-  --color-text: #f7f7fa;
-  --color-text-alt: #bfffe3;
+  --color-text: #1a1a1a;
+  --color-text-alt: #018e5c;
   --blur: 20px;
 }
 
-/* Cover the entire screen and scrollable area with the background */
-html {
-  height: 100%;
+html, body {
   min-height: 100vh;
+  height: 100%;
   width: 100%;
-  background: linear-gradient(135deg, #13171d 0%, #212d41 100%) fixed;
-  /* 'fixed' ensures background stays during scroll */
-}
-
-body {
-  min-height: 100vh;
-  min-height: 100dvh; /* Modern mobile browser fix */
-  height: 100%;
-  width: 100vw;
   margin: 0;
   padding: 0;
+  background: none !important; /* System default, no override */
   color: var(--color-text);
   font-family: 'Segoe UI', Arial, sans-serif;
   box-sizing: border-box;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: none; /* Remove any conflicting background */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  /* Prevent horizontal scroll if content is too wide */
-  overflow-x: hidden;
 }
 
-/* Main card, as before */
+/* Glass card/container */
 .auth-container, .glass-card {
   background: var(--color-glass);
   border-radius: 18px;
@@ -51,31 +35,21 @@ body {
   backdrop-filter: blur(var(--blur));
   -webkit-backdrop-filter: blur(var(--blur));
   padding: 2.2em 2em 2em 2em;
-  width: min(370px, 95vw);
+  width: min(370px, 96vw);
   margin: 2em auto 0 auto;
   text-align: center;
   position: relative;
   transition: background 0.3s, box-shadow 0.3s;
 }
 
-/* Fallback for browsers (like Firefox) that don't support backdrop-filter */
+/* Firefox/no blur fallback */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .auth-container, .glass-card {
     background: var(--color-glass-solid) !important;
   }
 }
 
-/* Rest of your CSS unchanged... */
-h2 {
-  margin-top: 0;
-  margin-bottom: 1.1em;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-form {
-  margin-bottom: 0.6em;
-}
+/* Forms & Inputs */
 input, button {
   width: 100%;
   padding: 0.95em;
@@ -87,25 +61,22 @@ input, button {
   box-sizing: border-box;
   transition: box-shadow 0.22s, background 0.18s, border 0.18s;
 }
-
 input {
-  background: rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.08);
   color: var(--color-text);
   border: 1.2px solid var(--color-border);
   box-shadow: 0 1.5px 8px 0 rgba(0,0,0,0.07);
 }
 input:focus {
-  background: rgba(0,255,136,0.09);
+  background: rgba(0,255,136,0.10);
   border-color: var(--color-primary);
   color: var(--color-primary);
   box-shadow: 0 0 0 2px var(--color-primary);
 }
-
 button {
   background: var(--color-primary);
   color: #191a1d;
   font-weight: 700;
-  letter-spacing: 0.01em;
   box-shadow: 0 2px 10px 0 var(--color-shadow);
   cursor: pointer;
   border: none;
@@ -143,22 +114,15 @@ a:hover { color: #fff; }
   h2 { font-size: 1.08em;}
 }
 
+/* Light mode support */
 @media (prefers-color-scheme: light) {
   :root {
-    --color-bg: #f9fbff;
-    --color-glass: rgba(245, 250, 255, 0.68);
-    --color-glass-solid: rgba(245,250,255,0.98);
-    --color-border: rgba(64,128,128,0.09);
+    --color-text: #191a1d;
+    --color-text-alt: #00944a;
     --color-primary: #00c983;
     --color-shadow: #00c98322;
-    --color-text: #181c24;
-    --color-text-alt: #1b3c2f;
-  }
-  html {
-    background: linear-gradient(135deg, #f2fcff 0%, #e6f1f7 100%) fixed;
-  }
-  body {
-    color: var(--color-text);
-    background: none;
+    --color-glass: rgba(255,255,255,0.8);
+    --color-glass-solid: rgba(255,255,255,0.99);
+    --color-border: rgba(64,128,128,0.09);
   }
 }
