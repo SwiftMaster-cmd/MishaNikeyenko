@@ -1,4 +1,4 @@
-// ---- Firebase config ----
+// ----- Firebase config goes here -----
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -14,12 +14,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
-// ---- Firebase init ----
+// ----- Initialize Firebase -----
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// LOGIN PAGE LOGIC
+// ----- Login Logic -----
 const loginForm = document.getElementById('login-form');
 if (loginForm) {
   loginForm.addEventListener("submit", function(e) {
@@ -46,7 +46,7 @@ if (loginForm) {
   });
 }
 
-// REGISTER PAGE LOGIC
+// ----- Register Logic -----
 const registerForm = document.getElementById('register-form');
 if (registerForm) {
   registerForm.addEventListener("submit", function(e) {
