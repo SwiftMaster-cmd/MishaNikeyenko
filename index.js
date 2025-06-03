@@ -7,7 +7,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// Elements
 const loginBtn = document.getElementById('show-login');
 const registerBtn = document.getElementById('show-register');
 const form = document.getElementById('auth-form');
@@ -26,30 +25,24 @@ let mode = "login";
 
 function switchMode(newMode) {
   if (mode === newMode) return;
-  form.classList.remove('fade-in');
-  form.classList.add('fade-out');
-  setTimeout(() => {
-    mode = newMode;
-    if (mode === "register") {
-      regFields.classList.remove('hidden');
-      passwordConfirm.classList.remove('hidden');
-      submitBtn.textContent = "Register";
-      registerBtn.classList.add('active');
-      loginBtn.classList.remove('active');
-    } else {
-      regFields.classList.add('hidden');
-      passwordConfirm.classList.add('hidden');
-      submitBtn.textContent = "Login";
-      loginBtn.classList.add('active');
-      registerBtn.classList.remove('active');
-    }
-    message.textContent = "";
-    form.classList.remove('fade-out');
-    form.classList.add('fade-in');
-  }, 320);
+  mode = newMode;
+  if (mode === "register") {
+    regFields.classList.remove('hidden');
+    passwordConfirm.classList.remove('hidden');
+    submitBtn.textContent = "Register";
+    registerBtn.classList.add('active');
+    loginBtn.classList.remove('active');
+  } else {
+    regFields.classList.add('hidden');
+    passwordConfirm.classList.add('hidden');
+    submitBtn.textContent = "Login";
+    loginBtn.classList.add('active');
+    registerBtn.classList.remove('active');
+  }
+  message.textContent = "";
+  form.reset();
 }
 
-// Reliable event listeners: only set once, outside any UI function
 loginBtn.addEventListener("click", (e) => {
   e.preventDefault();
   switchMode("login");
@@ -80,7 +73,6 @@ form.onsubmit = function(e) {
     }
     createUserWithEmailAndPassword(auth, email, password)
       .then(userCredential => {
-        // Save all registration data to Realtime DB
         return set(ref(db, 'users/' + userCredential.user.uid), {
           username,
           firstname,
@@ -95,7 +87,6 @@ form.onsubmit = function(e) {
       })
       .catch(error => showMessage(error.message, true));
   } else {
-    // Login
     if (!email || !password) {
       showMessage("Enter email and password.", true);
       return;
@@ -103,7 +94,7 @@ form.onsubmit = function(e) {
     signInWithEmailAndPassword(auth, email, password)
       .then(() => {
         showMessage("Login successful!", false);
-        setTimeout(() => window.location.href = "welcome.html", 600); // redirect after short feedback
+        setTimeout(() => window.location.href = "welcome.html", 600);
       })
       .catch(error => showMessage(error.message, true));
   }
