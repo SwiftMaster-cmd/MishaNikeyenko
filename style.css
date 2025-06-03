@@ -1,32 +1,38 @@
 :root {
-  --color-glass: rgba(36, 44, 64, 0.66);
-  --color-glass-solid: rgba(36, 44, 64, 0.96);
+  /* Shared glass/card variables */
+  --color-glass: rgba(36, 44, 64, 0.72);
+  --color-glass-solid: rgba(36, 44, 64, 0.98);
   --color-border: rgba(255,255,255,0.10);
   --color-primary: #00ff88;
   --color-error: #ff4d4d;
   --color-success: #00ff88;
   --color-shadow: #00ff8822;
-  --color-text: #1a1a1a;
-  --color-text-alt: #018e5c;
+  --color-text: #f8fafd;
+  --color-text-alt: #bfffe3;
   --blur: 20px;
 }
 
+/* Basic background and typography */
 html, body {
   min-height: 100vh;
-  height: 100%;
   width: 100%;
   margin: 0;
   padding: 0;
-  background: none !important; /* System default, no override */
+  box-sizing: border-box;
+}
+
+body {
+  background: #181c24;
   color: var(--color-text);
   font-family: 'Segoe UI', Arial, sans-serif;
-  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Glass card/container */
+/* Main glass card/container */
 .auth-container, .glass-card {
   background: var(--color-glass);
   border-radius: 18px;
@@ -42,14 +48,22 @@ html, body {
   transition: background 0.3s, box-shadow 0.3s;
 }
 
-/* Firefox/no blur fallback */
+/* Fallback for browsers (like Firefox) that don't support backdrop-filter */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .auth-container, .glass-card {
     background: var(--color-glass-solid) !important;
   }
 }
 
-/* Forms & Inputs */
+h2 {
+  margin-top: 0;
+  margin-bottom: 1.1em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+form { margin-bottom: 0.6em; }
+
 input, button {
   width: 100%;
   padding: 0.95em;
@@ -61,6 +75,7 @@ input, button {
   box-sizing: border-box;
   transition: box-shadow 0.22s, background 0.18s, border 0.18s;
 }
+
 input {
   background: rgba(255,255,255,0.08);
   color: var(--color-text);
@@ -73,6 +88,7 @@ input:focus {
   color: var(--color-primary);
   box-shadow: 0 0 0 2px var(--color-primary);
 }
+
 button {
   background: var(--color-primary);
   color: #191a1d;
@@ -117,12 +133,16 @@ a:hover { color: #fff; }
 /* Light mode support */
 @media (prefers-color-scheme: light) {
   :root {
-    --color-text: #191a1d;
+    --color-text: #181c24;
     --color-text-alt: #00944a;
     --color-primary: #00c983;
     --color-shadow: #00c98322;
-    --color-glass: rgba(255,255,255,0.8);
+    --color-glass: rgba(255,255,255,0.86);
     --color-glass-solid: rgba(255,255,255,0.99);
     --color-border: rgba(64,128,128,0.09);
+  }
+  body {
+    background: #f4f7fa;
+    color: var(--color-text);
   }
 }
