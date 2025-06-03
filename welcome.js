@@ -1,12 +1,55 @@
-import { firebaseConfig } from "./firebase-config.js";
+// --- Firebase Config ---
+const firebaseConfig = {
+  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+  authDomain: "mishanikeyenko.firebaseapp.com",
+  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+  projectId: "mishanikeyenko",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
+  messagingSenderId: "1089190937368",
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
+  measurementId: "G-L6CC27129C"
+};
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
-import { showConfigStatus } from "./modules/configStatus.js";
-import { showUserInfo } from "./modules/userInfo.js";
-import { setupLogoutButton } from "./modules/logoutButton.js";
+// --- MODULE: Config Status ---
+function showConfigStatus(db, uid, element) {
+  get(child(ref(db), `users/${uid}/profile`))
+    .then(snap => {
+      if (snap.exists()) {
+        element.innerHTML = "<span style='color:#00ff88'>✅ Config Works</span>";
+      } else {
+        element.innerHTML = "<span style='color:orange'>⚠️ Config OK, but no user data found</span>";
+      }
+    })
+    .catch(err => {
+      element.innerHTML = "<span style='color:#ff4d4d'>❌ Config Error: " + err.message + "</span>";
+    });
+}
 
+// --- MODULE: User Info ---
+function showUserInfo(db, user, element) {
+  get(child(ref(db), `users/${user.uid}/profile`)).then(snap => {
+    const profile = snap.exists() ? snap.val() : {};
+    element.innerHTML = `
+      <div>
+        <strong>Username:</strong> ${profile.username || "N/A"}<br>
+        <strong>Email:</strong> ${user.email}
+      </div>
+    `;
+  }).catch(() => {
+    element.innerHTML = `<div><strong>Email:</strong> ${user.email}</div>`;
+  });
+}
+
+// --- MODULE: Logout Button ---
+function setupLogoutButton(auth, button) {
+  button.onclick = () => signOut(auth).then(() => window.location.href = "index.html");
+}
+
+// --- APP INIT ---
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
