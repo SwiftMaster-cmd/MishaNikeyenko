@@ -21,34 +21,38 @@ const loginBtn = document.getElementById('show-login');
 const registerBtn = document.getElementById('show-register');
 const form = document.getElementById('auth-form');
 const submitBtn = document.getElementById('auth-submit');
-const usernameField = document.getElementById('username-field');
-const usernameInput = document.getElementById('auth-username');
+const regFields = document.getElementById('reg-fields');
+const regUsername = document.getElementById('reg-username');
+const regFirstName = document.getElementById('reg-firstname');
+const regLastName = document.getElementById('reg-lastname');
 const emailInput = document.getElementById('auth-email');
 const passwordInput = document.getElementById('auth-password');
+const passwordConfirm = document.getElementById('reg-password-confirm');
 const message = document.getElementById('auth-message');
 const status = document.getElementById('auth-status');
 
 let mode = "login";
+
 function switchMode(newMode) {
   if (mode === newMode) return;
-  // Fade out animation
   form.classList.remove('fade-in');
   form.classList.add('fade-out');
   setTimeout(() => {
     mode = newMode;
     if (mode === "register") {
-      usernameField.classList.remove('hidden');
+      regFields.classList.remove('hidden');
+      passwordConfirm.classList.remove('hidden');
       submitBtn.textContent = "Register";
       registerBtn.classList.add('active');
       loginBtn.classList.remove('active');
     } else {
-      usernameField.classList.add('hidden');
+      regFields.classList.add('hidden');
+      passwordConfirm.classList.add('hidden');
       submitBtn.textContent = "Login";
       loginBtn.classList.add('active');
       registerBtn.classList.remove('active');
     }
     message.textContent = "";
-    // Fade in
     form.classList.remove('fade-out');
     form.classList.add('fade-in');
   }, 320);
@@ -61,23 +65,39 @@ form.onsubmit = function(e) {
   e.preventDefault();
   const email = emailInput.value.trim();
   const password = passwordInput.value;
-  const username = usernameInput.value.trim();
 
   if (mode === "register") {
-    if (!email || !password || !username) {
-      showMessage("Please fill in all fields.", true);
+    const username = regUsername.value.trim();
+    const firstname = regFirstName.value.trim();
+    const lastname = regLastName.value.trim();
+    const confirm = passwordConfirm.value;
+
+    if (!username || !firstname || !lastname || !email || !password || !confirm) {
+      showMessage("Fill in all fields.", true);
+      return;
+    }
+    if (password !== confirm) {
+      showMessage("Passwords do not match.", true);
       return;
     }
     createUserWithEmailAndPassword(auth, email, password)
       .then(userCredential => {
-        return set(ref(db, 'users/' + userCredential.user.uid), { username, email });
+        // Save all registration data to Realtime DB
+        return set(ref(db, 'users/' + userCredential.user.uid), {
+          username,
+          firstname,
+          lastname,
+          email
+        });
       })
       .then(() => {
         showMessage("Registration successful! You can now log in.", false);
         switchMode("login");
+        form.reset();
       })
       .catch(error => showMessage(error.message, true));
   } else {
+    // Login
     if (!email || !password) {
       showMessage("Enter email and password.", true);
       return;
@@ -94,7 +114,6 @@ function showMessage(msg, isError = false) {
   setTimeout(() => { message.className = ""; }, 2500);
 }
 
-// Auth state changes (show user info)
 onAuthStateChanged(auth, user => {
   if (user) {
     get(child(ref(db), 'users/' + user.uid)).then(snapshot => {
@@ -103,6 +122,7 @@ onAuthStateChanged(auth, user => {
         <div style="margin-top:1em;">
           <strong>Logged in as:</strong><br>
           ${data.username ? data.username : user.email} <br>
+          ${data.firstname || ""} ${data.lastname || ""}<br>
           <button id="signout-btn">Sign Out</button>
         </div>
       `;

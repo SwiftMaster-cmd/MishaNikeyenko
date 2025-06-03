@@ -19,7 +19,9 @@ body {
   position: relative;
   overflow: hidden;
 }
-
+.hidden {
+  display: none;
+}
 .button-group {
   display: flex;
   margin-bottom: 1.5rem;
