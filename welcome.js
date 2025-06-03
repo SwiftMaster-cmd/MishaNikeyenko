@@ -61,29 +61,58 @@ function renderLinks(db, uid) {
       return;
     }
     Object.entries(data).forEach(([linkId, link]) => {
-      const linkDiv = document.createElement('div');
-      linkDiv.className = "glass-card";
-      linkDiv.style.marginBottom = "0.8em";
-      linkDiv.innerHTML = `
-        <span style="font-weight:600">${link.title}</span>
-        <button data-id="${linkId}" class="open-link-btn" style="margin-left: 1.1em;">Open</button>
-        <button data-id="${linkId}" class="delete-link-btn" style="margin-left: 0.7em; color:var(--color-error);">Delete</button>
-        <div style="font-size:0.97em;opacity:.7;word-break:break-all;margin-top:0.15em">${link.url}</div>
+      // Main link button
+      const linkWrap = document.createElement('div');
+      linkWrap.className = "link-row";
+      linkWrap.innerHTML = `
+        <button class="link-main-btn" data-id="${linkId}">
+          <span class="link-title">${link.title}</span>
+          <span class="more-menu-btn" tabindex="0" data-id="${linkId}">&#8942;</span>
+        </button>
+        <div class="more-menu" id="menu-${linkId}" style="display:none;">
+          <div class="more-menu-content">
+            <button class="delete-link-btn" data-id="${linkId}">Delete</button>
+            <div class="link-url-preview">${link.url}</div>
+          </div>
+        </div>
       `;
-      linksList.appendChild(linkDiv);
-    });
-    // Open link buttons
-    linksList.querySelectorAll('.open-link-btn').forEach(btn => {
-      btn.onclick = e => {
-        const id = btn.getAttribute('data-id');
-        window.open(data[id].url, '_blank', 'noopener,noreferrer');
+      linksList.appendChild(linkWrap);
+
+      // Open link on click of main button (not the ... menu)
+      linkWrap.querySelector('.link-main-btn').onclick = e => {
+        if (e.target.classList.contains('more-menu-btn')) return;
+        window.open(link.url, '_blank', 'noopener,noreferrer');
       };
-    });
-    // Delete link buttons
-    linksList.querySelectorAll('.delete-link-btn').forEach(btn => {
-      btn.onclick = e => {
-        const id = btn.getAttribute('data-id');
-        remove(dbRef(db, `users/${uid}/links/${id}`));
+
+      // Menu toggle
+      const moreMenuBtn = linkWrap.querySelector('.more-menu-btn');
+      const moreMenu = linkWrap.querySelector('.more-menu');
+      let menuOpen = false;
+      moreMenuBtn.onclick = e => {
+        e.stopPropagation();
+        menuOpen = !menuOpen;
+        moreMenu.style.display = menuOpen ? 'block' : 'none';
+        if (menuOpen) {
+          // Hide any other open menus
+          document.querySelectorAll('.more-menu').forEach(menu => {
+            if (menu !== moreMenu) menu.style.display = 'none';
+          });
+        }
+      };
+
+      // Hide menu when clicking outside
+      document.addEventListener('mousedown', function hideMenu(evt) {
+        if (menuOpen && moreMenu && !moreMenu.contains(evt.target) && evt.target !== moreMenuBtn) {
+          moreMenu.style.display = 'none';
+          menuOpen = false;
+          document.removeEventListener('mousedown', hideMenu);
+        }
+      });
+
+      // Delete handler
+      linkWrap.querySelector('.delete-link-btn').onclick = e => {
+        e.stopPropagation();
+        remove(dbRef(db, `users/${uid}/links/${linkId}`));
       };
     });
   });
