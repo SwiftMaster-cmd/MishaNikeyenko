@@ -1,4 +1,4 @@
-// ----- Firebase config goes here -----
+// ---- Your Firebase Config ----
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -14,7 +14,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
-// ----- Initialize Firebase -----
+// ---- Firebase Init ----
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
@@ -28,6 +28,7 @@ if (loginForm) {
     const password = document.getElementById('login-password').value;
     const msg = document.getElementById('login-message');
     msg.textContent = "";
+    msg.className = "";
     if (!email || !password) {
       msg.textContent = "Enter email and password.";
       msg.className = "error";
@@ -46,7 +47,7 @@ if (loginForm) {
   });
 }
 
-// ----- Register Logic -----
+// ----- Registration Logic -----
 const registerForm = document.getElementById('register-form');
 if (registerForm) {
   registerForm.addEventListener("submit", function(e) {
@@ -59,6 +60,7 @@ if (registerForm) {
     const confirm = document.getElementById('reg-password-confirm').value;
     const msg = document.getElementById('register-message');
     msg.textContent = "";
+    msg.className = "";
 
     if (!username || !firstname || !lastname || !email || !password || !confirm) {
       msg.textContent = "Fill in all fields.";
@@ -72,6 +74,7 @@ if (registerForm) {
     }
     createUserWithEmailAndPassword(auth, email, password)
       .then(userCredential => {
+        // Store user info in Realtime DB
         return set(ref(db, 'users/' + userCredential.user.uid), {
           username,
           firstname,
