@@ -4,7 +4,7 @@ function toggleForm() {
   isRegister = !isRegister;
 
   document.getElementById('form-title').textContent = isRegister ? 'Register' : 'Login';
-  document.getElementById('email').style.display = isRegister ? 'block' : 'none';
+  document.getElementById('email').classList.toggle('hidden', !isRegister);
   document.querySelector('button').textContent = isRegister ? 'Register' : 'Log In';
 
   document.getElementById('toggle-form').innerHTML = isRegister
