@@ -34,7 +34,7 @@ function showUserInfo(db, user, element) {
   get(child(ref(db), `users/${user.uid}/profile`)).then(snap => {
     const profile = snap.exists() ? snap.val() : {};
     element.innerHTML = `
-      <div>
+      <div style="margin-bottom:0.7em;">
         <strong>Username:</strong> ${profile.username || "N/A"}<br>
         <strong>Email:</strong> ${user.email}
       </div>
@@ -57,24 +57,40 @@ const db = getDatabase(app);
 const configStatus = document.getElementById('config-status');
 const userInfo = document.getElementById('user-info');
 const logoutBtn = document.getElementById('logout-btn');
-
-// Snapchat button (main card)
 const snapchatBtn = document.getElementById('snapchat-btn');
+
 if (snapchatBtn) {
   snapchatBtn.onclick = () => {
     window.open('https://www.snapchat.com/web/f378013e-3442-57bb-b9e7-4b03a1ba0e5d/', '_blank', 'noopener,noreferrer');
   };
 }
 
-// Profile toggle
+// Profile dropdown toggle
 const profileToggleBtn = document.getElementById('profile-toggle-btn');
 const profileCard = document.getElementById('profile-card');
 let profileVisible = false;
+
+function hideProfileCardOnClickOutside(event) {
+  if (
+    profileCard &&
+    !profileCard.contains(event.target) &&
+    !profileToggleBtn.contains(event.target)
+  ) {
+    profileCard.style.display = "none";
+    profileVisible = false;
+  }
+}
+
 if (profileToggleBtn && profileCard) {
   profileToggleBtn.onclick = () => {
     profileVisible = !profileVisible;
     profileCard.style.display = profileVisible ? "block" : "none";
-    profileToggleBtn.textContent = profileVisible ? "Hide Profile" : "Show Profile";
+    profileToggleBtn.textContent = profileVisible ? "Close Profile" : "Profile";
+    if (profileVisible) {
+      document.addEventListener('mousedown', hideProfileCardOnClickOutside);
+    } else {
+      document.removeEventListener('mousedown', hideProfileCardOnClickOutside);
+    }
   };
 }
 

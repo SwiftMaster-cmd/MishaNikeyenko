@@ -7,23 +7,23 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="auth-container">
-    <h2>Welcome</h2>
-    <div id="config-status"></div>
+  <div class="header-bar">
+    <div class="site-title">My Site</div>
+    <button id="profile-toggle-btn" class="profile-toggle-btn" type="button">Profile</button>
+  </div>
 
-    <!-- Main Snapchat card/button -->
+  <div id="profile-card" class="profile-card">
+    <div id="user-info"></div>
+    <div id="config-status"></div>
+    <button id="logout-btn" type="button">Sign Out</button>
+  </div>
+
+  <div class="main-card">
     <button id="snapchat-btn" class="glass-card" type="button">
       🚀 Open Snapchat Link
     </button>
-
-    <!-- Profile toggle and section -->
-    <button id="profile-toggle-btn" type="button">Show Profile</button>
-    <div id="profile-card" class="glass-card" style="display:none;">
-      <div id="user-info"></div>
-    </div>
-
-    <button id="logout-btn" type="button">Sign Out</button>
   </div>
+
   <script type="module" src="welcome.js"></script>
 </body>
 </html>
