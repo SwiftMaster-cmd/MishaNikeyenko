@@ -12,8 +12,7 @@
       <button id="show-login" class="active">Login</button>
       <button id="show-register">Register</button>
     </div>
-    <form id="auth-form" class="fade-in">
-      <!-- Registration fields (hidden on login) -->
+    <form id="auth-form">
       <div id="reg-fields" class="hidden">
         <input type="text" id="reg-username" placeholder="Username" autocomplete="username" />
         <input type="text" id="reg-firstname" placeholder="First Name" autocomplete="given-name" />
@@ -22,7 +21,7 @@
       <input type="email" id="auth-email" placeholder="Email" required autocomplete="email" />
       <input type="password" id="auth-password" placeholder="Password" required autocomplete="current-password" />
       <input type="password" id="reg-password-confirm" placeholder="Confirm Password" class="hidden" autocomplete="new-password" />
-      <button type="submit" id="auth-submit">Login</button>
+      <button type="submit" id="auth-submit" class="action-btn">Login</button>
     </form>
     <div id="auth-message"></div>
     <div id="auth-status"></div>

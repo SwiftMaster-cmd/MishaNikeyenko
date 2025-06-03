@@ -24,23 +24,28 @@ const status = document.getElementById('auth-status');
 let mode = "login";
 
 function switchMode(newMode) {
-  if (mode === newMode) return;
   mode = newMode;
-  if (mode === "register") {
-    regFields.classList.remove('hidden');
-    passwordConfirm.classList.remove('hidden');
-    submitBtn.textContent = "Register";
-    registerBtn.classList.add('active');
-    loginBtn.classList.remove('active');
-  } else {
-    regFields.classList.add('hidden');
-    passwordConfirm.classList.add('hidden');
+  // Top buttons
+  if (mode === "login") {
+    loginBtn.classList.add("active");
+    registerBtn.classList.remove("active");
+    regFields.classList.add("hidden");
+    passwordConfirm.classList.add("hidden");
     submitBtn.textContent = "Login";
-    loginBtn.classList.add('active');
-    registerBtn.classList.remove('active');
+    submitBtn.classList.remove("register");
+    submitBtn.classList.add("login");
+    form.reset();
+  } else {
+    registerBtn.classList.add("active");
+    loginBtn.classList.remove("active");
+    regFields.classList.remove("hidden");
+    passwordConfirm.classList.remove("hidden");
+    submitBtn.textContent = "Register";
+    submitBtn.classList.remove("login");
+    submitBtn.classList.add("register");
+    form.reset();
   }
   message.textContent = "";
-  form.reset();
 }
 
 loginBtn.addEventListener("click", (e) => {
