@@ -3,22 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Firebase Login/Register</title>
+  <title>Firebase Login & Registration</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="auth-container">
-    <h2 id="auth-title">Login</h2>
-    <form id="auth-form">
-      <input type="email" id="auth-email" placeholder="Email" required />
-      <input type="password" id="auth-password" placeholder="Password" required />
-      <input type="text" id="auth-username" placeholder="Username" class="hidden" autocomplete="username" />
+    <div class="button-group">
+      <button id="show-login" class="active">Login</button>
+      <button id="show-register">Register</button>
+    </div>
+    <form id="auth-form" class="fade-in">
+      <div id="username-field" class="hidden">
+        <input type="text" id="auth-username" placeholder="Username" autocomplete="username" />
+      </div>
+      <input type="email" id="auth-email" placeholder="Email" required autocomplete="email" />
+      <input type="password" id="auth-password" placeholder="Password" required autocomplete="current-password" />
       <button type="submit" id="auth-submit">Login</button>
     </form>
-    <p id="auth-toggle">
-      Need an account? <a href="#" id="auth-toggle-link">Register</a>
-    </p>
-    <p id="auth-message"></p>
+    <div id="auth-message"></div>
     <div id="auth-status"></div>
   </div>
   <script type="module" src="auth.js"></script>
