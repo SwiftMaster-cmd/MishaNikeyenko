@@ -11,7 +11,7 @@
   --blur: 20px;
 }
 
-/* Basic background and typography */
+/* Background and typography */
 html, body {
   min-height: 100vh;
   width: 100%;
@@ -19,7 +19,6 @@ html, body {
   padding: 0;
   box-sizing: border-box;
 }
-
 body {
   background: #181c24;
   color: var(--color-text);
@@ -116,7 +115,7 @@ body {
   color: #fff;
 }
 
-/* Main card in center of page */
+/* Main card area */
 .main-card {
   margin-top: 7em;
   margin-bottom: 2em;
@@ -124,31 +123,147 @@ body {
   flex-direction: column;
   align-items: center;
 }
-.glass-card {
-  background: var(--color-glass);
-  border-radius: 18px;
-  box-shadow: 0 6px 32px 0 var(--color-shadow), 0 1.5px 0 var(--color-primary);
-  border: 1.5px solid var(--color-border);
-  backdrop-filter: blur(var(--blur));
-  -webkit-backdrop-filter: blur(var(--blur));
-  padding: 1.2em 0;
+
+/* --- Link Adding Form --- */
+#add-link-form {
   width: min(370px, 96vw);
-  text-align: center;
-  font-size: 1.15em;
-  font-weight: 600;
-  color: #191a1d;
-  margin-bottom: 0.8em;
-  cursor: pointer;
-  transition: background 0.3s, box-shadow 0.3s;
+  background: var(--color-glass);
+  border-radius: 17px;
+  box-shadow: 0 4px 18px 0 var(--color-shadow), 0 1.5px 0 var(--color-primary);
+  padding: 1.15em 1.2em 1em 1.2em;
+  margin-bottom: 1.3em;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6em;
 }
-.glass-card:hover, .glass-card:focus {
-  background: #00cc7077;
+#add-link-form input {
+  background: rgba(255,255,255,0.08);
+  color: var(--color-text);
+  border: 1.2px solid var(--color-border);
+  border-radius: 7px;
+  padding: 0.93em;
+  font-size: 1.06em;
+  margin: 0;
+  box-shadow: 0 1.5px 8px 0 rgba(0,0,0,0.07);
+  outline: none;
+  transition: box-shadow 0.17s, background 0.16s, border 0.16s;
+}
+#add-link-form input:focus {
+  background: rgba(0,255,136,0.09);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+#add-link-form button {
+  margin-top: 0.5em;
+  width: 100%;
+}
+
+/* --- Links List / Buttons --- */
+.link-row {
+  width: min(370px, 96vw);
+  margin: 0 auto 1em auto;
+  position: relative;
+}
+.link-main-btn {
+  background: var(--color-primary);
+  color: #191a1d;
+  font-size: 1.12em;
+  font-weight: 700;
+  border: none;
+  border-radius: 17px;
+  box-shadow: 0 4px 18px 0 var(--color-shadow), 0 1.5px 0 var(--color-primary);
+  padding: 1.1em 1em 1.1em 1.1em;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+  outline: none;
+}
+
+.link-main-btn:hover,
+.link-main-btn:focus {
+  background: #00cc70;
   color: #fff;
+  box-shadow: 0 8px 40px 0 var(--color-shadow), 0 2px 0 var(--color-primary);
+}
+
+.link-title {
+  flex: 1;
+  font-weight: 700;
+  font-size: 1em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.more-menu-btn {
+  font-size: 1.3em;
+  margin-left: 1.1em;
+  color: #088553;
+  background: none;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  transition: color 0.17s;
+  border-radius: 50%;
+  padding: 0 0.13em;
+}
+.more-menu-btn:hover, .more-menu-btn:focus {
+  color: #00cc70;
+  background: #0a230a22;
+}
+
+/* ... menu dropdown */
+.more-menu {
+  position: absolute;
+  top: 110%;
+  right: 0.5em;
+  background: var(--color-glass-solid);
+  border-radius: 11px;
+  min-width: 140px;
+  box-shadow: 0 4px 18px 0 var(--color-shadow);
+  padding: 0.5em 0.7em 0.6em 0.7em;
+  z-index: 20;
+  display: none;
+  animation: fadeInProfile 0.19s;
+}
+.more-menu-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.delete-link-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-error);
+  font-weight: 700;
+  font-size: 1em;
+  padding: 0.25em 0.7em 0.25em 0;
+  cursor: pointer;
+  text-align: right;
+}
+.delete-link-btn:hover {
+  text-decoration: underline;
+  background: #1a000010;
+}
+.link-url-preview {
+  font-size: 0.98em;
+  opacity: .7;
+  word-break: break-all;
+  margin-top: 0.2em;
+  color: var(--color-text-alt);
+  text-align: right;
 }
 
 /* Fallback for Firefox/non-blur browsers */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass-card, .profile-card, .header-bar {
+  .glass-card, .profile-card, .header-bar, #add-link-form, .more-menu {
     background: var(--color-glass-solid) !important;
   }
 }
@@ -165,7 +280,7 @@ a:hover { color: #fff; }
   .header-bar { padding: 0.4em 0.7em; }
   .main-card { margin-top: 5.5em;}
   .profile-card { right: 0.4em; min-width: 75vw;}
-  .glass-card { width: 99vw;}
+  .glass-card, #add-link-form, .link-row { width: 99vw;}
 }
 @media (max-width: 480px) {
   .profile-card { min-width: 90vw;}
@@ -186,35 +301,4 @@ a:hover { color: #fff; }
     background: #f4f7fa;
     color: var(--color-text);
   }
-}
-
-/* Main call-to-action button (Snapchat) */
-.snapchat-main-btn {
-  width: min(370px, 96vw);
-  background: var(--color-primary);
-  color: #181c24;
-  font-size: 1.18em;
-  font-weight: 700;
-  border: none;
-  border-radius: 18px;
-  box-shadow: 0 6px 32px 0 var(--color-shadow), 0 1.5px 0 var(--color-primary);
-  padding: 1.2em 0;
-  margin-bottom: 0.8em;
-  margin-top: 0.2em;
-  cursor: pointer;
-  transition: background 0.19s, color 0.19s, box-shadow 0.19s;
-  letter-spacing: 0.01em;
-  outline: none;
-  display: block;
-}
-
-.snapchat-main-btn:hover,
-.snapchat-main-btn:focus {
-  background: #00cc70;
-  color: #fff;
-  box-shadow: 0 8px 40px 0 var(--color-shadow), 0 2px 0 var(--color-primary);
-}
-
-@media (max-width: 480px) {
-  .snapchat-main-btn { width: 99vw; font-size: 1.02em;}
 }
