@@ -187,3 +187,34 @@ a:hover { color: #fff; }
     color: var(--color-text);
   }
 }
+
+/* Main call-to-action button (Snapchat) */
+.snapchat-main-btn {
+  width: min(370px, 96vw);
+  background: var(--color-primary);
+  color: #181c24;
+  font-size: 1.18em;
+  font-weight: 700;
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 6px 32px 0 var(--color-shadow), 0 1.5px 0 var(--color-primary);
+  padding: 1.2em 0;
+  margin-bottom: 0.8em;
+  margin-top: 0.2em;
+  cursor: pointer;
+  transition: background 0.19s, color 0.19s, box-shadow 0.19s;
+  letter-spacing: 0.01em;
+  outline: none;
+  display: block;
+}
+
+.snapchat-main-btn:hover,
+.snapchat-main-btn:focus {
+  background: #00cc70;
+  color: #fff;
+  box-shadow: 0 8px 40px 0 var(--color-shadow), 0 2px 0 var(--color-primary);
+}
+
+@media (max-width: 480px) {
+  .snapchat-main-btn { width: 99vw; font-size: 1.02em;}
+}
