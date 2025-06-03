@@ -1,85 +1,120 @@
-// Universal, reusable frontend authentication demo logic
+// Firebase imports
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
-let authMode = 'login';
+// Your Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+  authDomain: "mishanikeyenko.firebaseapp.com",
+  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+  projectId: "mishanikeyenko",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
+  messagingSenderId: "1089190937368",
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
+  measurementId: "G-L6CC27129C"
+};
 
-const authTitle = document.getElementById('auth-title');
-const authEmail = document.getElementById('auth-email');
-const authSubmit = document.getElementById('auth-submit');
-const authToggle = document.getElementById('auth-toggle');
-const authToggleLink = document.getElementById('auth-toggle-link');
-const authMessage = document.getElementById('auth-message');
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+// Elements
+const formTitle = document.getElementById('auth-title');
 const authForm = document.getElementById('auth-form');
+const emailField = document.getElementById('auth-email');
+const passwordField = document.getElementById('auth-password');
+const usernameField = document.getElementById('auth-username');
+const submitBtn = document.getElementById('auth-submit');
+const toggleForm = document.getElementById('auth-toggle');
+const toggleLink = document.getElementById('auth-toggle-link');
+const authMessage = document.getElementById('auth-message');
+const authStatus = document.getElementById('auth-status');
 
-function setMode(mode) {
-  authMode = mode;
-  if (mode === 'register') {
-    authTitle.textContent = "Register";
-    authEmail.classList.remove('hidden');
-    authSubmit.textContent = "Register";
-    authToggle.innerHTML = 'Already have an account? <a href="#" id="auth-toggle-link">Login</a>';
+let mode = 'login';
+
+function setMode(m) {
+  mode = m;
+  if (m === 'register') {
+    formTitle.textContent = "Register";
+    usernameField.classList.remove('hidden');
+    submitBtn.textContent = "Register";
+    toggleForm.innerHTML = 'Already have an account? <a href="#" id="auth-toggle-link">Login</a>';
   } else {
-    authTitle.textContent = "Login";
-    authEmail.classList.add('hidden');
-    authSubmit.textContent = "Login";
-    authToggle.innerHTML = 'Need an account? <a href="#" id="auth-toggle-link">Register</a>';
+    formTitle.textContent = "Login";
+    usernameField.classList.add('hidden');
+    submitBtn.textContent = "Login";
+    toggleForm.innerHTML = 'Need an account? <a href="#" id="auth-toggle-link">Register</a>';
   }
-  // Re-attach event handler after innerHTML change
   document.getElementById('auth-toggle-link').onclick = (e) => {
     e.preventDefault();
     setMode(mode === 'login' ? 'register' : 'login');
-    clearMessage();
+    showMessage("");
   };
+  showMessage("");
 }
-
-function clearMessage() {
-  authMessage.textContent = "";
-  authMessage.className = "";
-}
-
-function showMessage(msg, isError = false) {
-  authMessage.textContent = msg;
-  authMessage.className = isError ? "error" : "success";
-}
+toggleLink.onclick = (e) => {
+  e.preventDefault();
+  setMode(mode === 'login' ? 'register' : 'login');
+  showMessage("");
+};
 
 authForm.onsubmit = function(e) {
   e.preventDefault();
-  const username = document.getElementById('auth-username').value.trim();
-  const password = document.getElementById('auth-password').value;
-  const email = document.getElementById('auth-email').value.trim();
+  const email = emailField.value.trim();
+  const password = passwordField.value;
+  const username = usernameField.value.trim();
 
-  if (authMode === 'register') {
-    if (!username || !password || !email) {
+  if (mode === 'register') {
+    if (!email || !password || !username) {
       showMessage("Fill in all fields.", true);
       return;
     }
-    if (localStorage.getItem('user_' + username)) {
-      showMessage("Username already exists.", true);
-      return;
-    }
-    localStorage.setItem('user_' + username, JSON.stringify({ username, password, email }));
-    showMessage("Registration successful! Please login.");
-    setMode('login');
+    createUserWithEmailAndPassword(auth, email, password)
+      .then(userCredential => {
+        // Save username to database
+        return set(ref(db, 'users/' + userCredential.user.uid), { username, email });
+      })
+      .then(() => {
+        showMessage("Registration successful! Please login.", false);
+        setMode('login');
+      })
+      .catch(error => {
+        showMessage(error.message, true);
+      });
   } else {
-    if (!username || !password) {
-      showMessage("Enter username and password.", true);
-      return;
-    }
-    const user = localStorage.getItem('user_' + username);
-    if (!user) {
-      showMessage("User not found.", true);
-      return;
-    }
-    const userData = JSON.parse(user);
-    if (userData.password === password) {
-      showMessage(`Welcome, ${userData.username}! Login successful.`);
-    } else {
-      showMessage("Incorrect password.", true);
-    }
+    // Login
+    signInWithEmailAndPassword(auth, email, password)
+      .then(() => {
+        showMessage("Login successful!");
+      })
+      .catch(error => {
+        showMessage(error.message, true);
+      });
   }
 };
 
-authToggleLink.onclick = (e) => {
-  e.preventDefault();
-  setMode(authMode === 'login' ? 'register' : 'login');
-  clearMessage();
-};
+function showMessage(msg, isError = false) {
+  authMessage.textContent = msg;
+  authMessage.className = isError ? "error" : (msg ? "success" : "");
+}
+
+// Auth state changes (show user info)
+onAuthStateChanged(auth, user => {
+  if (user) {
+    // Fetch username from DB
+    get(child(ref(db), 'users/' + user.uid)).then(snapshot => {
+      const data = snapshot.exists() ? snapshot.val() : {};
+      authStatus.innerHTML = `
+        <div style="margin-top:1em;">
+          <strong>Logged in as:</strong><br>
+          ${data.username ? data.username : user.email} <br>
+          <button id="signout-btn">Sign Out</button>
+        </div>
+      `;
+      document.getElementById('signout-btn').onclick = () => signOut(auth);
+    });
+  } else {
+    authStatus.innerHTML = "";
+  }
+});

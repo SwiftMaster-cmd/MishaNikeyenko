@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Universal Login/Register</title>
+  <title>Firebase Login/Register</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="auth-container">
     <h2 id="auth-title">Login</h2>
     <form id="auth-form">
-      <input type="text" id="auth-username" placeholder="Username" required />
+      <input type="email" id="auth-email" placeholder="Email" required />
       <input type="password" id="auth-password" placeholder="Password" required />
-      <input type="email" id="auth-email" placeholder="Email" class="hidden" />
+      <input type="text" id="auth-username" placeholder="Username" class="hidden" autocomplete="username" />
       <button type="submit" id="auth-submit">Login</button>
     </form>
     <p id="auth-toggle">
-      Need an account?
-      <a href="#" id="auth-toggle-link">Register</a>
+      Need an account? <a href="#" id="auth-toggle-link">Register</a>
     </p>
     <p id="auth-message"></p>
+    <div id="auth-status"></div>
   </div>
-  <script src="auth.js"></script>
+  <script type="module" src="auth.js"></script>
 </body>
 </html>
