@@ -58,8 +58,15 @@ function switchMode(newMode) {
   }, 320);
 }
 
-loginBtn.onclick = () => switchMode("login");
-registerBtn.onclick = () => switchMode("register");
+// Reliable event listeners: only set once, outside any UI function
+loginBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  switchMode("login");
+});
+registerBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  switchMode("register");
+});
 
 form.onsubmit = function(e) {
   e.preventDefault();
