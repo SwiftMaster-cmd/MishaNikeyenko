@@ -12,18 +12,29 @@
   --blur: 20px;
 }
 
-/* Basic background */
-body {
+html, body {
+  height: 100%;
   min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  /* your existing background gradient */
   background: linear-gradient(135deg, #13171d 0%, #212d41 100%);
   color: var(--color-text);
   font-family: 'Segoe UI', Arial, sans-serif;
-  margin: 0;
+  min-height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* remove overflow-x to prevent horizontal scroll on small screens */
+  overflow-x: hidden;
 }
 
 /* Main card */
