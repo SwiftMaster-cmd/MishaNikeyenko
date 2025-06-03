@@ -3,20 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Firebase Save/Load Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #15181c; color: #fff; height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .box { background: #232939; padding: 2em; border-radius: 10px; width: 350px; }
+    input, button { width: 100%; padding: 0.7em; margin: 0.4em 0; border-radius: 6px; border: none; }
+    input { background: #262f41; color: #fff; }
+    button { background: #00ff88; color: #222; font-weight: bold; cursor: pointer; }
+    button:hover { background: #00cc70; }
+    .result { margin-top: 1em; }
+  </style>
 </head>
 <body>
-  <div class="auth-container">
-    <h2>Login</h2>
-    <form id="login-form">
-      <input type="email" id="login-email" placeholder="Email" required autocomplete="email" />
-      <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" />
-      <button type="submit" class="action-btn login">Login</button>
-    </form>
-    <div id="login-message"></div>
-    <p>Don’t have an account? <a href="register.html">Register here</a></p>
+  <div class="box">
+    <h2>Firebase Save/Load Test</h2>
+    <input id="data-input" type="text" placeholder="Type something..." />
+    <button id="save-btn">Save</button>
+    <button id="load-btn">Load</button>
+    <div class="result" id="result"></div>
   </div>
-  <script type="module" src="auth.js"></script>
+  <script type="module">
+    // --- Firebase Config ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+      authDomain: "mishanikeyenko.firebaseapp.com",
+      databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+      projectId: "mishanikeyenko",
+      storageBucket: "mishanikeyenko.firebasestorage.app",
+      messagingSenderId: "1089190937368",
+      appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
+      measurementId: "G-L6CC27129C"
+    };
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // DOM Elements
+    const dataInput = document.getElementById('data-input');
+    const saveBtn = document.getElementById('save-btn');
+    const loadBtn = document.getElementById('load-btn');
+    const result = document.getElementById('result');
+
+    // Save button: writes to /testdata/value
+    saveBtn.onclick = async function() {
+      const val = dataInput.value.trim();
+      if (!val) {
+        result.textContent = "Nothing to save!";
+        return;
+      }
+      await set(ref(db, "testdata/value"), val);
+      result.textContent = "Saved!";
+    };
+
+    // Load button: reads from /testdata/value
+    loadBtn.onclick = async function() {
+      result.textContent = "Loading...";
+      const snap = await get(child(ref(db), "testdata/value"));
+      if (snap.exists()) {
+        result.textContent = "Loaded: " + snap.val();
+      } else {
+        result.textContent = "No data found.";
+      }
+    };
+  </script>
 </body>
 </html>
