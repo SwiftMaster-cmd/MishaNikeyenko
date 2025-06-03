@@ -37,3 +37,12 @@ button {
 button:hover {
   background: #00cc6f;
 }
+.hidden {
+  display: none;
+}
+.success {
+  color: #00ff88;
+}
+.error {
+  color: #ff4444;
+}
