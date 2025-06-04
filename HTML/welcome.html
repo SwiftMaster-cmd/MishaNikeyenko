@@ -62,18 +62,17 @@
     <!-- ──────────────────────────────────────────────────────────────────── -->
     <!--                NEW: Paste & Load JS as a Dynamic Module             -->
     <!-- ──────────────────────────────────────────────────────────────────── -->
-    <section id="js-loader" style="margin-top:2rem;">
-      <h2>Paste &amp; Load JavaScript Module</h2>
-      <textarea id="js-paster"
-                placeholder="Paste your ES-module code here (must use `export …`)."
-                style="width:100%; height:200px; font-family: monospace; font-size: 0.9rem;"></textarea>
-      <button id="load-module" class="btn-solid" style="margin-top:0.5rem;">
-        Load JS Module
-      </button>
-      <div id="js-output" style="margin-top:1rem; color: var(--clr-text-muted);">
-        <!-- Any module-provided output can be shown here -->
-      </div>
-    </section>
+   <section id="js-loader">
+  <h2>Paste &amp; Load JavaScript Module</h2>
+  <textarea id="js-paster"
+            placeholder="Paste your ES-module code here (must use `export`)"
+            spellcheck="false"></textarea>
+  <button id="load-module" class="btn-solid">Load JS Module</button>
+
+  <div id="js-output">
+    <!-- Module output appears here -->
+  </div>
+</section>
     <!-- ──────────────────────────────────────────────────────────────────── -->
   </main>
 
