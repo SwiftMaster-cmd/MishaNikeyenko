@@ -1,3 +1,4 @@
+// /JS/chatgpt.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, onValue
@@ -21,56 +22,63 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
+let userRef = null;
+
+// UI rendering
+function addToChatLog(role, content) {
+  const div = document.createElement("div");
+  div.textContent = `${role === "user" ? "🧑" : "🤖"} ${role === "user" ? "You" : "GPT"}: ${content}`;
+  log.prepend(div); // newest on top
+}
+
+// Auth and DB setup
+onAuthStateChanged(auth, user => {
+  if (!user) {
+    signInAnonymously(auth);
+    return;
+  }
+
+  userRef = ref(db, `chatHistory/${user.uid}`);
+  onValue(userRef, snapshot => {
+    const data = snapshot.val();
+    log.innerHTML = "";
+    if (!data) return;
+    Object.values(data).forEach(msg => addToChatLog(msg.role, msg.content));
+  });
+});
+
+// Submission
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-
   const prompt = input.value.trim();
-  if (!prompt) return;
+  if (!prompt || !userRef) return;
 
-  // Add user message to DOM
-  const userMsg = document.createElement("div");
-  userMsg.className = "chat user";
-  userMsg.textContent = `🧑 You: ${prompt}`;
-  log.prepend(userMsg);
+  addToChatLog("user", prompt);
+  push(userRef, { role: "user", content: prompt, timestamp: Date.now() });
 
-  // GPT thinking placeholder
-  const botMsg = document.createElement("div");
-  botMsg.className = "chat bot";
-  botMsg.textContent = `🤖 GPT: ...thinking...`;
-  log.prepend(botMsg);
-
+  const replyDiv = document.createElement("div");
+  replyDiv.textContent = `🤖 GPT: ...thinking...`;
+  log.prepend(replyDiv);
   input.value = "";
 
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt }) // not sending history
     });
 
     const data = await res.json();
-
     const reply = data?.choices?.[0]?.message?.content?.trim();
-    botMsg.textContent = reply
-      ? `🤖 GPT: ${reply}`
-      : `🤖 GPT: No reply received.`;
+
+    replyDiv.textContent = reply ? `🤖 GPT: ${reply}` : `🤖 GPT: No response`;
+    if (reply) push(userRef, { role: "assistant", content: reply, timestamp: Date.now() });
 
   } catch (err) {
-    botMsg.textContent = `❌ Error: ${err.message}`;
+    replyDiv.textContent = `❌ Error: ${err.message}`;
   }
 });
-
-function renderChat(messages) {
-  log.innerHTML = "";
-  messages.forEach((msg) => {
-    const div = document.createElement("div");
-    div.textContent = `${msg.role === "user" ? "🧑 You" : "🤖 GPT"}: ${msg.content}`;
-    log.appendChild(div);
-  });
-  log.scrollTop = log.scrollHeight;
-}
