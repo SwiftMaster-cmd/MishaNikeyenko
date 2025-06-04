@@ -51,29 +51,7 @@ body.sidebar-open .main-card{margin-left:260px}
   gap:.55rem;
   user-select:none;
 }
-.cat-toggle{
-  border:none;
-  background:transparent;
-  color:var(--clr-muted);
-  font-size:.85rem;            /* triangle button */
-  transform:rotate(90deg);
-  transition:transform .2s;
-  cursor:pointer;
-}
-.cat-toggle[aria-expanded="false"]{transform:rotate(0deg)}
-.cat-name{
-  font-size:.96rem;
-  font-weight:600;
-  margin-right:auto;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.cat-actions{display:flex;gap:.4rem}
-button.ghost{
-  border:none;background:transparent;color:var(--clr-muted);
-  font-size:1rem;padding:.2rem;border-radius:8px;cursor:pointer;
-}
+
 button.ghost:hover{
   background:rgba(255,255,255,.12);
   color:var(--clr-text);
