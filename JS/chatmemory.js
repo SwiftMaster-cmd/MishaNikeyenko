@@ -26,41 +26,25 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-let chatRef = null;
-
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    signInAnonymously(auth);
-    return;
-  }
-
-  chatRef = ref(db, `chatHistory/${user.uid}`);
-
-  onValue(chatRef, (snapshot) => {
-    const messages = snapshot.val() || {};
-    const sorted = Object.entries(messages)
-      .sort(([, a], [, b]) => a.timestamp - b.timestamp)
-      .map(([, val]) => val);
-
-    renderChat(sorted);
-  });
-});
-
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   const prompt = input.value.trim();
-  if (!prompt || !chatRef) return;
+  if (!prompt) return;
+
+  // Add user message to DOM
+  const userMsg = document.createElement("div");
+  userMsg.className = "chat user";
+  userMsg.textContent = `🧑 You: ${prompt}`;
+  log.prepend(userMsg);
+
+  // GPT thinking placeholder
+  const botMsg = document.createElement("div");
+  botMsg.className = "chat bot";
+  botMsg.textContent = `🤖 GPT: ...thinking...`;
+  log.prepend(botMsg);
+
   input.value = "";
-
-  const userMsg = { role: "user", content: prompt, timestamp: Date.now() };
-  push(chatRef, userMsg);
-
-  const botMsg = {
-    role: "assistant",
-    content: "...thinking...",
-    timestamp: Date.now()
-  };
-  const botRef = push(chatRef, botMsg);
 
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
@@ -70,19 +54,14 @@ form.addEventListener("submit", async (e) => {
     });
 
     const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim();
 
-    await set(botRef, {
-      role: "assistant",
-      content: reply || "No response.",
-      timestamp: Date.now()
-    });
+    const reply = data?.choices?.[0]?.message?.content?.trim();
+    botMsg.textContent = reply
+      ? `🤖 GPT: ${reply}`
+      : `🤖 GPT: No reply received.`;
+
   } catch (err) {
-    await set(botRef, {
-      role: "assistant",
-      content: `❌ Error: ${err.message}`,
-      timestamp: Date.now()
-    });
+    botMsg.textContent = `❌ Error: ${err.message}`;
   }
 });
 
