@@ -69,3 +69,11 @@ body.sidebar-open .main-card{margin-left:260px}
   width:min(94%,1200px);
   margin:calc(var(--nav-h) + 3rem) auto 4rem;
 }
+
+/* active indicator when add-form is open */
+.nav-item.active{
+  background:rgba(255,255,255,.12);
+  color:var(--clr-primary);
+  font-weight:600;
+  border-left:4px solid var(--clr-primary);
+}
