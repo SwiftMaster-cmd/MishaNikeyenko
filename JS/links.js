@@ -1,160 +1,171 @@
+/* links.js – grid-or-list links manager */
 import { db, onUserReady } from './profile.js';
 import {
   ref as dbRef,
-  push,
-  set,
-  remove,
-  update,
-  onValue
+  push, set, remove, update, onValue
 } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
-// --- Helper: Group links by category ---
-function groupLinksByCategory(data) {
-  const grouped = {};
-  Object.entries(data).forEach(([id, link]) => {
-    const cat = (link.category || "Uncategorized").trim();
-    if (!grouped[cat]) grouped[cat] = [];
-    grouped[cat].push({ ...link, id });
-  });
-  return grouped;
-}
 
-// --- Render all links, grouped by category, with editable/deletable categories ---
-function renderLinks(uid) {
-  const linksList = document.getElementById('links-list');
+/* ---------- helpers ---------- */
+const q     = s => document.querySelector(s);
+const $list = () => q('#links-list');
+
+/* group by category */
+const byCategory = data => {
+  const out = {};
+  Object.entries(data).forEach(([id, link]) => {
+    const k = (link.category || 'Uncategorized').trim();
+    if (!out[k]) out[k] = [];
+    out[k].push({ ...link, id });
+  });
+  return out;
+};
+
+/* ---------- render ---------- */
+function render(uid) {
   const linksRef = dbRef(db, `users/${uid}/links`);
-  onValue(linksRef, snapshot => {
-    linksList.innerHTML = "";
-    const data = snapshot.val();
+
+  onValue(linksRef, snap => {
+    const data = snap.val();
+    const list = $list();
+    list.innerHTML = '';
+
     if (!data) {
-      linksList.innerHTML = "<p style='opacity:.6'>No links yet.</p>";
+      list.innerHTML = "<p class='empty'>No links yet.</p>";
       return;
     }
-    const grouped = groupLinksByCategory(data);
+
+    const grouped = byCategory(data);
+
     Object.entries(grouped).forEach(([cat, links]) => {
-      // Category title with edit and delete buttons
-      const catTitle = document.createElement('div');
-      catTitle.className = "category-title";
-      catTitle.innerHTML = `
-        <span>${cat}</span>
-        <button class="edit-cat-btn" data-category="${cat}" title="Rename">&#9998;</button>
-        <button class="delete-cat-btn" data-category="${cat}" title="Delete Category">&#128465;</button>
-      `;
-      linksList.appendChild(catTitle);
+      /* --- category header --- */
+      const header = document.createElement('div');
+      header.className = 'category-title';
+      header.innerHTML = `
+        <h2>${cat}</h2>
+        <div class="cat-actions">
+          <button class="ghost edit"   aria-label="Rename" data-cat="${cat}">✏️</button>
+          <button class="ghost delete" aria-label="Delete" data-cat="${cat}">🗑️</button>
+        </div>`;
+      list.appendChild(header);
 
-      // Edit category name for all links in this category
-      catTitle.querySelector('.edit-cat-btn').onclick = () => {
-        const newCatName = prompt(`Rename category "${cat}" to:`, cat);
-        if (newCatName && newCatName !== cat) {
-          links.forEach(link => {
-            update(dbRef(db, `users/${uid}/links/${link.id}`), {
-              category: newCatName
-            });
-          });
+      /* rename category */
+      header.querySelector('.edit').onclick = () => {
+        const name = prompt(`Rename "${cat}" to:`, cat);
+        if (name && name !== cat) {
+          links.forEach(l =>
+            update(dbRef(db, `users/${uid}/links/${l.id}`), { category: name })
+          );
         }
       };
 
-      // Delete all links in this category (with confirmation)
-      catTitle.querySelector('.delete-cat-btn').onclick = () => {
-        if (confirm(`Delete category "${cat}" and all its links? This cannot be undone.`)) {
-          links.forEach(link => {
-            remove(dbRef(db, `users/${uid}/links/${link.id}`));
-          });
-        }
+      /* delete category */
+      header.querySelector('.delete').onclick = () => {
+        if (confirm(`Delete "${cat}" and all its links?`))
+          links.forEach(l => remove(dbRef(db, `users/${uid}/links/${l.id}`)));
       };
 
-      // Render links in this category
+      /* --- links in this category --- */
       links.forEach(link => {
-        const linkWrap = document.createElement('div');
-        linkWrap.className = "link-row";
-        linkWrap.innerHTML = `
-          <button class="link-main-btn" data-id="${link.id}">
-            <span class="link-title">${link.title}</span>
-            <span class="more-menu-btn" tabindex="0" data-id="${link.id}">&#8942;</span>
+        const row = document.createElement('div');
+        row.className = 'link-row';
+        row.innerHTML = `
+          <button class="link-main" data-url="${link.url}">
+            <span class="title">${link.title}</span>
+            <span class="menu-btn" data-id="${link.id}" tabindex="0">⋮</span>
           </button>
-          <div class="more-menu" id="menu-${link.id}" style="display:none;">
-            <div class="more-menu-content">
-              <button class="delete-link-btn" data-id="${link.id}">Delete</button>
-              <button class="edit-link-btn" data-id="${link.id}">Edit</button>
-              <div class="link-url-preview">${link.url}</div>
-              <div class="link-cat-preview">Category: ${cat}</div>
-            </div>
-          </div>
-        `;
-        linksList.appendChild(linkWrap);
 
-        // Open link on main button click
-        linkWrap.querySelector('.link-main-btn').onclick = e => {
-          if (e.target.classList.contains('more-menu-btn')) return;
-          window.open(link.url, '_blank', 'noopener,noreferrer');
-        };
-
-        // More menu show/hide
-        const moreMenuBtn = linkWrap.querySelector('.more-menu-btn');
-        const moreMenu = linkWrap.querySelector('.more-menu');
-        let menuOpen = false;
-        moreMenuBtn.onclick = e => {
-          e.stopPropagation();
-          menuOpen = !menuOpen;
-          moreMenu.style.display = menuOpen ? 'block' : 'none';
-          if (menuOpen) {
-            document.querySelectorAll('.more-menu').forEach(menu => {
-              if (menu !== moreMenu) menu.style.display = 'none';
-            });
-          }
-        };
-        document.addEventListener('mousedown', function hideMenu(evt) {
-          if (menuOpen && moreMenu && !moreMenu.contains(evt.target) && evt.target !== moreMenuBtn) {
-            moreMenu.style.display = 'none';
-            menuOpen = false;
-            document.removeEventListener('mousedown', hideMenu);
-          }
-        });
-
-        // Delete individual link
-        linkWrap.querySelector('.delete-link-btn').onclick = e => {
-          e.stopPropagation();
-          remove(dbRef(db, `users/${uid}/links/${link.id}`));
-        };
-
-        // Edit individual link (prompt-based for simplicity)
-        linkWrap.querySelector('.edit-link-btn').onclick = e => {
-          e.stopPropagation();
-          const newTitle = prompt("Edit title:", link.title);
-          const newURL = prompt("Edit URL:", link.url);
-          const newCat = prompt("Edit category:", cat);
-          if (newTitle && newURL) {
-            update(dbRef(db, `users/${uid}/links/${link.id}`), {
-              title: newTitle,
-              url: newURL,
-              category: newCat
-            });
-          }
-          moreMenu.style.display = 'none';
-        };
+          <div class="menu" id="m-${link.id}" hidden>
+            <button class="menu-edit"   data-id="${link.id}">Edit</button>
+            <button class="menu-delete" data-id="${link.id}">Delete</button>
+            <div class="preview">${link.url}</div>
+          </div>`;
+        list.appendChild(row);
       });
     });
   });
 }
 
-// --- Link adding form ---
-function setupAddLink(uid) {
-  const form = document.getElementById('add-link-form');
-  if (!form) return;
-  form.onsubmit = function(e) {
+
+/* ---------- interactions ---------- */
+function bindEvents(uid) {
+  /* open link */
+  $list().addEventListener('click', e => {
+    const btn = e.target.closest('.link-main');
+    if (!btn) return;
+    const menuHit = e.target.classList.contains('menu-btn');
+    if (!menuHit) window.open(btn.dataset.url, '_blank', 'noopener,noreferrer');
+  });
+
+  /* context menu toggle */
+  let openMenu = null;
+  $list().addEventListener('click', e => {
+    const trigger = e.target.closest('.menu-btn');
+    if (!trigger) return;
+
+    e.stopPropagation();
+    const id   = trigger.dataset.id;
+    const menu = q(`#m-${id}`);
+
+    if (openMenu && openMenu !== menu) openMenu.hidden = true;
+    menu.hidden = !menu.hidden;
+    openMenu    = menu.hidden ? null : menu;
+  });
+
+  /* outside click to close */
+  document.addEventListener('mousedown', e => {
+    if (openMenu && !openMenu.contains(e.target))
+      openMenu.hidden = true, openMenu = null;
+  });
+
+  /* delete / edit from menu */
+  $list().addEventListener('click', e => {
+    const del = e.target.closest('.menu-delete');
+    const edt = e.target.closest('.menu-edit');
+    if (!del && !edt) return;
+    const id = (del || edt).dataset.id;
+
+    if (del) remove(dbRef(db, `users/${uid}/links/${id}`));
+
+    if (edt) {
+      const cur  = q(`#m-${id}`).querySelector('.preview').textContent;
+      const data = {
+        title: prompt('Title:', q(`[data-id="${id}"] .title`).textContent),
+        url:   prompt('URL:', cur),
+        category: prompt('Category:', q('#m-' + id).parentElement
+                                   .previousSibling.querySelector('h2').textContent)
+      };
+      if (data.title && data.url)
+        update(dbRef(db, `users/${uid}/links/${id}`), data);
+    }
+
+    if (openMenu) openMenu.hidden = true, openMenu = null;
+  });
+}
+
+
+/* ---------- add-link form ---------- */
+function addLink(uid) {
+  const f = q('#add-link-form');
+  if (!f) return;
+
+  f.onsubmit = e => {
     e.preventDefault();
-    const title = document.getElementById('link-title').value.trim();
-    const url = document.getElementById('link-url').value.trim();
-    const category = (document.getElementById('link-category').value.trim() || "Uncategorized");
-    if (!title || !url) return;
-    const newLinkRef = push(dbRef(db, `users/${uid}/links`));
-    set(newLinkRef, { title, url, category });
-    form.reset();
+    const t = q('#link-title').value.trim();
+    const u = q('#link-url').value.trim();
+    const c = (q('#link-category').value.trim() || 'Uncategorized');
+    if (!t || !u) return;
+
+    const ref = push(dbRef(db, `users/${uid}/links`));
+    set(ref, { title: t, url: u, category: c });
+    f.reset();
   };
 }
 
-// --- Init on user ready ---
+
+/* ---------- bootstrap ---------- */
 onUserReady(user => {
-  setupAddLink(user.uid);
-  renderLinks(user.uid);
+  addLink(user.uid);
+  render(user.uid);
+  bindEvents(user.uid);
 });
