@@ -1,0 +1,94 @@
+/* calculator.css -- drop this after loading variables.css */
+/* Assumes your design-system variables (colors, radius, etc.) are already defined */
+
+.calculator {
+  width: 320px;
+  padding: 1.6rem;
+  border-radius: var(--radius);
+  background: var(--clr-glass);
+  border: 1px solid var(--clr-border);
+  backdrop-filter: blur(18px) saturate(1.3);
+  box-shadow: 0 12px 40px -10px #000d;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.calculator-screen {
+  width: 100%;
+  height: 64px;
+  border: none;
+  border-radius: calc(var(--radius) / 1.5);
+  padding: 0.5rem 0.9rem;
+  font-size: 2.6rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--clr-text);
+  background: #000;
+  text-align: right;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+.calculator-keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+}
+
+.calculator-keys button {
+  padding: 1rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  border: 1px solid var(--clr-border);
+  border-radius: calc(var(--radius) / 1.5);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+
+.calculator-keys button:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--clr-text);
+}
+
+.calculator-keys button:active {
+  transform: translateY(1px);
+}
+
+/* operator buttons (÷ × − + =) */
+.calculator-keys .operator {
+  background: var(--clr-primary);
+  color: #fff;
+}
+
+.calculator-keys .operator:hover {
+  background: var(--clr-primary-dark);
+}
+
+/* decimal key */
+.calculator-keys .decimal {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--clr-text);
+}
+
+/* all clear spans two columns */
+.calculator-keys .all-clear {
+  grid-column: span 2;
+  background: #d32f2f;
+  color: #fff;
+}
+
+.calculator-keys .all-clear:hover {
+  background: #e44b4b;
+}
+
+/* Responsive tweak */
+@media (max-width: 400px) {
+  .calculator {
+    width: 100%;
+  }
+  .calculator-screen {
+    font-size: 2.2rem;
+  }
+}

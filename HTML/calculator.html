@@ -1,0 +1,94 @@
+<!-- calculator.html -- calculator + console chrome (header, sidebar, profile) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Calculator Console</title>
+
+  <!-- design-system tokens + shared chrome -->
+  <link rel="stylesheet" href="../CSS/variables.css">
+  <link rel="stylesheet" href="../CSS/profile.css">
+  <link rel="stylesheet" href="../CSS/links.css">
+
+  <!-- calculator skin -->
+  <link rel="stylesheet" href="../CSS/calculator.css">
+
+  <style>.hidden{display:none}</style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header-bar">
+    <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
+    <h1 class="header-title">Calculator</h1>
+    <button id="profile-toggle-btn" class="profile-toggle-btn"
+            aria-haspopup="true" aria-controls="profile-card">
+      Profile
+    </button>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav id="side-nav" class="side-nav" aria-hidden="true">
+    <a href="welcome.html"    class="nav-item">🏠 Dashboard</a>
+    <a href="notes.html"      class="nav-item">📝 Notes</a>
+    <a href="calculator.html" class="nav-item active">🧮 Calculator</a>
+  </nav>
+
+  <!-- PROFILE CARD -->
+  <aside id="profile-card" class="profile-card" aria-hidden="true">
+    <div id="user-info"></div>
+    <div id="config-status"></div>
+    <button id="logout-btn" type="button">Sign Out</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-card">
+    <div class="calculator">
+      <input class="calculator-screen" value="0" readonly />
+
+      <div class="calculator-keys">
+        <button value="7">7</button><button value="8">8</button><button value="9">9</button>
+        <button value="/" class="operator">÷</button>
+
+        <button value="4">4</button><button value="5">5</button><button value="6">6</button>
+        <button value="*" class="operator">×</button>
+
+        <button value="1">1</button><button value="2">2</button><button value="3">3</button>
+        <button value="-" class="operator">−</button>
+
+        <button value="0">0</button><button value="." class="decimal">.</button>
+        <button value="=" class="operator">=</button>
+        <button value="+" class="operator">+</button>
+
+        <button class="all-clear">AC</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODULES -->
+  <script type="module" src="../JS/profile.js"></script>
+
+  <!-- CALCULATOR LOGIC -->
+  <script src="../JS/calculator.js"></script>
+
+  <!-- CHROME CONTROLS -->
+  <script type="module">
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebar     = document.getElementById('side-nav');
+      const burger      = document.getElementById('menu-toggle');
+      const profileCard = document.getElementById('profile-card');
+      const profileBtn  = document.getElementById('profile-toggle-btn');
+
+      burger.onclick = () => {
+        const open = sidebar.classList.toggle('open');
+        document.body.classList.toggle('sidebar-open', open);
+      };
+
+      profileBtn.onclick = () => {
+        profileCard.classList.toggle('open');
+      };
+    });
+  </script>
+</body>
+</html>
