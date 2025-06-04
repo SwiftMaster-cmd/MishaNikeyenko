@@ -1,12 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getDatabase,
-  ref,
-  push,
-  set,
-  onValue,
-  remove
+  getDatabase, ref, push, set, onValue, remove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import {
+  getAuth, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -20,26 +18,28 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
+// Init Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const notesRef = ref(db, 'notes');
+const auth = getAuth(app);
 
 const noteInput = document.getElementById('noteInput');
 const notesList = document.getElementById('notesList');
 const notesHistory = document.getElementById('notesHistory');
 let editingId = null;
+let userNotesRef = null;
 
 window.saveNote = () => {
   const content = noteInput.value.trim();
-  if (!content) return;
+  if (!content || !userNotesRef) return;
 
   if (editingId) {
-    const editRef = ref(db, `notes/${editingId}`);
+    const editRef = ref(db, `${userNotesRef}/${editingId}`);
     set(editRef, { content, timestamp: Date.now() });
     editingId = null;
     console.log("Note updated.");
   } else {
-    push(notesRef, { content, timestamp: Date.now() });
+    push(userNotesRef, { content, timestamp: Date.now() });
     console.log("Note added.");
   }
 
@@ -50,7 +50,7 @@ function renderNotes(notes) {
   notesList.innerHTML = '';
   notesHistory.innerHTML = '';
 
-  const cutoff = Date.now() - 1000 * 60 * 60 * 24 * 3; // 3 days ago
+  const cutoff = Date.now() - 1000 * 60 * 60 * 24 * 3; // 3 days
 
   notes.sort((a, b) => b.timestamp - a.timestamp);
 
@@ -79,7 +79,7 @@ function renderNotes(notes) {
 
     const delBtn = document.createElement('button');
     delBtn.textContent = 'Delete';
-    delBtn.onclick = () => remove(ref(db, `notes/${note.id}`));
+    delBtn.onclick = () => remove(ref(db, `${userNotesRef}/${note.id}`));
 
     const actions = document.createElement('div');
     actions.className = 'note-actions';
@@ -93,9 +93,17 @@ function renderNotes(notes) {
   });
 }
 
-// Listen for realtime updates
-onValue(notesRef, snapshot => {
-  const data = snapshot.val() || {};
-  const notes = Object.entries(data).map(([id, val]) => ({ id, ...val }));
-  renderNotes(notes);
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    console.warn('[Notes] Not signed in');
+    return;
+  }
+
+  userNotesRef = `notes/${user.uid}`;
+
+  onValue(ref(db, userNotesRef), snapshot => {
+    const data = snapshot.val() || {};
+    const notes = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+    renderNotes(notes);
+  });
 });
