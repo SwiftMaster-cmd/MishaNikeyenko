@@ -1,6 +1,15 @@
-const handler = async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt) return res.status(400).json({ error: "Missing prompt" });
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+
+exports.handler = async (event) => {
+  const body = JSON.parse(event.body || '{}');
+  const prompt = body.prompt;
+
+  if (!prompt) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "Missing prompt" })
+    };
+  }
 
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -18,10 +27,15 @@ const handler = async (req, res) => {
     });
 
     const data = await gptRes.json();
-    return res.status(200).json(data);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(data)
+    };
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message })
+    };
   }
 };
-
-module.exports = handler;
