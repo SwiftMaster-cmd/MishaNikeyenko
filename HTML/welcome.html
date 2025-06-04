@@ -1,32 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Console</title>
 
-  <!-- External Styles -->
-  <link rel="stylesheet" href="../CSS/variables.css" />
-  <link rel="stylesheet" href="../CSS/profile.css" />
-  <link rel="stylesheet" href="../CSS/links.css" />
-  <link rel="stylesheet" href="../CSS/jsloader.css" />
+  <!-- tokens + split style sheets -->
+  <link rel="stylesheet" href="../CSS/variables.css">
+  <link rel="stylesheet" href="../CSS/profile.css">
+  <link rel="stylesheet" href="../CSS/links.css">
 
-  <!-- Inline Fixes -->
-  <style>
-    .hidden { display: none; }
-
-    body {
-      font-family: system-ui, sans-serif;
-    }
-
-    #js-output pre {
-      background: #111;
-      color: #0f0;
-      padding: 0.75rem;
-      margin-top: 1rem;
-      border-radius: 5px;
-    }
-  </style>
+  <!-- helper class -->
+  <style>.hidden{display:none}</style>
 </head>
 <body>
 
@@ -43,10 +28,14 @@
   <!-- SIDEBAR -->
   <nav id="side-nav" class="side-nav" aria-hidden="true">
     <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
+
+    <!-- links now live here -->
     <div id="links-list" class="sidebar-links"></div>
-    <a href="welcome.html" class="nav-item">🏠 Dashboard</a>
-    <a href="notes.html" class="nav-item">📝 Notes</a>
-    <a href="calculator.html" class="nav-item">🧮 Calculator</a>
+
+    <a href="welcome.html"    class="nav-item">🏠 Dashboard</a>
+    <a href="notes.html"      class="nav-item">📝 Notes</a>
+        <a href="es-module.html"      class="nav-item">ES-Module</a>
+    <a href="calculator.html" class="nav-item active">🧮 Calculator</a>
   </nav>
 
   <!-- PROFILE CARD -->
@@ -58,51 +47,40 @@
 
   <!-- MAIN DASHBOARD -->
   <main class="main-card">
-
-    <!-- Add Link Form -->
+    <!-- add-link form -->
     <form id="add-link-form" class="collapsed" autocomplete="off">
-      <input id="link-title" type="text" placeholder="Link title" required />
-      <input id="link-url" type="url" placeholder="https://example.com" required />
+      <input id="link-title" type="text" placeholder="Link title" required>
+      <input id="link-url"   type="url"  placeholder="https://example.com" required>
+
+      <!-- category picker -->
       <select id="link-category" required></select>
-      <input id="new-cat-input" class="hidden" placeholder="New category name" />
+      <input  id="new-cat-input" class="hidden" placeholder="New category name">
+
       <button class="btn-solid" type="submit">Save</button>
     </form>
-
-    <!-- JS Module Loader Section -->
-    <section id="js-loader">
-      <h2>Paste &amp; Load JavaScript Module</h2>
-      <textarea id="js-paster"
-                placeholder="Paste your ES-module code here (must use `export`)"
-                spellcheck="false"></textarea>
-      <button id="load-module" class="btn-solid">Load JS Module</button>
-<input type="text" id="js-name" placeholder="Name this script" class="text-input" />
-<button id="save-script" class="btn-outline">💾 Save Script</button>
-<h3 class="section-title" style="margin-top: 2rem;">🗂️ Script History</h3>
-<section id="saved-list" class="module-card" style="margin-top: 1rem;"></section>
-<div id="js-output" class="js-output-box"></div>
-    </section>
-
   </main>
 
-  <!-- Bookmark Modal -->
+  <!-- EDIT BOOKMARK MODAL -->
   <div id="edit-overlay" class="hidden">
     <form id="edit-dialog" autocomplete="off">
-      <input id="edit-title" placeholder="Title" required />
-      <input id="edit-url" placeholder="URL" required />
+      <input  id="edit-title" placeholder="Title" required>
+      <input  id="edit-url"   placeholder="URL"   required>
+
       <select id="edit-cat" required></select>
-      <input id="edit-new-cat" class="hidden" placeholder="New category name" />
+      <input  id="edit-new-cat" class="hidden" placeholder="New category name">
+
       <div class="actions">
         <button id="edit-cancel" type="button">Cancel</button>
-        <button id="edit-save" type="submit">Save</button>
+        <button id="edit-save"   type="submit">Save</button>
       </div>
     </form>
   </div>
 
-  <!-- Scripts -->
+  <!-- MODULES -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
-  <script type="module" src="../JS/dynamic-loader.js"></script>
 
+  <!-- chrome controls -->
   <script type="module">
     document.addEventListener('DOMContentLoaded', () => {
       const sidebar = document.getElementById('side-nav');
@@ -122,6 +100,5 @@
       };
     });
   </script>
-
 </body>
 </html>
