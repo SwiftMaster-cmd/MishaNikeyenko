@@ -1,20 +1,22 @@
+/* Module Loader Container */
 #js-loader {
   margin-top: 2rem;
-  padding: 1.25rem;
+  padding: 1.5rem;
   border-radius: 16px;
   background: rgba(17, 18, 22, 0.72);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--clr-text);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
 }
 
+/* Section Title */
 #js-loader h2 {
   margin-bottom: 0.75rem;
   font-size: 1.4rem;
   font-weight: 600;
 }
 
+/* ES Module Paste Area */
 #js-paster {
   width: 100%;
   height: 200px;
@@ -29,6 +31,7 @@
   outline: none;
 }
 
+/* Load Button */
 #load-module {
   margin-top: 0.75rem;
   background: var(--clr-primary);
@@ -45,15 +48,56 @@
   background: var(--clr-primary-dark);
 }
 
+/* Output Container */
 #js-output {
-  margin-top: 1.25rem;
-  padding: 1rem;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--clr-text-muted);
   font-size: 0.95rem;
-  white-space: pre-wrap;
-  overflow-x: auto;
-  min-height: 100px;
+  backdrop-filter: blur(10px);
+}
+
+/* Injected Module Card */
+.module-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  color: var(--clr-text);
+}
+
+/* Flex Row Grouping for Buttons + Labels */
+.input-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Muted Text */
+.text-muted {
+  color: var(--clr-text-muted);
+  font-size: 0.95rem;
+}
+
+/* Section Headings Inside Modules */
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+/* Toggle Label Layout */
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
 }
