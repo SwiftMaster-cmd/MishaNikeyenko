@@ -1,0 +1,37 @@
+.header-bar {
+  width: 100vw;
+  max-width: 100%;
+  position: fixed;
+  top: 0; left: 0;
+  background: var(--color-glass-solid);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65em 1.2em;
+  z-index: 100;
+  border-bottom: 1.5px solid var(--color-border);
+}
+.site-title {
+  font-size: 1.2em;
+  font-weight: bold;
+  letter-spacing: 0.03em;
+  color: var(--color-primary);
+}
+.profile-toggle-btn {
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: bold;
+  border: none;
+  font-size: 1.07em;
+  cursor: pointer;
+  border-radius: 7px;
+  padding: 0.52em 1.35em;
+  transition: background 0.18s, color 0.18s;
+}
+.profile-toggle-btn:hover,
+.profile-toggle-btn:focus {
+  background: var(--color-primary);
+  color: #191a1d;
+}

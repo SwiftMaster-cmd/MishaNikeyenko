@@ -1,0 +1,44 @@
+.profile-card {
+  position: fixed;
+  top: 3.5em;
+  right: 1.4em;
+  min-width: 260px;
+  max-width: 90vw;
+  background: var(--color-glass-solid);
+  border-radius: 13px;
+  box-shadow: 0 4px 18px 0 var(--color-shadow);
+  z-index: 300; /* Above header */
+  display: none;
+  text-align: left;
+  animation: fadeInProfile 0.22s;
+}
+.profile-card.visible { display: block; }
+@keyframes fadeInProfile {
+  0% { opacity: 0; transform: translateY(-20px);}
+  100% { opacity: 1; transform: translateY(0);}
+}
+#user-info { margin-bottom: 0.8em; }
+#config-status, .success, .error {
+  margin: 0.9em 0 0.3em 0;
+  font-size: 1.02em;
+  font-weight: 500;
+  min-height: 1.1em;
+}
+.success { color: var(--color-success);}
+.error { color: var(--color-error);}
+#logout-btn {
+  width: 100%;
+  margin-top: 0.7em;
+  padding: 0.9em;
+  border-radius: 7px;
+  background: var(--color-primary);
+  color: #191a1d;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+#logout-btn:hover, #logout-btn:focus {
+  background: #00cc70;
+  color: #fff;
+}

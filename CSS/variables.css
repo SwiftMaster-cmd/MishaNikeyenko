@@ -1,0 +1,29 @@
+:root {
+  --color-glass: rgba(36, 44, 64, 0.72);
+  --color-glass-solid: rgba(36, 44, 64, 0.98);
+  --color-border: rgba(255,255,255,0.10);
+  --color-primary: #00ff88;
+  --color-error: #ff4d4d;
+  --color-success: #00ff88;
+  --color-shadow: #00ff8822;
+  --color-text: #f8fafd;
+  --color-text-alt: #bfffe3;
+  --blur: 20px;
+}
+
+/* Light mode support */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-text: #181c24;
+    --color-text-alt: #00944a;
+    --color-primary: #00c983;
+    --color-shadow: #00c98322;
+    --color-glass: rgba(255,255,255,0.86);
+    --color-glass-solid: rgba(255,255,255,0.99);
+    --color-border: rgba(64,128,128,0.09);
+  }
+  body {
+    background: #f4f7fa;
+    color: var(--color-text);
+  }
+}

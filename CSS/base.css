@@ -1,0 +1,21 @@
+html, body {
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  background: #181c24;
+  color: var(--color-text);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  display: block;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  transition: color 0.18s;
+}
+a:hover { color: #fff; }
