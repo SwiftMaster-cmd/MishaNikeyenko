@@ -1,9 +1,15 @@
+// netlify/functions/chatgpt.js
+
 exports.handler = async (event) => {
   const { prompt } = JSON.parse(event.body || "{}");
-  if (!prompt) return { statusCode: 400, body: "Missing prompt" };
+  if (!prompt) {
+    return {
+      statusCode: 400,
+      body: "Missing prompt"
+    };
+  }
 
   try {
-    // Native fetch in Node 18+ (Netlify supports this)
     const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -17,11 +23,15 @@ exports.handler = async (event) => {
     });
 
     const data = await gptRes.json();
+
     return {
       statusCode: 200,
       body: JSON.stringify(data)
     };
   } catch (err) {
-    return { statusCode: 500, body: err.message };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message })
+    };
   }
 };
