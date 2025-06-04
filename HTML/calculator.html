@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Calculator</title>
 
-  <!-- shared tokens + chrome -->
+  <!-- shared styles -->
   <link rel="stylesheet" href="../CSS/variables.css">
   <link rel="stylesheet" href="../CSS/profile.css">
   <link rel="stylesheet" href="../CSS/links.css">
   <link rel="stylesheet" href="../CSS/calculator.css">
+
   <style>.hidden{display:none}</style>
 </head>
 <body>
@@ -26,7 +27,7 @@
   <nav id="side-nav" class="side-nav" aria-hidden="true">
     <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
 
-    <!-- Links.js writes here -->
+    <!-- Links.js populates here -->
     <div id="links-list" class="sidebar-links"></div>
 
     <a href="welcome.html"    class="nav-item">🏠 Dashboard</a>
@@ -34,14 +35,14 @@
     <a href="calculator.html" class="nav-item active">🧮 Calculator</a>
   </nav>
 
-  <!-- PROFILE CARD -->
+  <!-- PROFILE -->
   <aside id="profile-card" class="profile-card" aria-hidden="true">
     <div id="user-info"></div>
     <div id="config-status"></div>
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- MAIN -->
+  <!-- MAIN CONTENT -->
   <main class="main-card">
     <!-- add-bookmark form -->
     <form id="add-link-form" class="collapsed" autocomplete="off">
@@ -54,7 +55,7 @@
       <button class="btn-solid" type="submit">Save</button>
     </form>
 
-    <!-- Calculator widget -->
+    <!-- CALCULATOR -->
     <div class="calculator">
       <input class="calculator-screen" value="0" readonly>
 
@@ -75,11 +76,12 @@
         <button class="all-clear">AC</button>
       </div>
     </div>
-  </main>
-  
-  <ul id="calc-history" class="calc-history"></ul>
 
-  <!-- EDIT BOOKMARK MODAL (required by links.js) -->
+    <!-- HISTORY -->
+    <ul id="calc-history" class="calc-history"></ul>
+  </main>
+
+  <!-- EDIT MODAL -->
   <div id="edit-overlay" class="hidden">
     <form id="edit-dialog" autocomplete="off">
       <input  id="edit-title" placeholder="Title" required>
@@ -95,14 +97,12 @@
     </form>
   </div>
 
-  <!-- MODULES -->
+  <!-- MODULE SCRIPTS -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
+  <script type="module" src="../JS/calculator.js"></script>
 
-  <!-- Calculator logic -->
-<script type="module" src="../JS/calculator.js"></script>
-
-  <!-- chrome controls -->
+  <!-- chrome toggles -->
   <script type="module">
     document.addEventListener('DOMContentLoaded', () => {
       const sidebar = document.getElementById('side-nav');
