@@ -8,7 +8,7 @@ import {
   remove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-// Firebase Config
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -26,7 +26,7 @@ const notesRef = ref(db, 'notes');
 
 const noteInput = document.getElementById('noteInput');
 const notesList = document.getElementById('notesList');
-
+const notesHistory = document.getElementById('notesHistory');
 let editingId = null;
 
 window.saveNote = () => {
@@ -37,25 +37,22 @@ window.saveNote = () => {
     const editRef = ref(db, `notes/${editingId}`);
     set(editRef, { content, timestamp: Date.now() });
     editingId = null;
-    console.log("Updated note.");
+    console.log("Note updated.");
   } else {
     push(notesRef, { content, timestamp: Date.now() });
-    console.log("Created new note.");
+    console.log("Note added.");
   }
 
   noteInput.value = '';
 };
 
 function renderNotes(notes) {
-  const notesList = document.getElementById('notesList');
-  const notesHistory = document.getElementById('notesHistory');
-
   notesList.innerHTML = '';
   notesHistory.innerHTML = '';
 
-  notes.sort((a, b) => b.timestamp - a.timestamp);
-
   const cutoff = Date.now() - 1000 * 60 * 60 * 24 * 3; // 3 days ago
+
+  notes.sort((a, b) => b.timestamp - a.timestamp);
 
   notes.forEach(note => {
     const li = document.createElement('li');
@@ -89,12 +86,14 @@ function renderNotes(notes) {
     actions.append(editBtn, delBtn);
 
     li.append(summary, time, expand, actions);
+
     summary.onclick = () => expand.classList.toggle('hidden');
 
-    // Append to recent or history
     (note.timestamp >= cutoff ? notesList : notesHistory).appendChild(li);
   });
 }
+
+// Listen for realtime updates
 onValue(notesRef, snapshot => {
   const data = snapshot.val() || {};
   const notes = Object.entries(data).map(([id, val]) => ({ id, ...val }));
