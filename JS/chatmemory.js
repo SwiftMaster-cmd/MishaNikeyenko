@@ -1,8 +1,6 @@
-// /JS/chatgpt.js
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getDatabase, ref, push, onValue
+  getDatabase, ref, set, push, get, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth, onAuthStateChanged, signInAnonymously
@@ -24,102 +22,65 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
+// DOM Elements
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
+let uid = null;
 let chatRef = null;
 
-function addMessage(role, content) {
-  const msg = document.createElement("div");
-  msg.className = `chat-${role}`;
-  msg.textContent = `${role === "user" ? "🧑 You" : "🤖 GPT"}: ${content}`;
-  log.appendChild(msg);
-  log.scrollTop = log.scrollHeight;
-}
+signInAnonymously(auth);
 
-function typeReplyText(text) {
-  const msg = document.createElement("div");
-  msg.className = "chat-assistant";
-  msg.textContent = "🤖 GPT: ";
-  log.appendChild(msg);
-
-  let i = 0;
-  const interval = setInterval(() => {
-    if (i < text.length) {
-      msg.textContent += text.charAt(i);
-      i++;
-    } else {
-      clearInterval(interval);
-    }
-    log.scrollTop = log.scrollHeight;
-  }, 20);
-}
-
-// Realtime Sync
-function setupRealtimeSync(uid) {
+onAuthStateChanged(auth, user => {
+  if (!user) return;
+  uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
-  onValue(chatRef, (snapshot) => {
-    const messages = snapshot.val();
-    if (!messages) return;
 
+  onValue(chatRef, snapshot => {
+    const data = snapshot.val();
+    const messages = data ? Object.values(data) : [];
     log.innerHTML = "";
-    Object.values(messages).forEach((msg) => {
-      addMessage(msg.role, msg.content);
-    });
+    messages.reverse().forEach(entry => appendMessage(entry.role, entry.content));
   });
-}
-
-// Auth
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    setupRealtimeSync(user.uid);
-  } else {
-    signInAnonymously(auth).catch(console.error);
-  }
 });
 
-// Form Submit
+function appendMessage(role, content) {
+  const bubble = document.createElement("div");
+  bubble.className = role === "user" ? "chat-bubble user" : "chat-bubble gpt";
+  bubble.textContent = content;
+  log.prepend(bubble);
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
   if (!prompt || !chatRef) return;
-
-  // Save user message
-  push(chatRef, {
-    role: "user",
-    content: prompt,
-    timestamp: Date.now()
-  });
-
-  addMessage("user", prompt);
   input.value = "";
 
-  // Send to Netlify backend
+  appendMessage("user", prompt);
+
+  const snapshot = await get(chatRef);
+  const history = snapshot.exists() ? Object.values(snapshot.val()) : [];
+
+  const messages = [...history, { role: "user", content: prompt }];
+  const thinking = document.createElement("div");
+  thinking.className = "chat-bubble gpt";
+  thinking.textContent = "🤖 GPT: ...thinking...";
+  log.prepend(thinking);
+
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ messages })
     });
-
     const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim();
-
-    if (reply) {
-      typeReplyText(reply);
-
-      // Save assistant reply
-      push(chatRef, {
-        role: "assistant",
-        content: reply,
-        timestamp: Date.now()
-      });
-    } else {
-      typeReplyText("No response received.");
-    }
-
+    const reply = data?.choices?.[0]?.message?.content?.trim() || "No response";
+    thinking.textContent = `🤖 GPT: ${reply}`;
+    const newHistory = [...messages, { role: "assistant", content: reply }];
+    await set(chatRef, newHistory);
   } catch (err) {
-    typeReplyText("❌ Error: " + err.message);
+    thinking.textContent = `❌ ${err.message}`;
   }
 });
