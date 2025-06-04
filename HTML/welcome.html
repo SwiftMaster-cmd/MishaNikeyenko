@@ -1,4 +1,3 @@
-<!-- /pages/welcome.html -- sidebar-first layout (June 2025) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,51 +5,52 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Bookmarks · Dashboard</title>
 
-  <!-- design tokens + split styles (paths are relative to THIS file) -->
+  <!-- design tokens + split CSS (adjust paths if yours differ) -->
   <link rel="stylesheet" href="../css/variables.css">
   <link rel="stylesheet" href="../css/profile.css">
   <link rel="stylesheet" href="../css/links.css">
 
-  <!-- tiny helper -->
   <style>.hidden{display:none!important}</style>
 </head>
-<body class="sidebar-open"><!-- ⬅ sidebar opened by default -->
+<body class="sidebar-open"><!-- sidebar visible by default -->
 
-  <!-- ── HEADER ───────────────────────────────────────────── -->
+  <!-- HEADER -->
   <header class="header-bar">
     <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
     <h1 class="header-title">Bookmarks</h1>
     <button id="profile-toggle-btn" class="profile-toggle-btn"
-            aria-haspopup="true" aria-controls="profile-card">Profile</button>
+            aria-haspopup="true" aria-controls="profile-card">
+      Profile
+    </button>
   </header>
 
-  <!-- ── SIDEBAR ──────────────────────────────────────────── -->
-  <nav id="side-nav" class="side-nav open" aria-hidden="false"><!-- ← now visible -->
+  <!-- SIDEBAR -->
+  <nav id="side-nav" class="side-nav open"><!-- .open keeps it in view -->
     <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
 
-    <!-- links injected by links.js -->
+    <!-- JS injects categories + links here -->
     <div id="nav-links" class="nav-links"></div>
   </nav>
 
-  <!-- ── PROFILE CARD ─────────────────────────────────────── -->
+  <!-- PROFILE CARD -->
   <aside id="profile-card" class="profile-card" aria-hidden="true">
     <div id="user-info"></div>
     <div id="config-status"></div>
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- ── MAIN (just the add-bookmark form) ────────────────── -->
+  <!-- MAIN (add-bookmark form only) -->
   <main class="main-card">
     <form id="add-link-form" class="collapsed" autocomplete="off">
-      <input  id="link-title" type="text" placeholder="Link title" required>
-      <input  id="link-url"   type="url"  placeholder="https://example.com" required>
+      <input  id="link-title"     placeholder="Link title" required>
+      <input  id="link-url" type="url" placeholder="https://example.com" required>
       <select id="link-category"  required></select>
-      <input  id="new-cat-input"  class="hidden" placeholder="New category name">
+      <input  id="new-cat-input" class="hidden" placeholder="New category name">
       <button class="btn-solid" type="submit">Save</button>
     </form>
   </main>
 
-  <!-- ── EDIT BOOKMARK MODAL ───────────────────────────────── -->
+  <!-- EDIT MODAL -->
   <div id="edit-overlay" class="hidden">
     <form id="edit-dialog" autocomplete="off">
       <input  id="edit-title"   placeholder="Title" required>
@@ -64,28 +64,25 @@
     </form>
   </div>
 
-  <!-- ── MODULES ───────────────────────────────────────────── -->
+  <!-- MODULES -->
   <script type="module" src="../js/profile.js"></script>
   <script type="module" src="../js/links.js"></script>
 
-  <!-- toggles for burger + form -->
+  <!-- UI toggles -->
   <script type="module">
     const sidebar = document.getElementById('side-nav');
     const burger  = document.getElementById('menu-toggle');
     const addBtn  = document.getElementById('toggle-form-btn');
     const form    = document.getElementById('add-link-form');
 
-    /* burger toggle */
-    burger.onclick = () => {
+    burger.onclick = () =>{
       const open = sidebar.classList.toggle('open');
       document.body.classList.toggle('sidebar-open', open);
     };
-
-    /* slide-open add-form */
-    addBtn.onclick = () => {
-      const closed = form.classList.toggle('collapsed');
-      addBtn.classList.toggle('active', !closed);
-      if (!closed) document.getElementById('link-title').focus();
+    addBtn.onclick = () =>{
+      const shut = form.classList.toggle('collapsed');
+      addBtn.classList.toggle('active', !shut);
+      if (!shut) document.getElementById('link-title').focus();
     };
   </script>
 </body>
