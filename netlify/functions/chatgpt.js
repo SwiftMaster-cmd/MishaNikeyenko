@@ -1,29 +1,27 @@
-// netlify/functions/chatgpt.js
+// /netlify/functions/chatgpt.js
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 exports.handler = async (event) => {
-  const { prompt } = JSON.parse(event.body || "{}");
-  if (!prompt) {
-    return { statusCode: 400, body: "Missing prompt" };
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: "Method Not Allowed" };
   }
 
+  let prompt;
   try {
-    // --- BASIC: Only return a canned test reply for "test" prompt
-    if (prompt === "test") {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          choices: [
-            { message: { content: "✅ Backend function is working and prompt received!" } }
-          ]
-        })
-      };
-    }
+    prompt = JSON.parse(event.body).prompt;
+  } catch {
+    return { statusCode: 400, body: "Missing or invalid prompt" };
+  }
+  if (!prompt) return { statusCode: 400, body: "Missing prompt" };
 
-    // --- LIVE: Call OpenAI API if NOT a test
+  const apiKey = process.env.OPENAI_API_KEY; // Set this in Netlify's UI (Site > Settings > Environment Variables)
+  if (!apiKey) return { statusCode: 500, body: "API key not found" };
+
+  try {
     const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({

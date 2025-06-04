@@ -1,4 +1,4 @@
-// js/chatgpt.js
+// /JS/chatgpt.js
 
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
@@ -9,16 +9,15 @@ form.addEventListener("submit", async (e) => {
   const prompt = input.value.trim();
   if (!prompt) return;
 
-  // Show user message
+  // Add user message to chat log
   const userLine = document.createElement("div");
   userLine.textContent = `🧑 You: ${prompt}`;
   log.appendChild(userLine);
 
-  // Show "thinking..." from GPT
+  // Add GPT placeholder
   const gptLine = document.createElement("div");
   gptLine.textContent = `🤖 GPT: ...thinking...`;
   log.appendChild(gptLine);
-
   input.value = "";
 
   try {
@@ -28,10 +27,9 @@ form.addEventListener("submit", async (e) => {
       body: JSON.stringify({ prompt })
     });
 
-    // If not 200 OK, show raw error
     if (!res.ok) {
-      const text = await res.text();
-      gptLine.textContent = `❌ Server error: ${text}`;
+      const err = await res.text();
+      gptLine.textContent = `❌ Server error: ${err}`;
       return;
     }
 
@@ -41,8 +39,7 @@ form.addEventListener("submit", async (e) => {
     gptLine.textContent = reply
       ? `🤖 GPT: ${reply}`
       : `🤖 GPT: No response received.`;
-
   } catch (err) {
-    gptLine.textContent = `❌ Network error: ${err.message}`;
+    gptLine.textContent = `❌ Error: ${err.message}`;
   }
 });
