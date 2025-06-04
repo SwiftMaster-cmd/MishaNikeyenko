@@ -55,15 +55,14 @@
       <button class="btn-solid" type="submit">Save</button>
     </form>
 
-<!-- ChatGPT UI -->
- <div class="chat-container">
-    <div class="chat-header">Ask ChatGPT</div>
-    <div id="chat-log" class="chat-log"></div>
-    <form id="chat-form" class="chat-form">
-      <input id="user-input" type="text" placeholder="Type your message..." required />
-      <button type="submit">Send</button>
-    </form>
-  </div>
+ <!-- Chat Log (scrolls, newest messages on bottom) -->
+  <div id="chat-log"></div>
+
+  <!-- Chat Input -->
+  <form id="chat-form" autocomplete="off">
+    <input id="user-input" type="text" placeholder="Type your message..." required />
+    <button type="submit" class="btn-solid">Send</button>
+  </form>
 
   </main>
 
