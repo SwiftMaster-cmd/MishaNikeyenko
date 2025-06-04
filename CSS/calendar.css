@@ -196,3 +196,39 @@
   color: var(--clr-text);
   border-color: var(--clr-primary);
 }
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: .5rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: var(--clr-glass);
+  border-radius: var(--radius);
+}
+
+.day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.03);
+  border-radius: var(--radius);
+  font-weight: 600;
+  color: var(--clr-text);
+  transition: background .2s;
+}
+
+.day.today {
+  background: var(--clr-primary);
+  color: white;
+}
+
+.day.has-event:not(.today) {
+  border: 2px solid var(--clr-primary);
+}
+
+.day.empty {
+  background: transparent;
+  pointer-events: none;
+}
