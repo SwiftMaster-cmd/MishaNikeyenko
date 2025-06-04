@@ -1,3 +1,5 @@
+const fetch = require("node-fetch")
+
 // netlify/functions/chatgpt.js
 exports.handler = async (event) => {
   const { prompt } = JSON.parse(event.body || "{}");
