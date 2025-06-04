@@ -236,7 +236,23 @@ button.ghost:hover{
 }
 
 /* ── hide edit / delete affordances until needed ── */
+/* center title without breaking left/right buttons */
+.header-bar{
+  position:relative;             /* keep existing rules */
+}
+.header-title{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:1.1rem;
+  font-weight:600;
+  white-space:nowrap;
+  pointer-events:none;           /* clicks pass through */
+}
 
+/* sidebar now defaults closed everywhere */
+.side-nav{transform:translateX(-100%);}
+.side-nav.open{transform:translateX(0);}
 /* ── add-link form slide / fade ─────────────────────────── */
 #add-link-form{
   overflow:hidden;
