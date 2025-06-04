@@ -75,16 +75,31 @@ loadButton.addEventListener('click', async () => {
   }
 });
 
-// Save JS module to Firebase
 saveButton.addEventListener('click', async () => {
   const name = nameInput.value.trim();
   const code = pasteArea.value.trim();
-  if (!name || !code) return alert('Please enter both a name and code.');
+
+  if (!name || !code) {
+    alert('Please enter both a name and code.');
+    return;
+  }
+
   await set(ref(db, `jsModules/${name}`), {
     name,
     code,
     ts: serverTimestamp()
   });
+
+  // Clear fields
+  nameInput.value = '';
+  pasteArea.value = '';
+
+  // Show feedback
+  const msg = document.createElement('p');
+  msg.textContent = `✅ Saved as "${name}"`;
+  msg.style.marginTop = '1rem';
+  outputDiv.innerHTML = '';
+  outputDiv.appendChild(msg);
 });
 
 // Load and render saved scripts

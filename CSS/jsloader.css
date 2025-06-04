@@ -26,6 +26,13 @@
   max-width: 240px;
 }
 
+#saved-list .input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
 /* ES Module Paste Area */
 #js-paster {
   width: 100%;
