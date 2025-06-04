@@ -55,18 +55,20 @@
       <button class="btn-solid" type="submit">Save</button>
     </form>
 
-<form id="chat-form" style="display: flex; gap: 1rem; padding: 1rem;">
-  <input
-    id="user-input"
-    type="text"
-    placeholder="Type your message..."
-    required
-    style="flex: 1; padding: 0.8rem 1rem; border-radius: var(--radius); border: 1px solid var(--clr-border); background: var(--clr-glass); color: var(--clr-text);"
-  />
-  <button type="button" id="upload-btn" title="Upload photo/video" style="font-size: 1.3rem;">📎</button>
+<!-- ChatGPT UI -->
+<h1 style="margin-block:3rem 1rem;">Ask ChatGPT</h1>
+
+<!-- Chat form -->
+<form id="chat-form" style="display:flex;gap:1rem;margin-bottom:2rem;">
+  <input id="user-input" type="text" placeholder="Type your message..." required
+         style="flex:1;padding:0.8rem 1rem;border-radius:var(--radius);border:1px solid var(--clr-border);background:var(--clr-glass);color:var(--clr-text);" />
   <button type="submit" class="btn-solid">Send</button>
-  <input id="media-input" type="file" accept="image/*,video/*" multiple style="display:none" />
 </form>
+
+<!-- Chat log -->
+<div id="chat-log"
+     style="display:flex;flex-direction:column-reverse;gap:1.2rem;max-height:60vh;overflow-y:auto;padding-bottom:1rem;">
+</div>
   </main>
 
   <!-- MODULE SCRIPTS -->
