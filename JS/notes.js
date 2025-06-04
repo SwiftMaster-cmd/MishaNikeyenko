@@ -1,3 +1,5 @@
+// notes.js – per-user note system with Firebase Realtime DB
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, set, onValue, remove
@@ -6,7 +8,7 @@ import {
   getAuth, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Firebase config
+// ---------- 1. Firebase Config ----------
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -18,39 +20,42 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
-// Init Firebase
+// ---------- 2. Init Firebase ----------
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-const noteInput = document.getElementById('noteInput');
-const notesList = document.getElementById('notesList');
-const notesHistory = document.getElementById('notesHistory');
-let editingId = null;
 let userNotesRef = null;
+let editingId = null;
 
+const noteInput     = document.getElementById('noteInput');
+const notesList     = document.getElementById('notesList');
+const notesHistory  = document.getElementById('notesHistory');
+
+// ---------- 3. Save Note Handler ----------
 window.saveNote = () => {
   const content = noteInput.value.trim();
   if (!content || !userNotesRef) return;
 
   if (editingId) {
-    const editRef = ref(db, `${userNotesRef}/${editingId}`);
+    const editRef = ref(db, `${userNotesRef.key}/${editingId}`);
     set(editRef, { content, timestamp: Date.now() });
     editingId = null;
-    console.log("Note updated.");
+    console.log("[Notes] Updated");
   } else {
     push(userNotesRef, { content, timestamp: Date.now() });
-    console.log("Note added.");
+    console.log("[Notes] Saved");
   }
 
   noteInput.value = '';
 };
 
+// ---------- 4. Render Notes ----------
 function renderNotes(notes) {
   notesList.innerHTML = '';
   notesHistory.innerHTML = '';
 
-  const cutoff = Date.now() - 1000 * 60 * 60 * 24 * 3; // 3 days
+  const cutoff = Date.now() - 3 * 24 * 60 * 60 * 1000;
 
   notes.sort((a, b) => b.timestamp - a.timestamp);
 
@@ -79,29 +84,32 @@ function renderNotes(notes) {
 
     const delBtn = document.createElement('button');
     delBtn.textContent = 'Delete';
-    delBtn.onclick = () => remove(ref(db, `${userNotesRef}/${note.id}`));
+    delBtn.onclick = () => {
+      const delRef = ref(db, `${userNotesRef.key}/${note.id}`);
+      remove(delRef);
+    };
 
     const actions = document.createElement('div');
     actions.className = 'note-actions';
     actions.append(editBtn, delBtn);
 
     li.append(summary, time, expand, actions);
-
     summary.onclick = () => expand.classList.toggle('hidden');
 
     (note.timestamp >= cutoff ? notesList : notesHistory).appendChild(li);
   });
 }
 
+// ---------- 5. Auth + Realtime DB Sync ----------
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     console.warn('[Notes] Not signed in');
     return;
   }
 
-  userNotesRef = `notes/${user.uid}`;
+  userNotesRef = ref(db, `notes/${user.uid}`);
 
-  onValue(ref(db, userNotesRef), snapshot => {
+  onValue(userNotesRef, snapshot => {
     const data = snapshot.val() || {};
     const notes = Object.entries(data).map(([id, val]) => ({ id, ...val }));
     renderNotes(notes);
