@@ -234,3 +234,28 @@ button.ghost:hover{
   color:var(--clr-muted);
   margin-top:.4rem;
 }
+
+/* ── hide edit / delete affordances until needed ── */
+
+/* category ✏️ / 🗑️ */
+.cat-actions{
+  opacity:0;
+  pointer-events:none;          /* ignore clicks while hidden */
+  transition:opacity .18s;
+}
+.category-title:hover .cat-actions{
+  opacity:1;
+  pointer-events:auto;
+}
+
+/* three-dot trigger inside each link row */
+.menu-btn{
+  opacity:0;
+  transition:opacity .18s;
+}
+.link-main:hover .menu-btn{      /* show on hover */
+  opacity:1;
+}
+
+/* dropdown menu is already toggled with [hidden] – ensure it's invisible */
+.menu[hidden]{display:none!important;}
