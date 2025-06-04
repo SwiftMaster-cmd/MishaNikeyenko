@@ -1,3 +1,4 @@
+// netlify/functions/chatgpt.js
 export const handler = async (event) => {
   const body = JSON.parse(event.body || '{}');
   const prompt = body.prompt;
@@ -5,7 +6,7 @@ export const handler = async (event) => {
   if (!prompt) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: "Missing prompt" })
+      body: JSON.stringify({ error: "Missing prompt" }),
     };
   }
 
@@ -15,25 +16,25 @@ export const handler = async (event) => {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }]
-      })
+        messages: [{ role: "user", content: prompt }],
+      }),
     });
 
     const data = await response.json();
 
     return {
       statusCode: 200,
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     };
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message })
+      body: JSON.stringify({ error: err.message }),
     };
   }
 };
