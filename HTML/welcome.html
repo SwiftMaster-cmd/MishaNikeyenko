@@ -56,19 +56,15 @@
     </form>
 
 <!-- ChatGPT UI -->
-<h1 style="margin-block:3rem 1rem;">Ask ChatGPT</h1>
+ <div class="chat-container">
+    <div class="chat-header">Ask ChatGPT</div>
+    <div id="chat-log" class="chat-log"></div>
+    <form id="chat-form" class="chat-form">
+      <input id="user-input" type="text" placeholder="Type your message..." required />
+      <button type="submit">Send</button>
+    </form>
+  </div>
 
-<!-- Chat form -->
-<form id="chat-form" style="display:flex;gap:1rem;margin-bottom:2rem;">
-  <input id="user-input" type="text" placeholder="Type your message..." required
-         style="flex:1;padding:0.8rem 1rem;border-radius:var(--radius);border:1px solid var(--clr-border);background:var(--clr-glass);color:var(--clr-text);" />
-  <button type="submit" class="btn-solid">Send</button>
-</form>
-
-<!-- Chat log -->
-<div id="chat-log"
-     style="display:flex;flex-direction:column-reverse;gap:1.2rem;max-height:60vh;overflow-y:auto;padding-bottom:1rem;">
-</div>
   </main>
 
   <!-- MODULE SCRIPTS -->

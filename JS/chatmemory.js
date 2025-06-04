@@ -1,84 +1,85 @@
-// /JS/chatgpt.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
-  getAuth, onAuthStateChanged, signInAnonymously
+  getAuth, signInAnonymously, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Firebase config
+// Firebase Configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
-  authDomain: "mishanikeyenko.firebaseapp.com",
-  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
-  projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.firebasestorage.app",
-  messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  databaseURL: "YOUR_DATABASE_URL",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
+// DOM Elements
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-let userRef = null;
+let chatRef = null;
 
-// UI rendering
-function addToChatLog(role, content) {
+// Function to append messages to the chat log
+function appendMessage(role, content) {
   const div = document.createElement("div");
-  div.textContent = `${role === "user" ? "🧑" : "🤖"} ${role === "user" ? "You" : "GPT"}: ${content}`;
-  log.prepend(div); // newest on top
+  div.className = `chat-message ${role}`;
+  div.textContent = content;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
 }
 
-// Auth and DB setup
+// Authenticate and load chat history
+signInAnonymously(auth);
 onAuthStateChanged(auth, user => {
-  if (!user) {
-    signInAnonymously(auth);
-    return;
-  }
-
-  userRef = ref(db, `chatHistory/${user.uid}`);
-  onValue(userRef, snapshot => {
-    const data = snapshot.val();
+  if (!user) return;
+  chatRef = ref(db, `chatHistory/${user.uid}`);
+  onValue(chatRef, snapshot => {
     log.innerHTML = "";
-    if (!data) return;
-    Object.values(data).forEach(msg => addToChatLog(msg.role, msg.content));
+    const data = snapshot.val() || {};
+    Object.values(data).forEach(entry => {
+      appendMessage(entry.role, entry.content);
+    });
   });
 });
 
-// Submission
-form.addEventListener("submit", async (e) => {
+// Handle form submission
+form.addEventListener("submit", async e => {
   e.preventDefault();
   const prompt = input.value.trim();
-  if (!prompt || !userRef) return;
+  if (!prompt || !chatRef) return;
 
-  addToChatLog("user", prompt);
-  push(userRef, { role: "user", content: prompt, timestamp: Date.now() });
-
-  const replyDiv = document.createElement("div");
-  replyDiv.textContent = `🤖 GPT: ...thinking...`;
-  log.prepend(replyDiv);
   input.value = "";
+  appendMessage("user", prompt);
+  push(chatRef, { role: "user", content: prompt });
+
+  const thinking = document.createElement("div");
+  thinking.className = "chat-message assistant";
+  thinking.textContent = "Thinking...";
+  log.appendChild(thinking);
+  log.scrollTop = log.scrollHeight;
 
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }) // not sending history
+      body: JSON.stringify({ prompt })
     });
 
     const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim();
-
-    replyDiv.textContent = reply ? `🤖 GPT: ${reply}` : `🤖 GPT: No response`;
-    if (reply) push(userRef, { role: "assistant", content: reply, timestamp: Date.now() });
-
+    const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply";
+    thinking.textContent = reply;
+    push(chatRef, { role: "assistant", content: reply });
   } catch (err) {
-    replyDiv.textContent = `❌ Error: ${err.message}`;
+    thinking.textContent = `Error: ${err.message}`;
   }
 });
