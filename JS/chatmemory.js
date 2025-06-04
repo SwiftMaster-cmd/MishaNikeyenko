@@ -1,14 +1,13 @@
-// chatgpt.js – Full ChatGPT Frontend with Firebase Memory
-
+// JS/chatgpt.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getDatabase, ref, push, onValue
+  getDatabase, ref, push, set, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
-  getAuth, onAuthStateChanged, signInAnonymously
+  getAuth, signInAnonymously, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// --- Firebase Config ---
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -20,7 +19,6 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
-// --- Init ---
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
@@ -30,85 +28,56 @@ const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
 let chatRef = null;
+let history = [];
 
-// --- Scroll to Bottom ---
-function scrollToBottom() {
+function appendMessage(role, content) {
+  const div = document.createElement("div");
+  div.textContent = `${role === "user" ? "🧑 You" : "🤖 GPT"}: ${content}`;
+  log.appendChild(div);
   log.scrollTop = log.scrollHeight;
 }
 
-// --- Render Message ---
-function renderMessage(role, text) {
-  const div = document.createElement("div");
-  div.className = role === "user" ? "user-msg" : "gpt-msg";
-  div.textContent = `${role === "user" ? "🧑 You" : "🤖 GPT"}: ${text}`;
-  log.appendChild(div);
-  scrollToBottom();
-}
-
-// --- Load Chat History ---
-function loadHistory(uid) {
-  chatRef = ref(db, `chatHistory/${uid}`);
-  onValue(chatRef, (snapshot) => {
+// Sign in and load chat history
+signInAnonymously(auth);
+onAuthStateChanged(auth, user => {
+  if (!user) return;
+  chatRef = ref(db, `chatHistory/${user.uid}`);
+  onValue(chatRef, snap => {
+    history = [];
     log.innerHTML = "";
-    const history = snapshot.val();
-    if (history) {
-      Object.values(history).forEach(msg => {
-        renderMessage(msg.role, msg.content);
-      });
-    }
-  });
-}
-
-// --- Save to Firebase ---
-function saveMessage(role, content) {
-  if (chatRef) {
-    push(chatRef, {
-      role,
-      content,
-      timestamp: Date.now()
+    const data = snap.val() || {};
+    Object.values(data).forEach(entry => {
+      appendMessage(entry.role, entry.content);
+      history.push({ role: entry.role, content: entry.content });
     });
-  }
-}
+  });
+});
 
-// --- Submit Chat ---
-form.addEventListener("submit", async (e) => {
+form.addEventListener("submit", async e => {
   e.preventDefault();
   const prompt = input.value.trim();
-  if (!prompt) return;
+  if (!prompt || !chatRef) return;
 
-  renderMessage("user", prompt);
-  saveMessage("user", prompt);
   input.value = "";
+  appendMessage("user", prompt);
+  push(chatRef, { role: "user", content: prompt });
 
   const thinking = document.createElement("div");
-  thinking.className = "gpt-msg";
   thinking.textContent = "🤖 GPT: ...thinking...";
   log.appendChild(thinking);
-  scrollToBottom();
 
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, history })
     });
 
     const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
-    thinking.remove();
-    renderMessage("assistant", reply);
-    saveMessage("assistant", reply);
+    const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply";
+    thinking.textContent = `🤖 GPT: ${reply}`;
+    push(chatRef, { role: "assistant", content: reply });
   } catch (err) {
-    thinking.remove();
-    renderMessage("assistant", `❌ Error: ${err.message}`);
-  }
-});
-
-// --- Auth ---
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    loadHistory(user.uid);
-  } else {
-    signInAnonymously(auth);
+    thinking.textContent = `❌ Error: ${err.message}`;
   }
 });
