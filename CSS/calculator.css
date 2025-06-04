@@ -2,14 +2,14 @@
 /* Assumes your design-system variables (colors, radius, etc.) are already defined */
 
 .calculator {
-  width: 80%;
+  width: 90%;
   padding: 1.6rem;
   border-radius: var(--radius);
   background: var(--clr-glass);
   border: 1px solid var(--clr-border);
   backdrop-filter: blur(18px) saturate(1.3);
   box-shadow: 0 12px 40px -10px #000d;
-  display: flex;
+  display: center;
   flex-direction: column;
   gap: 1.2rem;
 }
