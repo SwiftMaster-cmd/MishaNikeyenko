@@ -4,7 +4,7 @@
    • Overlay stays hidden until JS removes the class       */
 
 /*──────── TOKENS ────────*/
-@import url('../CSS/variables.css');
+@import url('variables.css');
 
 /*──────── UNIVERSAL HIDDEN HELPER ────────*/
 .hidden{display:none!important;}   /* 🔒 nothing can override */
