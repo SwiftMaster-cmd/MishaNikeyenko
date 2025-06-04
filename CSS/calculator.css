@@ -1,72 +1,54 @@
-/* calculator.css  – full-width/height "glass" calculator
-   (load AFTER variables.css)  */
+/* calculator.css -- drop this after loading variables.css */
+/* Assumes your design-system variables (colors, radius, etc.) are already defined */
 
-/* ---------- LAYOUT SHELL ---------- */
-.main-card {             /* ensure the page’s main area can stretch */
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  padding: 1rem;
-}
-
-/* ---------- CALCULATOR ---------- */
 .calculator {
-  flex: 1;                       /* fill all remaining main-card space   */
-  width: 100%;
-  max-width: none;               /* no hard cap                          */
-  display: grid;
-  grid-template-rows: auto 1fr;  /* screen row + keys grid               */
-  gap: 1.2rem;
+  width: 320px;
   padding: 1.6rem;
   border-radius: var(--radius);
   background: var(--clr-glass);
   border: 1px solid var(--clr-border);
   backdrop-filter: blur(18px) saturate(1.3);
   box-shadow: 0 12px 40px -10px #000d;
-  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
 }
 
-/* ---------- SCREEN ---------- */
 .calculator-screen {
   width: 100%;
-  height: clamp(56px, 12vh, 96px);
+  height: 64px;
   border: none;
   border-radius: calc(var(--radius) / 1.5);
-  padding: 0.6rem 1rem;
-  font-size: clamp(2rem, 5vh, 3rem);
-  font-family: "Inter", system-ui, sans-serif;
+  padding: 0.5rem 0.9rem;
+  font-size: 2.6rem;
+  font-family: 'Inter', system-ui, sans-serif;
   color: var(--clr-text);
   background: #000;
   text-align: right;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
   user-select: none;
 }
 
-/* ---------- KEYS GRID ---------- */
 .calculator-keys {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 1fr;           /* every row equal height               */
   gap: 0.6rem;
 }
 
-/* ---------- KEY STYLES ---------- */
 .calculator-keys button {
-  width: 100%;
-  height: 100%;
-  aspect-ratio: 1 / 1;           /* keep keys roughly square             */
-  font-size: clamp(1rem, 3.2vh, 2rem);
+  padding: 1rem;
+  font-size: 1.35rem;
   font-weight: 600;
   border: 1px solid var(--clr-border);
   border-radius: calc(var(--radius) / 1.5);
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--clr-text-muted);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.08s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
 }
 
 .calculator-keys button:hover {
-  background: rgba(255,255,255,0.10);
+  background: rgba(255, 255, 255, 0.10);
   color: var(--clr-text);
 }
 
@@ -86,11 +68,11 @@
 
 /* decimal key */
 .calculator-keys .decimal {
-  background: rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--clr-text);
 }
 
-/* all-clear spans two columns */
+/* all clear spans two columns */
 .calculator-keys .all-clear {
   grid-column: span 2;
   background: #d32f2f;
@@ -101,8 +83,12 @@
   background: #e44b4b;
 }
 
-/* ---------- SMALL-SCREEN TWEAK ---------- */
-@media (max-width: 450px) {
-  .main-card { padding: 0.5rem; }
-  .calculator { padding: 1rem; gap: 0.8rem; }
+/* Responsive tweak */
+@media (max-width: 400px) {
+  .calculator {
+    width: 100%;
+  }
+  .calculator-screen {
+    font-size: 2.2rem;
+  }
 }
