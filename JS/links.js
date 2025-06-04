@@ -1,11 +1,5 @@
-/* /JS/links.js – FINAL modal-safe version (June 2025)
-   • Category picker with "➕ New…"
-   • Two categories wide, two links per row
-   • Edit dialog truly modal: background is inert & unscrollable             */
+/* /JS/links.js – Sidebar list version (June 2025) */
 
-/*─────────────────────────────────────────────────────────────*/
-/* 0. Firebase bootstrap                                      */
-/*─────────────────────────────────────────────────────────────*/
 const firebaseConfig = {
   apiKey:            "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain:        "mishanikeyenko.firebaseapp.com",
@@ -17,7 +11,7 @@ const firebaseConfig = {
   measurementId:     "G-L6CC27129C"
 };
 
-import { initializeApp }               from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 import {
   getDatabase, ref as dbRef, get,
@@ -28,16 +22,14 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 
-/*─────────────────────────────────────────────────────────────*/
-/* 1. DOM refs / globals                                       */
-/*─────────────────────────────────────────────────────────────*/
+/* DOM refs */
 const $     = s => document.querySelector(s);
-const $list = () => $('#links-list');
+const $list = () => document.getElementById('links-list');
 
 let uid;
 let categories = new Set();
 
-/* add-form elements */
+/* form elements */
 const catSel = $('#link-category');
 const newBox = $('#new-cat-input');
 
@@ -49,9 +41,7 @@ const eCat      = $('#edit-cat');
 const eNewCat   = $('#edit-new-cat');
 const btnCancel = $('#edit-cancel');
 
-/*─────────────────────────────────────────────────────────────*/
-/* 2. Helper functions                                         */
-/*─────────────────────────────────────────────────────────────*/
+/* group links by category */
 const groupByCat = d => {
   const out = {};
   Object.entries(d).forEach(([id, l]) => {
@@ -74,18 +64,12 @@ function onUserReady(cb){
   onAuthStateChanged(auth, u => u ? cb(u) : (window.location.href = "../index.html"));
 }
 
-/*─────────────────────────────────────────────────────────────*/
-/* 3. Add-form picker logic                                    */
-/*─────────────────────────────────────────────────────────────*/
 catSel.onchange = () => {
   const isNew = catSel.value === '__new__';
   newBox.classList.toggle('hidden', !isNew);
   if (isNew) newBox.focus();
 };
 
-/*─────────────────────────────────────────────────────────────*/
-/* 4. Modal open / close                                       */
-/*─────────────────────────────────────────────────────────────*/
 function showModal(){
   overlay.classList.remove('hidden');
   document.body.classList.add('modal-open');
@@ -95,9 +79,6 @@ function hideModal(){
   document.body.classList.remove('modal-open');
 }
 
-/*─────────────────────────────────────────────────────────────*/
-/* 5. Edit dialog workflow                                     */
-/*─────────────────────────────────────────────────────────────*/
 function openEdit(link, id){
   eTitle.value = link.title;
   eURL.value   = link.url;
@@ -130,9 +111,7 @@ function openEdit(link, id){
 }
 btnCancel.onclick = hideModal;
 
-/*─────────────────────────────────────────────────────────────*/
-/* 6. Render categories & links                                */
-/*─────────────────────────────────────────────────────────────*/
+/* Render sidebar links only */
 function render(){
   onValue(dbRef(db, `users/${uid}/links`), snap => {
     const data = snap.val() || {};
@@ -148,76 +127,55 @@ function render(){
     }
 
     for (const [cat, links] of Object.entries(groupByCat(data))){
-      const sec = document.createElement('div'); sec.className = 'category-section';
-
-      /* header */
-      sec.innerHTML = `<div class="category-title">
-        <h2>${cat}</h2>
-        <div class="cat-actions">
-          <button class="ghost edit">✏️</button>
-          <button class="ghost delete">🗑️</button>
-        </div></div>`;
-      const head = sec.firstElementChild;
-
-      head.querySelector('.edit').onclick = () => {
-        const name = prompt('Rename to:', cat);
-        if (name && name !== cat)
-          links.forEach(l => update(dbRef(db,`users/${uid}/links/${l.id}`), { category:name }));
-      };
-      head.querySelector('.delete').onclick = () => {
-        if (confirm(`Delete "${cat}" and its links?`))
-          links.forEach(l => remove(dbRef(db,`users/${uid}/links/${l.id}`)));
-      };
-
-      /* two-up grid */
-      const grid = document.createElement('div'); grid.className = 'category-links'; sec.appendChild(grid);
       links.forEach(link => {
-        const row = document.createElement('div'); row.className = 'link-row';
-        row.innerHTML = `
-          <button class="link-main" data-url="${link.url}">
-            <span class="title">${link.title}</span>
-            <span class="menu-btn" data-id="${link.id}" tabindex="0">⋮</span>
-          </button>
-          <div class="menu" id="m-${link.id}" hidden>
-            <button class="menu-edit"   data-id="${link.id}">Edit</button>
-            <button class="menu-delete" data-id="${link.id}">Delete</button>
-            <div class="preview">${link.url}</div>
-          </div>`;
-        grid.appendChild(row);
-      });
+        const btn = document.createElement('button');
+        btn.className = 'link-main';
+        btn.dataset.url = link.url;
+        btn.innerHTML = `
+          <span class="title">${link.title}</span>
+          <span class="menu-btn" data-id="${link.id}" tabindex="0">⋮</span>
+        `;
 
-      list.appendChild(sec);
+        const menu = document.createElement('div');
+        menu.className = 'menu';
+        menu.id = `m-${link.id}`;
+        menu.hidden = true;
+        menu.innerHTML = `
+          <button class="menu-edit" data-id="${link.id}">Edit</button>
+          <button class="menu-delete" data-id="${link.id}">Delete</button>
+          <div class="preview">${link.url}</div>
+        `;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'link-row';
+        wrapper.appendChild(btn);
+        wrapper.appendChild(menu);
+        list.appendChild(wrapper);
+      });
     }
   });
 }
 
-/*─────────────────────────────────────────────────────────────*/
-/* 7. Interaction bindings                                     */
-/*─────────────────────────────────────────────────────────────*/
 function bind(){
   let openMenu = null;
 
-  /* open link */
   $list().addEventListener('click', e => {
     const btn = e.target.closest('.link-main');
     if (btn && !e.target.classList.contains('menu-btn'))
       window.open(btn.dataset.url, '_blank', 'noopener,noreferrer');
   });
 
-  /* row menu toggle */
   $list().addEventListener('click', e => {
     const trg = e.target.closest('.menu-btn'); if (!trg) return;
-    const m = $(`#m-${trg.dataset.id}`);
+    const m = document.getElementById(`m-${trg.dataset.id}`);
     if (openMenu && openMenu !== m) openMenu.hidden = true;
     m.hidden = !m.hidden; openMenu = m.hidden ? null : m;
   });
 
-  /* outside click closes menu */
   document.addEventListener('mousedown', e => {
     if (openMenu && !openMenu.contains(e.target)) openMenu.hidden = true, openMenu = null;
   });
 
-  /* delete / edit */
   $list().addEventListener('click', e => {
     const del = e.target.closest('.menu-delete');
     const edt = e.target.closest('.menu-edit');
@@ -234,15 +192,12 @@ function bind(){
   });
 }
 
-/*─────────────────────────────────────────────────────────────*/
-/* 8. Add-link form                                            */
-/*─────────────────────────────────────────────────────────────*/
 function wireAddForm(){
   $('#add-link-form').onsubmit = e => {
     e.preventDefault();
     const title = $('#link-title').value.trim();
     const url   = $('#link-url').value.trim();
-    let   cat   = catSel.value === '__new__' ? newBox.value.trim() : catSel.value.trim();
+    let cat     = catSel.value === '__new__' ? newBox.value.trim() : catSel.value.trim();
 
     if (!title || !url || !cat) return;
 
@@ -252,13 +207,10 @@ function wireAddForm(){
   };
 }
 
-/*─────────────────────────────────────────────────────────────*/
-/* 9. Boot sequence                                            */
-/*─────────────────────────────────────────────────────────────*/
 onUserReady(user => {
   uid = user.uid;
   wireAddForm();
   render();
   bind();
-  hideModal();                 // ensure overlay hidden at startup
+  hideModal();
 });
