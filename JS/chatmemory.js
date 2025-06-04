@@ -1,4 +1,5 @@
-// Import Firebase modules
+// /JS/chatgpt.js
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, onValue
@@ -7,7 +8,7 @@ import {
   getAuth, onAuthStateChanged, signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Firebase config
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -19,7 +20,7 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
-// Init Firebase
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
@@ -30,41 +31,55 @@ const log = document.getElementById("chat-log");
 
 let userRef = null;
 
-// Sign in anonymously
-signInAnonymously(auth).catch(console.error);
+// Typing effect
+function typeText(target, text) {
+  target.textContent = "";
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i < text.length) {
+      target.textContent += text[i++];
+    } else {
+      clearInterval(interval);
+    }
+  }, 25);
+}
 
-onAuthStateChanged(auth, (user) => {
-  if (!user) return;
+// Append message
+function appendMessage(role, content) {
+  const div = document.createElement("div");
+  div.className = `chat-msg ${role}`;
+  if (role === "assistant") {
+    typeText(div, `🤖 ${content}`);
+  } else {
+    div.textContent = `🧑 ${content}`;
+  }
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
 
-  const uid = user.uid;
-  userRef = ref(db, `chatHistory/${uid}`);
+// Load chat history
+function renderChat(messages) {
+  log.innerHTML = "";
+  messages.sort((a, b) => a.timestamp - b.timestamp);
+  messages.forEach(msg => appendMessage(msg.role, msg.content));
+}
 
-  // Load chat history
-  onValue(userRef, (snapshot) => {
-    const data = snapshot.val() || {};
-    log.innerHTML = "";
-
-    Object.values(data).forEach(msg => {
-      const div = document.createElement("div");
-      div.textContent = `${msg.role === "user" ? "🧑 You" : "🤖 GPT"}: ${msg.content}`;
-      log.appendChild(div);
-    });
-  });
-});
-
-// Submit handler
+// Submit chat
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
   if (!prompt || !userRef) return;
-
-  // Add user message to DB
-  push(userRef, { role: "user", content: prompt, timestamp: Date.now() });
-
-  const placeholder = document.createElement("div");
-  placeholder.textContent = "🤖 GPT: ...thinking...";
-  log.appendChild(placeholder);
   input.value = "";
+
+  const userMsg = { role: "user", content: prompt, timestamp: Date.now() };
+  push(userRef, userMsg);
+  appendMessage("user", prompt);
+
+  const gptLine = document.createElement("div");
+  gptLine.className = "chat-msg assistant";
+  gptLine.textContent = "🤖 ...thinking...";
+  log.appendChild(gptLine);
+  log.scrollTop = log.scrollHeight;
 
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
@@ -76,25 +91,28 @@ form.addEventListener("submit", async (e) => {
     const data = await res.json();
     const reply = data?.choices?.[0]?.message?.content?.trim();
 
-    // Typing animation
     if (reply) {
-      placeholder.textContent = "🤖 GPT: ";
-      let i = 0;
-      const interval = setInterval(() => {
-        if (i < reply.length) {
-          placeholder.textContent += reply[i++];
-        } else {
-          clearInterval(interval);
-        }
-      }, 20);
-
-      // Save GPT reply
+      gptLine.textContent = "";
+      typeText(gptLine, `🤖 ${reply}`);
       push(userRef, { role: "assistant", content: reply, timestamp: Date.now() });
     } else {
-      placeholder.textContent = "🤖 GPT: No response received.";
+      gptLine.textContent = "🤖 No response received.";
     }
-
   } catch (err) {
-    placeholder.textContent = `❌ Error: ${err.message}`;
+    gptLine.textContent = `❌ ${err.message}`;
+  }
+});
+
+// Start session
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    userRef = ref(db, `chatHistory/${user.uid}`);
+    onValue(userRef, snap => {
+      const data = snap.val() || {};
+      const messages = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+      renderChat(messages);
+    });
+  } else {
+    signInAnonymously(auth);
   }
 });
