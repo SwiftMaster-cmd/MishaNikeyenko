@@ -217,6 +217,18 @@ body.sidebar-open .main-card{
   margin-left:260px;
   max-width:calc(100% - 280px);
 }
+.js-output-box {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--clr-text);
+  font-size: 0.95rem;
+  min-height: 150px;
+  overflow-x: auto;
+  backdrop-filter: blur(8px);
+}
 
 /*──────── ANIMATION ────────*/
 @keyframes fadeSlideIn{
