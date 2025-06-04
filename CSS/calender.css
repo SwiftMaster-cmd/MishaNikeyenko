@@ -1,10 +1,65 @@
-/* CALENDAR STYLES */
+/* CALENDAR WRAPPER */
+.calendar-wrapper {
+  padding: calc(var(--nav-h) + 2rem) 1rem 3rem;
+}
 
+/* MONTH LABEL */
+#month-label {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--clr-text);
+  margin-bottom: 1rem;
+}
+
+/* CALENDAR GRID */
+#calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--clr-border);
+  margin-bottom: 2rem;
+}
+
+/* CALENDAR CELL */
+.calendar-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.6rem;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  font-weight: 600;
+  color: var(--clr-text);
+}
+
+.calendar-cell:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* EVENT DOT */
+.event-dot {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--clr-primary);
+}
+
+/* EVENT FORM */
 #event-form {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 #event-form input[type="date"],
@@ -37,10 +92,7 @@
   background: var(--clr-primary-dark);
 }
 
-.calendar-events {
-  padding: 1rem 0;
-}
-
+/* EVENT LIST */
 .calendar-events h3 {
   font-size: 1.1rem;
   margin-bottom: 1rem;
@@ -65,17 +117,6 @@
   justify-content: space-between;
   align-items: center;
   color: var(--clr-text);
-}
-
-#event-list li small {
-  color: var(--clr-text-muted);
-  font-size: 0.8rem;
-  margin-left: 1rem;
-}
-
-.event-meta {
-  display: flex;
-  flex-direction: column;
 }
 
 .event-actions {
