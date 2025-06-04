@@ -98,3 +98,18 @@
   color: var(--clr-text);
   background: rgba(255,255,255,0.06);
 }
+
+.note-summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.note-expand {
+  white-space: pre-wrap;
+  margin-top: 0.5rem;
+  color: var(--clr-text-muted);
+}
+
+.note-expand.hidden {
+  display: none;
+}
