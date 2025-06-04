@@ -1,24 +1,25 @@
-const apiKey = "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"; // replace with your actual key
+const apiKey = "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"; // your hardcoded key
 
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-form.addEventListener("submit", async (e) => {
+form.onsubmit = async e => {
   e.preventDefault();
-
   const prompt = input.value.trim();
   if (!prompt) return;
 
+  // Add user message
   const userMsg = document.createElement("div");
-  userMsg.textContent = `🧑‍💻 You: ${prompt}`;
+  userMsg.innerHTML = `🧑‍💻 You: ${prompt}`;
   log.appendChild(userMsg);
 
-  input.value = "";
-
+  // Add loading placeholder
   const botMsg = document.createElement("div");
-  botMsg.textContent = "🤖 Thinking...";
+  botMsg.innerHTML = "🤖 GPT: <em>Thinking...</em>";
   log.appendChild(botMsg);
+
+  input.value = "";
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -34,9 +35,14 @@ form.addEventListener("submit", async (e) => {
     });
 
     const data = await res.json();
-    botMsg.textContent = `🤖 GPT: ${data?.choices?.[0]?.message?.content.trim() || "No response."}`;
+
+    if (data?.choices?.[0]?.message?.content) {
+      botMsg.innerHTML = `🤖 GPT: ${data.choices[0].message.content}`;
+    } else {
+      botMsg.innerHTML = `❌ Error: ${JSON.stringify(data, null, 2)}`;
+    }
+
   } catch (err) {
-    botMsg.textContent = "❌ Error getting response.";
-    console.error(err);
+    botMsg.innerHTML = `❌ Network or API Error: ${err.message}`;
   }
-});
+};
