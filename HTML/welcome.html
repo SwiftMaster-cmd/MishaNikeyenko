@@ -93,50 +93,25 @@
     <button class="btn-solid" type="submit">Save</button>
   </form>
 
-  <!-- ChatGPT Interface -->
-  <section style="margin-top: 3rem;">
-    <h2>Chat with GPT</h2>
-    <textarea id="gpt-input" placeholder="Ask something..." rows="4" style="width: 100%; padding: 1rem;"></textarea>
-    <button id="gpt-send" class="btn-solid" style="margin-top: 1rem;">Send</button>
-    <pre id="gpt-response" style="white-space: pre-wrap; background: rgba(255,255,255,0.05); padding: 1rem; margin-top: 1rem;"></pre>
-  </section>
-</main>
+<input id="chat-input" placeholder="Ask something..." />
+<button onclick="handleChat()">Ask</button>
+<pre id="chat-response"></pre>
 
-<!-- GPT Script -->
 <script type="module">
-  const sendBtn = document.getElementById('gpt-send');
-  const input = document.getElementById('gpt-input');
-  const output = document.getElementById('gpt-response');
+  import { askChatGPT } from '../JS/chat.js';
 
-  const OPENAI_API_KEY = "sk-...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"; // Replace with your real key
-
-  sendBtn.onclick = async () => {
-    const prompt = input.value.trim();
-    if (!prompt) return;
-
+  window.handleChat = async () => {
+    const input = document.getElementById("chat-input").value;
+    const output = document.getElementById("chat-response");
     output.textContent = "Thinking...";
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7
-      })
-    });
-
-    const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content || "No response.";
+    const reply = await askChatGPT(input);
     output.textContent = reply;
   };
 </script>
 
-
   <!-- MODULES -->
   <script type="module" src="../JS/profile.js"></script>
+    <script type="module" src="../JS/chat.js"></script>
   <script type="module" src="../JS/links.js"></script>
 
   <!-- chrome controls -->
