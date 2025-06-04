@@ -1,3 +1,4 @@
+<!-- /HTML/welcome.html  – complete file (sidebar toggle, centered title, form reveal) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,80 +6,87 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Dashboard · YourBrand</title>
 
+  <!-- shared design tokens + page look -->
   <link rel="stylesheet" href="../CSS/variables.css">
   <link rel="stylesheet" href="../CSS/welcome.css">
 </head>
 <body>
-  <!--  HEADER  -->
-  <header class="header-bar">
-    <button id="menu-toggle" class="burger" aria-label="Menu" aria-controls="side-nav">☰</button>
 
-    <button id="profile-toggle-btn"
-            class="profile-toggle-btn"
-            type="button"
-            aria-haspopup="true"
-            aria-controls="profile-card">
+  <!-- HEADER ──────────────────────────────────────────────── -->
+  <header class="header-bar">
+    <!-- burger / menu -->
+    <button id="menu-toggle" class="burger"
+            aria-label="Menu" aria-controls="side-nav">☰</button>
+
+    <!-- centered title -->
+    <h1 class="header-title">Bookmarks</h1>
+
+    <!-- profile dropdown toggle -->
+    <button id="profile-toggle-btn" class="profile-toggle-btn"
+            type="button" aria-haspopup="true" aria-controls="profile-card">
       Profile
     </button>
   </header>
 
-  <!--  SIDEBAR  -->
+  <!-- SIDEBAR ─────────────────────────────────────────────── -->
   <nav id="side-nav" class="side-nav" aria-hidden="true">
     <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
   </nav>
 
-  <!--  PROFILE CARD  -->
+  <!-- PROFILE CARD ────────────────────────────────────────── -->
   <aside id="profile-card" class="profile-card" aria-hidden="true">
     <div id="user-info"></div>
     <div id="config-status"></div>
-    <button id="logout-btn" type="button">Sign&nbsp;Out</button>
+    <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!--  DASHBOARD  -->
+  <!-- MAIN DASHBOARD ─────────────────────────────────────── -->
   <main class="main-card">
-    <!-- add-link form (collapsed by default) -->
+    <!-- collapsible form (starts hidden via .collapsed) -->
     <form id="add-link-form" class="collapsed" autocomplete="off">
-      <input type="text" id="link-title"     placeholder="Link title"          required>
-      <input type="url"  id="link-url"       placeholder="https://example.com" required>
-      <input type="text" id="link-category"  placeholder="Category (optional)">
+      <input type="text" id="link-title"    placeholder="Link title"          required>
+      <input type="url"  id="link-url"      placeholder="https://example.com" required>
+      <input type="text" id="link-category" placeholder="Category (optional)">
       <button class="btn-solid" type="submit">Save</button>
     </form>
 
-    <!-- bookmarks list -->
+    <!-- links injected by links.js -->
     <div id="links-list" class="links-grid"></div>
   </main>
 
-  <!-- modules you already have -->
+  <!-- EXISTING MODULES -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
 
-  <!-- sidebar + form-toggle logic -->
+  <!-- LOCAL UI CONTROLS (no imports) -->
   <script type="module">
+    /* simple sidebar + form toggle */
     document.addEventListener('DOMContentLoaded', () => {
-      const side   = document.getElementById('side-nav');
-      const burger = document.getElementById('menu-toggle');
-      const form   = document.getElementById('add-link-form');
-      const toggle = document.getElementById('toggle-form-btn');
+      const side    = document.getElementById('side-nav');
+      const burger  = document.getElementById('menu-toggle');
+      const form    = document.getElementById('add-link-form');
+      const addBtn  = document.getElementById('toggle-form-btn');
 
-      /* burger → open / close sidebar */
+      /* burger toggles sidebar */
       burger.onclick = () => side.classList.toggle('open');
 
-      /* nav item → slide form in / out */
-      toggle.onclick = () => {
+      /* click-outside closes sidebar */
+      document.addEventListener('click', e => {
+        if (side.classList.contains('open') &&
+            !side.contains(e.target) &&
+            !burger.contains(e.target)) {
+          side.classList.remove('open');
+        }
+      });
+
+      /* "Add bookmark" button toggles form */
+      addBtn.onclick = () => {
         form.classList.toggle('collapsed');
-        side.classList.remove('open');
-        /* autofocus the first input when form opens */
+        side.classList.remove('open');          // auto-close sidebar
         if (!form.classList.contains('collapsed')) {
           document.getElementById('link-title').focus();
         }
       };
-
-      /* auto-pin sidebar on ≥960 px */
-      const mq = window.matchMedia('(min-width: 960px)');
-      mq.addEventListener('change', () =>
-        side.classList.toggle('desktop', mq.matches)
-      );
-      side.classList.toggle('desktop', mq.matches);
     });
   </script>
 </body>
