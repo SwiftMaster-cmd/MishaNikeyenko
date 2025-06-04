@@ -1,4 +1,3 @@
-<!-- /HTML/welcome.html  – complete file (sidebar toggle, centered title, form reveal) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,83 +5,69 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Dashboard · YourBrand</title>
 
-  <!-- shared design tokens + page look -->
   <link rel="stylesheet" href="../CSS/variables.css">
   <link rel="stylesheet" href="../CSS/welcome.css">
 </head>
 <body>
 
-  <!-- HEADER ──────────────────────────────────────────────── -->
+  <!-- HEADER -->
   <header class="header-bar">
-    <!-- burger / menu -->
-    <button id="menu-toggle" class="burger"
-            aria-label="Menu" aria-controls="side-nav">☰</button>
-
-    <!-- centered title -->
+    <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
     <h1 class="header-title">Bookmarks</h1>
-
-    <!-- profile dropdown toggle -->
-    <button id="profile-toggle-btn" class="profile-toggle-btn"
-            type="button" aria-haspopup="true" aria-controls="profile-card">
+    <button id="profile-toggle-btn"
+            class="profile-toggle-btn"
+            aria-haspopup="true"
+            aria-controls="profile-card">
       Profile
     </button>
   </header>
 
-  <!-- SIDEBAR ─────────────────────────────────────────────── -->
+  <!-- SIDEBAR -->
   <nav id="side-nav" class="side-nav" aria-hidden="true">
     <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
   </nav>
 
-  <!-- PROFILE CARD ────────────────────────────────────────── -->
+  <!-- PROFILE CARD -->
   <aside id="profile-card" class="profile-card" aria-hidden="true">
     <div id="user-info"></div>
     <div id="config-status"></div>
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- MAIN DASHBOARD ─────────────────────────────────────── -->
+  <!-- DASHBOARD -->
   <main class="main-card">
-    <!-- collapsible form (starts hidden via .collapsed) -->
     <form id="add-link-form" class="collapsed" autocomplete="off">
-      <input type="text" id="link-title"    placeholder="Link title"          required>
-      <input type="url"  id="link-url"      placeholder="https://example.com" required>
-      <input type="text" id="link-category" placeholder="Category (optional)">
+      <input  id="link-title"    type="text" placeholder="Link title"          required>
+      <input  id="link-url"      type="url"  placeholder="https://example.com" required>
+      <input  id="link-category" type="text" placeholder="Category (optional)">
       <button class="btn-solid" type="submit">Save</button>
     </form>
 
-    <!-- links injected by links.js -->
     <div id="links-list" class="links-grid"></div>
   </main>
 
-  <!-- EXISTING MODULES -->
+  <!-- MODULES -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
 
-  <!-- LOCAL UI CONTROLS (no imports) -->
+  <!-- LOCAL UI LOGIC -->
   <script type="module">
-    /* simple sidebar + form toggle */
     document.addEventListener('DOMContentLoaded', () => {
-      const side    = document.getElementById('side-nav');
-      const burger  = document.getElementById('menu-toggle');
-      const form    = document.getElementById('add-link-form');
-      const addBtn  = document.getElementById('toggle-form-btn');
 
-      /* burger toggles sidebar */
-      burger.onclick = () => side.classList.toggle('open');
+      const side   = document.getElementById('side-nav');
+      const burger = document.getElementById('menu-toggle');
+      const form   = document.getElementById('add-link-form');
+      const addBtn = document.getElementById('toggle-form-btn');
 
-      /* click-outside closes sidebar */
-      document.addEventListener('click', e => {
-        if (side.classList.contains('open') &&
-            !side.contains(e.target) &&
-            !burger.contains(e.target)) {
-          side.classList.remove('open');
-        }
-      });
+      /* 1 – sidebar toggles; never auto-closes */
+      burger.onclick = () => {
+        const open = side.classList.toggle('open');
+        document.body.classList.toggle('sidebar-open', open);
+      };
 
-      /* "Add bookmark" button toggles form */
+      /* 2 – form slides in/out; sidebar stays put */
       addBtn.onclick = () => {
         form.classList.toggle('collapsed');
-        side.classList.remove('open');          // auto-close sidebar
         if (!form.classList.contains('collapsed')) {
           document.getElementById('link-title').focus();
         }
