@@ -1,6 +1,6 @@
-/* /JS/links.js -- self-contained (no local imports, 2025-06-03) */
+/* /JS/links.js – category title now sits above its links (2025-06-03) */
 
-/* ── Firebase config ───────────────────────────────────────── */
+/* ── Firebase config ───────────────────────────── */
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -12,7 +12,7 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
-/* ── Firebase core ─────────────────────────────────────────── */
+/* ── Firebase core ─────────────────────────────── */
 import { initializeApp }            from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 import {
@@ -24,59 +24,70 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 
-/* auth helper */
+/* ── auth helper ──────────────────────────────── */
 function onUserReady(cb){
-  onAuthStateChanged(auth, user =>{
-    if (user) cb(user);
-    else      window.location.href = "../index.html";
-  });
+  onAuthStateChanged(auth, user => user ? cb(user)
+                                        : window.location.href = "../index.html");
 }
 
-/* ── DOM helpers ───────────────────────────────────────────── */
+/* ── DOM helpers ──────────────────────────────── */
 const $     = s => document.querySelector(s);
 const $list = () => $('#links-list');
 
-const byCat = data => {
-  const out={};
-  Object.entries(data).forEach(([id,l])=>{
-    const k=(l.category||'Uncategorized').trim();
-    (out[k] ||= []).push({...l,id});
+const groupByCategory = data => {
+  const out = {};
+  Object.entries(data).forEach(([id, link]) => {
+    const key = (link.category || 'Uncategorized').trim();
+    (out[key] ||= []).push({ ...link, id });
   });
   return out;
 };
 
-/* ── render ───────────────────────────────────────────────── */
+/* ── render ───────────────────────────────────── */
 function render(uid){
-  onValue(dbRef(db,`users/${uid}/links`),snap=>{
-    const data=snap.val(); const list=$list(); list.innerHTML='';
-    if(!data){list.innerHTML="<p class='empty'>No links yet.</p>";return;}
+  onValue(dbRef(db, `users/${uid}/links`), snap => {
+    const data = snap.val();
+    const list = $list();
+    list.innerHTML = '';
 
-    Object.entries(byCat(data)).forEach(([cat,links])=>{
+    if (!data){
+      list.innerHTML = "<p class='empty'>No links yet.</p>";
+      return;
+    }
+
+    for (const [cat, links] of Object.entries(groupByCategory(data))){
+
+      /* wrapper keeps title above rows */
+      const section = document.createElement('div');
+      section.className = 'category-section';
+
       /* category header */
-      const h=document.createElement('div');
-      h.className='category-title';
-      h.innerHTML=`
+      const header = document.createElement('div');
+      header.className = 'category-title';
+      header.innerHTML = `
         <h2>${cat}</h2>
         <div class="cat-actions">
           <button class="ghost edit"   data-cat="${cat}">✏️</button>
           <button class="ghost delete" data-cat="${cat}">🗑️</button>
         </div>`;
-      list.appendChild(h);
+      section.appendChild(header);
 
-      h.querySelector('.edit').onclick = () =>{
-        const n=prompt(`Rename "${cat}" to:`,cat);
-        if(n&&n!==cat) links.forEach(l=>update(dbRef(db,`users/${uid}/links/${l.id}`),{category:n}));
+      /* rename / delete handlers */
+      header.querySelector('.edit').onclick = () => {
+        const name = prompt(`Rename "${cat}" to:`, cat);
+        if (name && name !== cat)
+          links.forEach(l => update(dbRef(db, `users/${uid}/links/${l.id}`), { category: name }));
       };
-      h.querySelector('.delete').onclick = () =>{
-        if(confirm(`Delete "${cat}" and all its links?`))
-          links.forEach(l=>remove(dbRef(db,`users/${uid}/links/${l.id}`)));
+      header.querySelector('.delete').onclick = () => {
+        if (confirm(`Delete "${cat}" and all its links?`))
+          links.forEach(l => remove(dbRef(db, `users/${uid}/links/${l.id}`)));
       };
 
-      /* links */
-      links.forEach(link=>{
-        const r=document.createElement('div');
-        r.className='link-row';
-        r.innerHTML=`
+      /* link rows */
+      links.forEach(link => {
+        const row = document.createElement('div');
+        row.className = 'link-row';
+        row.innerHTML = `
           <button class="link-main" data-url="${link.url}">
             <span class="title">${link.title}</span>
             <span class="menu-btn" data-id="${link.id}" tabindex="0">⋮</span>
@@ -86,73 +97,83 @@ function render(uid){
             <button class="menu-delete" data-id="${link.id}">Delete</button>
             <div class="preview">${link.url}</div>
           </div>`;
-        list.appendChild(r);
+        section.appendChild(row);
       });
-    });
+
+      list.appendChild(section);
+    }
   });
 }
 
-/* ── interactions ─────────────────────────────────────────── */
+/* ── interactions ─────────────────────────────── */
 function bind(uid){
-  let openMenu=null;
+  let openMenu = null;
 
-  $list().addEventListener('click',e=>{
-    const btn=e.target.closest('.link-main');
-    if(btn&&!e.target.classList.contains('menu-btn'))
-      window.open(btn.dataset.url,'_blank','noopener,noreferrer');
+  /* open link */
+  $list().addEventListener('click', e => {
+    const btn = e.target.closest('.link-main');
+    if (btn && !e.target.classList.contains('menu-btn'))
+      window.open(btn.dataset.url, '_blank', 'noopener,noreferrer');
   });
 
-  $list().addEventListener('click',e=>{
-    const trg=e.target.closest('.menu-btn'); if(!trg)return;
-    e.stopPropagation();
-    const m=$(`#m-${trg.dataset.id}`);
-    if(openMenu&&openMenu!==m) openMenu.hidden=true;
-    m.hidden=!m.hidden; openMenu=m.hidden?null:m;
+  /* toggle per-row menu */
+  $list().addEventListener('click', e => {
+    const trigger = e.target.closest('.menu-btn');
+    if (!trigger) return;
+
+    const menu = $(`#m-${trigger.dataset.id}`);
+    if (openMenu && openMenu !== menu) openMenu.hidden = true;
+    menu.hidden = !menu.hidden;
+    openMenu = menu.hidden ? null : menu;
   });
 
-  document.addEventListener('mousedown',e=>{
-    if(openMenu&&!openMenu.contains(e.target)) openMenu.hidden=true,openMenu=null;
+  /* outside-click closes any open menu */
+  document.addEventListener('mousedown', e => {
+    if (openMenu && !openMenu.contains(e.target))
+      openMenu.hidden = true, openMenu = null;
   });
 
-  $list().addEventListener('click',e=>{
-    const del=e.target.closest('.menu-delete');
-    const edt=e.target.closest('.menu-edit');
-    if(!del&&!edt)return;
-    const id=(del||edt).dataset.id;
+  /* delete / edit actions */
+  $list().addEventListener('click', e => {
+    const del = e.target.closest('.menu-delete');
+    const edt = e.target.closest('.menu-edit');
+    if (!del && !edt) return;
+    const id = (del || edt).dataset.id;
 
-    if(del) remove(dbRef(db,`users/${uid}/links/${id}`));
+    if (del) remove(dbRef(db, `users/${uid}/links/${id}`));
 
-    if(edt){
-      const row=$(`#m-${id}`).parentElement;
-      const t=row.querySelector('.title').textContent;
-      const u=row.querySelector('.preview').textContent;
-      const c=row.previousSibling.querySelector('h2').textContent;
-      update(dbRef(db,`users/${uid}/links/${id}`),{
-        title:prompt('Title:',t)||t,
-        url:prompt('URL:',u)||u,
-        category:prompt('Category:',c)||c
+    if (edt){
+      const row = $(`#m-${id}`).parentElement;
+      const curTitle = row.querySelector('.title').textContent;
+      const curUrl   = row.querySelector('.preview').textContent;
+      const curCat   = row.parentElement.querySelector('h2').textContent;
+
+      update(dbRef(db, `users/${uid}/links/${id}`), {
+        title:    prompt('Title:',    curTitle) ?? curTitle,
+        url:      prompt('URL:',      curUrl)   ?? curUrl,
+        category: prompt('Category:', curCat)   ?? curCat
       });
     }
-    if(openMenu) openMenu.hidden=true,openMenu=null;
+    if (openMenu) openMenu.hidden = true, openMenu = null;
   });
 }
 
-/* ── add-link form ─────────────────────────────────────────── */
+/* ── add-link form ────────────────────────────── */
 function addForm(uid){
-  const f=$('#add-link-form'); if(!f)return;
-  f.onsubmit=e=>{
+  const f = $('#add-link-form'); if (!f) return;
+  f.onsubmit = e => {
     e.preventDefault();
-    const title=$('#link-title').value.trim();
-    const url  =$('#link-url').value.trim();
-    const cat  =$('#link-category').value.trim()||'Uncategorized';
-    if(!title||!url)return;
-    set(push(dbRef(db,`users/${uid}/links`)),{title,url,category:cat});
+    const title = $('#link-title').value.trim();
+    const url   = $('#link-url').value.trim();
+    const cat   = $('#link-category').value.trim() || 'Uncategorized';
+    if (!title || !url) return;
+    set(push(dbRef(db, `users/${uid}/links`)), { title, url, category: cat });
     f.reset();
   };
 }
 
-/* ── boot ─────────────────────────────────────────────────── */
-onUserReady(user=>{
+/* ── boot ─────────────────────────────────────── */
+onUserReady(user => {
   addForm(user.uid);
   render(user.uid);
   bind(user.uid);
