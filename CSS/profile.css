@@ -1,5 +1,5 @@
 /* imports tokens + reset from variables.css */
-@import url('variables.css');
+@import url('CSS/variables.css');
 
 /* -- header -- */
 .header-bar{
