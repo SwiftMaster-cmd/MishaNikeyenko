@@ -1,5 +1,3 @@
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
-
 exports.handler = async (event) => {
   const body = JSON.parse(event.body || '{}');
   const prompt = body.prompt;
