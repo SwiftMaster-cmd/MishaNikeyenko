@@ -210,3 +210,30 @@ body.modal-open .header-bar,
 body.modal-open .side-nav {
   pointer-events: none;
 }
+/* ─── tidy list-view look ───────────────────────── */
+.nav-links{gap:1rem}                 /* tighter spacing */
+.nav-links-group{gap:.6rem}
+
+/* category header in one row */
+.category-title{
+  display:flex;
+  align-items:center;
+  gap:.6rem;
+  cursor:pointer;
+}
+.cat-toggle{
+  border:none;background:transparent;color:var(--clr-muted);
+  font-size:.8rem;line-height:1;transform:rotate(90deg);
+  transition:transform .2s;
+}
+.cat-toggle[aria-expanded="false"]{transform:rotate(0deg)}
+.cat-name{font-size:.97rem;font-weight:600;margin-right:auto}
+
+/* link row looks like list item */
+.link-main{
+  background:rgba(255,255,255,.08);
+  border:none;                       /* remove extra border */
+  font-size:.9rem;
+}
+.link-main:hover{background:rgba(255,255,255,.15)}
+
