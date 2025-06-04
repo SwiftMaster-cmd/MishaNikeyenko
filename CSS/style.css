@@ -285,7 +285,29 @@ a:hover { color: #fff; }
 @media (max-width: 480px) {
   .profile-card { min-width: 90vw;}
 }
+.header-bar {
+  z-index: 100;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+}
 
+.profile-card {
+  position: fixed;
+  top: 3.5em;
+  right: 1.4em;
+  min-width: 260px;
+  max-width: 90vw;
+  background: var(--color-glass-solid);
+  border-radius: 13px;
+  box-shadow: 0 4px 18px 0 var(--color-shadow);
+  z-index: 300; /* Should be higher than .header-bar */
+  display: none;
+  text-align: left;
+  animation: fadeInProfile 0.22s;
+}
+
+.profile-card.visible { display: block; }
 /* Light mode support */
 @media (prefers-color-scheme: light) {
   :root {
