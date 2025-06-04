@@ -1,13 +1,14 @@
-// Firebase Imports
+// chatgpt.js -- ChatGPT + Firebase long-term memory
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getDatabase, ref, push, onValue, get
+  getDatabase, ref, push, onValue, set
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
-  getAuth, signInAnonymously, onAuthStateChanged
+  getAuth, onAuthStateChanged, signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Firebase Config
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -19,93 +20,92 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
-// Init
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const app  = initializeApp(firebaseConfig);
+const db   = getDatabase(app);
 const auth = getAuth(app);
-signInAnonymously(auth);
 
-const form = document.getElementById("chat-form");
+// UI elements
+const form  = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
-const log = document.getElementById("chat-log");
+const log   = document.getElementById("chat-log");
 
-let userRef = null;
-
-// Render message bubble
-function appendMessage(role, content) {
-  const div = document.createElement("div");
-  div.className = `chat-msg ${role}`;
-  div.innerHTML = `${role === "user" ? "🧑" : "🤖"} ${content}`;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-}
+let chatRef = null;
+let uid     = null;
+let isThinking = false;
 
 // Typing animation
-function typeText(elem, text, delay = 15) {
-  let i = 0;
-  function type() {
-    if (i < text.length) {
-      elem.textContent += text[i++];
-      setTimeout(type, delay);
-    }
+function typeLine(element, text, index = 0) {
+  if (index < text.length) {
+    element.textContent += text.charAt(index);
+    setTimeout(() => typeLine(element, text, index + 1), 10);
   }
-  type();
 }
 
-// Handle form submission
+// Display message in log (prepend)
+function addMessage(role, text) {
+  const line = document.createElement("div");
+  line.textContent = `${role === "user" ? "🧑 You" : "🤖 GPT"}: ${text}`;
+  log.prepend(line);
+}
+
+// Handle form
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (isThinking || !chatRef) return;
+
   const prompt = input.value.trim();
-  if (!prompt || !userRef) return;
-  input.value = "";
+  if (!prompt) return;
+
+  isThinking = true;
 
   const userMsg = { role: "user", content: prompt, timestamp: Date.now() };
-  push(userRef, userMsg);
-  appendMessage("user", prompt);
+  push(chatRef, userMsg);
+  addMessage("user", prompt);
+  input.value = "";
 
-  const gptLine = document.createElement("div");
-  gptLine.className = "chat-msg assistant";
-  gptLine.textContent = "🤖 ...thinking...";
-  log.appendChild(gptLine);
-  log.scrollTop = log.scrollHeight;
+  const placeholder = document.createElement("div");
+  placeholder.textContent = "🤖 GPT: ...thinking...";
+  log.prepend(placeholder);
 
   try {
-    const historySnap = await get(userRef);
-    const history = historySnap.exists() ? Object.values(historySnap.val()) : [];
-    const messages = [...history, userMsg];
-
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages })
+      body: JSON.stringify({ prompt })
     });
 
     const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim();
+    const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply";
 
-    if (reply) {
-      gptLine.textContent = "";
-      typeText(gptLine, `🤖 ${reply}`);
-      push(userRef, { role: "assistant", content: reply, timestamp: Date.now() });
-    } else {
-      gptLine.textContent = "🤖 No response received.";
-    }
+    const botMsg = { role: "assistant", content: reply, timestamp: Date.now() };
+    push(chatRef, botMsg);
+
+    placeholder.textContent = "🤖 GPT: ";
+    typeLine(placeholder, reply);
   } catch (err) {
-    gptLine.textContent = `❌ ${err.message}`;
+    placeholder.textContent = `❌ Error: ${err.message}`;
   }
+
+  isThinking = false;
 });
 
-// Load history when signed in
-onAuthStateChanged(auth, (user) => {
-  if (!user) return;
-  userRef = ref(db, `chatHistory/${user.uid}`);
+// Load chat history
+function renderChat(messages) {
+  log.innerHTML = '';
+  messages.sort((a, b) => b.timestamp - a.timestamp); // newest first
+  messages.forEach(msg => addMessage(msg.role, msg.content));
+}
 
-  onValue(userRef, (snap) => {
-    const data = snap.val();
-    log.innerHTML = "";
-    if (!data) return;
-    Object.values(data).forEach(msg => {
-      appendMessage(msg.role, msg.content);
-    });
+// Firebase auth & listener
+onAuthStateChanged(auth, (user) => {
+  if (!user) return signInAnonymously(auth);
+
+  uid = user.uid;
+  chatRef = ref(db, `chatHistory/${uid}`);
+
+  onValue(chatRef, snap => {
+    const data = snap.val() || {};
+    const messages = Object.entries(data).map(([id, val]) => val);
+    renderChat(messages);
   });
 });
