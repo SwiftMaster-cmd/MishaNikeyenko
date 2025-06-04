@@ -1,4 +1,4 @@
-const apiKey = "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"; // your hardcoded key
+const apiKey = "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"; // your hardcoded key
 
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
