@@ -8,7 +8,7 @@ exports.handler = async (event) => {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return { statusCode: 500, body: "Missing OpenAI API key" };
 
-    const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -20,17 +20,18 @@ exports.handler = async (event) => {
       })
     });
 
-    const data = await gptRes.json();
+    const data = await response.json();
 
     if (data.error) {
-      return { statusCode: 500, body: JSON.stringify(data) };
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: data.error.message })
+      };
     }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        reply: data.choices?.[0]?.message?.content?.trim() || "No response."
-      })
+      body: JSON.stringify(data)
     };
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
