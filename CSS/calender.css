@@ -1,6 +1,19 @@
-/* CALENDAR WRAPPER */
+/* CALENDAR WRAPPER - centered layout */
 .calendar-wrapper {
-  padding: calc(var(--nav-h) + 2rem) 1rem 3rem;
+  padding: calc(var(--nav-h) + 2rem) 1rem 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* Keep scrollable */
+  text-align: center;
+}
+
+/* Optional: Limit calendar width for readability */
+#calendar-grid,
+#event-form,
+#event-list {
+  width: 100%;
+  max-width: 720px;
 }
 
 /* MONTH LABEL */
