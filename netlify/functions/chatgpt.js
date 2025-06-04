@@ -1,4 +1,6 @@
-exports.handler = async (event) => {
+import fetch from 'node-fetch';
+
+export const handler = async (event) => {
   const body = JSON.parse(event.body || '{}');
   const prompt = body.prompt;
 
