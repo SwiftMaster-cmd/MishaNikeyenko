@@ -1,24 +1,15 @@
+// netlify/functions/chatgpt.js
 exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
-
-  let prompt;
-  try {
-    prompt = JSON.parse(event.body).prompt;
-  } catch {
-    return { statusCode: 400, body: "Missing or invalid prompt" };
-  }
+  const { prompt } = JSON.parse(event.body || "{}");
   if (!prompt) return { statusCode: 400, body: "Missing prompt" };
 
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return { statusCode: 500, body: "API key not found" };
 
   try {
     const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -26,13 +17,12 @@ exports.handler = async (event) => {
         messages: [{ role: "user", content: prompt }]
       })
     });
-
     const data = await gptRes.json();
     return {
       statusCode: 200,
       body: JSON.stringify(data)
     };
   } catch (err) {
-    return { statusCode: 500, body: err.message };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
