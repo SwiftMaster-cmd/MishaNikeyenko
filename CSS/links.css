@@ -1,0 +1,97 @@
+@import url('../CSS/variables.css');
+
+/* -- add-bookmark form (collapsible) -- */
+#add-link-form{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr)) 90px;
+  gap:1rem; margin-bottom:2.5rem;
+  overflow:hidden; max-height:420px; opacity:1; transform:translateY(0);
+  transition:max-height .35s, opacity .28s, transform .28s;
+}
+#add-link-form.collapsed{
+  max-height:0; opacity:0; transform:translateY(-10px); pointer-events:none;
+}
+#add-link-form input{
+  padding:.85rem 1rem;
+  background:rgba(255,255,255,.06); color:var(--clr-text);
+  border:1px solid var(--clr-border); border-radius:12px; font-size:.97rem;
+  transition:border-color .25s, background .25s;
+}
+#add-link-form input::placeholder{color:var(--clr-muted)}
+#add-link-form input:focus{
+  outline:none; border-color:var(--clr-primary); background:rgba(255,255,255,.10);
+}
+.btn-solid{
+  background:var(--clr-primary); color:#fff; font-weight:600;
+  border:none; border-radius:12px; cursor:pointer;
+  transition:background .25s, transform .15s;
+}
+.btn-solid:hover{background:#5b2ee5}
+.btn-solid:active{transform:scale(.97)}
+
+/* -- empty-state helper -- */
+.empty{opacity:.6; text-align:center; margin:2rem 0}
+
+/* -- category headers -- */
+.category-title{
+  display:flex; align-items:center; justify-content:space-between;
+  margin:.5rem 0 1rem;
+}
+.category-title h2{font-size:1.05rem; font-weight:600}
+.cat-actions{
+  display:flex; gap:.5rem; opacity:0; pointer-events:none; transition:opacity .18s;
+}
+.category-title:hover .cat-actions{opacity:1; pointer-events:auto}
+button.ghost{
+  background:transparent; border:none; color:var(--clr-muted);
+  font-size:1.05rem; padding:.25rem; border-radius:8px; cursor:pointer;
+  transition:background .2s,color .2s;
+}
+button.ghost:hover{background:rgba(255,255,255,.08); color:var(--clr-text)}
+
+/* -- grid / list -- */
+.links-grid{
+  display:grid; gap:1.6rem;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+}
+@media(max-width:640px){.links-grid{display:block}}
+
+.link-row{
+  margin-bottom:.8rem; position:relative;
+  animation:fadeSlideIn .25s ease both;
+}
+.link-main{
+  width:100%; display:flex; justify-content:space-between; align-items:center;
+  padding:.9rem 1rem; border-radius:12px; border:1px solid var(--clr-border);
+  background:rgba(255,255,255,.06); color:var(--clr-text); font-size:.95rem;
+  cursor:pointer; transition:background .25s;
+}
+.link-main:hover{background:rgba(255,255,255,.10)}
+.link-main .title{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+.menu-btn{margin-left:1rem; color:var(--clr-muted); opacity:0; transition:opacity .18s}
+.link-main:hover .menu-btn{opacity:1}
+
+/* dropdown menu */
+.menu{
+  position:absolute; right:0; top:calc(100% + .35rem); min-width:220px;
+  background:var(--clr-card); border:1px solid var(--clr-border);
+  border-radius:var(--radius); padding:.8rem; display:flex; flex-direction:column; gap:.6rem;
+  z-index:50;
+}
+.menu[hidden]{display:none!important}
+.menu button{
+  background:var(--clr-primary); color:#fff; border:none; border-radius:10px;
+  padding:.55rem .9rem; font-size:.9rem; font-weight:600; cursor:pointer;
+}
+.menu-edit{background:#5b2ee5}
+.menu-delete{background:#d32f2f}
+.preview{
+  word-break:break-all; font-size:.8rem; color:var(--clr-muted); margin-top:.4rem;
+}
+
+/* -- subtle motion -- */
+@keyframes fadeSlideIn{
+  from{opacity:0; transform:translateY(8px)}
+  to  {opacity:1; transform:none}
+}
