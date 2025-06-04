@@ -4,18 +4,107 @@ html, body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  scroll-behavior: smooth;
 }
+
 body {
   background: #181c24;
-  color: var(--color-text);
+  color: var(--color-text, #f8fafd);
   font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.57;
+  letter-spacing: 0.01em;
   display: block;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Makes UI more "fluid" on mobile and high-res screens */
+  text-rendering: optimizeLegibility;
 }
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+:focus {
+  outline: 2px solid var(--color-primary, #00ff88);
+  outline-offset: 2px;
+  transition: outline 0.14s;
+}
+
+::selection {
+  background: var(--color-primary, #00ff88);
+  color: #191a1d;
+}
+
 a {
-  color: var(--color-primary);
+  color: var(--color-primary, #00ff88);
   text-decoration: underline;
   transition: color 0.18s;
+  cursor: pointer;
+  word-break: break-all;
 }
-a:hover { color: #fff; }
+
+a:visited {
+  color: #17c581;
+}
+
+a:hover, a:focus {
+  color: #fff;
+  background: #00ff8822;
+  border-radius: 3px;
+  text-decoration: underline;
+}
+
+img, svg, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+input, button, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+input:disabled, button:disabled {
+  opacity: 0.54;
+  cursor: not-allowed;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  outline: none;
+  transition: filter 0.18s, background 0.18s, color 0.18s;
+}
+
+hr {
+  border: none;
+  border-top: 1.5px solid var(--color-border, #30304022);
+  margin: 2.1em 0;
+}
+
+ul, ol {
+  padding-left: 1.4em;
+  margin: 1.2em 0;
+}
+
+strong, b {
+  font-weight: 600;
+}
+
+em, i {
+  font-style: italic;
+}
+
+@media (max-width: 600px) {
+  body {
+    font-size: 15.4px;
+  }
+}

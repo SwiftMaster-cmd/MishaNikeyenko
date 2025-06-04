@@ -1,44 +1,73 @@
 .profile-card {
   position: fixed;
-  top: 3.5em;
-  right: 1.4em;
+  top: 3.6em;
+  right: 1.5em;
   min-width: 260px;
-  max-width: 90vw;
-  background: var(--color-glass-solid);
-  border-radius: 13px;
-  box-shadow: 0 4px 18px 0 var(--color-shadow);
+  max-width: 94vw;
+  background: var(--color-glass-solid, #252c40fa);
+  border-radius: 16px;
+  box-shadow: 0 8px 36px 0 var(--color-shadow, #00ff8822), 0 2px 0 var(--color-primary, #00ff88);
   z-index: 300; /* Above header */
   display: none;
   text-align: left;
   animation: fadeInProfile 0.22s;
+  padding: 1.7em 1.28em 1.2em 1.35em;
+  font-size: 1.09em;
+  line-height: 1.56;
+  pointer-events: auto;
+  user-select: text;
 }
+
 .profile-card.visible { display: block; }
+
 @keyframes fadeInProfile {
   0% { opacity: 0; transform: translateY(-20px);}
   100% { opacity: 1; transform: translateY(0);}
 }
-#user-info { margin-bottom: 0.8em; }
-#config-status, .success, .error {
-  margin: 0.9em 0 0.3em 0;
-  font-size: 1.02em;
+
+#user-info {
+  margin-bottom: 1em;
+  font-size: 1.06em;
   font-weight: 500;
-  min-height: 1.1em;
+  color: var(--color-primary, #00ff88);
+  word-break: break-all;
 }
-.success { color: var(--color-success);}
-.error { color: var(--color-error);}
+
+#config-status, .success, .error {
+  margin: 0.7em 0 0.3em 0;
+  font-size: 1.03em;
+  font-weight: 500;
+  min-height: 1.2em;
+  line-height: 1.48;
+}
+.success { color: var(--color-success, #00ff88);}
+.error { color: var(--color-error, #ff4d4d);}
+#config-status { color: inherit; }
+
 #logout-btn {
   width: 100%;
-  margin-top: 0.7em;
-  padding: 0.9em;
-  border-radius: 7px;
-  background: var(--color-primary);
+  margin-top: 1em;
+  padding: 1.02em;
+  border-radius: 9px;
+  background: var(--color-primary, #00ff88);
   color: #191a1d;
-  font-weight: bold;
+  font-weight: 700;
+  font-size: 1.09em;
   border: none;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
+  transition: background 0.16s, color 0.16s, box-shadow 0.16s;
+  box-shadow: 0 2px 14px 0 var(--color-shadow, #00ff8822);
 }
-#logout-btn:hover, #logout-btn:focus {
+#logout-btn:hover,
+#logout-btn:focus {
   background: #00cc70;
   color: #fff;
+  box-shadow: 0 5px 24px 0 var(--color-shadow, #00ff8855);
+}
+
+@media (max-width: 700px) {
+  .profile-card { right: 0.7em; min-width: 77vw; }
+}
+@media (max-width: 480px) {
+  .profile-card { min-width: 91vw; padding: 1.18em 0.7em 1.03em 0.8em; }
 }
