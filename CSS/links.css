@@ -192,6 +192,34 @@
   background: #ff4d4d22;
 }
 
+/* ====== CSS (add to CSS/links.css or new file) ====== */
+#links-list { padding-inline: .5rem; }
+
+/* nowrap section per category */
+.category-section { margin-block: 1.5rem; }
+
+/* adaptive grid: 220 px cards; collapses to one-column "list" when space is tight */
+.links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+/* card styling (quick example -- tweak as desired) */
+.link-card {
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  padding: .75rem;
+  box-shadow: 0 1px 4px rgb(0 0 0 / .05);
+}
+
+/* media query if you prefer an explicit "list" fallback below 500 px */
+@media (max-width: 500px) {
+  .links-grid { display: block; }
+  .link-card  { margin-block-end: 8px; }
+}
+
 @media (max-width: 600px) {
   .main-card { margin-top: 5.2em; }
   #add-link-form,
