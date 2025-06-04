@@ -142,3 +142,18 @@ body.sidebar-open .main-card{
 }
 #edit-save{background:var(--clr-primary);color:#fff}
 #edit-cancel{background:rgba(255,255,255,.12);color:var(--clr-text)}
+
+/*  ▸ overlay always blocks clicks  */
+#edit-overlay{
+  pointer-events:auto;                /* capture every click */
+}
+
+/*  ▸ while modal is open: no scroll, no clicks behind  */
+body.modal-open{
+  overflow:hidden;
+}
+body.modal-open .main-card,
+body.modal-open .header-bar,
+body.modal-open .side-nav{
+  pointer-events:none;                /* freeze everything underneath   */
+}
