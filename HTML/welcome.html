@@ -6,34 +6,35 @@
   <title>Welcome!</title>
 
   <link rel="stylesheet" href="../CSS/variables.css">
-<link rel="stylesheet" href="../CSS/base.css">
-<link rel="stylesheet" href="../CSS/header.css">
-<link rel="stylesheet" href="../CSS/profile-card.css">
-<link rel="stylesheet" href="../CSS/links.css">
-<link rel="stylesheet" href="../CSS/responsive.css">
+  <link rel="stylesheet" href="../CSS/base.css">
+  <link rel="stylesheet" href="../CSS/header.css">
+  <link rel="stylesheet" href="../CSS/profile-card.css">
+  <link rel="stylesheet" href="../CSS/links.css">
+  <link rel="stylesheet" href="../CSS/responsive.css">
 </head>
 <body>
   <div class="header-bar">
     <div class="site-title">My Site</div>
-    <button id="profile-toggle-btn" class="profile-toggle-btn" type="button">Profile</button>
+    <button id="profile-toggle-btn" class="profile-toggle-btn" type="button" aria-haspopup="true" aria-controls="profile-card">Profile</button>
   </div>
 
-  <div id="profile-card" class="profile-card">
+  <div id="profile-card" class="profile-card" aria-hidden="true">
     <div id="user-info"></div>
     <div id="config-status"></div>
     <button id="logout-btn" type="button">Sign Out</button>
   </div>
 
-  <div class="main-card">
+  <main class="main-card">
     <form id="add-link-form" autocomplete="off">
       <input type="text" id="link-title" placeholder="Link Title" required />
       <input type="url" id="link-url" placeholder="https://example.com" required />
-      <button type="submit" class="snapchat-main-btn">➕ Add Link</button>
+      <input type="text" id="link-category" placeholder="Category (optional, e.g. Social, Work)" />
+      <button type="submit">➕ Add Link</button>
     </form>
     <div id="links-list"></div>
-  </div>
+  </main>
 
   <script type="module" src="../JS/profile.js"></script>
-    <script type="module" src="../JS/links.js"></script>
+  <script type="module" src="../JS/links.js"></script>
 </body>
 </html>
