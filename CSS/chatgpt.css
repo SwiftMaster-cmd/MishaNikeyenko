@@ -31,6 +31,12 @@ body {
   align-self: flex-end;
 }
 
+.chat-entry img,
+.chat-entry video {
+  max-width: 300px;
+  border-radius: 8px;
+  margin-top: 0.3rem;
+}
 .gpt {
   background-color: #27272a;
   align-self: flex-start;

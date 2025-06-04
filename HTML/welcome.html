@@ -55,32 +55,13 @@
       <button class="btn-solid" type="submit">Save</button>
     </form>
 
- <!-- ChatGPT UI -->
-<section id="chat-wrapper" style="display: flex; flex-direction: column; height: 100vh;">
-
-  <!-- Chat log (scrollable, newest messages at bottom) -->
-  <div id="chat-log" style="
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    padding: 1.5rem;
-    gap: 1rem;
-    scroll-behavior: smooth;
-    background: var(--clr-glass);
-    border-radius: var(--radius);
-    border: 1px solid var(--clr-border);
-    margin-bottom: 1rem;
-  "></div>
-
-  <!-- Input box at the bottom -->
-  <form id="chat-form" style="display: flex; gap: 1rem; padding: 1rem;">
-    <input id="user-input" type="text" placeholder="Type your message..." required
-           style="flex: 1; padding: 0.8rem 1rem; border-radius: var(--radius); border: 1px solid var(--clr-border); background: var(--clr-glass); color: var(--clr-text);" />
-    <button type="submit" class="btn-solid">Send</button>
-  </form>
-
-</section>
+<form id="chat-form" style="display: flex; gap: 1rem; padding: 1rem;">
+  <input id="user-input" type="text" placeholder="Type your message..." required
+         style="flex: 1; padding: 0.8rem 1rem; border-radius: var(--radius); border: 1px solid var(--clr-border); background: var(--clr-glass); color: var(--clr-text);" />
+  <button type="button" id="upload-btn" title="Upload photo/video" style="font-size: 1.3rem;">📎</button>
+  <button type="submit" class="btn-solid">Send</button>
+  <input id="media-input" type="file" accept="image/*,video/*" multiple style="display:none" />
+</form>
   </main>
 
   <!-- MODULE SCRIPTS -->
