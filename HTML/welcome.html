@@ -1,32 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Bookmarks · Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Console</title>
 
-  <!-- tokens and component styles -->
-  <link rel="stylesheet" href="../css/variables.css">
-  <link rel="stylesheet" href="../css/profile.css">
-  <link rel="stylesheet" href="../css/links.css">
+  <!-- tokens + split style sheets -->
+  <link rel="stylesheet" href="../CSS/variables.css">
+  <link rel="stylesheet" href="../CSS/profile.css">
+  <link rel="stylesheet" href="../CSS/links.css">
 
-  <style>.hidden{display:none!important}</style>
+  <!-- helper class -->
+  <style>.hidden{display:none}</style>
 </head>
-<body class="sidebar-open"><!-- sidebar visible on load -->
+<body>
 
   <!-- HEADER -->
   <header class="header-bar">
-    <button id="menu-toggle" class="burger" aria-label="Toggle sidebar">☰</button>
-    <h1 class="header-title">Bookmarks</h1>
+    <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
+    <h1 class="header-title">Welcome</h1>
     <button id="profile-toggle-btn" class="profile-toggle-btn"
-            aria-haspopup="true" aria-controls="profile-card">Profile</button>
+            aria-haspopup="true" aria-controls="profile-card">
+      Profile
+    </button>
   </header>
 
   <!-- SIDEBAR -->
-  <nav id="side-nav" class="side-nav open">
+  <nav id="side-nav" class="side-nav" aria-hidden="true">
     <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
-    <!-- links injected by links.js -->
-    <div id="nav-links" class="nav-links"></div>
+    <a href="notes.html" class="nav-item">📝 Notes</a>
+    <div id="links-list" class="links-list-sidebar"></div>
   </nav>
 
   <!-- PROFILE CARD -->
@@ -36,52 +39,62 @@
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- MAIN (add-bookmark form) -->
+  <!-- MAIN DASHBOARD -->
   <main class="main-card">
+    <!-- add-link form -->
     <form id="add-link-form" class="collapsed" autocomplete="off">
-      <input  id="link-title"     placeholder="Link title" required>
-      <input  id="link-url" type="url" placeholder="https://example.com" required>
-      <select id="link-category"  required></select>
-      <input  id="new-cat-input"  class="hidden" placeholder="New category">
+      <input id="link-title" type="text" placeholder="Link title" required>
+      <input id="link-url" type="url" placeholder="https://example.com" required>
+
+      <!-- category picker -->
+      <select id="link-category" required></select>
+      <input id="new-cat-input" class="hidden" placeholder="New category name">
+
       <button class="btn-solid" type="submit">Save</button>
     </form>
+
+    <!-- removed: links list used to be here -->
   </main>
 
-  <!-- EDIT MODAL -->
+  <!-- EDIT BOOKMARK MODAL -->
   <div id="edit-overlay" class="hidden">
     <form id="edit-dialog" autocomplete="off">
-      <input  id="edit-title"   placeholder="Title" required>
-      <input  id="edit-url"     placeholder="URL"   required>
-      <select id="edit-cat"     required></select>
-      <input  id="edit-new-cat" class="hidden" placeholder="New category">
+      <input id="edit-title" placeholder="Title" required>
+      <input id="edit-url" placeholder="URL" required>
+
+      <select id="edit-cat" required></select>
+      <input id="edit-new-cat" class="hidden" placeholder="New category name">
+
       <div class="actions">
         <button id="edit-cancel" type="button">Cancel</button>
-        <button id="edit-save"   type="submit">Save</button>
+        <button id="edit-save" type="submit">Save</button>
       </div>
     </form>
   </div>
 
-  <!-- MODULE SCRIPTS -->
-  <script type="module" src="../js/profile.js"></script>
-  <script type="module" src="../js/links.js"></script>
+  <!-- MODULES -->
+  <script type="module" src="../JS/profile.js"></script>
+  <script type="module" src="../JS/links.js"></script>
 
-  <!-- tiny UI toggles -->
+  <!-- chrome controls -->
   <script type="module">
-    const sidebar = document.getElementById('side-nav');
-    const burger  = document.getElementById('menu-toggle');
-    const addBtn  = document.getElementById('toggle-form-btn');
-    const form    = document.getElementById('add-link-form');
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebar = document.getElementById('side-nav');
+      const burger = document.getElementById('menu-toggle');
+      const addBtn = document.getElementById('toggle-form-btn');
+      const form = document.getElementById('add-link-form');
 
-    burger.onclick = () =>{
-      const open = sidebar.classList.toggle('open');
-      document.body.classList.toggle('sidebar-open', open);
-    };
+      burger.onclick = () => {
+        const open = sidebar.classList.toggle('open');
+        document.body.classList.toggle('sidebar-open', open);
+      };
 
-    addBtn.onclick = () =>{
-      const closed = form.classList.toggle('collapsed');
-      addBtn.classList.toggle('active', !closed);
-      if (!closed) document.getElementById('link-title').focus();
-    };
+      addBtn.onclick = () => {
+        const collapsed = form.classList.toggle('collapsed');
+        addBtn.classList.toggle('active', !collapsed);
+        if (!collapsed) document.getElementById('link-title').focus();
+      };
+    });
   </script>
 </body>
 </html>
