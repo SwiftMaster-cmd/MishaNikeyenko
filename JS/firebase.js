@@ -1,23 +1,21 @@
-// netlify/functions/firebase.js
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getDatabase } from 'firebase/database';
-import { config } from 'dotenv';
-
-config(); // loads from .env
+// /js/firebase.js
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY,
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+  authDomain: "mishanikeyenko.firebaseapp.com",
+  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+  projectId: "mishanikeyenko",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
+  messagingSenderId: "1089190937368",
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
+  measurementId: "G-L6CC27129C"
 };
-
+// Firebase setup
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-export { auth, db };
+export { app, auth, db };

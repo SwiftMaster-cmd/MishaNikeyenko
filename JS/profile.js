@@ -4,16 +4,15 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
 import { getDatabase, ref as dbRef, get, child } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+  authDomain: "mishanikeyenko.firebaseapp.com",
+  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+  projectId: "mishanikeyenko",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
+  messagingSenderId: "1089190937368",
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
+  measurementId: "G-L6CC27129C"
 };
-
 /* -- App singletons -- */
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
