@@ -1,48 +1,39 @@
-const apiKey = "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"; // your hardcoded 
-
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-form.onsubmit = async e => {
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
   if (!prompt) return;
 
-  // Add user message
-  const userMsg = document.createElement("div");
-  userMsg.innerHTML = `🧑‍💻 You: ${prompt}`;
-  log.appendChild(userMsg);
+  // Display user message
+  const userLine = document.createElement("div");
+  userLine.textContent = `🧑 You: ${prompt}`;
+  log.appendChild(userLine);
 
-  // Add loading placeholder
-  const botMsg = document.createElement("div");
-  botMsg.innerHTML = "🤖 GPT: <em>Thinking...</em>";
-  log.appendChild(botMsg);
-
+  // Show thinking placeholder
+  const gptLine = document.createElement("div");
+  gptLine.textContent = `🤖 GPT: ...thinking...`;
+  log.appendChild(gptLine);
   input.value = "";
 
+  // Send request to Netlify function
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }]
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
     });
 
     const data = await res.json();
+    const reply = data?.choices?.[0]?.message?.content?.trim();
 
-    if (data?.choices?.[0]?.message?.content) {
-      botMsg.innerHTML = `🤖 GPT: ${data.choices[0].message.content}`;
-    } else {
-      botMsg.innerHTML = `❌ Error: ${JSON.stringify(data, null, 2)}`;
-    }
+    gptLine.textContent = reply
+      ? `🤖 GPT: ${reply}`
+      : `🤖 GPT: No response received.`;
 
   } catch (err) {
-    botMsg.innerHTML = `❌ Network or API Error: ${err.message}`;
+    gptLine.textContent = `❌ Error: ${err.message}`;
   }
-};
+});
