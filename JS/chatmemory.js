@@ -9,7 +9,7 @@ import {
   getStorage, ref as storageRef, uploadBytes, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-// Firebase Config (keep your config)
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -34,7 +34,7 @@ const mediaInput = document.getElementById("media-input");
 
 let chatRef = null;
 
-// Append message with media handling
+// Append messages with media rendering
 function appendMessage(role, content, mediaType) {
   const div = document.createElement("div");
   div.className = `chat-entry ${role === "user" ? "user" : "gpt"}`;
@@ -60,7 +60,7 @@ function appendMessage(role, content, mediaType) {
   log.scrollTop = log.scrollHeight;
 }
 
-// Firebase anonymous sign-in and load history
+// Firebase anonymous sign-in and chat history load
 signInAnonymously(auth);
 onAuthStateChanged(auth, user => {
   if (!user) return;
@@ -74,7 +74,7 @@ onAuthStateChanged(auth, user => {
   });
 });
 
-// Send text prompt only (no history)
+// Submit handler: send prompt text only
 form.addEventListener("submit", async e => {
   e.preventDefault();
   if (!chatRef) return;
@@ -91,7 +91,6 @@ form.addEventListener("submit", async e => {
   thinking.className = "chat-entry gpt";
   log.appendChild(thinking);
 
-  // Send only prompt text to ChatGPT API
   const messages = [
     { role: "system", content: "You are a helpful assistant that answers clearly and concisely." },
     { role: "user", content: prompt }
@@ -113,13 +112,13 @@ form.addEventListener("submit", async e => {
   }
 });
 
-// Upload button triggers hidden file input
+// Upload button triggers file input click
 uploadBtn.onclick = () => {
   mediaInput.click();
 };
 
-// Handle file uploads
-mediaInput.addEventListener("change", async (e) => {
+// Handle media file uploads
+mediaInput.addEventListener("change", async e => {
   const files = e.target.files;
   if (!files.length) return;
 
@@ -131,14 +130,16 @@ mediaInput.addEventListener("change", async (e) => {
       await uploadBytes(fileRef, file);
       const url = await getDownloadURL(fileRef);
 
+      const mediaType = file.type.startsWith("image/") ? "image" : "video";
+
       push(chatRef, {
         role: "user",
         content: url,
-        mediaType: file.type.startsWith("image/") ? "image" : "video",
+        mediaType,
         timestamp: Date.now()
       });
 
-      appendMessage("user", url, file.type.startsWith("image/") ? "image" : "video");
+      appendMessage("user", url, mediaType);
     } catch (err) {
       console.error("Upload failed:", err);
     }
