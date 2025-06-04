@@ -1,8 +1,4 @@
-// ---- Split API key (obscured in 3 chunks) ----
-const key1 = "sk-proj-_F8x1C4wqqVn4qQEIkwaw9RpLCgbax4RFdCPll3OKbeFbLwFB";
-const key2 = "a7A0UVKnmieOqRQ3pK_HWS42fT3BlbkFJ7V71XUizaXr3LOZFoQdU";
-const key3 = "J6ta3IGzUqcansaxCQjYimYEA_9fHh2zdvnYLSlWUvj5-2VyzgJ7gA";
-const apiKey = key1 + key2 + key3;
+// js/chatgpt.js
 
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
@@ -13,29 +9,31 @@ form.addEventListener("submit", async (e) => {
   const prompt = input.value.trim();
   if (!prompt) return;
 
-  // Display user message
+  // Show user message
   const userLine = document.createElement("div");
   userLine.textContent = `🧑 You: ${prompt}`;
   log.appendChild(userLine);
 
-  // Show thinking placeholder
+  // Show "thinking..." from GPT
   const gptLine = document.createElement("div");
   gptLine.textContent = `🤖 GPT: ...thinking...`;
   log.appendChild(gptLine);
+
   input.value = "";
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }]
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
     });
+
+    // If not 200 OK, show raw error
+    if (!res.ok) {
+      const text = await res.text();
+      gptLine.textContent = `❌ Server error: ${text}`;
+      return;
+    }
 
     const data = await res.json();
     const reply = data?.choices?.[0]?.message?.content?.trim();
@@ -43,7 +41,8 @@ form.addEventListener("submit", async (e) => {
     gptLine.textContent = reply
       ? `🤖 GPT: ${reply}`
       : `🤖 GPT: No response received.`;
+
   } catch (err) {
-    gptLine.textContent = `❌ Error: ${err.message}`;
+    gptLine.textContent = `❌ Network error: ${err.message}`;
   }
 });
