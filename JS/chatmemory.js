@@ -6,7 +6,6 @@ import {
   getAuth, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -18,7 +17,6 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
-// Init
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
@@ -47,8 +45,6 @@ form.addEventListener("submit", async (e) => {
 
   const userMsg = { role: "user", content: prompt, timestamp: Date.now() };
   push(chatRef, userMsg);
-
-  appendMessage(userMsg);
   input.value = "";
 
   const res = await fetch("/.netlify/functions/chatgpt", {
@@ -58,38 +54,34 @@ form.addEventListener("submit", async (e) => {
   });
 
   const data = await res.json();
-  const reply = data?.choices?.[0]?.message?.content?.trim();
+  const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
 
-  const botMsg = { role: "assistant", content: reply || "No response.", timestamp: Date.now() };
+  const botMsg = { role: "assistant", content: reply, timestamp: Date.now() };
   push(chatRef, botMsg);
-
-  appendMessage(botMsg);
 });
 
-// Render messages in chat log
+// Append and animate
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
     .sort((a, b) => a.timestamp - b.timestamp)
-    .forEach(msg => appendMessage(msg));
+    .forEach(msg => {
+      const div = document.createElement("div");
+      div.className = msg.role === "user" ? "msg user-msg" : "msg bot-msg";
+      log.appendChild(div);
+      animateText(div, msg.content);
+    });
 }
 
-// Animate typing-style text
-function appendMessage({ role, content }) {
-  const line = document.createElement("div");
-  line.className = role === "user" ? "msg user-msg" : "msg bot-msg";
-  line.textContent = "";
-
-  log.appendChild(line);
-  log.scrollTop = log.scrollHeight;
-
+function animateText(elem, text) {
+  elem.textContent = "";
   let i = 0;
-  const interval = setInterval(() => {
-    if (i < content.length) {
-      line.textContent += content[i++];
+  const typing = setInterval(() => {
+    if (i < text.length) {
+      elem.textContent += text[i++];
       log.scrollTop = log.scrollHeight;
     } else {
-      clearInterval(interval);
+      clearInterval(typing);
     }
   }, 15);
 }
