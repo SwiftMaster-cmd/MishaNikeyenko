@@ -16,11 +16,11 @@
 
 html, body {
   height: 100%;
+  width: 100%;
   font-family: 'Inter', sans-serif;
   background: var(--clr-bg);
   color: var(--clr-text);
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
 }
 
 main.chat-container {
