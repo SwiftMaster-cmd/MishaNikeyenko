@@ -1,10 +1,14 @@
-<!-- Add Firebase SDKs somewhere in your HTML before this script -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+// /JS/chatgpt.js -- Firebase-integrated ChatGPT chat log
 
-<script>
-// Firebase config
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase, ref, push, onValue
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import {
+  getAuth, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -15,67 +19,77 @@ const firebaseConfig = {
   appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
   measurementId: "G-L6CC27129C"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
 
-// Sign in anonymously
-firebase.auth().onAuthStateChanged(async (user) => {
-  if (!user) await firebase.auth().signInAnonymously();
-});
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
 
-// DOM elements
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
+
+let userChatRef = null;
+
+function appendLine(text, role) {
+  const div = document.createElement("div");
+  div.textContent = `${role === "user" ? "🧑" : "🤖"} ${role === "user" ? "You" : "GPT"}: ${text}`;
+  log.appendChild(div);
+}
 
 // Submit handler
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
-  if (!prompt) return;
+  if (!prompt || !userChatRef) return;
 
-  const user = firebase.auth().currentUser;
-  const uid = user?.uid;
-  if (!uid) return;
-
-  const userLine = document.createElement("div");
-  userLine.textContent = `🧑 You: ${prompt}`;
-  log.appendChild(userLine);
-
-  const gptLine = document.createElement("div");
-  gptLine.textContent = `🤖 GPT: ...thinking...`;
-  log.appendChild(gptLine);
+  appendLine(prompt, "user");
+  const gptPlaceholder = document.createElement("div");
+  gptPlaceholder.textContent = "🤖 GPT: ...thinking...";
+  log.appendChild(gptPlaceholder);
   input.value = "";
 
   try {
-    // Save user message to memory
-    const ref = db.ref(`chatHistory/${uid}`).push();
-    await ref.set({ role: "user", content: prompt });
-
-    // Call Netlify function
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, uid })
+      body: JSON.stringify({ prompt })
     });
 
     const data = await res.json();
     const reply = data?.choices?.[0]?.message?.content?.trim();
 
-    gptLine.textContent = reply
-      ? `🤖 GPT: ${reply}`
-      : `🤖 GPT: No response received.`;
+    const answer = reply || "No response received.";
+    gptPlaceholder.textContent = `🤖 GPT: ${answer}`;
 
-    // Save assistant reply to memory
-    if (reply) {
-      await db.ref(`chatHistory/${uid}`).push().set({
-        role: "assistant",
-        content: reply
-      });
-    }
-
+    push(userChatRef, {
+      prompt,
+      reply: answer,
+      timestamp: Date.now()
+    });
   } catch (err) {
-    gptLine.textContent = `❌ Error: ${err.message}`;
+    gptPlaceholder.textContent = `❌ Error: ${err.message}`;
   }
 });
-</script>
+
+// Auth + Chat History
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    console.warn("[ChatGPT] Not signed in");
+    return;
+  }
+
+  userChatRef = ref(db, `chatMemory/${user.uid}`);
+
+  onValue(userChatRef, (snapshot) => {
+    const history = snapshot.val();
+    if (!history) return;
+
+    log.innerHTML = "";
+    Object.values(history)
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .forEach(entry => {
+        appendLine(entry.prompt, "user");
+        appendLine(entry.reply, "assistant");
+      });
+  });
+});
