@@ -1,9 +1,8 @@
-// chatgpt.js
-export default async (req, res) => {
+const handler = async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: "Missing prompt" });
 
-  const apiKey = process.env.OPENAI_API_KEY; // Must match Netlify env name
+  const apiKey = process.env.OPENAI_API_KEY;
 
   try {
     const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -24,3 +23,5 @@ export default async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 };
+
+module.exports = handler;
