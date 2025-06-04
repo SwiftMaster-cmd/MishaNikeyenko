@@ -29,6 +29,14 @@
 .profile-card[aria-hidden="false"]{
   opacity:1;visibility:visible;transform:translateY(0);
 }
+
+/* status colors */
+#config-status .ok   {color:#00ff88}
+#config-status .warn {color:#ffb648}
+#config-status .bad  {color:#ff4d4d}
+
+/* simple spacing */
+#user-info {line-height:1.5}
 /* ...keep existing vars & reset */
 
 /* helper */
@@ -80,10 +88,3 @@ button.ghost:hover{background:rgba(255,255,255,.08);color:var(--clr-text)}
 }
 
 /* mobile stacking unchanged */
-/* status colors */
-#config-status .ok   {color:#00ff88}
-#config-status .warn {color:#ffb648}
-#config-status .bad  {color:#ff4d4d}
-
-/* simple spacing */
-#user-info {line-height:1.5}
