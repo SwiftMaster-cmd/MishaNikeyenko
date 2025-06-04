@@ -93,19 +93,24 @@
     <button class="btn-solid" type="submit">Save</button>
   </form>
 
-<input id="chat-input" placeholder="Ask something..." />
-<button onclick="handleChat()">Ask</button>
-<pre id="chat-response"></pre>
+<div class="chatbox">
+  <textarea id="chat-input" placeholder="Ask ChatGPT..."></textarea>
+  <button id="send-chat">Send</button>
+  <div id="chat-response"></div>
+</div>
 
-<script type="module">
-  import { askChatGPT } from '../JS/chat.js';
+<script>
+  document.getElementById('send-chat').onclick = async () => {
+    const prompt = document.getElementById('chat-input').value.trim();
+    if (!prompt) return;
 
-  window.handleChat = async () => {
-    const input = document.getElementById("chat-input").value;
-    const output = document.getElementById("chat-response");
-    output.textContent = "Thinking...";
-    const reply = await askChatGPT(input);
-    output.textContent = reply;
+    const res = await fetch('/.netlify/functions/chatgpt', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    });
+
+    const data = await res.json();
+    document.getElementById('chat-response').textContent = data.reply || 'No reply';
   };
 </script>
 
