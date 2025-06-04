@@ -118,3 +118,119 @@ body{
   .links-grid{display:block}
   .category-card{margin-bottom:1.6rem}
 }
+
+
+
+
+
+
+
+/* ▸ paste below your existing welcome.css */
+
+/* empty-state helper */
+.empty{
+  opacity:.6;
+  text-align:center;
+  margin:2rem 0;
+}
+
+/* ── category header ───────────────────── */
+.category-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin:.5rem 0 1rem;
+}
+.category-title h2{
+  font-size:1.05rem;
+  font-weight:600;
+}
+.cat-actions{
+  display:flex;
+  gap:.5rem;
+}
+button.ghost{
+  background:transparent;
+  border:none;
+  color:var(--clr-muted);
+  font-size:1.05rem;
+  cursor:pointer;
+  padding:.25rem;
+  border-radius:8px;
+  transition:background .2s,color .2s;
+}
+button.ghost:hover{
+  background:rgba(255,255,255,.08);
+  color:var(--clr-text);
+}
+
+/* ── link row ───────────────────────────── */
+.link-row{
+  margin-bottom:.8rem;
+  position:relative;
+}
+
+/* main clickable area */
+.link-main{
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:.9rem 1rem;
+  border-radius:12px;
+  border:1px solid var(--clr-border);
+  background:rgba(255,255,255,.06);
+  color:var(--clr-text);
+  font-size:.95rem;
+  text-align:left;
+  cursor:pointer;
+  transition:background .25s,border-color .25s;
+}
+.link-main:hover{
+  background:rgba(255,255,255,.10);
+}
+.link-main .title{
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.menu-btn{
+  margin-left:1rem;
+  color:var(--clr-muted);
+  user-select:none;
+}
+
+/* ── dropdown menu ──────────────────────── */
+.menu{
+  position:absolute;
+  right:0;
+  top:calc(100% + .35rem);
+  min-width:220px;
+  background:var(--clr-card);
+  border:1px solid var(--clr-border);
+  border-radius:var(--radius);
+  padding:.8rem;
+  z-index:50;
+  display:flex;
+  flex-direction:column;
+  gap:.6rem;
+}
+.menu button{
+  background:var(--clr-primary);
+  color:#fff;
+  border:none;
+  border-radius:10px;
+  padding:.55rem .9rem;
+  font-size:.9rem;
+  font-weight:600;
+  cursor:pointer;
+}
+.menu-edit{background:#5b2ee5}
+.menu-delete{background:#d32f2f}
+.preview{
+  word-break:break-all;
+  font-size:.8rem;
+  color:var(--clr-muted);
+  margin-top:.4rem;
+}
