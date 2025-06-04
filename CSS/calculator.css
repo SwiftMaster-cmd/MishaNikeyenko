@@ -2,7 +2,7 @@
 /* Assumes your design-system variables (colors, radius, etc.) are already defined */
 
 .calculator {
-  width: 320px;
+  width: 80%;
   padding: 1.6rem;
   border-radius: var(--radius);
   background: var(--clr-glass);
