@@ -3,11 +3,8 @@ import {
   getDatabase, ref, push, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
-  getAuth, signInAnonymously, onAuthStateChanged
+  getAuth, onAuthStateChanged, signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  getStorage, ref as storageRef, uploadBytes, getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -15,124 +12,86 @@ const firebaseConfig = {
   authDomain: "mishanikeyenko.firebaseapp.com",
   databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
   projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.appspot.com",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
   messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
-  measurementId: "G-L6CC27129C"
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
-const storage = getStorage(app);
 
+// DOM
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
-const uploadBtn = document.getElementById("upload-btn");
-const mediaInput = document.getElementById("media-input");
 
 let chatRef = null;
 
-function appendMessage(role, content, mediaType) {
-  const div = document.createElement("div");
-  div.className = `chat-entry ${role === "user" ? "user" : "gpt"}`;
-
-  if (mediaType === "image") {
-    const img = document.createElement("img");
-    img.src = content;
-    img.style.maxWidth = "300px";
-    img.style.borderRadius = "8px";
-    div.appendChild(img);
-  } else if (mediaType === "video") {
-    const video = document.createElement("video");
-    video.src = content;
-    video.controls = true;
-    video.style.maxWidth = "300px";
-    video.style.borderRadius = "8px";
-    div.appendChild(video);
-  } else {
-    div.textContent = content;
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    signInAnonymously(auth);
+    return;
   }
 
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-}
-
-// Sign in + load chat
-signInAnonymously(auth);
-onAuthStateChanged(auth, user => {
-  if (!user) return;
   chatRef = ref(db, `chatHistory/${user.uid}`);
-  onValue(chatRef, snap => {
-    log.innerHTML = "";
-    const data = snap.val() || {};
-    Object.values(data).forEach(entry => {
-      appendMessage(entry.role, entry.content, entry.mediaType);
-    });
+
+  onValue(chatRef, (snapshot) => {
+    const messages = snapshot.val() || {};
+    const sorted = Object.entries(messages)
+      .sort(([, a], [, b]) => a.timestamp - b.timestamp)
+      .map(([, val]) => val);
+
+    renderChat(sorted);
   });
 });
 
-// Text message submit
-form.addEventListener("submit", async e => {
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (!chatRef) return;
-
   const prompt = input.value.trim();
-  if (!prompt) return;
-
+  if (!prompt || !chatRef) return;
   input.value = "";
-  appendMessage("user", prompt);
-  push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
 
-  const thinking = document.createElement("div");
-  thinking.textContent = "🤖 GPT: ...thinking...";
-  thinking.className = "chat-entry gpt";
-  log.appendChild(thinking);
+  const userMsg = { role: "user", content: prompt, timestamp: Date.now() };
+  push(chatRef, userMsg);
+
+  const botMsg = {
+    role: "assistant",
+    content: "...thinking...",
+    timestamp: Date.now()
+  };
+  const botRef = push(chatRef, botMsg);
 
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: "You are a helpful assistant that replies clearly and concisely." },
-          { role: "user", content: prompt }
-        ]
-      })
+      body: JSON.stringify({ prompt })
     });
 
     const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply";
-    thinking.textContent = reply;
-    push(chatRef, { role: "assistant", content: reply, timestamp: Date.now() });
+    const reply = data?.choices?.[0]?.message?.content?.trim();
+
+    await set(botRef, {
+      role: "assistant",
+      content: reply || "No response.",
+      timestamp: Date.now()
+    });
   } catch (err) {
-    thinking.textContent = `❌ Error: ${err.message}`;
+    await set(botRef, {
+      role: "assistant",
+      content: `❌ Error: ${err.message}`,
+      timestamp: Date.now()
+    });
   }
 });
 
-// Upload media
-uploadBtn.onclick = () => mediaInput.click();
-
-mediaInput.addEventListener("change", async e => {
-  const files = e.target.files;
-  if (!files.length) return;
-
-  for (const file of files) {
-    const path = `chatMedia/${auth.currentUser.uid}/${Date.now()}_${file.name}`;
-    const fileRef = storageRef(storage, path);
-
-    try {
-      await uploadBytes(fileRef, file);
-      const url = await getDownloadURL(fileRef);
-      const mediaType = file.type.startsWith("image/") ? "image" : "video";
-
-      push(chatRef, { role: "user", content: url, mediaType, timestamp: Date.now() });
-      appendMessage("user", url, mediaType);
-    } catch (err) {
-      console.error("Upload failed:", err);
-    }
-  }
-
-  e.target.value = "";
-});
+function renderChat(messages) {
+  log.innerHTML = "";
+  messages.forEach((msg) => {
+    const div = document.createElement("div");
+    div.textContent = `${msg.role === "user" ? "🧑 You" : "🤖 GPT"}: ${msg.content}`;
+    log.appendChild(div);
+  });
+  log.scrollTop = log.scrollHeight;
+}
