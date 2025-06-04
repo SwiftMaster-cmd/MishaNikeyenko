@@ -1,31 +1,30 @@
+<!-- /index.html  (login page) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Login · YourBrand</title>
 
-  
   <link rel="stylesheet" href="CSS/variables.css">
-<link rel="stylesheet" href="CSS/base.css">
-<link rel="stylesheet" href="CSS/header.css">
-<link rel="stylesheet" href="CSS/profile-card.css">
-<link rel="stylesheet" href="CSS/links.css">
-<link rel="stylesheet" href="CSS/responsive.css">
-  
-  
+  <link rel="stylesheet" href="CSS/index.css">
 </head>
 <body>
-  <div class="auth-container">
-    <h2>Login</h2>
-    <form id="login-form">
-      <input type="email" id="login-email" placeholder="Email" required autocomplete="email" />
-      <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" />
-      <button type="submit" class="action-btn login">Login</button>
+  <main class="auth-container">
+    <h1>Sign in</h1>
+    <form id="login-form" novalidate>
+      <input type="email"    id="login-email"    placeholder="Email"    autocomplete="email"             required>
+      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password"   required>
+      <button class="btn-solid" type="submit">Login</button>
     </form>
+
     <div id="login-message"></div>
-    <p>Don’t have an account? <a href="HTML/register.html">Register here</a></p>
-  </div>
+
+    <p class="alt">Don’t have an account?
+      <a href="HTML/register.html">Create one</a>
+    </p>
+  </main>
+
   <script type="module" src="JS/auth.js"></script>
 </body>
 </html>
