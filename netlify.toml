@@ -1,2 +1,5 @@
 [functions]
-  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = []
+  included_files = []
+  node_version = "18"
