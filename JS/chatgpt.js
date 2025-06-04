@@ -18,7 +18,6 @@ form.addEventListener("submit", async (e) => {
   log.appendChild(gptLine);
   input.value = "";
 
-  // Send request to Netlify function
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
@@ -26,13 +25,18 @@ form.addEventListener("submit", async (e) => {
       body: JSON.stringify({ prompt })
     });
 
+    if (!res.ok) {
+      const error = await res.text();
+      gptLine.textContent = `❌ Server error: ${error}`;
+      return;
+    }
+
     const data = await res.json();
     const reply = data?.choices?.[0]?.message?.content?.trim();
 
     gptLine.textContent = reply
       ? `🤖 GPT: ${reply}`
       : `🤖 GPT: No response received.`;
-
   } catch (err) {
     gptLine.textContent = `❌ Error: ${err.message}`;
   }
