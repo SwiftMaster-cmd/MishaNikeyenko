@@ -171,6 +171,26 @@
   color: var(--color-text-alt, #bfffe3);
   text-align: right;
 }
+.edit-cat-btn, .delete-cat-btn {
+  background: transparent;
+  border: none;
+  color: #00cc70;
+  font-size: 1em;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0.12em 0.29em;
+  margin-left: 0.25em;
+  transition: background 0.13s;
+}
+.delete-cat-btn {
+  color: #ff4d4d;
+}
+.edit-cat-btn:hover, .delete-cat-btn:hover {
+  background: #00ff8830;
+}
+.delete-cat-btn:hover {
+  background: #ff4d4d22;
+}
 
 @media (max-width: 600px) {
   .main-card { margin-top: 5.2em; }
