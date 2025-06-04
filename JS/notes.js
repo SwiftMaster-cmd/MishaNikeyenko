@@ -47,9 +47,15 @@ window.saveNote = () => {
 };
 
 function renderNotes(notes) {
+  const notesList = document.getElementById('notesList');
+  const notesHistory = document.getElementById('notesHistory');
+
   notesList.innerHTML = '';
+  notesHistory.innerHTML = '';
 
   notes.sort((a, b) => b.timestamp - a.timestamp);
+
+  const cutoff = Date.now() - 1000 * 60 * 60 * 24 * 3; // 3 days ago
 
   notes.forEach(note => {
     const li = document.createElement('li');
@@ -83,15 +89,12 @@ function renderNotes(notes) {
     actions.append(editBtn, delBtn);
 
     li.append(summary, time, expand, actions);
+    summary.onclick = () => expand.classList.toggle('hidden');
 
-    summary.onclick = () => {
-      expand.classList.toggle('hidden');
-    };
-
-    notesList.appendChild(li);
+    // Append to recent or history
+    (note.timestamp >= cutoff ? notesList : notesHistory).appendChild(li);
   });
 }
-
 onValue(notesRef, snapshot => {
   const data = snapshot.val() || {};
   const notes = Object.entries(data).map(([id, val]) => ({ id, ...val }));

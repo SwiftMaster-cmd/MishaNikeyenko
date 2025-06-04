@@ -10,13 +10,26 @@
 <body>
   <div class="notes-container">
     <h1>Notes</h1>
+
+    <!-- New Note Input -->
     <div class="notes-form">
       <input id="noteInput" placeholder="Write a note..." />
       <button onclick="saveNote()">Add Note</button>
     </div>
-    <ul id="notesList" class="notes-list"></ul>
+
+    <!-- Recent Notes -->
+    <section class="notes-section">
+      <h2>Recent</h2>
+      <ul id="notesList" class="notes-list"></ul>
+    </section>
+
+    <!-- Note History -->
+    <section class="notes-section">
+      <h2>History</h2>
+      <ul id="notesHistory" class="notes-list"></ul>
+    </section>
   </div>
 
-  <script type="module" src="../JS/notes.js"></script>
+  <script type="module" src="./notes.js"></script>
 </body>
 </html>
