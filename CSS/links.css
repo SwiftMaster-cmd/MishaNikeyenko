@@ -120,3 +120,15 @@ button.ghost:hover{background:rgba(255,255,255,.08); color:var(--clr-text)}
   from{opacity:0; transform:translateY(8px)}
   to  {opacity:1; transform:none}
 }
+/* ── 1. make main area shrink instead of overflowing ────── */
+body.sidebar-open .main-card{
+  margin-left:260px;                       /* keeps it clear of the nav */
+  max-width:calc(100% - 280px);            /* <-- NEW: shrinkable width */
+}
+
+/* ── 2. responsive two-up grid that collapses automatically ─ */
+.category-links{
+  /* old: grid-template-columns:repeat(2,minmax(0,1fr));  */
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+}
+/* if you kept the @media fallback, you can safely delete it now */
