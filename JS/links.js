@@ -1,33 +1,36 @@
-/* /JS/links.js – Sidebar list version (June 2025) */
+/* links.js – sidebar list-view with collapsible categories (June 2025) */
 
+/* ── 0 · Firebase bootstrap ───────────────────────────────────────── */
 const firebaseConfig = {
   apiKey:            "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain:        "mishanikeyenko.firebaseapp.com",
   databaseURL:       "https://mishanikeyenko-default-rtdb.firebaseio.com",
   projectId:         "mishanikeyenko",
-  storageBucket:     "mishanikeyenko.firebasestorage.app",
+  storageBucket:     "mishanikeyenko.appspot.com",
   messagingSenderId: "1089190937368",
   appId:             "1:1089190937368:web:959c825fc596a5e3ae946d",
   measurementId:     "G-L6CC27129C"
 };
 
-/* links.js -- sidebar list-view with collapsible categories (Jun-2025) */
-
-//////////////// 0 · Firebase //////////////////
-
-
 import { initializeApp }                       from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged }         from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
-import { getDatabase, ref as dbRef, get,
-         push, set, remove, update, onValue }  from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+import {
+  getDatabase, ref as dbRef, get,
+  push, set, remove, update, onValue
+} from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
 initializeApp(firebaseConfig);
-const auth = getAuth();           // default app
+const auth = getAuth();
 const db   = getDatabase();
 
-//////////////// 1 · DOM refs //////////////////
-const $ = s=>document.querySelector(s);
-const navBox = $('#nav-links');              // sidebar injection point
+/* ── 1 · DOM refs ─────────────────────────────────────────────────── */
+const $ = s => document.querySelector(s);
+
+const navBox = document.getElementById('nav-links');      // sidebar container
+if (!navBox){
+  console.error('❌ #nav-links missing – sidebar cannot render.');
+  throw new Error('#nav-links not found');
+}
 
 /* add-form */
 const catSel = $('#link-category');
@@ -42,39 +45,44 @@ const eCat    = $('#edit-cat');
 const eNewCat = $('#edit-new-cat');
 $('#edit-cancel').onclick = hideModal;
 
-let uid, categories = new Set();
+let uid;
+let categories = new Set();
 
-//////////////// 2 · helpers //////////////////
-const grp = obj=>{
-  const o={};
+/* ── 2 · helpers ──────────────────────────────────────────────────── */
+const byCat = obj=>{
+  const out={};
   Object.entries(obj).forEach(([id,l])=>{
     const k=(l.category||'Uncategorized').trim();
-    (o[k] ||= []).push({...l,id});
+    (out[k] ||= []).push({...l,id});
   });
-  return o;
+  return out;
 };
-const refreshPicker=()=>{
+
+const refreshPicker = ()=>{
   const opts=[...categories].sort().map(c=>`<option>${c}</option>`).join('')
            +'<option value="__new__">➕ New…</option>';
-  catSel.innerHTML=opts; eCat.innerHTML=opts;
+  catSel.innerHTML = opts;
+  eCat .innerHTML  = opts;
 };
-const showModal=()=>{overlay.classList.remove('hidden');document.body.classList.add('modal-open');};
-const hideModal=()=>{overlay.classList.add('hidden');document.body.classList.remove('modal-open');};
 
-//////////////// 3 · Add bookmark //////////////////
+const showModal = ()=>{overlay.classList.remove('hidden');document.body.classList.add('modal-open');};
+const hideModal = ()=>{overlay.classList.add('hidden');document.body.classList.remove('modal-open');};
+
+/* ── 3 · Add-bookmark form ───────────────────────────────────────── */
 catSel.onchange = ()=>{const n=catSel.value==='__new__';newInp.classList.toggle('hidden',!n);if(n)newInp.focus();};
+
 $('#add-link-form').onsubmit = e=>{
   e.preventDefault();
   const title=$('#link-title').value.trim();
   const url  =$ ('#link-url').value.trim();
   let cat = catSel.value==='__new__' ? newInp.value.trim() : catSel.value.trim();
   if(!title||!url||!cat) return;
-  set(push(dbRef(db,`users/${uid}/links`)),{title,url,category:cat});
+  set(push(dbRef(db,`users/${uid}/links`)), {title,url,category:cat});
   categories.add(cat); refreshPicker();
   e.target.reset(); newInp.classList.add('hidden');
 };
 
-//////////////// 4 · Edit modal //////////////////
+/* ── 4 · Modal edit workflow ─────────────────────────────────────── */
 function openEdit(link,id){
   eTtl.value=link.title; eURL.value=link.url;
   refreshPicker(); eCat.value=link.category;
@@ -92,16 +100,19 @@ function openEdit(link,id){
   showModal();
 }
 
-//////////////// 5 · Render sidebar //////////////////
+/* ── 5 · Render sidebar list view ───────────────────────────────── */
 function render(data){
   navBox.innerHTML='';
-  if(!Object.keys(data).length){navBox.innerHTML='<p class="empty">No links yet.</p>';return;}
+  if(!Object.keys(data).length){
+    navBox.innerHTML='<p class="empty">No links yet.</p>';
+    return;
+  }
 
-  for(const [cat,links] of Object.entries(grp(data))){
-    /* header */
+  for(const [cat,links] of Object.entries(byCat(data))){
+    /* header row */
     const head=document.createElement('div');
     head.className='category-title';
-    head.innerHTML = `
+    head.innerHTML=`
       <button class="cat-toggle" aria-expanded="true">▶</button>
       <h2 class="cat-name">${cat}</h2>
       <div class="cat-actions">
@@ -129,11 +140,11 @@ function render(data){
     });
     navBox.appendChild(stack);
 
-    /* collapse behaviour */
-    const toggle=head.querySelector('.cat-toggle');
-    toggle.onclick = ()=>{
-      const open = toggle.getAttribute('aria-expanded')==='true';
-      toggle.setAttribute('aria-expanded', String(!open));
+    /* collapse/expand */
+    const btn=head.querySelector('.cat-toggle');
+    btn.onclick = ()=>{
+      const open = btn.getAttribute('aria-expanded')==='true';
+      btn.setAttribute('aria-expanded',!open);
       stack.hidden = open;
     };
 
@@ -149,38 +160,47 @@ function render(data){
   }
 }
 
-//////////////// 6 · Row interactions //////////////////
+/* ── 6 · Row-level interactions ─────────────────────────────────── */
 let openMenu=null;
+
 navBox.addEventListener('click',e=>{
   const main=e.target.closest('.link-main');
   if(main && !e.target.classList.contains('menu-btn'))
     window.open(main.dataset.url,'_blank','noopener,noreferrer');
 });
+
 navBox.addEventListener('click',e=>{
-  const trg=e.target.closest('.menu-btn'); if(!trg) return;
-  const menu=$('#m-'+trg.dataset.id);
-  if(openMenu&&openMenu!==menu) openMenu.hidden=true;
-  menu.hidden=!menu.hidden; openMenu=menu.hidden?null:menu;
+  const trig=e.target.closest('.menu-btn'); if(!trig) return;
+  const m=document.getElementById('m-'+trig.dataset.id);
+  if(openMenu&&openMenu!==m) openMenu.hidden=true;
+  m.hidden=!m.hidden; openMenu=m.hidden?null:m;
 });
+
 document.addEventListener('mousedown',e=>{
-  if(openMenu&&!openMenu.contains(e.target)) openMenu.hidden=true,openMenu=null;
+  if(openMenu && !openMenu.contains(e.target)) openMenu.hidden=true,openMenu=null;
 });
+
 navBox.addEventListener('click',e=>{
   const del=e.target.closest('.menu-delete');
   const edt=e.target.closest('.menu-edit');
   if(!del && !edt) return;
   const id=(del||edt).dataset.id;
+
   if(del) remove(dbRef(db,`users/${uid}/links/${id}`));
+
   if(edt) get(dbRef(db,`users/${uid}/links/${id}`))
-            .then(s=>s.exists() && openEdit(s.val(),id));
+            .then(snap=>snap.exists() && openEdit(snap.val(),id));
+
   if(openMenu) openMenu.hidden=true,openMenu=null;
 });
 
-//////////////// 7 · Auth & data stream //////////////////
+/* ── 7 · Auth + live stream ─────────────────────────────────────── */
 onAuthStateChanged(auth,user=>{
   if(!user){window.location.href="../index.html";return;}
   uid=user.uid;
-  onValue(dbRef(db,`users/${uid}/links`), snap=>{
+
+  const base=dbRef(db,`users/${uid}/links`);
+  onValue(base, snap=>{
     const data=snap.val()||{};
     categories=new Set(Object.values(data).map(l=>(l.category||'Uncategorized').trim()));
     refreshPicker();
