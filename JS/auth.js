@@ -32,7 +32,7 @@ if (loginForm) {
       await signInWithEmailAndPassword(auth, email, password);
       msg.textContent = "Login successful!";
       msg.className = "success";
-      setTimeout(() => window.location.href = "HTML/welcome.html", 800);
+      setTimeout(() => window.location.href = "welcome.html", 800);
     } catch (err) {
       msg.textContent = err.message;
       msg.className = "error";
