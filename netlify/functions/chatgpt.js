@@ -1,6 +1,5 @@
-const fetch = require("node-fetch")
+const fetch = require("node-fetch");
 
-// netlify/functions/chatgpt.js
 exports.handler = async (event) => {
   const { prompt } = JSON.parse(event.body || "{}");
   if (!prompt) return { statusCode: 400, body: "Missing prompt" };
@@ -19,6 +18,7 @@ exports.handler = async (event) => {
         messages: [{ role: "user", content: prompt }]
       })
     });
+
     const data = await gptRes.json();
     return {
       statusCode: 200,
