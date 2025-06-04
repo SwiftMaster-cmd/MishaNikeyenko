@@ -1,6 +1,6 @@
-/* /JS/links.js – category title now sits above its links (2025-06-03) */
+/* /JS/links.js – two-column layout per category (2025-06-03) */
 
-/* ── Firebase config ───────────────────────────── */
+/* ── Firebase config ───────────────────────────────────────── */
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -12,9 +12,9 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
-/* ── Firebase core ─────────────────────────────── */
-import { initializeApp }            from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+/* ── Firebase core ─────────────────────────────────────────── */
+import { initializeApp }                from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+import { getAuth, onAuthStateChanged }  from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 import {
   getDatabase, ref as dbRef,
   push, set, remove, update, onValue
@@ -24,17 +24,19 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 
-/* ── auth helper ──────────────────────────────── */
+/* ── auth helper ──────────────────────────────────────────── */
 function onUserReady(cb){
-  onAuthStateChanged(auth, user => user ? cb(user)
-                                        : window.location.href = "../index.html");
+  onAuthStateChanged(auth, user => {
+    if (user) cb(user);
+    else      window.location.href = "../index.html";
+  });
 }
 
-/* ── DOM helpers ──────────────────────────────── */
-const $     = s => document.querySelector(s);
-const $list = () => $('#links-list');
+/* ── DOM helpers ───────────────────────────────────────────── */
+const $     = sel => document.querySelector(sel);
+const $list = ()  => $('#links-list');
 
-const groupByCategory = data => {
+const groupByCat = data => {
   const out = {};
   Object.entries(data).forEach(([id, link]) => {
     const key = (link.category || 'Uncategorized').trim();
@@ -43,7 +45,7 @@ const groupByCategory = data => {
   return out;
 };
 
-/* ── render ───────────────────────────────────── */
+/* ── render ───────────────────────────────────────────────── */
 function render(uid){
   onValue(dbRef(db, `users/${uid}/links`), snap => {
     const data = snap.val();
@@ -55,13 +57,13 @@ function render(uid){
       return;
     }
 
-    for (const [cat, links] of Object.entries(groupByCategory(data))){
+    for (const [cat, links] of Object.entries(groupByCat(data))){
 
-      /* wrapper keeps title above rows */
+      /* wrapper keeps title & its grid together */
       const section = document.createElement('div');
       section.className = 'category-section';
 
-      /* category header */
+      /* centered title row */
       const header = document.createElement('div');
       header.className = 'category-title';
       header.innerHTML = `
@@ -71,6 +73,11 @@ function render(uid){
           <button class="ghost delete" data-cat="${cat}">🗑️</button>
         </div>`;
       section.appendChild(header);
+
+      /* two-column grid container */
+      const grid = document.createElement('div');
+      grid.className = 'category-links';
+      section.appendChild(grid);
 
       /* rename / delete handlers */
       header.querySelector('.edit').onclick = () => {
@@ -83,7 +90,7 @@ function render(uid){
           links.forEach(l => remove(dbRef(db, `users/${uid}/links/${l.id}`)));
       };
 
-      /* link rows */
+      /* link cards */
       links.forEach(link => {
         const row = document.createElement('div');
         row.className = 'link-row';
@@ -97,7 +104,7 @@ function render(uid){
             <button class="menu-delete" data-id="${link.id}">Delete</button>
             <div class="preview">${link.url}</div>
           </div>`;
-        section.appendChild(row);
+        grid.appendChild(row);
       });
 
       list.appendChild(section);
@@ -105,7 +112,7 @@ function render(uid){
   });
 }
 
-/* ── interactions ─────────────────────────────── */
+/* ── interactions ─────────────────────────────────────────── */
 function bind(uid){
   let openMenu = null;
 
@@ -116,24 +123,23 @@ function bind(uid){
       window.open(btn.dataset.url, '_blank', 'noopener,noreferrer');
   });
 
-  /* toggle per-row menu */
+  /* toggle row menu */
   $list().addEventListener('click', e => {
     const trigger = e.target.closest('.menu-btn');
     if (!trigger) return;
-
     const menu = $(`#m-${trigger.dataset.id}`);
     if (openMenu && openMenu !== menu) openMenu.hidden = true;
     menu.hidden = !menu.hidden;
     openMenu = menu.hidden ? null : menu;
   });
 
-  /* outside-click closes any open menu */
+  /* outside click closes menu */
   document.addEventListener('mousedown', e => {
     if (openMenu && !openMenu.contains(e.target))
       openMenu.hidden = true, openMenu = null;
   });
 
-  /* delete / edit actions */
+  /* delete / edit */
   $list().addEventListener('click', e => {
     const del = e.target.closest('.menu-delete');
     const edt = e.target.closest('.menu-edit');
@@ -146,8 +152,7 @@ function bind(uid){
       const row = $(`#m-${id}`).parentElement;
       const curTitle = row.querySelector('.title').textContent;
       const curUrl   = row.querySelector('.preview').textContent;
-      const curCat   = row.parentElement.querySelector('h2').textContent;
-
+      const curCat   = row.parentElement.parentElement.querySelector('h2').textContent;
       update(dbRef(db, `users/${uid}/links/${id}`), {
         title:    prompt('Title:',    curTitle) ?? curTitle,
         url:      prompt('URL:',      curUrl)   ?? curUrl,
@@ -158,7 +163,7 @@ function bind(uid){
   });
 }
 
-/* ── add-link form ────────────────────────────── */
+/* ── add-link form ────────────────────────────────────────── */
 function addForm(uid){
   const f = $('#add-link-form'); if (!f) return;
   f.onsubmit = e => {
@@ -172,7 +177,7 @@ function addForm(uid){
   };
 }
 
-/* ── boot ─────────────────────────────────────── */
+/* ── boot ─────────────────────────────────────────────────── */
 onUserReady(user => {
   addForm(user.uid);
   render(user.uid);

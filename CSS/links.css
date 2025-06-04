@@ -95,3 +95,34 @@ button.ghost:hover{background:rgba(255,255,255,.08); color:var(--clr-text)}
   from{opacity:0; transform:translateY(8px)}
   to  {opacity:1; transform:none}
 }
+
+/* ① wrapper: gives breathing-room after each category */
+.category-section{
+  margin-bottom:2.2rem;
+}
+
+/* ② make title truly centered and keep action buttons on right */
+.category-title{
+  position:relative;
+  text-align:center;
+  margin-bottom:1rem;          /* space below the title */
+}
+.category-title h2{
+  display:inline-block;        /* shrink to text width */
+}
+.cat-actions{
+  position:absolute;           /* float the ✏️ 🗑️ to the right edge */
+  right:0; top:50%; transform:translateY(-50%);
+}
+
+/* ③ two-column grid for the links inside each category */
+.category-links{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));   /* exactly two columns */
+  gap:1.2rem;
+}
+
+/* on narrow screens fall back to single column */
+@media(max-width:640px){
+  .category-links{grid-template-columns:1fr;}
+}
