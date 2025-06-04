@@ -1,6 +1,3 @@
-// /netlify/functions/chatgpt.js
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
@@ -14,7 +11,7 @@ exports.handler = async (event) => {
   }
   if (!prompt) return { statusCode: 400, body: "Missing prompt" };
 
-  const apiKey = process.env.OPENAI_API_KEY; // Set this in Netlify's UI (Site > Settings > Environment Variables)
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return { statusCode: 500, body: "API key not found" };
 
   try {
