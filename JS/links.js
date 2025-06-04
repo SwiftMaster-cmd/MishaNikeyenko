@@ -204,12 +204,11 @@ function wireAddForm(){
   };
 }
 
-/* ── boot sequence ─────────────────────────────────────── */
+// BOOT
 onUserReady(user=>{
-  uid=user.uid;
+  uid = user.uid;
+  overlay.classList.add('hidden');   // <- ensure hidden on first load
   wireAddForm();
   render();
   bind();
 });
-
-.hidden{display:none!important}
