@@ -1,29 +1,26 @@
-/* /JS/ui.js  – controls sidebar, burger, and "Add bookmark" indicator (2025-06-03) */
-/* This file is standalone: no imports, no Firebase calls. */
+/* ../JS/ui.js  – sidebar + form toggle (no dependencies) */
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  /* elements */
-  const burger   = document.getElementById('menu-toggle');      // ☰
-  const sidebar  = document.getElementById('side-nav');         // <nav>
-  const formBtn  = document.getElementById('toggle-form-btn');  // ➕ Add bookmark
-  const addForm  = document.getElementById('add-link-form');    // collapsible form
+  /* grab DOM refs */
+  const sidebar = document.getElementById('side-nav');          // collapsible <nav>
+  const burger  = document.getElementById('menu-toggle');       // ☰ button
+  const addBtn  = document.getElementById('toggle-form-btn');   // "➕ Add bookmark"
+  const form    = document.getElementById('add-link-form');     // collapsible form
 
-  /* 1 -- burger opens / closes sidebar */
+  if (!sidebar || !burger) return;  // hard-fail safe
+
+  /* ── SIDEBAR TOGGLE ───────────────────────────── */
   burger.addEventListener('click', () => {
-    const open = sidebar.classList.toggle('open');
-    /* body class shifts main-card for nicer layout */
+    const open = sidebar.classList.toggle('open');      // slide in/out
     document.body.classList.toggle('sidebar-open', open);
   });
 
-  /* 2 -- "Add bookmark" toggles the slide-down form and highlights itself */
-  formBtn.addEventListener('click', () => {
-    const collapsed = addForm.classList.toggle('collapsed'); // true → now hidden
-    formBtn.classList.toggle('active', !collapsed);          // add .active when open
-    if (!collapsed) {
-      /* autofocus first input for convenience */
-      document.getElementById('link-title')?.focus();
-    }
+  /* ── ADD-BOOKMARK FORM TOGGLE ─────────────────── */
+  addBtn?.addEventListener('click', () => {
+    const isClosed = form.classList.toggle('collapsed');   // true → now hidden
+    addBtn.classList.toggle('active', !isClosed);          // visual indicator
+    if (!isClosed) document.getElementById('link-title')?.focus();
   });
 
 });
