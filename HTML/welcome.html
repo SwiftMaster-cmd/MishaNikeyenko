@@ -1,30 +1,49 @@
-<!-- /pages/welcome.html -->
+<!-- /HTML/welcome.html  (dashboard after login) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Welcome · YourBrand</title>
+  <title>Dashboard · YourBrand</title>
 
   <link rel="stylesheet" href="../CSS/variables.css">
   <link rel="stylesheet" href="../CSS/welcome.css">
 </head>
 <body>
-  <main class="auth-container">
-    <h1>Welcome back</h1>
-    <form id="login-form" novalidate>
-      <input type="email"    id="login-email"    placeholder="Email"    autocomplete="email"        required>
-      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required>
-      <button class="btn-solid" type="submit">Sign in</button>
+  <!-- GLASS HEADER -->
+  <header class="header-bar">
+    <div class="site-title">My&nbsp;Site</div>
+
+    <button id="profile-toggle-btn"
+            class="profile-toggle-btn"
+            type="button"
+            aria-haspopup="true"
+            aria-controls="profile-card">
+      Profile
+    </button>
+  </header>
+
+  <!-- PROFILE CARD -->
+  <aside id="profile-card" class="profile-card" aria-hidden="true">
+    <div id="user-info"></div>
+    <div id="config-status"></div>
+    <button id="logout-btn" type="button">Sign&nbsp;Out</button>
+  </aside>
+
+  <!-- MAIN DASHBOARD -->
+  <main class="main-card">
+    <form id="add-link-form" autocomplete="off">
+      <input type="text" id="link-title"     placeholder="Link title"             required>
+      <input type="url"  id="link-url"       placeholder="https://example.com"    required>
+      <input type="text" id="link-category"  placeholder="Category (optional)">
+      <button class="btn-solid" type="submit">➕&nbsp;Add</button>
     </form>
 
-    <div id="login-message"></div>
-
-    <p class="alt">New here?
-      <a href="./register.html">Create an account</a>
-    </p>
+    <!-- links injected by JS -->
+    <div id="links-list" class="links-grid"></div>
   </main>
 
-  <script type="module" src="../JS/auth.js"></script>
+  <script type="module" src="../JS/profile.js"></script>
+  <script type="module" src="../JS/links.js"></script>
 </body>
 </html>
