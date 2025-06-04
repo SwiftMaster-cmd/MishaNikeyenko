@@ -1,14 +1,13 @@
-// /JS/chatgpt.js -- Firebase-integrated ChatGPT chat log
-
+// Import Firebase modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
-  getAuth, onAuthStateChanged
+  getAuth, onAuthStateChanged, signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Firebase Config
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -20,6 +19,7 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
+// Init Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
@@ -28,24 +28,42 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-let userChatRef = null;
+let userRef = null;
 
-function appendLine(text, role) {
-  const div = document.createElement("div");
-  div.textContent = `${role === "user" ? "🧑" : "🤖"} ${role === "user" ? "You" : "GPT"}: ${text}`;
-  log.appendChild(div);
-}
+// Sign in anonymously
+signInAnonymously(auth).catch(console.error);
+
+onAuthStateChanged(auth, (user) => {
+  if (!user) return;
+
+  const uid = user.uid;
+  userRef = ref(db, `chatHistory/${uid}`);
+
+  // Load chat history
+  onValue(userRef, (snapshot) => {
+    const data = snapshot.val() || {};
+    log.innerHTML = "";
+
+    Object.values(data).forEach(msg => {
+      const div = document.createElement("div");
+      div.textContent = `${msg.role === "user" ? "🧑 You" : "🤖 GPT"}: ${msg.content}`;
+      log.appendChild(div);
+    });
+  });
+});
 
 // Submit handler
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
-  if (!prompt || !userChatRef) return;
+  if (!prompt || !userRef) return;
 
-  appendLine(prompt, "user");
-  const gptPlaceholder = document.createElement("div");
-  gptPlaceholder.textContent = "🤖 GPT: ...thinking...";
-  log.appendChild(gptPlaceholder);
+  // Add user message to DB
+  push(userRef, { role: "user", content: prompt, timestamp: Date.now() });
+
+  const placeholder = document.createElement("div");
+  placeholder.textContent = "🤖 GPT: ...thinking...";
+  log.appendChild(placeholder);
   input.value = "";
 
   try {
@@ -58,38 +76,25 @@ form.addEventListener("submit", async (e) => {
     const data = await res.json();
     const reply = data?.choices?.[0]?.message?.content?.trim();
 
-    const answer = reply || "No response received.";
-    gptPlaceholder.textContent = `🤖 GPT: ${answer}`;
+    // Typing animation
+    if (reply) {
+      placeholder.textContent = "🤖 GPT: ";
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i < reply.length) {
+          placeholder.textContent += reply[i++];
+        } else {
+          clearInterval(interval);
+        }
+      }, 20);
 
-    push(userChatRef, {
-      prompt,
-      reply: answer,
-      timestamp: Date.now()
-    });
+      // Save GPT reply
+      push(userRef, { role: "assistant", content: reply, timestamp: Date.now() });
+    } else {
+      placeholder.textContent = "🤖 GPT: No response received.";
+    }
+
   } catch (err) {
-    gptPlaceholder.textContent = `❌ Error: ${err.message}`;
+    placeholder.textContent = `❌ Error: ${err.message}`;
   }
-});
-
-// Auth + Chat History
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    console.warn("[ChatGPT] Not signed in");
-    return;
-  }
-
-  userChatRef = ref(db, `chatMemory/${user.uid}`);
-
-  onValue(userChatRef, (snapshot) => {
-    const history = snapshot.val();
-    if (!history) return;
-
-    log.innerHTML = "";
-    Object.values(history)
-      .sort((a, b) => a.timestamp - b.timestamp)
-      .forEach(entry => {
-        appendLine(entry.prompt, "user");
-        appendLine(entry.reply, "assistant");
-      });
-  });
 });
