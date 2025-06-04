@@ -1,5 +1,3 @@
-// /JS/chatgpt.js
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, onValue
@@ -20,84 +18,78 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
-// Init Firebase
+// Init
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
 let chatRef = null;
 
-// Auto-scroll to bottom
-function scrollToBottom() {
-  log.scrollTop = log.scrollHeight;
-}
-
-// Render one message
-function renderMessage(msg) {
-  const bubble = document.createElement("div");
-  bubble.className = `chat-bubble ${msg.role}`;
-  bubble.textContent = msg.content;
-  log.appendChild(bubble);
-  scrollToBottom();
-}
-
-// Listen for auth and bind chat
-onAuthStateChanged(auth, user => {
+onAuthStateChanged(auth, (user) => {
   if (!user) return;
+
   chatRef = ref(db, `chatHistory/${user.uid}`);
-  onValue(chatRef, snapshot => {
+  onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
-    log.innerHTML = "";
-    Object.values(data).forEach(renderMessage);
+    const messages = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+    renderMessages(messages);
   });
 });
 
-// Submit handler
-form.addEventListener("submit", async e => {
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
   if (!prompt || !chatRef) return;
 
-  // Add user message to Firebase
   const userMsg = { role: "user", content: prompt, timestamp: Date.now() };
   push(chatRef, userMsg);
+
+  appendMessage(userMsg);
   input.value = "";
 
-  // Temporary thinking bubble
-  const botBubble = document.createElement("div");
-  botBubble.className = "chat-bubble assistant";
-  botBubble.textContent = "…";
-  log.appendChild(botBubble);
-  scrollToBottom();
+  const res = await fetch("/.netlify/functions/chatgpt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt })
+  });
 
-  try {
-    const res = await fetch("/.netlify/functions/chatgpt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }) // Not sending history
-    });
+  const data = await res.json();
+  const reply = data?.choices?.[0]?.message?.content?.trim();
 
-    const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim();
+  const botMsg = { role: "assistant", content: reply || "No response.", timestamp: Date.now() };
+  push(chatRef, botMsg);
 
-    if (!reply) {
-      botBubble.textContent = "[Empty response]";
-      return;
-    }
-
-    // Update bot bubble
-    botBubble.textContent = reply;
-
-    // Save bot response to Firebase
-    const botMsg = { role: "assistant", content: reply, timestamp: Date.now() };
-    push(chatRef, botMsg);
-
-  } catch (err) {
-    botBubble.textContent = `❌ ${err.message}`;
-  }
+  appendMessage(botMsg);
 });
+
+// Render messages in chat log
+function renderMessages(messages) {
+  log.innerHTML = "";
+  messages
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .forEach(msg => appendMessage(msg));
+}
+
+// Animate typing-style text
+function appendMessage({ role, content }) {
+  const line = document.createElement("div");
+  line.className = role === "user" ? "msg user-msg" : "msg bot-msg";
+  line.textContent = "";
+
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i < content.length) {
+      line.textContent += content[i++];
+      log.scrollTop = log.scrollHeight;
+    } else {
+      clearInterval(interval);
+    }
+  }, 15);
+}
