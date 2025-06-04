@@ -67,13 +67,15 @@ main.chat-container {
   color: white;
 }
 
-/* Chat input area */
 #chat-form {
   display: flex;
   gap: 0.8rem;
-  margin-top: auto;
-  padding-top: 1rem;
+  padding: 1rem 0 0.5rem;
   border-top: 1px solid var(--clr-border);
+  background: var(--clr-card);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 }
 
 #user-input {
@@ -85,6 +87,7 @@ main.chat-container {
   color: var(--clr-text);
   font-size: 1rem;
   outline: none;
+  min-width: 0; /* Ensure flex shrink properly */
 }
 
 #user-input::placeholder {
