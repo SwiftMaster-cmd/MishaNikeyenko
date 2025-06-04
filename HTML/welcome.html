@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Console</title>
 
-  <!-- style links -->
+  <!-- tokens + split style sheets -->
   <link rel="stylesheet" href="../CSS/variables.css">
   <link rel="stylesheet" href="../CSS/profile.css">
   <link rel="stylesheet" href="../CSS/links.css">
-  <link rel="stylesheet" href="../CSS/calender.css">
+    <link rel="stylesheet" href="../CSS/notes.css">
 
-  <!-- calendar app JS -->
-  <script type="module" src="../JS/calendar.js" defer></script>
+  <!-- helper class -->
+  <style>.hidden{display:none}</style>
 </head>
 <body>
 
@@ -20,31 +20,96 @@
   <header class="header-bar">
     <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
     <h1 class="header-title">Welcome</h1>
-    <button id="profile-toggle-btn" class="profile-toggle-btn" aria-haspopup="true" aria-controls="profile-card">Profile</button>
+    <button id="profile-toggle-btn" class="profile-toggle-btn"
+            aria-haspopup="true" aria-controls="profile-card">
+      Profile
+    </button>
   </header>
 
   <!-- SIDEBAR -->
   <nav id="side-nav" class="side-nav" aria-hidden="true">
-    <!-- Sidebar content here -->
+    <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
+
+    <!-- links now live here -->
+    <div id="links-list" class="sidebar-links"></div>
+
+     <a href="welcome.html"    class="nav-item">Dashboard</a>
+    <a href="notes.html"      class="nav-item">Notes</a>
+            <a href="es-module.html"      class="nav-item">ES-Module</a>
+    <a href="calculator.html" class="nav-item active">Calculator</a>
   </nav>
 
-  <!-- MAIN VIEW -->
-  <main id="main-view">
-    <section class="glass-card">
-      <h2>📅 My Calendar</h2>
+  <!-- PROFILE CARD -->
+  <aside id="profile-card" class="profile-card" aria-hidden="true">
+    <div id="user-info"></div>
+    <div id="config-status"></div>
+    <button id="logout-btn" type="button">Sign Out</button>
+  </aside>
 
-      <form id="event-form" class="input-row">
-        <input type="date" id="event-date" required />
-        <input type="text" id="event-title" placeholder="Event title" required />
-        <button type="submit" class="btn">Add Event</button>
-      </form>
+  <!-- MAIN DASHBOARD -->
+  <main class="main-card">
+    <!-- add-link form -->
+    <form id="add-link-form" class="collapsed" autocomplete="off">
+      <input id="link-title" type="text" placeholder="Link title" required>
+      <input id="link-url"   type="url"  placeholder="https://example.com" required>
 
-      <div class="calendar-events">
-        <h3>Upcoming Events</h3>
-        <ul id="event-list" class="scrollable-list"></ul>
-      </div>
-    </section>
+      <!-- category picker -->
+      <select id="link-category" required></select>
+      <input  id="new-cat-input" class="hidden" placeholder="New category name">
+
+      <button class="btn-solid" type="submit">Save</button>
+    </form>
   </main>
 
+  <!-- EDIT BOOKMARK MODAL -->
+  <div id="edit-overlay" class="hidden">
+    <form id="edit-dialog" autocomplete="off">
+      <input  id="edit-title" placeholder="Title" required>
+      <input  id="edit-url"   placeholder="URL"   required>
+
+      <select id="edit-cat" required></select>
+      <input  id="edit-new-cat" class="hidden" placeholder="New category name">
+
+      <div class="actions">
+        <button id="edit-cancel" type="button">Cancel</button>
+        <button id="edit-save"   type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+  
+ <main class="calendar-wrapper">
+    <h2>June 2025</h2>
+    <div class="calendar" id="calendar-grid">
+      <!-- Filled by JS -->
+    </div>
+  </main>
+
+<script type="module" src="../JS/calender.js"></script>
+
+  <!-- MODULES -->
+  <script type="module" src="../JS/profile.js"></script>
+  <script type="module" src="../JS/links.js"></script>
+
+  <!-- chrome controls -->
+  <script type="module">
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebar = document.getElementById('side-nav');
+      const burger  = document.getElementById('menu-toggle');
+      const addBtn  = document.getElementById('toggle-form-btn');
+      const form    = document.getElementById('add-link-form');
+
+      burger.onclick = () => {
+        const open = sidebar.classList.toggle('open');
+        document.body.classList.toggle('sidebar-open', open);
+      };
+
+      addBtn.onclick = () => {
+        const collapsed = form.classList.toggle('collapsed');
+        addBtn.classList.toggle('active', !collapsed);
+        if (!collapsed) document.getElementById('link-title').focus();
+      };
+    });
+  </script>
 </body>
 </html>
+
