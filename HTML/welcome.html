@@ -1,4 +1,3 @@
-<!-- /HTML/welcome.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,11 +9,9 @@
   <link rel="stylesheet" href="../CSS/welcome.css">
 </head>
 <body>
-  <!-- FIXED HEADER -->
+  <!--  HEADER  -->
   <header class="header-bar">
-    <button id="menu-toggle" class="burger" aria-label="Menu" aria-controls="side-nav">
-      ☰
-    </button>
+    <button id="menu-toggle" class="burger" aria-label="Menu" aria-controls="side-nav">☰</button>
 
     <button id="profile-toggle-btn"
             class="profile-toggle-btn"
@@ -25,54 +22,63 @@
     </button>
   </header>
 
-  <!-- COLLAPSIBLE SIDEBAR -->
+  <!--  SIDEBAR  -->
   <nav id="side-nav" class="side-nav" aria-hidden="true">
-    <button id="add-bookmark-btn" class="nav-item">➕ Add bookmark</button>
-    <!-- more nav items could go here -->
+    <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
   </nav>
 
-  <!-- PROFILE CARD -->
+  <!--  PROFILE CARD  -->
   <aside id="profile-card" class="profile-card" aria-hidden="true">
     <div id="user-info"></div>
     <div id="config-status"></div>
-    <button id="logout-btn" type="button">Sign Out</button>
+    <button id="logout-btn" type="button">Sign&nbsp;Out</button>
   </aside>
 
-  <!-- MAIN DASHBOARD (hidden until "Add bookmark") -->
-  <main class="main-card" hidden>
-    <form id="add-link-form" autocomplete="off">
+  <!--  DASHBOARD  -->
+  <main class="main-card">
+    <!-- add-link form (collapsed by default) -->
+    <form id="add-link-form" class="collapsed" autocomplete="off">
       <input type="text" id="link-title"     placeholder="Link title"          required>
       <input type="url"  id="link-url"       placeholder="https://example.com" required>
       <input type="text" id="link-category"  placeholder="Category (optional)">
       <button class="btn-solid" type="submit">Save</button>
     </form>
 
+    <!-- bookmarks list -->
     <div id="links-list" class="links-grid"></div>
   </main>
 
-  <!-- existing modules -->
+  <!-- modules you already have -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
 
-  <!-- sidebar / reveal logic -->
+  <!-- sidebar + form-toggle logic -->
   <script type="module">
     document.addEventListener('DOMContentLoaded', () => {
       const side   = document.getElementById('side-nav');
       const burger = document.getElementById('menu-toggle');
-      const addBtn = document.getElementById('add-bookmark-btn');
-      const main   = document.querySelector('.main-card');
+      const form   = document.getElementById('add-link-form');
+      const toggle = document.getElementById('toggle-form-btn');
 
+      /* burger → open / close sidebar */
       burger.onclick = () => side.classList.toggle('open');
 
-      addBtn.onclick = () => {
-        main.hidden = !main.hidden;
+      /* nav item → slide form in / out */
+      toggle.onclick = () => {
+        form.classList.toggle('collapsed');
         side.classList.remove('open');
+        /* autofocus the first input when form opens */
+        if (!form.classList.contains('collapsed')) {
+          document.getElementById('link-title').focus();
+        }
       };
 
-      /* auto-expand sidebar on ≥960 px */
+      /* auto-pin sidebar on ≥960 px */
       const mq = window.matchMedia('(min-width: 960px)');
-      const sync = () => side.classList.toggle('desktop', mq.matches);
-      mq.addEventListener('change', sync); sync();
+      mq.addEventListener('change', () =>
+        side.classList.toggle('desktop', mq.matches)
+      );
+      side.classList.toggle('desktop', mq.matches);
     });
   </script>
 </body>

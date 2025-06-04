@@ -237,7 +237,30 @@ button.ghost:hover{
 
 /* ── hide edit / delete affordances until needed ── */
 
+/* ── add-link form slide / fade ─────────────────────────── */
+#add-link-form{
+  overflow:hidden;
+  max-height:420px;                    /* enough for three inputs + btn */
+  opacity:1;
+  transform:translateY(0);
+  transition:
+    max-height .35s ease,
+    opacity     .28s ease,
+    transform   .28s ease;
+}
+#add-link-form.collapsed{
+  max-height:0;
+  opacity:0;
+  transform:translateY(-10px);
+  pointer-events:none;
+}
 
+/* ── link rows fade-in (small delight) ──────────────────── */
+@keyframes fadeSlideIn{
+  from{opacity:0;transform:translateY(8px)}
+  to  {opacity:1;transform:none}
+}
+.link-row{animation:fadeSlideIn .25s ease both}
 
 /* ── burger button ───────────────────────── */
 .burger{
