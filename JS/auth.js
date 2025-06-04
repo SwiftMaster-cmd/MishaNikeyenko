@@ -1,168 +1,78 @@
-/* /JS/links.js -- links manager (uses config.js + auth.js) */
-
-import { db }           from './config.js';   // firebase app + database
-import { onUserReady }  from './auth.js';     // auth state helper
-
-import {
-  ref as dbRef,
-  push, set, remove, update, onValue
-} from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
-
-
-/* ────────────────── helpers ────────────────── */
-const $      = sel => document.querySelector(sel);
-const $list  = ()  => $('#links-list');
-
-const groupByCat = data => {
-  const out = {};
-  Object.entries(data).forEach(([id, link]) => {
-    const k = (link.category || 'Uncategorized').trim();
-    (out[k] ||= []).push({ ...link, id });
-  });
-  return out;
+// Firebase config right here (no external file)
+const firebaseConfig = {
+  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+  authDomain: "mishanikeyenko.firebaseapp.com",
+  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+  projectId: "mishanikeyenko",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
+  messagingSenderId: "1089190937368",
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
+  measurementId: "G-L6CC27129C"
 };
 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
-/* ────────────────── render ────────────────── */
-function render(uid) {
-  const linksRef = dbRef(db, `users/${uid}/links`);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-  onValue(linksRef, snap => {
-    const data = snap.val();
-    const list = $list();
-    list.innerHTML = '';
-
-    if (!data) {
-      list.innerHTML = "<p class='empty'>No links yet.</p>";
-      return;
-    }
-
-    Object.entries(groupByCat(data)).forEach(([cat, links]) => {
-      /* category header */
-      const header = document.createElement('div');
-      header.className = 'category-title';
-      header.innerHTML = `
-        <h2>${cat}</h2>
-        <div class="cat-actions">
-          <button class="ghost edit"   data-cat="${cat}" aria-label="Rename">✏️</button>
-          <button class="ghost delete" data-cat="${cat}" aria-label="Delete">🗑️</button>
-        </div>`;
-      list.appendChild(header);
-
-      /* rename category */
-      header.querySelector('.edit').onclick = () => {
-        const name = prompt(`Rename "${cat}" to:`, cat);
-        if (name && name !== cat)
-          links.forEach(l => update(dbRef(db, `users/${uid}/links/${l.id}`), { category: name }));
-      };
-
-      /* delete category */
-      header.querySelector('.delete').onclick = () => {
-        if (confirm(`Delete "${cat}" and all its links?`))
-          links.forEach(l => remove(dbRef(db, `users/${uid}/links/${l.id}`)));
-      };
-
-      /* links */
-      links.forEach(link => {
-        const row = document.createElement('div');
-        row.className = 'link-row';
-        row.innerHTML = `
-          <button class="link-main" data-url="${link.url}">
-            <span class="title">${link.title}</span>
-            <span class="menu-btn" data-id="${link.id}" tabindex="0">⋮</span>
-          </button>
-
-          <div class="menu" id="menu-${link.id}" hidden>
-            <button class="menu-edit"   data-id="${link.id}">Edit</button>
-            <button class="menu-delete" data-id="${link.id}">Delete</button>
-            <div class="preview">${link.url}</div>
-          </div>`;
-        list.appendChild(row);
-      });
-    });
-  });
-}
-
-
-/* ─────────────── interactions ─────────────── */
-function bindInteractions(uid) {
-  let openMenu = null;
-
-  /* open link */
-  $list().addEventListener('click', e => {
-    const btn = e.target.closest('.link-main');
-    if (!btn) return;
-    if (e.target.classList.contains('menu-btn')) return;
-    window.open(btn.dataset.url, '_blank', 'noopener,noreferrer');
-  });
-
-  /* toggle context menu */
-  $list().addEventListener('click', e => {
-    const trigger = e.target.closest('.menu-btn');
-    if (!trigger) return;
-
-    e.stopPropagation();
-    const menu = $(`#menu-${trigger.dataset.id}`);
-    if (openMenu && openMenu !== menu) openMenu.hidden = true;
-    menu.hidden = !menu.hidden;
-    openMenu = menu.hidden ? null : menu;
-  });
-
-  /* outside-click close */
-  document.addEventListener('mousedown', e => {
-    if (openMenu && !openMenu.contains(e.target))
-      openMenu.hidden = true, openMenu = null;
-  });
-
-  /* menu actions */
-  $list().addEventListener('click', e => {
-    const del = e.target.closest('.menu-delete');
-    const edt = e.target.closest('.menu-edit');
-    if (!del && !edt) return;
-    const id = (del || edt).dataset.id;
-
-    if (del) remove(dbRef(db, `users/${uid}/links/${id}`));
-
-    if (edt) {
-      const row   = $(`#menu-${id}`).parentElement;
-      const title = row.querySelector('.title').textContent;
-      const url   = row.querySelector('.preview').textContent;
-      const cat   = row.previousSibling.querySelector('h2').textContent;
-
-      const newData = {
-        title:    prompt('Title:',    title) ?? title,
-        url:      prompt('URL:',      url)   ?? url,
-        category: prompt('Category:', cat)   ?? cat
-      };
-      update(dbRef(db, `users/${uid}/links/${id}`), newData);
-    }
-
-    if (openMenu) openMenu.hidden = true, openMenu = null;
-  });
-}
-
-
-/* ─────────────── add-link form ─────────────── */
-function setupAddForm(uid) {
-  const form = $('#add-link-form');
-  if (!form) return;
-
-  form.onsubmit = e => {
+// --- LOGIN LOGIC ---
+const loginForm = document.getElementById('login-form');
+if (loginForm) {
+  loginForm.onsubmit = async function(e) {
     e.preventDefault();
-    const title = $('#link-title').value.trim();
-    const url   = $('#link-url').value.trim();
-    const cat   = $('#link-category').value.trim() || 'Uncategorized';
-    if (!title || !url) return;
-
-    set(push(dbRef(db, `users/${uid}/links`)), { title, url, category: cat });
-    form.reset();
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const msg = document.getElementById('login-message');
+    msg.textContent = ""; msg.className = "";
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      msg.textContent = "Login successful!";
+      msg.className = "success";
+      setTimeout(() => window.location.href = "HTML/welcome.html", 800);
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = "error";
+    }
   };
 }
 
-
-/* ─────────────── bootstrap ─────────────── */
-onUserReady(user => {
-  setupAddForm(user.uid);
-  render(user.uid);
-  bindInteractions(user.uid);
-});
+// --- REGISTRATION LOGIC ---
+const registerForm = document.getElementById('register-form');
+if (registerForm) {
+  registerForm.onsubmit = async function(e) {
+    e.preventDefault();
+    const username = document.getElementById('reg-username') ? document.getElementById('reg-username').value.trim() : "";
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const confirm = document.getElementById('reg-password-confirm') ? document.getElementById('reg-password-confirm').value : "";
+    const msg = document.getElementById('register-message');
+    msg.textContent = ""; msg.className = "";
+    if ((document.getElementById('reg-username') && !username) || !email || !password || (document.getElementById('reg-password-confirm') && !confirm)) {
+      msg.textContent = "Fill in all fields.";
+      msg.className = "error";
+      return;
+    }
+    if (confirm && password !== confirm) {
+      msg.textContent = "Passwords do not match.";
+      msg.className = "error";
+      return;
+    }
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      if (username) {
+        await set(ref(db, `users/${cred.user.uid}/profile`), { email, username });
+      }
+      msg.textContent = "Registration successful! You can now log in.";
+      msg.className = "success";
+      setTimeout(() => window.location.href = "index.html", 1200);
+      registerForm.reset();
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = "error";
+    }
+  };
+}
