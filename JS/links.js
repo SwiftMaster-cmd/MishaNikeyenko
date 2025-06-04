@@ -1,185 +1,122 @@
-/* /JS/links.js – two-column layout per category (2025-06-03) */
+/* /CSS/links.css – two-column bookmarks (2025-06-03) */
+@import url('../CSS/variables.css');   /* tokens + reset */
 
-/* ── Firebase config ───────────────────────────────────────── */
-const firebaseConfig = {
-  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
-  authDomain: "mishanikeyenko.firebaseapp.com",
-  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
-  projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.firebasestorage.app",
-  messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
-  measurementId: "G-L6CC27129C"
-};
+/* ── add-bookmark form (collapsible) ───────────────────── */
+#add-link-form{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr)) 90px;
+  gap:1rem; margin-bottom:2.5rem;
+  overflow:hidden; max-height:420px; opacity:1; transform:translateY(0);
+  transition:max-height .35s, opacity .28s, transform .28s;
+}
+#add-link-form.collapsed{
+  max-height:0; opacity:0; transform:translateY(-10px); pointer-events:none;
+}
+#add-link-form input{
+  padding:.85rem 1rem;
+  background:rgba(255,255,255,.06); color:var(--clr-text);
+  border:1px solid var(--clr-border); border-radius:12px; font-size:.97rem;
+  transition:border-color .25s, background .25s;
+}
+#add-link-form input::placeholder{color:var(--clr-muted)}
+#add-link-form input:focus{
+  outline:none; border-color:var(--clr-primary); background:rgba(255,255,255,.10);
+}
+.btn-solid{
+  background:var(--clr-primary); color:#fff; font-weight:600;
+  border:none; border-radius:12px; cursor:pointer;
+  transition:background .25s, transform .15s;
+}
+.btn-solid:hover{background:#5b2ee5}
+.btn-solid:active{transform:scale(.97)}
 
-/* ── Firebase core ─────────────────────────────────────────── */
-import { initializeApp }                from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-import { getAuth, onAuthStateChanged }  from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
-import {
-  getDatabase, ref as dbRef,
-  push, set, remove, update, onValue
-} from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+/* ── empty-state helper ─────────────────────────────────── */
+.empty{opacity:.6; text-align:center; margin:2rem 0}
 
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getDatabase(app);
-
-/* ── auth helper ──────────────────────────────────────────── */
-function onUserReady(cb){
-  onAuthStateChanged(auth, user => {
-    if (user) cb(user);
-    else      window.location.href = "../index.html";
-  });
+/* ── CATEGORY WRAPPER ───────────────────────────────────── */
+.category-section{
+  margin-bottom:2.4rem;          /* room after each category */
+  display:flex; flex-direction:column; gap:0;   /* keep title + grid stacked */
 }
 
-/* ── DOM helpers ───────────────────────────────────────────── */
-const $     = sel => document.querySelector(sel);
-const $list = ()  => $('#links-list');
+/* ── category title strip ──────────────────────────────── */
+.category-title{
+  position:relative;
+  width:100%;                    /* span full width of section */
+  text-align:center;             /* center the <h2> */
+  margin-bottom:1.2rem;
+}
+.category-title h2{
+  display:inline-block;
+  font-size:1.25rem;             /* bigger heading */
+  font-weight:700;
+  padding:0 .4rem;
+}
+.cat-actions{
+  position:absolute;             /* float ✏️ / 🗑️ hard-right */
+  right:0; top:50%;
+  transform:translateY(-50%);
+  display:flex; gap:.5rem;
+  opacity:0; pointer-events:none; transition:opacity .18s;
+}
+.category-title:hover .cat-actions{opacity:1; pointer-events:auto}
+button.ghost{
+  background:transparent; border:none; color:var(--clr-muted);
+  font-size:1.05rem; padding:.25rem; border-radius:8px; cursor:pointer;
+  transition:background .2s,color .2s;
+}
+button.ghost:hover{background:rgba(255,255,255,.08); color:var(--clr-text)}
 
-const groupByCat = data => {
-  const out = {};
-  Object.entries(data).forEach(([id, link]) => {
-    const key = (link.category || 'Uncategorized').trim();
-    (out[key] ||= []).push({ ...link, id });
-  });
-  return out;
-};
-
-/* ── render ───────────────────────────────────────────────── */
-function render(uid){
-  onValue(dbRef(db, `users/${uid}/links`), snap => {
-    const data = snap.val();
-    const list = $list();
-    list.innerHTML = '';
-
-    if (!data){
-      list.innerHTML = "<p class='empty'>No links yet.</p>";
-      return;
-    }
-
-    for (const [cat, links] of Object.entries(groupByCat(data))){
-
-      /* wrapper keeps title & its grid together */
-      const section = document.createElement('div');
-      section.className = 'category-section';
-
-      /* centered title row */
-      const header = document.createElement('div');
-      header.className = 'category-title';
-      header.innerHTML = `
-        <h2>${cat}</h2>
-        <div class="cat-actions">
-          <button class="ghost edit"   data-cat="${cat}">✏️</button>
-          <button class="ghost delete" data-cat="${cat}">🗑️</button>
-        </div>`;
-      section.appendChild(header);
-
-      /* two-column grid container */
-      const grid = document.createElement('div');
-      grid.className = 'category-links';
-      section.appendChild(grid);
-
-      /* rename / delete handlers */
-      header.querySelector('.edit').onclick = () => {
-        const name = prompt(`Rename "${cat}" to:`, cat);
-        if (name && name !== cat)
-          links.forEach(l => update(dbRef(db, `users/${uid}/links/${l.id}`), { category: name }));
-      };
-      header.querySelector('.delete').onclick = () => {
-        if (confirm(`Delete "${cat}" and all its links?`))
-          links.forEach(l => remove(dbRef(db, `users/${uid}/links/${l.id}`)));
-      };
-
-      /* link cards */
-      links.forEach(link => {
-        const row = document.createElement('div');
-        row.className = 'link-row';
-        row.innerHTML = `
-          <button class="link-main" data-url="${link.url}">
-            <span class="title">${link.title}</span>
-            <span class="menu-btn" data-id="${link.id}" tabindex="0">⋮</span>
-          </button>
-          <div class="menu" id="m-${link.id}" hidden>
-            <button class="menu-edit"   data-id="${link.id}">Edit</button>
-            <button class="menu-delete" data-id="${link.id}">Delete</button>
-            <div class="preview">${link.url}</div>
-          </div>`;
-        grid.appendChild(row);
-      });
-
-      list.appendChild(section);
-    }
-  });
+/* ── two-column grid for links ─────────────────────────── */
+.category-links{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));   /* exactly 2 cols */
+  gap:1.2rem;
+}
+/* mobile fallback: single column */
+@media(max-width:640px){
+  .category-links{grid-template-columns:1fr;}
 }
 
-/* ── interactions ─────────────────────────────────────────── */
-function bind(uid){
-  let openMenu = null;
+/* ── individual link rows (cards) ─────────────────────── */
+.link-row{
+  position:relative;
+  animation:fadeSlideIn .25s ease both;
+}
+.link-main{
+  width:100%; display:flex; justify-content:space-between; align-items:center;
+  padding:.9rem 1rem;
+  border-radius:12px; border:1px solid var(--clr-border);
+  background:rgba(255,255,255,.06); color:var(--clr-text); font-size:.95rem;
+  cursor:pointer; transition:background .25s;
+}
+.link-main:hover{background:rgba(255,255,255,.10)}
+.link-main .title{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.menu-btn{
+  margin-left:1rem; color:var(--clr-muted); opacity:0; transition:opacity .18s;
+}
+.link-main:hover .menu-btn{opacity:1}
 
-  /* open link */
-  $list().addEventListener('click', e => {
-    const btn = e.target.closest('.link-main');
-    if (btn && !e.target.classList.contains('menu-btn'))
-      window.open(btn.dataset.url, '_blank', 'noopener,noreferrer');
-  });
-
-  /* toggle row menu */
-  $list().addEventListener('click', e => {
-    const trigger = e.target.closest('.menu-btn');
-    if (!trigger) return;
-    const menu = $(`#m-${trigger.dataset.id}`);
-    if (openMenu && openMenu !== menu) openMenu.hidden = true;
-    menu.hidden = !menu.hidden;
-    openMenu = menu.hidden ? null : menu;
-  });
-
-  /* outside click closes menu */
-  document.addEventListener('mousedown', e => {
-    if (openMenu && !openMenu.contains(e.target))
-      openMenu.hidden = true, openMenu = null;
-  });
-
-  /* delete / edit */
-  $list().addEventListener('click', e => {
-    const del = e.target.closest('.menu-delete');
-    const edt = e.target.closest('.menu-edit');
-    if (!del && !edt) return;
-    const id = (del || edt).dataset.id;
-
-    if (del) remove(dbRef(db, `users/${uid}/links/${id}`));
-
-    if (edt){
-      const row = $(`#m-${id}`).parentElement;
-      const curTitle = row.querySelector('.title').textContent;
-      const curUrl   = row.querySelector('.preview').textContent;
-      const curCat   = row.parentElement.parentElement.querySelector('h2').textContent;
-      update(dbRef(db, `users/${uid}/links/${id}`), {
-        title:    prompt('Title:',    curTitle) ?? curTitle,
-        url:      prompt('URL:',      curUrl)   ?? curUrl,
-        category: prompt('Category:', curCat)   ?? curCat
-      });
-    }
-    if (openMenu) openMenu.hidden = true, openMenu = null;
-  });
+/* ── dropdown menu ─────────────────────────────────────── */
+.menu{
+  position:absolute; right:0; top:calc(100% + .35rem); min-width:220px;
+  background:var(--clr-card); border:1px solid var(--clr-border);
+  border-radius:var(--radius); padding:.8rem;
+  display:flex; flex-direction:column; gap:.6rem; z-index:50;
+}
+.menu[hidden]{display:none!important}
+.menu button{
+  background:var(--clr-primary); color:#fff; border:none; border-radius:10px;
+  padding:.55rem .9rem; font-size:.9rem; font-weight:600; cursor:pointer;
+}
+.menu-edit{background:#5b2ee5}
+.menu-delete{background:#d32f2f}
+.preview{
+  word-break:break-all; font-size:.8rem; color:var(--clr-muted); margin-top:.4rem;
 }
 
-/* ── add-link form ────────────────────────────────────────── */
-function addForm(uid){
-  const f = $('#add-link-form'); if (!f) return;
-  f.onsubmit = e => {
-    e.preventDefault();
-    const title = $('#link-title').value.trim();
-    const url   = $('#link-url').value.trim();
-    const cat   = $('#link-category').value.trim() || 'Uncategorized';
-    if (!title || !url) return;
-    set(push(dbRef(db, `users/${uid}/links`)), { title, url, category: cat });
-    f.reset();
-  };
+/* ── subtle motion ─────────────────────────────────────── */
+@keyframes fadeSlideIn{
+  from{opacity:0; transform:translateY(8px)}
+  to  {opacity:1; transform:none}
 }
-
-/* ── boot ─────────────────────────────────────────────────── */
-onUserReady(user => {
-  addForm(user.uid);
-  render(user.uid);
-  bind(user.uid);
-});
