@@ -1,109 +1,117 @@
-// calculator.js -- drop this in alongside your HTML/CSS
-// Requires:
-//   <input class="calculator-screen" readonly>
-//   <div class="calculator-keys">
-//     <button value="7">7</button> …
-//     <button value="+"   class="operator">+</button>
-//     <button value="="   class="operator">=</button>
-//     <button value="."   class="decimal">.</button>
-//     <button             class="all-clear">AC</button>
-//   </div>
+/* calculator.js – full module: calculator + Firebase history  */
+import { firebaseConfig }    from './firebase-config.js';
+import {
+  initializeApp
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+  getDatabase, ref, push, onChildAdded, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-(() => {
-  const calculator = {
-    displayValue: '0',
-    firstOperand: null,
-    waitingForSecondOperand: false,
-    operator: null
-  };
+/* ---------- Firebase bootstrap ---------- */
+const app       = initializeApp(firebaseConfig);
+const db        = getDatabase(app);
+const historyRef = ref(db, 'calcHistory');   // /calcHistory in RTDB
 
-  function inputDigit(digit) {
-    if (calculator.waitingForSecondOperand) {
-      calculator.displayValue = digit;
-      calculator.waitingForSecondOperand = false;
-    } else {
-      calculator.displayValue =
-        calculator.displayValue === '0' ? digit : calculator.displayValue + digit;
-    }
+/* ---------- Calculator state ---------- */
+const calc = {
+  displayValue: '0',
+  firstOperand: null,
+  waitingForSecondOperand: false,
+  operator: null
+};
+
+function inputDigit(digit) {
+  if (calc.waitingForSecondOperand) {
+    calc.displayValue = digit;
+    calc.waitingForSecondOperand = false;
+  } else {
+    calc.displayValue =
+      calc.displayValue === '0' ? digit : calc.displayValue + digit;
   }
+}
 
-  function inputDecimal() {
-    if (calculator.waitingForSecondOperand) {
-      calculator.displayValue = '0.';
-      calculator.waitingForSecondOperand = false;
-      return;
-    }
-    if (!calculator.displayValue.includes('.')) {
-      calculator.displayValue += '.';
-    }
+function inputDecimal() {
+  if (calc.waitingForSecondOperand) {
+    calc.displayValue = '0.';
+    calc.waitingForSecondOperand = false;
+    return;
   }
+  if (!calc.displayValue.includes('.')) calc.displayValue += '.';
+}
 
-  const performCalculation = {
-    '/': (a, b) => a / b,
-    '*': (a, b) => a * b,
-    '+': (a, b) => a + b,
-    '-': (a, b) => a - b,
-    '=': (_a, b) => b
-  };
+const perform = {
+  '/': (a, b) => a / b,
+  '*': (a, b) => a * b,
+  '+': (a, b) => a + b,
+  '-': (a, b) => a - b,
+  '=': (_a, b) => b
+};
 
-  function handleOperator(nextOperator) {
-    const inputValue = parseFloat(calculator.displayValue);
+function handleOperator(nextOp) {
+  const inputVal = parseFloat(calc.displayValue);
 
-    if (calculator.operator && calculator.waitingForSecondOperand) {
-      calculator.operator = nextOperator;
-      return;
-    }
-
-    if (calculator.firstOperand == null && !isNaN(inputValue)) {
-      calculator.firstOperand = inputValue;
-    } else if (calculator.operator) {
-      const result = performCalculation[calculator.operator](
-        calculator.firstOperand,
-        inputValue
-      );
-      calculator.displayValue = String(result);
-      calculator.firstOperand = result;
-    }
-
-    calculator.waitingForSecondOperand = true;
-    calculator.operator = nextOperator;
-  }
-
-  function resetCalculator() {
-    calculator.displayValue = '0';
-    calculator.firstOperand = null;
-    calculator.waitingForSecondOperand = false;
-    calculator.operator = null;
-  }
-
-  function updateDisplay() {
-    const display = document.querySelector('.calculator-screen');
-    if (display) display.value = calculator.displayValue;
-  }
-
-  // Initialize display
-  updateDisplay();
-
-  // Delegate button clicks
-  const keys = document.querySelector('.calculator-keys');
-  if (!keys) {
-    console.warn('Missing .calculator-keys container.');
+  if (calc.operator && calc.waitingForSecondOperand) {  // change op mid-entry
+    calc.operator = nextOp;
     return;
   }
 
-  keys.addEventListener('click', (e) => {
-    const target = e.target;
-    if (!target.matches('button')) return;
+  if (calc.firstOperand == null && !isNaN(inputVal)) {
+    calc.firstOperand = inputVal;
+  } else if (calc.operator) {
+    const result = perform[calc.operator](calc.firstOperand, inputVal);
+    logToFirebase(calc.firstOperand, calc.operator, inputVal, result); // <= NEW
+    calc.displayValue = String(result);
+    calc.firstOperand = result;
+  }
 
-    if (target.classList.contains('operator')) {
-      handleOperator(target.value);
-    } else if (target.classList.contains('decimal')) {
-      inputDecimal();
-    } else if (target.classList.contains('all-clear')) {
-      resetCalculator();
-    } else {
-      inputDigit(target.value);
-    }
-    updateDisplay();
-  });
-})();
+  calc.waitingForSecondOperand = true;
+  calc.operator = nextOp;
+}
+
+function resetCalc() {
+  calc.displayValue = '0';
+  calc.firstOperand = null;
+  calc.waitingForSecondOperand = false;
+  calc.operator = null;
+}
+
+/* ---------- Firebase write ---------- */
+function logToFirebase(a, op, b, result) {
+  push(historyRef, {
+    equation: `${a} ${op} ${b} = ${result}`,
+    result,
+    ts: serverTimestamp()
+  }).catch(console.error);
+}
+
+/* ---------- DOM hooks ---------- */
+const display = document.querySelector('.calculator-screen');
+const keys    = document.querySelector('.calculator-keys');
+const list    = document.getElementById('calc-history');
+
+function updateDisplay() {
+  if (display) display.value = calc.displayValue;
+}
+updateDisplay();
+
+/* stream history */
+onChildAdded(historyRef, snap => {
+  if (!list) return;
+  const { equation } = snap.val();
+  const li = document.createElement('li');
+  li.textContent = equation;
+  list.prepend(li);                      // newest on top
+});
+
+/* key-delegation */
+keys?.addEventListener('click', e => {
+  const t = e.target;
+  if (!t.matches('button')) return;
+
+  if (t.classList.contains('operator'))   handleOperator(t.value);
+  else if (t.classList.contains('decimal')) inputDecimal();
+  else if (t.classList.contains('all-clear')) resetCalc();
+  else                                      inputDigit(t.value);
+
+  updateDisplay();
+});
