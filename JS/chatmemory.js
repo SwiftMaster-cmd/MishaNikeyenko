@@ -1,4 +1,4 @@
-// /JS/chatgpt.js – Full frontend chat with Firebase memory
+// /JS/chatgpt.js
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -14,85 +14,90 @@ const firebaseConfig = {
   authDomain: "mishanikeyenko.firebaseapp.com",
   databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
   projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.appspot.com",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
   messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
+  measurementId: "G-L6CC27129C"
 };
 
-// Init
+// Init Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
+// DOM
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
 let chatRef = null;
 
-onAuthStateChanged(auth, user => {
-  if (!user) return console.warn("🔒 Not signed in");
-  chatRef = ref(db, `chatHistory/${user.uid}`);
+// Auto-scroll to bottom
+function scrollToBottom() {
+  log.scrollTop = log.scrollHeight;
+}
 
+// Render one message
+function renderMessage(msg) {
+  const bubble = document.createElement("div");
+  bubble.className = `chat-bubble ${msg.role}`;
+  bubble.textContent = msg.content;
+  log.appendChild(bubble);
+  scrollToBottom();
+}
+
+// Listen for auth and bind chat
+onAuthStateChanged(auth, user => {
+  if (!user) return;
+  chatRef = ref(db, `chatHistory/${user.uid}`);
   onValue(chatRef, snapshot => {
     const data = snapshot.val() || {};
-    const sorted = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
     log.innerHTML = "";
-    sorted.forEach(msg => addMessage(msg.role, msg.content));
-    scrollToBottom();
+    Object.values(data).forEach(renderMessage);
   });
 });
 
-form.addEventListener("submit", async (e) => {
+// Submit handler
+form.addEventListener("submit", async e => {
   e.preventDefault();
   const prompt = input.value.trim();
   if (!prompt || !chatRef) return;
 
+  // Add user message to Firebase
+  const userMsg = { role: "user", content: prompt, timestamp: Date.now() };
+  push(chatRef, userMsg);
   input.value = "";
-  addMessage("user", prompt);
-  saveMessage("user", prompt);
 
-  const botLine = addMessage("bot", "...");
+  // Temporary thinking bubble
+  const botBubble = document.createElement("div");
+  botBubble.className = "chat-bubble assistant";
+  botBubble.textContent = "…";
+  log.appendChild(botBubble);
+  scrollToBottom();
 
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt }) // Not sending history
     });
 
     const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
-    typeOut(botLine, reply);
-    saveMessage("bot", reply);
+    const reply = data?.choices?.[0]?.message?.content?.trim();
+
+    if (!reply) {
+      botBubble.textContent = "[Empty response]";
+      return;
+    }
+
+    // Update bot bubble
+    botBubble.textContent = reply;
+
+    // Save bot response to Firebase
+    const botMsg = { role: "assistant", content: reply, timestamp: Date.now() };
+    push(chatRef, botMsg);
+
   } catch (err) {
-    typeOut(botLine, `❌ ${err.message}`);
+    botBubble.textContent = `❌ ${err.message}`;
   }
 });
-
-function addMessage(role, text) {
-  const line = document.createElement("div");
-  line.className = `chat-line chat-${role}`;
-  line.textContent = text;
-  log.appendChild(line);
-  scrollToBottom();
-  return line;
-}
-
-function saveMessage(role, content) {
-  push(chatRef, {
-    role,
-    content,
-    timestamp: Date.now()
-  });
-}
-
-function typeOut(element, text, i = 0) {
-  if (i >= text.length) return;
-  element.textContent = text.slice(0, i + 1);
-  setTimeout(() => typeOut(element, text, i + 1), 12);
-}
-
-function scrollToBottom() {
-  log.scrollTop = log.scrollHeight;
-}
