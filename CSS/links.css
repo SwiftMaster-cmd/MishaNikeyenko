@@ -157,3 +157,18 @@ body.modal-open .header-bar,
 body.modal-open .side-nav{
   pointer-events:none;                /* freeze everything underneath   */
 }
+/* vertical stack inside the nav */
+.nav-links{
+  display:flex;
+  flex-direction:column;
+  gap:1.6rem;
+  margin-top:1.8rem;
+  overflow-y:auto;          /* scroll if content is taller than screen */
+}
+
+/* each category’s links */
+.nav-links-group{
+  display:flex;
+  flex-direction:column;
+  gap:.9rem;
+}
