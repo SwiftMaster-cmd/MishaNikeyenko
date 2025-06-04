@@ -206,3 +206,4 @@ body.sidebar-open .main-card{
   from{opacity:0; transform:translateY(8px)}
   to  {opacity:1; transform:none}
 }
+.hidden{display:none}

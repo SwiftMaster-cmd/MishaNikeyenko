@@ -1,3 +1,4 @@
+<!-- /HTML/welcome.html -- full file (category picker + sidebar, June 2025) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,9 +6,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Dashboard · YourBrand</title>
 
+  <!-- design tokens + split styles -->
   <link rel="stylesheet" href="../CSS/variables.css">
-  <link rel="stylesheet" href="../CSS/profile.css">
-    <link rel="stylesheet" href="../CSS/links.css">
+  <link rel="stylesheet" href="../CSS/profile.css"> <!-- header / sidebar / layout -->
+  <link rel="stylesheet" href="../CSS/links.css">    <!-- bookmarks grid -->
+  <style> .hidden{display:none} </style>             <!-- tiny helper -->
 </head>
 <body>
 
@@ -15,12 +18,8 @@
   <header class="header-bar">
     <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
     <h1 class="header-title">Bookmarks</h1>
-    <button id="profile-toggle-btn"
-            class="profile-toggle-btn"
-            aria-haspopup="true"
-            aria-controls="profile-card">
-      Profile
-    </button>
+    <button id="profile-toggle-btn" class="profile-toggle-btn"
+            aria-haspopup="true" aria-controls="profile-card">Profile</button>
   </header>
 
   <!-- SIDEBAR -->
@@ -35,15 +34,21 @@
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- DASHBOARD -->
+  <!-- MAIN DASHBOARD -->
   <main class="main-card">
+    <!-- collapsible add-link form -->
     <form id="add-link-form" class="collapsed" autocomplete="off">
-      <input  id="link-title"    type="text" placeholder="Link title"          required>
-      <input  id="link-url"      type="url"  placeholder="https://example.com" required>
-      <input  id="link-category" type="text" placeholder="Category (optional)">
+      <input  id="link-title" type="text" placeholder="Link title" required>
+      <input  id="link-url"   type="url"  placeholder="https://example.com" required>
+
+      <!-- category picker -->
+      <select id="link-category" required></select>
+      <input id="new-cat-input" class="hidden" placeholder="New category name">
+
       <button class="btn-solid" type="submit">Save</button>
     </form>
 
+    <!-- bookmark categories injected here -->
     <div id="links-list" class="links-grid"></div>
   </main>
 
@@ -51,28 +56,23 @@
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
 
-
-  <!-- LOCAL UI LOGIC -->
+  <!-- chrome controls: burger + form toggle -->
   <script type="module">
     document.addEventListener('DOMContentLoaded', () => {
+      const sidebar = document.getElementById('side-nav');
+      const burger  = document.getElementById('menu-toggle');
+      const addBtn  = document.getElementById('toggle-form-btn');
+      const form    = document.getElementById('add-link-form');
 
-      const side   = document.getElementById('side-nav');
-      const burger = document.getElementById('menu-toggle');
-      const form   = document.getElementById('add-link-form');
-      const addBtn = document.getElementById('toggle-form-btn');
-
-      /* 1 – sidebar toggles; never auto-closes */
       burger.onclick = () => {
-        const open = side.classList.toggle('open');
+        const open = sidebar.classList.toggle('open');
         document.body.classList.toggle('sidebar-open', open);
       };
 
-      /* 2 – form slides in/out; sidebar stays put */
       addBtn.onclick = () => {
-        form.classList.toggle('collapsed');
-        if (!form.classList.contains('collapsed')) {
-          document.getElementById('link-title').focus();
-        }
+        const closed = form.classList.toggle('collapsed');
+        addBtn.classList.toggle('active', !closed);
+        if (!closed) document.getElementById('link-title').focus();
       };
     });
   </script>
