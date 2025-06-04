@@ -37,8 +37,10 @@ window.saveNote = () => {
     const editRef = ref(db, `notes/${editingId}`);
     set(editRef, { content, timestamp: Date.now() });
     editingId = null;
+    console.log("Updated note.");
   } else {
     push(notesRef, { content, timestamp: Date.now() });
+    console.log("Created new note.");
   }
 
   noteInput.value = '';
@@ -47,16 +49,22 @@ window.saveNote = () => {
 function renderNotes(notes) {
   notesList.innerHTML = '';
 
-  notes.sort((a, b) => b.timestamp - a.timestamp); // Newest first
+  notes.sort((a, b) => b.timestamp - a.timestamp);
 
   notes.forEach(note => {
     const li = document.createElement('li');
-    const text = document.createElement('div');
-    const time = document.createElement('small');
-    const actions = document.createElement('div');
+    li.className = 'note-item';
 
-    text.textContent = note.content;
+    const summary = document.createElement('div');
+    summary.className = 'note-summary';
+    summary.textContent = note.content.slice(0, 80) + (note.content.length > 80 ? "..." : "");
+
+    const time = document.createElement('small');
     time.textContent = new Date(note.timestamp).toLocaleString();
+
+    const expand = document.createElement('div');
+    expand.className = 'note-expand hidden';
+    expand.textContent = note.content;
 
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
@@ -70,16 +78,15 @@ function renderNotes(notes) {
     delBtn.textContent = 'Delete';
     delBtn.onclick = () => remove(ref(db, `notes/${note.id}`));
 
-    actions.appendChild(editBtn);
-    actions.appendChild(delBtn);
+    const actions = document.createElement('div');
+    actions.className = 'note-actions';
+    actions.append(editBtn, delBtn);
 
-    li.appendChild(text);
-    li.appendChild(time);
-    li.appendChild(actions);
+    li.append(summary, time, expand, actions);
 
-    li.classList.add('note-item');
-    text.classList.add('note-text');
-    actions.classList.add('note-actions');
+    summary.onclick = () => {
+      expand.classList.toggle('hidden');
+    };
 
     notesList.appendChild(li);
   });
