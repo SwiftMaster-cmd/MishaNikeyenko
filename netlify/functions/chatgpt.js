@@ -12,7 +12,7 @@ exports.handler = async (event) => {
   const apiKey = process.env.OPENAI_API_KEY;
 
   try {
-    const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -24,7 +24,7 @@ exports.handler = async (event) => {
       })
     });
 
-    const data = await gptRes.json();
+    const data = await response.json();
 
     return {
       statusCode: 200,
