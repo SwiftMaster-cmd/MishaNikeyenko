@@ -3,7 +3,7 @@
 
 .calculator {
   width: 100%;
-  padding: 1.6rem;
+  padding: 25px;
   border-radius: var(--radius);
   background: var(--clr-glass);
   border: 1px solid var(--clr-border);
