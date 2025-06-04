@@ -3,23 +3,12 @@ const fetch = require("node-fetch");
 exports.handler = async (event) => {
   try {
     const { prompt } = JSON.parse(event.body || "{}");
-
-    if (!prompt) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Missing prompt" })
-      };
-    }
+    if (!prompt) return { statusCode: 400, body: "Missing prompt" };
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "Missing OpenAI API key" })
-      };
-    }
+    if (!apiKey) return { statusCode: 500, body: "Missing OpenAI API key" };
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -31,23 +20,19 @@ exports.handler = async (event) => {
       })
     });
 
-    const data = await response.json();
+    const data = await gptRes.json();
 
     if (data.error) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: data.error.message })
-      };
+      return { statusCode: 500, body: JSON.stringify(data) };
     }
 
     return {
       statusCode: 200,
-      body: JSON.stringify(data)
+      body: JSON.stringify({
+        reply: data.choices?.[0]?.message?.content?.trim() || "No response."
+      })
     };
   } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message })
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };

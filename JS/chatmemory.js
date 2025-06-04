@@ -3,70 +3,60 @@ import {
   getDatabase, ref, push, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
-  getAuth, signInAnonymously, onAuthStateChanged
+  getAuth, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Firebase Configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  databaseURL: "YOUR_DATABASE_URL",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+  authDomain: "mishanikeyenko.firebaseapp.com",
+  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+  projectId: "mishanikeyenko",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
+  messagingSenderId: "1089190937368",
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
+  measurementId: "G-L6CC27129C"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM Elements
+let userChatRef = null;
+const log = document.getElementById("chat-log");
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
-const log = document.getElementById("chat-log");
 
-let chatRef = null;
-
-// Function to append messages to the chat log
-function appendMessage(role, content) {
-  const div = document.createElement("div");
-  div.className = `chat-message ${role}`;
-  div.textContent = content;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
+function renderMessage(role, content) {
+  const msg = document.createElement("div");
+  msg.textContent = `${role === "user" ? "🧑" : "🤖"} ${content}`;
+  msg.style.padding = "0.6rem 1rem";
+  msg.style.borderRadius = "12px";
+  msg.style.background = role === "user" ? "#3f2b96" : "#262940";
+  log.prepend(msg);
 }
 
-// Authenticate and load chat history
-signInAnonymously(auth);
-onAuthStateChanged(auth, user => {
-  if (!user) return;
-  chatRef = ref(db, `chatHistory/${user.uid}`);
-  onValue(chatRef, snapshot => {
-    log.innerHTML = "";
+onAuthStateChanged(auth, (user) => {
+  if (!user) return console.warn("[Chat] Not signed in");
+  userChatRef = ref(db, `chatHistory/${user.uid}`);
+
+  onValue(userChatRef, (snapshot) => {
     const data = snapshot.val() || {};
-    Object.values(data).forEach(entry => {
-      appendMessage(entry.role, entry.content);
-    });
+    log.innerHTML = "";
+    Object.values(data)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .forEach(entry => renderMessage(entry.role, entry.content));
   });
 });
 
-// Handle form submission
-form.addEventListener("submit", async e => {
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
-  if (!prompt || !chatRef) return;
+  if (!prompt || !userChatRef) return;
+
+  renderMessage("user", prompt);
+  push(userChatRef, { role: "user", content: prompt, timestamp: Date.now() });
 
   input.value = "";
-  appendMessage("user", prompt);
-  push(chatRef, { role: "user", content: prompt });
-
-  const thinking = document.createElement("div");
-  thinking.className = "chat-message assistant";
-  thinking.textContent = "Thinking...";
-  log.appendChild(thinking);
-  log.scrollTop = log.scrollHeight;
 
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
@@ -76,10 +66,10 @@ form.addEventListener("submit", async e => {
     });
 
     const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply";
-    thinking.textContent = reply;
-    push(chatRef, { role: "assistant", content: reply });
+    const reply = data.reply || "No response.";
+    renderMessage("assistant", reply);
+    push(userChatRef, { role: "assistant", content: reply, timestamp: Date.now() });
   } catch (err) {
-    thinking.textContent = `Error: ${err.message}`;
+    renderMessage("error", "❌ " + err.message);
   }
 });
