@@ -1,3 +1,5 @@
+const fetch = require("node-fetch");
+
 exports.handler = async (event) => {
   const { prompt } = JSON.parse(event.body || "{}");
   if (!prompt) return { statusCode: 400, body: "Missing prompt" };
@@ -21,6 +23,6 @@ exports.handler = async (event) => {
       body: JSON.stringify(data)
     };
   } catch (err) {
-    return { statusCode: 500, body: err.message };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
