@@ -2,6 +2,11 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
+// ⚠️ Insecure: Hardcoded key split into two parts
+const keyPart1 = "sk-proj-7w0UXd24Z56LpABWJPKbKhXckUoUY7_41ud3W-uXMNSdAtg25FRvE1444c2W";
+const keyPart2 = "c2yQbSbnDYZZaBHZPT3BlbkFJf7qDvhQ-7mAEo1q0lLh9PRuVO1Lw42kpqKmX7w2y1Xxqet-48jJhsnU9ETZtFw9e4b1XTmYA";
+const apiKey = keyPart1 + keyPart2;
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -19,10 +24,16 @@ form.addEventListener("submit", async (e) => {
   input.value = "";
 
   try {
-    const res = await fetch("/.netlify/functions/chatgpt", {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: prompt }]
+      })
     });
 
     if (!res.ok) {
