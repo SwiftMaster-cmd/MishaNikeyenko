@@ -1,3 +1,5 @@
+// /JS/chatgpt.js – Full frontend chat with Firebase memory
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, onValue
@@ -6,57 +8,51 @@ import {
   getAuth, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
   databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
   projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.firebasestorage.app",
+  storageBucket: "mishanikeyenko.appspot.com",
   messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
-  measurementId: "G-L6CC27129C"
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
 };
 
+// Init
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-let userChatRef = null;
-const log = document.getElementById("chat-log");
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
+const log = document.getElementById("chat-log");
 
-function renderMessage(role, content) {
-  const msg = document.createElement("div");
-  msg.textContent = `${role === "user" ? "🧑" : "🤖"} ${content}`;
-  msg.style.padding = "0.6rem 1rem";
-  msg.style.borderRadius = "12px";
-  msg.style.background = role === "user" ? "#3f2b96" : "#262940";
-  log.prepend(msg);
-}
+let chatRef = null;
 
-onAuthStateChanged(auth, (user) => {
-  if (!user) return console.warn("[Chat] Not signed in");
-  userChatRef = ref(db, `chatHistory/${user.uid}`);
+onAuthStateChanged(auth, user => {
+  if (!user) return console.warn("🔒 Not signed in");
+  chatRef = ref(db, `chatHistory/${user.uid}`);
 
-  onValue(userChatRef, (snapshot) => {
+  onValue(chatRef, snapshot => {
     const data = snapshot.val() || {};
+    const sorted = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
     log.innerHTML = "";
-    Object.values(data)
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .forEach(entry => renderMessage(entry.role, entry.content));
+    sorted.forEach(msg => addMessage(msg.role, msg.content));
+    scrollToBottom();
   });
 });
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
-  if (!prompt || !userChatRef) return;
-
-  renderMessage("user", prompt);
-  push(userChatRef, { role: "user", content: prompt, timestamp: Date.now() });
+  if (!prompt || !chatRef) return;
 
   input.value = "";
+  addMessage("user", prompt);
+  saveMessage("user", prompt);
+
+  const botLine = addMessage("bot", "...");
 
   try {
     const res = await fetch("/.netlify/functions/chatgpt", {
@@ -66,10 +62,37 @@ form.addEventListener("submit", async (e) => {
     });
 
     const data = await res.json();
-    const reply = data.reply || "No response.";
-    renderMessage("assistant", reply);
-    push(userChatRef, { role: "assistant", content: reply, timestamp: Date.now() });
+    const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
+    typeOut(botLine, reply);
+    saveMessage("bot", reply);
   } catch (err) {
-    renderMessage("error", "❌ " + err.message);
+    typeOut(botLine, `❌ ${err.message}`);
   }
 });
+
+function addMessage(role, text) {
+  const line = document.createElement("div");
+  line.className = `chat-line chat-${role}`;
+  line.textContent = text;
+  log.appendChild(line);
+  scrollToBottom();
+  return line;
+}
+
+function saveMessage(role, content) {
+  push(chatRef, {
+    role,
+    content,
+    timestamp: Date.now()
+  });
+}
+
+function typeOut(element, text, i = 0) {
+  if (i >= text.length) return;
+  element.textContent = text.slice(0, i + 1);
+  setTimeout(() => typeOut(element, text, i + 1), 12);
+}
+
+function scrollToBottom() {
+  log.scrollTop = log.scrollHeight;
+}
