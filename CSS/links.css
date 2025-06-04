@@ -1,234 +1,144 @@
-/* /CSS/links.css – FINAL (two-up categories, two-up links, sidebar-aware) */
-/* Imports design tokens + base reset */
+/* /CSS/links.css – FINAL June 2025
+   • 2 categories per row, 2 links per row inside each category
+   • Category picker + in-dialog "new" input
+   • Overlay stays hidden until JS removes the class       */
+
+/*──────── TOKENS ────────*/
 @import url('../CSS/variables.css');
 
-/*─────────────────────────────────────────────*/
-/* 1. Add-bookmark form (collapsible strip)    */
-/*─────────────────────────────────────────────*/
+/*──────── UNIVERSAL HIDDEN HELPER ────────*/
+.hidden{display:none!important;}   /* 🔒 nothing can override */
+
+/*──────── ADD-LINK FORM ────────*/
 #add-link-form{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(200px,1fr)) 90px; /* inputs + Save */
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr)) 90px;
   gap:1rem;
   margin-bottom:2.5rem;
-
-  /* slide-down animation */
   overflow:hidden;
   max-height:420px;
   opacity:1;
   transform:translateY(0);
-  transition:max-height .35s, opacity .28s, transform .28s;
+  transition:max-height .35s,opacity .28s,transform .28s;
 }
 #add-link-form.collapsed{
-  max-height:0;
-  opacity:0;
-  transform:translateY(-10px);
-  pointer-events:none;
+  max-height:0;opacity:0;transform:translateY(-10px);pointer-events:none;
 }
 #add-link-form input{
-  padding:.85rem 1rem;
-  background:rgba(255,255,255,.06);
-  color:var(--clr-text);
-  border:1px solid var(--clr-border);
-  border-radius:12px;
-  font-size:.97rem;
-  transition:border-color .25s, background .25s;
+  padding:.85rem 1rem;background:rgba(255,255,255,.06);
+  color:var(--clr-text);border:1px solid var(--clr-border);
+  border-radius:12px;font-size:.97rem;transition:border-color .25s,background .25s;
 }
 #add-link-form input::placeholder{color:var(--clr-muted)}
 #add-link-form input:focus{
-  outline:none;
-  border-color:var(--clr-primary);
-  background:rgba(255,255,255,.10);
+  outline:none;border-color:var(--clr-primary);background:rgba(255,255,255,.10);
 }
 .btn-solid{
-  background:var(--clr-primary);
-  color:#fff;
-  font-weight:600;
-  border:none;
-  border-radius:12px;
-  cursor:pointer;
-  transition:background .25s, transform .15s;
+  background:var(--clr-primary);color:#fff;font-weight:600;border:none;
+  border-radius:12px;cursor:pointer;transition:background .25s,transform .15s;
 }
 .btn-solid:hover{background:#5b2ee5}
 .btn-solid:active{transform:scale(.97)}
 
-/* empty-state helper */
+/*──────── EMPTY-STATE ────────*/
 .empty{opacity:.6;text-align:center;margin:2rem 0}
 
-/*─────────────────────────────────────────────*/
-/* 2. Category grid – *max* 2 categories wide  */
-/*─────────────────────────────────────────────*/
+/*──────── CATEGORY GRID (max 2 across) ────────*/
 .links-grid{
   display:grid;
   gap:2.4rem;
-  /* two across, else one; each max 600 px or 50 % */
   grid-template-columns:repeat(auto-fill,minmax(min(600px,50%),1fr));
 }
-/* below 900 px → single column of categories */
 @media(max-width:900px){.links-grid{grid-template-columns:1fr}}
 
-/* wrapper around each category */
+/*──────── CATEGORY WRAPPER ────────*/
 .category-section{margin-bottom:2.4rem}
 
-/*─────────────────────────────────────────────*/
-/* 3. Category title bar                       */
-/*─────────────────────────────────────────────*/
+/*──────── TITLE BAR ────────*/
 .category-title{
-  position:relative;
-  width:100%;
-  text-align:center;           /* centre the <h2> */
-  margin-bottom:1.4rem;
+  position:relative;text-align:center;width:100%;margin-bottom:1.4rem;
 }
 .category-title h2{
-  display:inline-block;
-  font-size:1.3rem;
-  font-weight:700;
-  padding:0 .5rem;
+  display:inline-block;font-size:1.3rem;font-weight:700;padding:0 .5rem;
 }
 .cat-actions{
-  position:absolute;
-  right:0; top:50%; transform:translateY(-50%);
-  display:flex; gap:.5rem;
-  opacity:0; pointer-events:none;
-  transition:opacity .18s;
+  position:absolute;right:0;top:50%;transform:translateY(-50%);
+  display:flex;gap:.5rem;opacity:0;transition:opacity .18s;
 }
-.category-title:hover .cat-actions{
-  opacity:1; pointer-events:auto;
-}
+.category-title:hover .cat-actions{opacity:1}
 button.ghost{
-  background:transparent;
-  border:none;
-  color:var(--clr-muted);
-  font-size:1.05rem;
-  padding:.25rem;
-  border-radius:8px;
-  cursor:pointer;
+  background:transparent;border:none;color:var(--clr-muted);
+  font-size:1.05rem;padding:.25rem;border-radius:8px;cursor:pointer;
   transition:background .2s,color .2s;
 }
-button.ghost:hover{
-  background:rgba(255,255,255,.08);
-  color:var(--clr-text);
-}
+button.ghost:hover{background:rgba(255,255,255,.08);color:var(--clr-text)}
 
-/*─────────────────────────────────────────────*/
-/* 4. Links grid inside a category – 2-up      */
-/*─────────────────────────────────────────────*/
+/*──────── LINKS GRID (exactly 2-up) ────────*/
 .category-links{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr)); /* fixed two columns */
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:1.2rem;
 }
-/* mobile <640 px → single column of links */
 @media(max-width:640px){.category-links{grid-template-columns:1fr}}
 
-/*─────────────────────────────────────────────*/
-/* 5. Link card                                */
-/*─────────────────────────────────────────────*/
-.link-row{
-  position:relative;
-  animation:fadeSlideIn .25s ease both;    /* subtle entrance */
-}
+/*──────── LINK CARD ────────*/
+.link-row{position:relative;animation:fadeSlideIn .25s ease both;}
 .link-main{
-  width:100%;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:.9rem 1rem;
-  border-radius:12px;
-  border:1px solid var(--clr-border);
-  background:rgba(255,255,255,.06);
-  color:var(--clr-text);
-  font-size:.95rem;
-  cursor:pointer;
-  transition:background .25s;
+  width:100%;display:flex;justify-content:space-between;align-items:center;
+  padding:.9rem 1rem;border-radius:12px;border:1px solid var(--clr-border);
+  background:rgba(255,255,255,.06);color:var(--clr-text);font-size:.95rem;
+  cursor:pointer;transition:background .25s;
 }
 .link-main:hover{background:rgba(255,255,255,.10)}
-.link-main .title{
-  flex:1;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.menu-btn{
-  margin-left:1rem;
-  color:var(--clr-muted);
-  opacity:0;
-  transition:opacity .18s;
-}
+.link-main .title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-btn{margin-left:1rem;color:var(--clr-muted);opacity:0;transition:opacity .18s}
 .link-main:hover .menu-btn{opacity:1}
 
-/* dropdown actions */
+/*──────── DROPDOWN MENU ────────*/
 .menu{
-  position:absolute;
-  right:0;
-  top:calc(100% + .35rem);
-  min-width:220px;
-  background:var(--clr-card);
-  border:1px solid var(--clr-border);
-  border-radius:var(--radius);
-  padding:.8rem;
-  display:flex;
-  flex-direction:column;
-  gap:.6rem;
-  z-index:50;
+  position:absolute;right:0;top:calc(100% + .35rem);
+  min-width:220px;background:var(--clr-card);border:1px solid var(--clr-border);
+  border-radius:var(--radius);padding:.8rem;display:flex;flex-direction:column;
+  gap:.6rem;z-index:50;
 }
 .menu[hidden]{display:none!important}
 .menu button{
-  background:var(--clr-primary);
-  color:#fff;
-  border:none;
-  border-radius:10px;
-  padding:.55rem .9rem;
-  font-size:.9rem;
-  font-weight:600;
-  cursor:pointer;
+  background:var(--clr-primary);color:#fff;border:none;border-radius:10px;
+  padding:.55rem .9rem;font-size:.9rem;font-weight:600;cursor:pointer;
 }
 .menu-edit{background:#5b2ee5}
 .menu-delete{background:#d32f2f}
-.preview{
-  word-break:break-all;
-  font-size:.8rem;
-  color:var(--clr-muted);
-  margin-top:.4rem;
-}
+.preview{word-break:break-all;font-size:.8rem;color:var(--clr-muted);margin-top:.4rem}
 
-/*─────────────────────────────────────────────*/
-/* 6. Sidebar awareness                        */
-/*─────────────────────────────────────────────*/
+/*──────── SIDEBAR AWARENESS ────────*/
 body.sidebar-open .main-card{
-  margin-left:260px;                       /* leave space for nav */
-  max-width:calc(100% - 280px);            /* shrink instead of overflow */
+  margin-left:260px;
+  max-width:calc(100% - 280px);
 }
 
-/*─────────────────────────────────────────────*/
-/* 7. Subtle motion                            */
-/*─────────────────────────────────────────────*/
+/*──────── ANIMATION ────────*/
 @keyframes fadeSlideIn{
-  from{opacity:0; transform:translateY(8px)}
-  to  {opacity:1; transform:none}
+  from{opacity:0;transform:translateY(8px)}
+  to  {opacity:1;transform:none}
 }
-.hidden{display:none}
 
-/* clickable cat-actions even when transparent */
-.cat-actions{opacity:0; pointer-events:auto;}
-
-/* simple centered modal */
+/*──────── EDIT MODAL ────────*/
 #edit-overlay{
-  position:fixed; inset:0; background:#0007; display:flex;
-  align-items:center; justify-content:center; z-index:1500; /* above menus */
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:#0007;z-index:1500;
 }
 #edit-dialog{
-  width:clamp(300px,90vw,420px); background:var(--clr-card);
-  border:1px solid var(--clr-border); border-radius:18px;
-  padding:2rem; display:flex; flex-direction:column; gap:1.1rem;
+  width:clamp(300px,90vw,420px);background:var(--clr-card);
+  border:1px solid var(--clr-border);border-radius:18px;padding:2rem;
+  display:flex;flex-direction:column;gap:1.1rem;
 }
-#edit-dialog input, #edit-dialog select{
-  padding:.75rem 1rem; border:1px solid var(--clr-border);
-  border-radius:12px; background:rgba(255,255,255,.06); color:var(--clr-text);
+#edit-dialog input,#edit-dialog select{
+  padding:.75rem 1rem;border:1px solid var(--clr-border);border-radius:12px;
+  background:rgba(255,255,255,.06);color:var(--clr-text);
 }
-#edit-dialog .actions{display:flex; gap:1rem; justify-content:flex-end;}
+#edit-dialog .actions{display:flex;gap:1rem;justify-content:flex-end}
 #edit-dialog .actions button{
-  flex:1; padding:.7rem 0; border:none; border-radius:12px; font-weight:600; cursor:pointer;
+  flex:1;padding:.7rem 0;border:none;border-radius:12px;font-weight:600;cursor:pointer;
 }
-#edit-save{background:var(--clr-primary); color:#fff;}
-#edit-cancel{background:rgba(255,255,255,.12); color:var(--clr-text);}
-
+#edit-save{background:var(--clr-primary);color:#fff}
+#edit-cancel{background:rgba(255,255,255,.12);color:var(--clr-text)}
