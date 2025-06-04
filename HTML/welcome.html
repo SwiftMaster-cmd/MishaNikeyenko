@@ -1,4 +1,4 @@
-<!-- /HTML/welcome.html  (dashboard after login) -->
+<!-- /HTML/welcome.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,9 +10,11 @@
   <link rel="stylesheet" href="../CSS/welcome.css">
 </head>
 <body>
-  <!-- GLASS HEADER -->
+  <!-- FIXED HEADER -->
   <header class="header-bar">
-    <div class="site-title">My&nbsp;Site</div>
+    <button id="menu-toggle" class="burger" aria-label="Menu" aria-controls="side-nav">
+      ☰
+    </button>
 
     <button id="profile-toggle-btn"
             class="profile-toggle-btn"
@@ -23,27 +25,55 @@
     </button>
   </header>
 
+  <!-- COLLAPSIBLE SIDEBAR -->
+  <nav id="side-nav" class="side-nav" aria-hidden="true">
+    <button id="add-bookmark-btn" class="nav-item">➕ Add bookmark</button>
+    <!-- more nav items could go here -->
+  </nav>
+
   <!-- PROFILE CARD -->
   <aside id="profile-card" class="profile-card" aria-hidden="true">
     <div id="user-info"></div>
     <div id="config-status"></div>
-    <button id="logout-btn" type="button">Sign&nbsp;Out</button>
+    <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- MAIN DASHBOARD -->
-  <main class="main-card">
+  <!-- MAIN DASHBOARD (hidden until "Add bookmark") -->
+  <main class="main-card" hidden>
     <form id="add-link-form" autocomplete="off">
-      <input type="text" id="link-title"     placeholder="Link title"             required>
-      <input type="url"  id="link-url"       placeholder="https://example.com"    required>
+      <input type="text" id="link-title"     placeholder="Link title"          required>
+      <input type="url"  id="link-url"       placeholder="https://example.com" required>
       <input type="text" id="link-category"  placeholder="Category (optional)">
-      <button class="btn-solid" type="submit">➕&nbsp;Add</button>
+      <button class="btn-solid" type="submit">Save</button>
     </form>
 
-    <!-- links injected by JS -->
     <div id="links-list" class="links-grid"></div>
   </main>
 
+  <!-- existing modules -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
+
+  <!-- sidebar / reveal logic -->
+  <script type="module">
+    document.addEventListener('DOMContentLoaded', () => {
+      const side   = document.getElementById('side-nav');
+      const burger = document.getElementById('menu-toggle');
+      const addBtn = document.getElementById('add-bookmark-btn');
+      const main   = document.querySelector('.main-card');
+
+      burger.onclick = () => side.classList.toggle('open');
+
+      addBtn.onclick = () => {
+        main.hidden = !main.hidden;
+        side.classList.remove('open');
+      };
+
+      /* auto-expand sidebar on ≥960 px */
+      const mq = window.matchMedia('(min-width: 960px)');
+      const sync = () => side.classList.toggle('desktop', mq.matches);
+      mq.addEventListener('change', sync); sync();
+    });
+  </script>
 </body>
 </html>
