@@ -1,6 +1,7 @@
-@import url('../CSS/variables.css');
+/* /CSS/links.css – two-column bookmarks (2025-06-03) */
+@import url('../CSS/variables.css');   /* tokens + reset */
 
-/* -- add-bookmark form (collapsible) -- */
+/* ── add-bookmark form (collapsible) ───────────────────── */
 #add-link-form{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(200px,1fr)) 90px;
@@ -29,17 +30,34 @@
 .btn-solid:hover{background:#5b2ee5}
 .btn-solid:active{transform:scale(.97)}
 
-/* -- empty-state helper -- */
+/* ── empty-state helper ─────────────────────────────────── */
 .empty{opacity:.6; text-align:center; margin:2rem 0}
 
-/* -- category headers -- */
-.category-title{
-  display:flex; align-items:center; justify-content:space-between;
-  margin:.5rem 0 1rem;
+/* ── CATEGORY WRAPPER ───────────────────────────────────── */
+.category-section{
+  margin-bottom:2.4rem;          /* room after each category */
+  display:flex; flex-direction:column; gap:0;   /* keep title + grid stacked */
 }
-.category-title h2{font-size:1.05rem; font-weight:600}
+
+/* ── category title strip ──────────────────────────────── */
+.category-title{
+  position:relative;
+  width:100%;                    /* span full width of section */
+  text-align:center;             /* center the <h2> */
+  margin-bottom:1.2rem;
+}
+.category-title h2{
+  display:inline-block;
+  font-size:1.25rem;             /* bigger heading */
+  font-weight:700;
+  padding:0 .4rem;
+}
 .cat-actions{
-  display:flex; gap:.5rem; opacity:0; pointer-events:none; transition:opacity .18s;
+  position:absolute;             /* float ✏️ / 🗑️ hard-right */
+  right:0; top:50%;
+  transform:translateY(-50%);
+  display:flex; gap:.5rem;
+  opacity:0; pointer-events:none; transition:opacity .18s;
 }
 .category-title:hover .cat-actions{opacity:1; pointer-events:auto}
 button.ghost{
@@ -49,35 +67,42 @@ button.ghost{
 }
 button.ghost:hover{background:rgba(255,255,255,.08); color:var(--clr-text)}
 
-/* -- grid / list -- */
-.links-grid{
-  display:grid; gap:1.6rem;
-  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+/* ── two-column grid for links ─────────────────────────── */
+.category-links{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));   /* exactly 2 cols */
+  gap:1.2rem;
 }
-@media(max-width:640px){.links-grid{display:block}}
+/* mobile fallback: single column */
+@media(max-width:640px){
+  .category-links{grid-template-columns:1fr;}
+}
 
+/* ── individual link rows (cards) ─────────────────────── */
 .link-row{
-  margin-bottom:.8rem; position:relative;
+  position:relative;
   animation:fadeSlideIn .25s ease both;
 }
 .link-main{
   width:100%; display:flex; justify-content:space-between; align-items:center;
-  padding:.9rem 1rem; border-radius:12px; border:1px solid var(--clr-border);
+  padding:.9rem 1rem;
+  border-radius:12px; border:1px solid var(--clr-border);
   background:rgba(255,255,255,.06); color:var(--clr-text); font-size:.95rem;
   cursor:pointer; transition:background .25s;
 }
 .link-main:hover{background:rgba(255,255,255,.10)}
 .link-main .title{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-
-.menu-btn{margin-left:1rem; color:var(--clr-muted); opacity:0; transition:opacity .18s}
+.menu-btn{
+  margin-left:1rem; color:var(--clr-muted); opacity:0; transition:opacity .18s;
+}
 .link-main:hover .menu-btn{opacity:1}
 
-/* dropdown menu */
+/* ── dropdown menu ─────────────────────────────────────── */
 .menu{
   position:absolute; right:0; top:calc(100% + .35rem); min-width:220px;
   background:var(--clr-card); border:1px solid var(--clr-border);
-  border-radius:var(--radius); padding:.8rem; display:flex; flex-direction:column; gap:.6rem;
-  z-index:50;
+  border-radius:var(--radius); padding:.8rem;
+  display:flex; flex-direction:column; gap:.6rem; z-index:50;
 }
 .menu[hidden]{display:none!important}
 .menu button{
@@ -90,39 +115,8 @@ button.ghost:hover{background:rgba(255,255,255,.08); color:var(--clr-text)}
   word-break:break-all; font-size:.8rem; color:var(--clr-muted); margin-top:.4rem;
 }
 
-/* -- subtle motion -- */
+/* ── subtle motion ─────────────────────────────────────── */
 @keyframes fadeSlideIn{
   from{opacity:0; transform:translateY(8px)}
   to  {opacity:1; transform:none}
-}
-
-/* ① wrapper: gives breathing-room after each category */
-.category-section{
-  margin-bottom:2.2rem;
-}
-
-/* ② make title truly centered and keep action buttons on right */
-.category-title{
-  position:relative;
-  text-align:center;
-  margin-bottom:1rem;          /* space below the title */
-}
-.category-title h2{
-  display:inline-block;        /* shrink to text width */
-}
-.cat-actions{
-  position:absolute;           /* float the ✏️ 🗑️ to the right edge */
-  right:0; top:50%; transform:translateY(-50%);
-}
-
-/* ③ two-column grid for the links inside each category */
-.category-links{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));   /* exactly two columns */
-  gap:1.2rem;
-}
-
-/* on narrow screens fall back to single column */
-@media(max-width:640px){
-  .category-links{grid-template-columns:1fr;}
 }
