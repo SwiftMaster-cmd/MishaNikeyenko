@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Calendar</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Calculator</title>
 
+  <!-- shared styles -->
   <link rel="stylesheet" href="../CSS/variables.css">
   <link rel="stylesheet" href="../CSS/profile.css">
   <link rel="stylesheet" href="../CSS/links.css">
-  <link rel="stylesheet" href="../CSS/calendar.css"> <!-- Your external calendar style -->
+  <link rel="stylesheet" href="../CSS/calculator.css">
 
   <style>.hidden{display:none}</style>
 </head>
@@ -17,30 +18,44 @@
   <!-- HEADER -->
   <header class="header-bar">
     <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
-    <h1 class="header-title">Calendar</h1>
+    <h1 class="header-title">Calculator</h1>
     <button id="profile-toggle-btn" class="profile-toggle-btn"
-            aria-haspopup="true" aria-controls="profile-card">
-      Profile
-    </button>
+            aria-haspopup="true" aria-controls="profile-card">Profile</button>
   </header>
 
   <!-- SIDEBAR -->
   <nav id="side-nav" class="side-nav" aria-hidden="true">
     <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
+
+    <!-- Links.js populates here -->
     <div id="links-list" class="sidebar-links"></div>
+
     <a href="welcome.html"    class="nav-item">Dashboard</a>
     <a href="notes.html"      class="nav-item">Notes</a>
-    <a href="es-module.html"  class="nav-item">ES-Module</a>
-    <a href="calculator.html" class="nav-item">Calculator</a>
-    <a href="calendar.html"   class="nav-item active">Calendar</a>
+            <a href="es-module.html"      class="nav-item">ES-Module</a>
+    <a href="calculator.html" class="nav-item active">Calculator</a>
   </nav>
 
-  <!-- PROFILE CARD -->
+  <!-- PROFILE -->
   <aside id="profile-card" class="profile-card" aria-hidden="true">
     <div id="user-info"></div>
     <div id="config-status"></div>
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-card">
+    <!-- add-bookmark form -->
+    <form id="add-link-form" class="collapsed" autocomplete="off">
+      <input id="link-title" type="text" placeholder="Link title" required>
+      <input id="link-url"   type="url" placeholder="https://example.com" required>
+
+      <select id="link-category" required></select>
+      <input  id="new-cat-input" class="hidden" placeholder="New category name">
+
+      <button class="btn-solid" type="submit">Save</button>
+    </form>
+
 
   <!-- MAIN -->
   <main class="calendar-wrapper">
