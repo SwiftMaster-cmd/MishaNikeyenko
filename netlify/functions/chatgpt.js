@@ -3,12 +3,23 @@ const fetch = require("node-fetch");
 exports.handler = async (event) => {
   try {
     const { prompt } = JSON.parse(event.body || "{}");
-    if (!prompt) return { statusCode: 400, body: "Missing prompt" };
+
+    if (!prompt) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Missing prompt" })
+      };
+    }
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) return { statusCode: 500, body: "Missing OpenAI API key" };
+    if (!apiKey) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "Missing OpenAI API key" })
+      };
+    }
 
-    const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -16,13 +27,11 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model: "gpt-3.5-turbo",
-        messages: [
-          { role: "user", content: prompt }
-        ]
+        messages: [{ role: "user", content: prompt }]
       })
     });
 
-    const data = await gptRes.json();
+    const data = await response.json();
 
     if (data.error) {
       return {
