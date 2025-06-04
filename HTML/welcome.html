@@ -69,30 +69,29 @@
     <ul id="event-list" class="event-list"></ul>
   </main>
 
-  <!-- MODULES -->
-  <script type="module" src="../JS/calendar.js"></script>
+  <!-- MODULE SCRIPTS -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
+  <script type="module" src="../JS/calandar.js"></script>
 
+  <!-- chrome toggles -->
   <script type="module">
     document.addEventListener('DOMContentLoaded', () => {
       const sidebar = document.getElementById('side-nav');
-      const burger = document.getElementById('menu-toggle');
-      const addBtn = document.getElementById('toggle-form-btn');
-      const form = document.getElementById('add-link-form');
+      const burger  = document.getElementById('menu-toggle');
+      const addBtn  = document.getElementById('toggle-form-btn');
+      const form    = document.getElementById('add-link-form');
 
       burger.onclick = () => {
         const open = sidebar.classList.toggle('open');
         document.body.classList.toggle('sidebar-open', open);
       };
 
-      if (addBtn && form) {
-        addBtn.onclick = () => {
-          const collapsed = form.classList.toggle('collapsed');
-          addBtn.classList.toggle('active', !collapsed);
-          if (!collapsed) document.getElementById('link-title').focus();
-        };
-      }
+      addBtn.onclick = () => {
+        const collapsed = form.classList.toggle('collapsed');
+        addBtn.classList.toggle('active', !collapsed);
+        if (!collapsed) document.getElementById('link-title').focus();
+      };
     });
   </script>
 </body>
