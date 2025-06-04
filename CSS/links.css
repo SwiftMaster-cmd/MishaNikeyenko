@@ -1,7 +1,7 @@
-/* /CSS/links.css – two-column bookmarks (2025-06-03) */
-@import url('../CSS/variables.css');   /* tokens + reset */
+/* /CSS/links.css – two-column bookmarks that resize with sidebar (2025-06-03) */
+@import url('../CSS/variables.css');
 
-/* ── add-bookmark form (collapsible) ───────────────────── */
+/* ── add-bookmark form ───────────────────────────────────── */
 #add-link-form{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(200px,1fr)) 90px;
@@ -34,30 +34,18 @@
 .empty{opacity:.6; text-align:center; margin:2rem 0}
 
 /* ── CATEGORY WRAPPER ───────────────────────────────────── */
-.category-section{
-  margin-bottom:2.4rem;          /* room after each category */
-  display:flex; flex-direction:column; gap:0;   /* keep title + grid stacked */
-}
+.category-section{margin-bottom:2.4rem}
 
 /* ── category title strip ──────────────────────────────── */
 .category-title{
-  position:relative;
-  width:100%;                    /* span full width of section */
-  text-align:center;             /* center the <h2> */
-  margin-bottom:1.2rem;
+  position:relative; width:100%; text-align:center; margin-bottom:1.2rem;
 }
 .category-title h2{
-  display:inline-block;
-  font-size:1.25rem;             /* bigger heading */
-  font-weight:700;
-  padding:0 .4rem;
+  display:inline-block; font-size:1.25rem; font-weight:700; padding:0 .4rem;
 }
 .cat-actions{
-  position:absolute;             /* float ✏️ / 🗑️ hard-right */
-  right:0; top:50%;
-  transform:translateY(-50%);
-  display:flex; gap:.5rem;
-  opacity:0; pointer-events:none; transition:opacity .18s;
+  position:absolute; right:0; top:50%; transform:translateY(-50%);
+  display:flex; gap:.5rem; opacity:0; pointer-events:none; transition:opacity .18s;
 }
 .category-title:hover .cat-actions{opacity:1; pointer-events:auto}
 button.ghost{
@@ -67,21 +55,16 @@ button.ghost{
 }
 button.ghost:hover{background:rgba(255,255,255,.08); color:var(--clr-text)}
 
-/* ── two-column grid for links ─────────────────────────── */
+/* ── responsive two-column grid ─────────────────────────── */
 .category-links{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));   /* exactly 2 cols */
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));   /* adapts automatically */
   gap:1.2rem;
 }
-/* mobile fallback: single column */
-@media(max-width:640px){
-  .category-links{grid-template-columns:1fr;}
-}
 
-/* ── individual link rows (cards) ─────────────────────── */
+/* ── individual link cards ──────────────────────────────── */
 .link-row{
-  position:relative;
-  animation:fadeSlideIn .25s ease both;
+  position:relative; animation:fadeSlideIn .25s ease both;
 }
 .link-main{
   width:100%; display:flex; justify-content:space-between; align-items:center;
@@ -92,17 +75,15 @@ button.ghost:hover{background:rgba(255,255,255,.08); color:var(--clr-text)}
 }
 .link-main:hover{background:rgba(255,255,255,.10)}
 .link-main .title{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.menu-btn{
-  margin-left:1rem; color:var(--clr-muted); opacity:0; transition:opacity .18s;
-}
+.menu-btn{margin-left:1rem; color:var(--clr-muted); opacity:0; transition:opacity .18s}
 .link-main:hover .menu-btn{opacity:1}
 
-/* ── dropdown menu ─────────────────────────────────────── */
+/* dropdown menu */
 .menu{
   position:absolute; right:0; top:calc(100% + .35rem); min-width:220px;
   background:var(--clr-card); border:1px solid var(--clr-border);
-  border-radius:var(--radius); padding:.8rem;
-  display:flex; flex-direction:column; gap:.6rem; z-index:50;
+  border-radius:var(--radius); padding:.8rem; display:flex; flex-direction:column;
+  gap:.6rem; z-index:50;
 }
 .menu[hidden]{display:none!important}
 .menu button{
@@ -111,8 +92,12 @@ button.ghost:hover{background:rgba(255,255,255,.08); color:var(--clr-text)}
 }
 .menu-edit{background:#5b2ee5}
 .menu-delete{background:#d32f2f}
-.preview{
-  word-break:break-all; font-size:.8rem; color:var(--clr-muted); margin-top:.4rem;
+.preview{word-break:break-all; font-size:.8rem; color:var(--clr-muted); margin-top:.4rem}
+
+/* ── grid adapts when sidebar is open ───────────────────── */
+body.sidebar-open .main-card{
+  margin-left:260px;                       /* same width as sidebar */
+  max-width:calc(100% - 280px);            /* prevent overflow */
 }
 
 /* ── subtle motion ─────────────────────────────────────── */
@@ -120,15 +105,3 @@ button.ghost:hover{background:rgba(255,255,255,.08); color:var(--clr-text)}
   from{opacity:0; transform:translateY(8px)}
   to  {opacity:1; transform:none}
 }
-/* ── 1. make main area shrink instead of overflowing ────── */
-body.sidebar-open .main-card{
-  margin-left:260px;                       /* keeps it clear of the nav */
-  max-width:calc(100% - 280px);            /* <-- NEW: shrinkable width */
-}
-
-/* ── 2. responsive two-up grid that collapses automatically ─ */
-.category-links{
-  /* old: grid-template-columns:repeat(2,minmax(0,1fr));  */
-  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-}
-/* if you kept the @media fallback, you can safely delete it now */
