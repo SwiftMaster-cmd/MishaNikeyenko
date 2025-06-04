@@ -207,3 +207,28 @@ body.sidebar-open .main-card{
   to  {opacity:1; transform:none}
 }
 .hidden{display:none}
+
+/* clickable cat-actions even when transparent */
+.cat-actions{opacity:0; pointer-events:auto;}
+
+/* simple centered modal */
+#edit-overlay{
+  position:fixed; inset:0; background:#0007; display:flex;
+  align-items:center; justify-content:center; z-index:1500; /* above menus */
+}
+#edit-dialog{
+  width:clamp(300px,90vw,420px); background:var(--clr-card);
+  border:1px solid var(--clr-border); border-radius:18px;
+  padding:2rem; display:flex; flex-direction:column; gap:1.1rem;
+}
+#edit-dialog input, #edit-dialog select{
+  padding:.75rem 1rem; border:1px solid var(--clr-border);
+  border-radius:12px; background:rgba(255,255,255,.06); color:var(--clr-text);
+}
+#edit-dialog .actions{display:flex; gap:1rem; justify-content:flex-end;}
+#edit-dialog .actions button{
+  flex:1; padding:.7rem 0; border:none; border-radius:12px; font-weight:600; cursor:pointer;
+}
+#edit-save{background:var(--clr-primary); color:#fff;}
+#edit-cancel{background:rgba(255,255,255,.12); color:var(--clr-text);}
+
