@@ -50,7 +50,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
 // Prompt builder
 export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
   return `
-You are Nexus, a sharp, helpful assistant for Bossman.
+You are Nexus, a second brain for Bossman.
 Date: ${date}
 
 User memory:

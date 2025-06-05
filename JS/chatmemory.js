@@ -180,7 +180,7 @@ form.addEventListener("submit", async (e) => {
   const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages: full, model: "gpt-4o", temperature: 0.4 })
+    body: JSON.stringify({ messages: full, model: "gpt-4o", temperature: 0.8 })
   });
   const replyData = await replyRes.json();
   const reply = replyData?.choices?.[0]?.message?.content || "[No reply]";
