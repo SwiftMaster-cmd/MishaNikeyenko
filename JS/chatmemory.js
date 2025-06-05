@@ -18,7 +18,32 @@ import {
   updateDayLog,
   buildSystemPrompt
 } from "./memoryManager.js";
-import { getNotes, addNote, flattenNotes } from "./notesAPI.js";
+
+// --- NOTES API BUILT IN ---
+async function addNote(uid, content) {
+  if (!uid) { console.error("addNote: No uid"); return false; }
+  if (!content) { console.error("addNote: No content"); return false; }
+  const db = getDatabase();
+  const today = new Date().toISOString().split('T')[0];
+  const todayRef = ref(db, `notes/${uid}/${today}`);
+  await push(todayRef, { content, timestamp: Date.now() });
+  console.log("Note written to Firebase:", { uid, today, content });
+  return true;
+}
+
+async function getNotes(uid, onlyToday = false) {
+  if (!uid) { console.error("getNotes: No uid"); return {}; }
+  const db = getDatabase();
+  const baseRef = ref(db, `notes/${uid}`);
+  const snapshot = await get(baseRef);
+  if (!snapshot.exists()) return {};
+  const data = snapshot.val() || {};
+  if (onlyToday) {
+    const today = new Date().toISOString().split('T')[0];
+    return data[today] || {};
+  }
+  return data;
+}
 
 // --- CONFIG ---
 const firebaseConfig = {
@@ -52,6 +77,7 @@ function addDebugMessage(text) {
   div.textContent = `[DEBUG] ${text}`;
   log.appendChild(div);
   scrollToBottom(true);
+  console.log(text);
 }
 
 // --- SCROLL CONTROL ---
@@ -131,12 +157,12 @@ form.addEventListener("submit", async (e) => {
     if (noteText) {
       await addNote(uid, noteText);
       addDebugMessage("Note added: " + noteText);
-      // Optionally, show in chat as confirmation
       await push(chatRef, {
         role: "assistant",
         content: `Saved note: "${noteText}"`,
         timestamp: Date.now()
       });
+      console.log("Note confirmed in chat");
     }
     input.value = "";
     return;
@@ -182,10 +208,12 @@ form.addEventListener("submit", async (e) => {
   const today = new Date().toISOString().slice(0, 10);
   let messages = [];
   try {
-    const [memory, dayLog, notes, calendar, calc] = await Promise.all([
+    // --- NOTE: Loads all notes, logs to console
+    const notes = await getNotes(uid);
+    console.log("Fetched notes for prompt context:", notes);
+    const [memory, dayLog, calendar, calc] = await Promise.all([
       getMemory(uid),
       getDayLog(uid, today),
-      getNotes(uid),
       getCalendar(uid),
       getCalcHistory(uid)
     ]);
@@ -270,21 +298,23 @@ form.addEventListener("submit", async (e) => {
       const raw = await logRes.text();
       const parsed = JSON.parse(raw);
       const extracted = parsed?.choices?.[0]?.message?.content?.trim();
-      // --- STRIP CODE FENCES AND TRY/CATCH PARSE ---
       const cleanJson = extractJsonFromReply(extracted);
       let logData = null;
       try {
         logData = JSON.parse(cleanJson);
       } catch (err) {
         addDebugMessage("🛑 Log parse failed: " + err.message + " | Offending content: " + cleanJson);
+        console.error("Log parse fail:", err, cleanJson);
         logData = null;
       }
       if (logData) {
         await updateDayLog(uid, today, logData);
         addDebugMessage("Day log updated.");
+        console.log("Day log written:", logData);
       }
     } catch (err) {
       addDebugMessage("🛑 Log failed: " + err.message);
+      console.error("Day log write failed", err);
     }
   }
 });
