@@ -1,5 +1,3 @@
-/* /CSS/chat.css */
-
 :root {
   --clr-bg: radial-gradient(circle at 20% 0%, #9b6aff, #3922d3, #161026);
   --clr-card: rgba(20, 22, 30, 0.85);
@@ -30,9 +28,10 @@ main.chat-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: var(--padding);
   background: var(--clr-card);
   backdrop-filter: blur(18px) saturate(1.2);
+  padding: var(--padding);
+  padding-bottom: 0; /* avoid double space */
 }
 
 /* Chat log area */
@@ -41,65 +40,74 @@ main.chat-container {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding-bottom: 1rem;
+  gap: 0.75rem;
+  padding: 1rem 0.5rem 6rem; /* space for input */
 }
 
 /* Chat bubbles */
 .chat-bubble {
   max-width: 75%;
-  padding: 0.8rem 1rem;
-  border-radius: 16px;
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--radius);
   word-wrap: break-word;
+  white-space: pre-wrap;
   line-height: 1.5;
+  font-size: 1rem;
   animation: fadeIn 0.2s ease-in-out;
+  position: relative;
 }
 
 .chat-bubble.user {
   align-self: flex-end;
   background: var(--clr-user);
   color: white;
+  border-bottom-right-radius: 4px;
 }
 
 .chat-bubble.assistant {
   align-self: flex-start;
   background: var(--clr-bot);
   color: white;
+  border-bottom-left-radius: 4px;
 }
 
+/* Input area fixed to bottom */
 #chat-form {
-  display: flex;
-  gap: 0.8rem;
-  padding: 1rem 0 0.5rem;
-  border-top: 1px solid var(--clr-border);
-  background: var(--clr-card);
-  position: sticky;
+  position: fixed;
   bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--clr-card);
+  border-top: 1px solid var(--clr-border);
   z-index: 10;
 }
 
+/* Text input */
 #user-input {
   flex: 1;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius);
   border: 1px solid var(--clr-border);
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.05);
   color: var(--clr-text);
   font-size: 1rem;
   outline: none;
-  min-width: 0; /* Ensure flex shrink properly */
 }
 
 #user-input::placeholder {
   color: var(--clr-muted);
 }
 
+/* Button */
 .btn-solid {
-  padding: 0.75rem 1.2rem;
+  padding: 0.8rem 1.2rem;
   background: var(--clr-user);
   color: white;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
@@ -109,7 +117,8 @@ main.chat-container {
   background: #5b2ee5;
 }
 
+/* Animation */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
