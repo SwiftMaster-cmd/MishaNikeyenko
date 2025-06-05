@@ -3,13 +3,21 @@ import {
   getDatabase,
   ref,
   push,
-  onValue
+  onValue,
+  set
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth,
   signInAnonymously,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+import {
+  getMemory,
+  getDayLog,
+  updateDayLog,
+  buildSystemPrompt
+} from "./memoryManager.js";
 
 // Firebase Config
 const firebaseConfig = {
@@ -35,14 +43,15 @@ const log = document.getElementById("chat-log");
 
 let chatRef = null;
 let userHasScrolled = false;
+let uid = null;
 
-// Detect if user manually scrolls up
+// Detect scroll
 log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
 });
 
-// Force scroll if user hasn't scrolled manually
+// Scroll to bottom
 function scrollToBottom(force = false) {
   if (!userHasScrolled || force) {
     requestAnimationFrame(() => {
@@ -51,59 +60,7 @@ function scrollToBottom(force = false) {
   }
 }
 
-// Auth and load chat
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    signInAnonymously(auth);
-    return;
-  }
-
-  chatRef = ref(db, `chatHistory/${user.uid}`);
-
-  onValue(chatRef, (snapshot) => {
-    const data = snapshot.val() || {};
-    const messages = Object.entries(data).map(([id, msg]) => ({ id, ...msg }));
-    renderMessages(messages);
-  });
-});
-
-// Handle submission
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const prompt = input.value.trim();
-  if (!prompt || !chatRef) return;
-
-  const userMsg = {
-    role: "user",
-    content: prompt,
-    timestamp: Date.now()
-  };
-
-  push(chatRef, userMsg);
-  input.value = "";
-  input.focus();
-  scrollToBottom(true); // Force scroll on send
-
-  const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt })
-  });
-
-  const data = await res.json();
-  const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
-
-  const botMsg = {
-    role: "assistant",
-    content: reply,
-    timestamp: Date.now()
-  };
-
-  push(chatRef, botMsg);
-});
-
-// Render messages and optionally auto-scroll
+// Render chat messages
 function renderMessages(messages) {
   log.innerHTML = "";
 
@@ -121,7 +78,103 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-// On load, scroll to bottom once everything is painted
+// Load chat history
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    signInAnonymously(auth);
+    return;
+  }
+
+  uid = user.uid;
+  chatRef = ref(db, `chatHistory/${uid}`);
+
+  onValue(chatRef, (snapshot) => {
+    const data = snapshot.val() || {};
+    const messages = Object.entries(data).map(([id, msg]) => ({ id, ...msg }));
+    renderMessages(messages);
+  });
+});
+
+// On submit
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const prompt = input.value.trim();
+  if (!prompt || !chatRef || !uid) return;
+
+  const userMsg = {
+    role: "user",
+    content: prompt,
+    timestamp: Date.now()
+  };
+
+  push(chatRef, userMsg);
+  input.value = "";
+  input.focus();
+  scrollToBottom(true);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const [memory, dayLogSnap] = await Promise.all([
+    getMemory(uid),
+    getDayLog(uid, today)
+  ]);
+
+  const systemPrompt = buildSystemPrompt(memory, dayLogSnap, today);
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: prompt }
+  ];
+
+  const res = await fetch("/.netlify/functions/chatgpt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages,
+      model: "gpt-4o",
+      temperature: 0.4
+    })
+  });
+
+  const data = await res.json();
+  const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
+
+  const botMsg = {
+    role: "assistant",
+    content: reply,
+    timestamp: Date.now()
+  };
+
+  push(chatRef, botMsg);
+
+  // Optional: extract log info from GPT (use a second GPT call or parsing)
+  if (prompt.toLowerCase().includes("today") || prompt.includes("log this")) {
+    const logRes = await fetch("/.netlify/functions/chatgpt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: "Extract a structured log from this message. Format with: highlights, mood, notes, questions." },
+          { role: "user", content: prompt }
+        ],
+        model: "gpt-4o",
+        temperature: 0.3
+      })
+    });
+
+    const logData = await logRes.json();
+    const logContent = logData?.choices?.[0]?.message?.content;
+
+    try {
+      const parsedLog = JSON.parse(logContent);
+      await updateDayLog(uid, today, parsedLog);
+    } catch (err) {
+      console.warn("Could not parse day log:", err.message);
+    }
+  }
+});
+
+// On load, scroll to bottom
 document.addEventListener("DOMContentLoaded", () => {
   scrollToBottom(true);
 });
