@@ -106,6 +106,14 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
+// --- EXTRACT JSON FROM GPT REPLY ---
+function extractJsonFromReply(raw) {
+  return (raw || "")
+    .replace(/```json\s*([\s\S]*?)```/gi, '$1')
+    .replace(/```\s*([\s\S]*?)```/gi, '$1')
+    .trim();
+}
+
 // --- HANDLE CHAT FORM SUBMIT ---
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -261,7 +269,9 @@ form.addEventListener("submit", async (e) => {
       const raw = await logRes.text();
       const parsed = JSON.parse(raw);
       const extracted = parsed?.choices?.[0]?.message?.content?.trim();
-      const logData = JSON.parse(extracted);
+      // --- SAFELY STRIP CODE FENCES BEFORE PARSING ---
+      const cleanJson = extractJsonFromReply(extracted);
+      const logData = JSON.parse(cleanJson);
 
       await updateDayLog(uid, today, logData);
       addDebugMessage("Day log updated.");
