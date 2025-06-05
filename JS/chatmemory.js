@@ -67,6 +67,10 @@ form.addEventListener("submit", async (e) => {
   push(chatRef, userMsg);
   input.value = "";
 
+  // Refocus input and scroll bottom
+  input.focus();
+  scrollToBottom();
+
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -86,7 +90,6 @@ form.addEventListener("submit", async (e) => {
 });
 
 function renderMessages(messages) {
-  const log = document.getElementById("chat-log");
   log.innerHTML = "";
 
   messages
@@ -98,7 +101,10 @@ function renderMessages(messages) {
       log.appendChild(div);
     });
 
-  // Auto-scroll to newest message
+  scrollToBottom();
+}
+
+function scrollToBottom() {
   requestAnimationFrame(() => {
     log.scrollTop = log.scrollHeight;
   });
