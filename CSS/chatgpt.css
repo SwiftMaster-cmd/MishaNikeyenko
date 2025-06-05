@@ -21,15 +21,16 @@ html, body {
   font-family: 'Inter', sans-serif;
   background: var(--clr-bg);
   color: var(--clr-text);
+  overflow: hidden; /* Prevent iOS bounce */
 }
 
 body {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
-/* Main scrollable chat area */
+/* Chat container with keyboard-safe padding */
 .chat-container {
   flex: 1;
   display: flex;
@@ -38,13 +39,17 @@ body {
   padding: var(--padding);
   gap: 1rem;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6rem; /* space below for iOS keyboard */
 }
 
-/* Messages container */
+/* Messages */
 #chat-log {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  scroll-behavior: smooth;
+  flex: 1;
 }
 
 /* Message bubbles */
@@ -70,16 +75,18 @@ body {
   color: white;
 }
 
-/* Chat input (now part of scroll flow, not fixed) */
+/* Chat input (sticky at bottom) */
 #chat-form {
   display: flex;
   gap: 0.75rem;
   padding: 1rem;
   background: var(--clr-card);
   border-top: 1px solid var(--clr-border);
+  position: sticky;
+  bottom: 0;
 }
 
-/* Text input */
+/* Input field */
 #user-input {
   flex: 1;
   padding: 0.75rem 1rem;
@@ -93,9 +100,6 @@ body {
 
 #user-input::placeholder {
   color: var(--clr-muted);
-}
-#chat-log {
-  scroll-behavior: smooth;
 }
 
 /* Submit button */

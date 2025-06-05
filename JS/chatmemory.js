@@ -17,25 +17,24 @@ const firebaseConfig = {
   authDomain: "mishanikeyenko.firebaseapp.com",
   databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
   projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.firebasestorage.app",
+  storageBucket: "mishanikeyenko.appspot.com",
   messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
-  measurementId: "G-L6CC27129C"
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
 };
 
-// Init
+// Init Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM
+// DOM Elements
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
 let chatRef = null;
 
-// Auth and load chat
+// Auth and chat init
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
@@ -51,10 +50,9 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// Handle submission
+// Submit
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-
   const prompt = input.value.trim();
   if (!prompt || !chatRef) return;
 
@@ -67,6 +65,7 @@ form.addEventListener("submit", async (e) => {
   push(chatRef, userMsg);
   input.value = "";
   input.focus();
+  scrollToBottom();
 
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
@@ -86,6 +85,7 @@ form.addEventListener("submit", async (e) => {
   push(chatRef, botMsg);
 });
 
+// Render + scroll
 function renderMessages(messages) {
   log.innerHTML = "";
 
@@ -98,10 +98,18 @@ function renderMessages(messages) {
       log.appendChild(div);
     });
 
-  // Ensure it scrolls after DOM paints (combo of timeout + RAF)
+  scrollToBottom();
+}
+
+function scrollToBottom() {
   setTimeout(() => {
     requestAnimationFrame(() => {
       log.scrollTop = log.scrollHeight;
     });
-  }, 30); // Slight delay to allow rendering
+  }, 30);
 }
+
+// Initial scroll to bottom
+document.addEventListener("DOMContentLoaded", () => {
+  scrollToBottom();
+});
