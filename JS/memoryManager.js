@@ -6,6 +6,21 @@ import {
   push
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+  authDomain: "mishanikeyenko.firebaseapp.com",
+  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+  projectId: "mishanikeyenko",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
+  messagingSenderId: "1089190937368",
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+
 // Load
 export const getMemory = (uid) => fetchNode(`memory/${uid}`);
 export const getDayLog = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
