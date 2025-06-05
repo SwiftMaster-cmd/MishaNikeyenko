@@ -12,7 +12,7 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Firebase config (swap with your own config if needed)
+// --- CONFIG ---
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -24,87 +24,94 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
-// Init
+// --- INIT ---
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-let notesRef = null;
-
-// DOM Elements
+// --- DOM ---
 const noteInput = document.getElementById('noteInput');
 const notesList = document.getElementById('notesList');
 const notesHistory = document.getElementById('notesHistory');
 
-// Sign in and load notes
+// --- HELPERS ---
+function todayKey() {
+  return new Date().toISOString().split('T')[0];
+}
+
+let userId = null;
+let todayNotesRef = null;
+
+// --- AUTH FLOW ---
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
     return;
   }
-  // Store today's notes under notes/{uid}/{YYYY-MM-DD}
-  const todayKey = new Date().toISOString().split('T')[0];
-  notesRef = ref(db, `notes/${user.uid}/${todayKey}`);
+  userId = user.uid;
+  todayNotesRef = ref(db, `notes/${userId}/${todayKey()}`);
 
   // Listen for today's notes
-  onValue(notesRef, (snapshot) => {
+  onValue(todayNotesRef, (snapshot) => {
     const data = snapshot.val() || {};
     renderNotes(Object.entries(data));
   });
 
-  // Optional: Load history (all days except today)
-  const allNotesRef = ref(db, `notes/${user.uid}`);
-  onValue(allNotesRef, (snapshot) => {
+  // Listen for note history (all previous days)
+  const userNotesRef = ref(db, `notes/${userId}`);
+  onValue(userNotesRef, (snapshot) => {
     const data = snapshot.val() || {};
-    const historyEntries = Object.entries(data)
-      .filter(([key]) => key !== todayKey)
-      .flatMap(([date, notes]) =>
-        Object.entries(notes).map(([id, note]) => ({
-          date, id, ...note
-        }))
-      );
-    renderHistory(historyEntries);
+    const historyArr = [];
+    Object.entries(data).forEach(([date, notes]) => {
+      if (date !== todayKey()) {
+        Object.entries(notes || {}).forEach(([id, note]) => {
+          historyArr.push({ date, id, ...note });
+        });
+      }
+    });
+    renderHistory(historyArr);
   });
 });
 
-// Add note
+// --- ADD NOTE ---
 window.saveNote = function () {
-  const content = noteInput.value.trim();
-  if (!content || !notesRef) return;
-  push(notesRef, {
+  const content = (noteInput.value || "").trim();
+  if (!content || !todayNotesRef) return;
+  push(todayNotesRef, {
     content,
     timestamp: Date.now()
   });
   noteInput.value = "";
 };
 
-// Render today's notes
+// --- RENDER TODAY'S NOTES ---
 function renderNotes(notesArr) {
   notesList.innerHTML = "";
   notesArr
-    .sort((a, b) => a[1].timestamp - b[1].timestamp)
+    .sort((a, b) => (a[1]?.timestamp ?? 0) - (b[1]?.timestamp ?? 0))
     .forEach(([id, note]) => {
+      if (!note || !note.content) return; // Robust null-check
       const li = document.createElement('li');
       li.textContent = note.content;
 
-      // Optionally: Add a delete button
+      // Delete button
       const delBtn = document.createElement('button');
       delBtn.textContent = "🗑️";
-      delBtn.style.marginLeft = "1em";
-      delBtn.onclick = () => remove(ref(notesRef, id));
+      delBtn.style.marginLeft = "0.7em";
+      delBtn.onclick = () => remove(ref(todayNotesRef, id));
       li.appendChild(delBtn);
 
       notesList.appendChild(li);
     });
 }
 
-// Render history notes
+// --- RENDER HISTORY ---
 function renderHistory(historyArr) {
   notesHistory.innerHTML = "";
-  // Sort by date, then timestamp
   historyArr
-    .sort((a, b) => b.timestamp - a.timestamp)
+    .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
     .forEach(note => {
+      if (!note || !note.content) return;
       const li = document.createElement('li');
       li.textContent = `[${note.date}] ${note.content}`;
       notesHistory.appendChild(li);
