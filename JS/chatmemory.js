@@ -106,9 +106,11 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// --- EXTRACT JSON FROM GPT REPLY ---
+// --- EXTRACT JSON FROM GPT REPLY (with fence cleanup) ---
 function extractJsonFromReply(raw) {
-  return (raw || "")
+  if (!raw) return "";
+  // Handles ```json ... ``` or ``` ... ```
+  return raw
     .replace(/```json\s*([\s\S]*?)```/gi, '$1')
     .replace(/```\s*([\s\S]*?)```/gi, '$1')
     .trim();
@@ -268,12 +270,19 @@ form.addEventListener("submit", async (e) => {
       const raw = await logRes.text();
       const parsed = JSON.parse(raw);
       const extracted = parsed?.choices?.[0]?.message?.content?.trim();
-      // --- SAFELY STRIP CODE FENCES BEFORE PARSING ---
+      // --- STRIP CODE FENCES AND TRY/CATCH PARSE ---
       const cleanJson = extractJsonFromReply(extracted);
-      const logData = JSON.parse(cleanJson);
-
-      await updateDayLog(uid, today, logData);
-      addDebugMessage("Day log updated.");
+      let logData = null;
+      try {
+        logData = JSON.parse(cleanJson);
+      } catch (err) {
+        addDebugMessage("🛑 Log parse failed: " + err.message + " | Offending content: " + cleanJson);
+        logData = null;
+      }
+      if (logData) {
+        await updateDayLog(uid, today, logData);
+        addDebugMessage("Day log updated.");
+      }
     } catch (err) {
       addDebugMessage("🛑 Log failed: " + err.message);
     }
