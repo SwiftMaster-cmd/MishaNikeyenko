@@ -87,6 +87,13 @@
       <input id="noteInput" placeholder="Write a note..." />
       <button onclick="saveNote()">Add Note</button>
     </div>
+    
+      <!-- AI Actions: Summarize and Feedback -->
+  <div class="ai-actions" style="margin-top:2rem;">
+    <button id="summarize-notes-btn" class="btn-solid">Summarize Today’s Notes</button>
+    <div id="ai-summary" class="ai-summary" style="margin-top:1rem;"></div>
+    <textarea id="ai-feedback" placeholder="Leave feedback on the summary..." rows="3" style="width:100%;margin-top:1rem;"></textarea>
+  </div>
 
     <!-- Recent Notes -->
     <section class="notes-section">
@@ -105,6 +112,7 @@
 
   <!-- MODULES -->
   <script type="module" src="../JS/profile.js"></script>
+  <script type="module" src="../JS/notes-ai.js"></script>
   <script type="module" src="../JS/links.js"></script>
 
   <!-- chrome controls -->
