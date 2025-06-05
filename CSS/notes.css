@@ -1,5 +1,7 @@
-/* Notes Page Specific Styles */
+/* /CSS/notes-clean.css – cleaned */
+@import url('variables.css');
 
+/* Notes Page Specific Styles */
 .notes-container {
   padding-block: calc(var(--nav-h) + 2rem) 4rem;
   max-width: 720px;
@@ -68,7 +70,6 @@
 .notes-list li:hover {
   background: rgba(255,255,255,0.05);
 }
-
 
 .note-item {
   display: flex;

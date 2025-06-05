@@ -1,14 +1,5 @@
-:root {
-  --clr-bg: #161026;
-  --clr-card: #1e1e2e;
-  --clr-border: #2e2e3e;
-  --clr-text: #f8fafd;
-  --clr-muted: #a1a6b9;
-  --clr-user: #7e3af2;
-  --clr-bot: #363c66;
-  --radius: 18px;
-  --padding: 1rem;
-}
+/* /CSS/chatgpt-clean.css – cleaned */
+@import url('variables.css');
 
 * {
   margin: 0;
@@ -19,7 +10,7 @@
 html, body {
   height: 100%;
   font-family: 'Inter', sans-serif;
-  background: var(--clr-bg);
+  background: var(--clr-bg, #161026);
   color: var(--clr-text);
 }
 
@@ -40,14 +31,12 @@ body {
   overflow-y: auto;
 }
 
-/* Messages container */
 #chat-log {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-/* Message bubbles */
 .msg {
   max-width: 75%;
   padding: 0.8rem 1rem;
@@ -70,7 +59,6 @@ body {
   color: white;
 }
 
-/* Chat input (now part of scroll flow, not fixed) */
 #chat-form {
   display: flex;
   gap: 0.75rem;
@@ -79,7 +67,6 @@ body {
   border-top: 1px solid var(--clr-border);
 }
 
-/* Text input */
 #user-input {
   flex: 1;
   padding: 0.75rem 1rem;
@@ -95,7 +82,6 @@ body {
   color: var(--clr-muted);
 }
 
-/* Submit button */
 button[type="submit"] {
   padding: 0.75rem 1.2rem;
   background: var(--clr-user);
@@ -111,7 +97,6 @@ button[type="submit"]:hover {
   background: #5b2ee5;
 }
 
-/* Entry animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }

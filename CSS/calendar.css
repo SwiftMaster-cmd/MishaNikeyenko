@@ -1,66 +1,22 @@
+/* /CSS/calendar-clean.css – cleaned */
+@import url('variables.css');
+
 /* CALENDAR WRAPPER - centered layout */
 .calendar-wrapper {
   padding: calc(var(--nav-h) + 2rem) 1rem 4rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start; /* Keep scrollable */
   text-align: center;
 }
 
-/* Optional: Limit calendar width for readability */
 #calendar-grid,
 #event-form,
 #event-list {
   width: 100%;
   max-width: 720px;
 }
-.calendar-wrapper {
-  padding: 6rem 1rem 3rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
 
-#month-label {
-  font-size: 2rem;
-  margin-bottom: 1.5rem;
-  color: var(--clr-text);
-}
-
-#calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.6rem;
-  width: 100%;
-  max-width: 640px;
-  margin-bottom: 2rem;
-}
-
-.calendar-day {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius);
-  min-height: 80px;
-  padding: 0.5rem;
-  color: var(--clr-text);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  font-size: 0.9rem;
-  position: relative;
-}
-
-.calendar-day .day-number {
-  font-weight: 600;
-  margin-bottom: 0.4rem;
-  color: var(--clr-text-muted);
-  font-size: 0.8rem;
-}
-
-/* MONTH LABEL */
 #month-label {
   font-size: 1.8rem;
   font-weight: 700;
@@ -68,7 +24,6 @@
   margin-bottom: 1rem;
 }
 
-/* CALENDAR GRID */
 #calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -80,7 +35,6 @@
   margin-bottom: 2rem;
 }
 
-/* CALENDAR CELL */
 .calendar-cell {
   aspect-ratio: 1 / 1;
   border-radius: 12px;
@@ -100,7 +54,6 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* EVENT DOT */
 .event-dot {
   position: absolute;
   bottom: 6px;
@@ -111,7 +64,6 @@
   background: var(--clr-primary);
 }
 
-/* EVENT FORM */
 #event-form {
   display: flex;
   gap: 1rem;
@@ -149,7 +101,6 @@
   background: var(--clr-primary-dark);
 }
 
-/* EVENT LIST */
 .calendar-events h3 {
   font-size: 1.1rem;
   margin-bottom: 1rem;
@@ -200,7 +151,7 @@
 .calendar {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: .5rem;
+  gap: 0.5rem;
   margin-bottom: 2rem;
   padding: 1rem;
   background: var(--clr-glass);
