@@ -98,8 +98,10 @@ function renderMessages(messages) {
       log.appendChild(div);
     });
 
-  // Always scroll to the bottom after DOM updates
+  // Ensure it scrolls after DOM paints (combo of timeout + RAF)
   setTimeout(() => {
-    log.scrollTop = log.scrollHeight;
-  }, 0);
+    requestAnimationFrame(() => {
+      log.scrollTop = log.scrollHeight;
+    });
+  }, 30); // Slight delay to allow rendering
 }
