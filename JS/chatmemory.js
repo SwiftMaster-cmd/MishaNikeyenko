@@ -1,4 +1,3 @@
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase,
@@ -17,12 +16,13 @@ import {
   getDayLog,
   getNotes,
   getCalendar,
+  getReminders,
   getCalcHistory,
   updateDayLog,
   buildSystemPrompt
 } from "./memoryManager.js";
 
-// Firebase Config
+// Firebase config and init
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -33,12 +33,10 @@ const firebaseConfig = {
   appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
 };
 
-// Init
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM elements
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
@@ -47,7 +45,7 @@ let uid = null;
 let chatRef = null;
 let userHasScrolled = false;
 
-// DEBUG FUNCTION: Shows a message in chat UI
+// Debug message
 function addDebugMessage(text) {
   const div = document.createElement("div");
   div.className = "msg debug-msg";
@@ -56,12 +54,11 @@ function addDebugMessage(text) {
   scrollToBottom(true);
 }
 
-// Scroll tracking
+// Scroll control
 log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
 });
-
 function scrollToBottom(force = false) {
   if (!userHasScrolled || force) {
     requestAnimationFrame(() => {
@@ -70,37 +67,31 @@ function scrollToBottom(force = false) {
   }
 }
 
-// Renders messages from array (maps "bot" to "assistant")
+// Render messages
 function renderMessages(messages) {
   log.innerHTML = "";
-
   messages
     .sort((a, b) => a.timestamp - b.timestamp)
     .forEach((msg) => {
       const trueRole = msg.role === "bot" ? "assistant" : msg.role;
       const div = document.createElement("div");
-      div.className = "msg " + (trueRole === "user" ? "user-msg" : trueRole === "assistant" ? "bot-msg" : "debug-msg");
+      div.className = "msg " + (trueRole === "user" ? "user-msg" : "bot-msg");
       div.textContent = msg.content;
       log.appendChild(div);
     });
-
-  const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 100;
-  userHasScrolled = !nearBottom;
   scrollToBottom();
 }
 
-// Firebase Auth
+// Auth + message loading
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
     addDebugMessage("Signed in anonymously.");
     return;
   }
-
   uid = user.uid;
   chatRef = ref(db, "chatHistory/" + uid);
   addDebugMessage("Auth ready. UID: " + uid);
-
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
     const messages = Object.entries(data).map(([id, msg]) => ({
@@ -109,65 +100,41 @@ onAuthStateChanged(auth, (user) => {
       role: msg.role === "bot" ? "assistant" : msg.role
     }));
     renderMessages(messages);
-    addDebugMessage("Chat messages loaded from Firebase.");
+    addDebugMessage("Chat messages loaded.");
   });
 });
 
-// Submit logic
+// Form submit
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-
   const prompt = input.value.trim();
-  if (!prompt || !chatRef || !uid) {
-    addDebugMessage("Form submit: missing prompt, chatRef, or uid.");
-    return;
-  }
+  if (!prompt || !chatRef || !uid) return;
 
   const userMsg = {
     role: "user",
     content: prompt,
     timestamp: Date.now()
   };
-
-  try {
-    await push(chatRef, userMsg);
-    addDebugMessage("User message written to Firebase.");
-  } catch (err) {
-    addDebugMessage("Failed to write user message to Firebase: " + err.message);
-    return;
-  }
-
+  await push(chatRef, userMsg);
   input.value = "";
-  input.focus();
   scrollToBottom(true);
 
-  let allMessages = [];
-  try {
-    const snapshot = await new Promise(resolve => {
-      onValue(chatRef, resolve, { onlyOnce: true });
-    });
-    addDebugMessage("Read messages from Firebase.");
-    const data = snapshot.val() || {};
-    allMessages = Object.entries(data)
-      .sort((a, b) => a[1].timestamp - b[1].timestamp)
-      .map(([id, msg]) => ({
-        role: msg.role === "bot" ? "assistant" : msg.role,
-        content: msg.content
-      }));
-    addDebugMessage("Assembled all chat messages.");
-  } catch (err) {
-    addDebugMessage("Failed to read messages from Firebase: " + err.message);
-    return;
-  }
-
   const today = new Date().toISOString().slice(0, 10);
-  let messages = [];
+  let history = [];
+  const snapshot = await new Promise(res => onValue(chatRef, res, { onlyOnce: true }));
+  const data = snapshot.val() || {};
+  history = Object.entries(data)
+    .sort((a, b) => a[1].timestamp - b[1].timestamp)
+    .map(([_, m]) => ({ role: m.role === "bot" ? "assistant" : m.role, content: m.content }));
+
+  let reply = "No reply.";
   try {
-    const [memory, dayLog, notes, calendar, calc] = await Promise.all([
+    const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
       getMemory(uid),
       getDayLog(uid, today),
       getNotes(uid),
       getCalendar(uid),
+      getReminders(uid),
       getCalcHistory(uid)
     ]);
     const systemPrompt = buildSystemPrompt({
@@ -175,91 +142,28 @@ form.addEventListener("submit", async (e) => {
       todayLog: dayLog,
       notes,
       calendar,
+      reminders,
       calc,
       date: today
     });
+    const full = [{ role: "system", content: systemPrompt }, ...history];
 
-    messages = [
-      { role: "system", content: systemPrompt },
-      ...allMessages
-    ];
-    addDebugMessage("System prompt generated and prepended.");
-  } catch (err) {
-    addDebugMessage("Failed to build system prompt: " + err.message);
-    return;
-  }
-
-  let reply = "No reply.";
-  try {
-    addDebugMessage("Sending messages to API: " + JSON.stringify(messages));
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages,
-        model: "gpt-4o",
-        temperature: 0.4
-      })
+      body: JSON.stringify({ messages: full, model: "gpt-4o", temperature: 0.4 })
     });
-    const dataRes = await res.json();
-    addDebugMessage("Received API response: " + JSON.stringify(dataRes));
-    if (dataRes?.choices?.[0]?.message?.content) {
-      reply = dataRes.choices[0].message.content.trim();
-    } else if (dataRes?.error) {
-      reply = "[Error: " + dataRes.error + "]";
-    } else {
-      reply = "[Debug: " + JSON.stringify(dataRes) + "]";
-    }
+    const json = await res.json();
+    reply = json?.choices?.[0]?.message?.content?.trim() || "[No response]";
   } catch (err) {
     reply = "[Error: " + err.message + "]";
-    addDebugMessage("API fetch failed: " + err.message);
   }
 
-  try {
-    await push(chatRef, {
-      role: "assistant",
-      content: reply,
-      timestamp: Date.now()
-    });
-    addDebugMessage("Assistant reply written to Firebase.");
-  } catch (err) {
-    addDebugMessage("Failed to write assistant reply to Firebase: " + err.message);
-  }
+  await push(chatRef, {
+    role: "assistant",
+    content: reply,
+    timestamp: Date.now()
+  });
 
-  scrollToBottom(true);
-
-  // Auto logging
-  if (/\/log|remember this|today|add to log/i.test(prompt)) {
-    try {
-      const logRes = await fetch("/.netlify/functions/chatgpt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content: "Extract a structured log. Return JSON with: highlights, mood, notes, questions."
-            },
-            { role: "user", content: prompt }
-          ],
-          model: "gpt-4o",
-          temperature: 0.3
-        })
-      });
-
-      const raw = await logRes.text();
-      const parsed = JSON.parse(raw);
-      const extracted = parsed?.choices?.[0]?.message?.content?.trim();
-      const logData = JSON.parse(extracted);
-
-      await updateDayLog(uid, today, logData);
-      addDebugMessage("Day log updated.");
-    } catch (err) {
-      addDebugMessage("🛑 Log update failed: " + err.message);
-    }
-  }
-});
-
-document.addEventListener("DOMContentLoaded", () => {
   scrollToBottom(true);
 });

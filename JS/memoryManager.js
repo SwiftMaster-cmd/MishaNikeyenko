@@ -1,4 +1,3 @@
-
 import {
   getDatabase,
   ref,
@@ -50,7 +49,6 @@ export async function updateDayLog(uid, dateStr, newLog) {
     questions: merge(existing.questions, newLog.questions)
   };
 
-  console.log("📥 Writing merged log to:", path);
   await set(ref(db, path), merged);
   return merged;
 }
