@@ -20,7 +20,7 @@ import {
   getNotes,
   getCalendar,
   getCalcHistory,
-  getReminders, // ✅ added
+  getReminders, // ✅ fixed import
   buildSystemPrompt,
   updateDayLog
 } from "./memoryManager.js";
@@ -48,7 +48,7 @@ const log = document.getElementById("chat-log");
 let uid = null;
 let chatRef = null;
 
-// Render chat messages
+// RENDER
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -62,7 +62,7 @@ function renderMessages(messages) {
   log.scrollTop = log.scrollHeight;
 }
 
-// Auth + chat history
+// AUTH
 onAuthStateChanged(auth, (user) => {
   if (!user) return signInAnonymously(auth);
   uid = user.uid;
@@ -74,7 +74,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// Form submission
+// SUBMIT
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -86,12 +86,18 @@ form.addEventListener("submit", async (e) => {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const [memory, dayLog, notes, reminders] = await Promise.all([
-    getMemory(uid),
-    getDayLog(uid, today),
-    getNotes(uid, true),
-    getReminders(uid)
-  ]);
+  let memory, dayLog, notes, reminders;
+  try {
+    [memory, dayLog, notes, reminders] = await Promise.all([
+      getMemory(uid),
+      getDayLog(uid, today),
+      getNotes(uid, true),
+      getReminders(uid)
+    ]);
+  } catch (err) {
+    console.warn("⚠️ Failed to fetch full memory. Falling back.", err);
+    reminders = {};
+  }
 
   const systemPrompt = buildSystemPrompt({
     memory,
@@ -126,7 +132,7 @@ form.addEventListener("submit", async (e) => {
 
   console.log("🤖 GPT Reply:", reply);
 
-  // 🔄 Structured command handler
+  // 🔄 Handle structured command from GPT
   try {
     const match = reply.match(/{[\s\S]*?"action":\s*".+?"[\s\S]*?}/);
     if (match) {
@@ -163,7 +169,7 @@ form.addEventListener("submit", async (e) => {
     });
   }
 
-  // 🔁 Dynamic context expansion
+  // 🔁 Expand additional context if requested
   if (/get calendar|get finances|get reminders|more notes|expand memory/i.test(reply)) {
     const expansions = [];
 
@@ -178,8 +184,8 @@ form.addEventListener("submit", async (e) => {
     }
 
     if (/reminders/i.test(reply)) {
-      const reminders = await getReminders(uid);
-      expansions.push("🔔 Reminders:\n" + JSON.stringify(reminders, null, 2));
+      const r = await getReminders(uid);
+      expansions.push("🔔 Reminders:\n" + JSON.stringify(r, null, 2));
     }
 
     if (/more notes|full notes/i.test(reply)) {
