@@ -1,9 +1,9 @@
+
 import {
   getDatabase,
   ref,
   get,
-  set,
-  push
+  set
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 // 🔹 Load individual nodes
@@ -15,82 +15,28 @@ export async function getDayLog(uid, dateStr) {
   return fetchNode(`dayLog/${uid}/${dateStr}`);
 }
 
-export async function getNotes(uid, onlyToday = false) {
-  const data = await fetchNode(`notes/${uid}`);
-  if (!onlyToday) return data;
-  const today = new Date().toISOString().split('T')[0];
-  return data?.[today] || {};
+export async function getNotes(uid) {
+  return fetchNode(`notes/${uid}`);
 }
 
 export async function getCalendar(uid) {
   return fetchNode(`calendarEvents/${uid}`);
 }
 
-export async function getCalcHistory(uid) {
-  return fetchNode(`calcHistory/${uid}`);
-}
-
 export async function getReminders(uid) {
   return fetchNode(`reminders/${uid}`);
 }
 
-// 🔹 Generic fetch utility
+export async function getCalcHistory(uid) {
+  return fetchNode(`calcHistory/${uid}`);
+}
+
 async function fetchNode(path) {
   const snap = await get(ref(getDatabase(), path));
   return snap.exists() ? snap.val() : {};
 }
 
-// 🔹 Format helper (token-conscious block builder)
-export function formatBlock(obj = {}, options = {}) {
-  const {
-    maxItems = 5,
-    maxChars = 500,
-    keysToInclude = null,
-    label = null
-  } = options;
-
-  if (!obj || Object.keys(obj).length === 0) return "None.";
-
-  let output = [];
-  const entries = keysToInclude
-    ? Object.entries(obj).filter(([k]) => keysToInclude.includes(k))
-    : Object.entries(obj);
-
-  for (const [k, v] of entries) {
-    if (!v || (Array.isArray(v) && v.length === 0)) continue;
-
-    let val = Array.isArray(v)
-      ? v.slice(0, maxItems).join(", ")
-      : typeof v === "string"
-      ? v.slice(0, maxChars)
-      : JSON.stringify(v).slice(0, maxChars);
-
-    if (val.length > maxChars) val += "...";
-
-    output.push(`${k}: ${val}`);
-    if (output.length >= maxItems) break;
-  }
-
-  return label ? `${label}\n${output.join("\n")}` : output.join("\n");
-}
-
-// 🔹 Smart System Prompt Generator
-export function buildSystemPrompt({ memory, todayLog, notes, reminders, date }) {
-  return [
-    `Assistant: Nexus\nDate: ${date}`,
-    formatBlock(memory, { label: "Memory", maxItems: 3 }),
-    formatBlock(todayLog, { label: "Today", maxItems: 3 }),
-    formatBlock(notes, { label: "Today’s Notes", maxItems: 2 }),
-    formatBlock(reminders, { label: "Reminders", maxItems: 3 }),
-    "You may request more context (e.g. 'get calendar', 'load finances').",
-    "Only ask for what you need. Use structured JSON to update memory or data.",
-    "Example: { action: \"addReminder\", data: { title: \"Water plants\", time: \"18:00\" } }",
-    "Supported actions: addNote, addReminder, addCalendarEvent, updateDayLog, updateMemory.",
-    "When updating, respond with only the JSON. Avoid extra explanation."
-  ].join("\n\n");
-}
-
-// 🔹 Merge-safe Day Log Updater
+// 🔹 Update day log with merge logic
 export async function updateDayLog(uid, dateStr, newLog) {
   const db = getDatabase();
   const path = `dayLog/${uid}/${dateStr}`;
@@ -109,20 +55,51 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// 🔹 Field-Specific Memory Update
-export async function updateMemoryField(uid, key, value) {
-  if (!uid || !key) return false;
-  const db = getDatabase();
-  const memoryPath = `memory/${uid}`;
-  const snap = await get(ref(db, memoryPath));
-  const memory = snap.exists() ? snap.val() : {};
-  memory[key] = value;
-  await set(ref(db, memoryPath), memory);
-  console.log("🧠 Memory updated:", { key, value });
-  return true;
+// 🔹 Build system prompt using all user context
+export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
+  return `
+You are Nexus, a smart, bold, and fun assistant for Bossman.
+Date: ${date}
+
+User memory:
+${formatBlock(memory)}
+
+Today's log:
+${formatBlock(todayLog)}
+
+Notes:
+${formatBlock(notes)}
+
+Calendar:
+${formatBlock(calendar)}
+
+Reminders:
+${formatBlock(reminders)}
+
+Finances:
+${formatBlock(calc)}
+
+You do this:
+- Respond clearly, directly, and with style
+- Use sharp wit or friendly humor to keep things engaging
+- Always push the conversation forward -- don't wait for direction if Bossman seems lost
+- Suggest next actions confidently, even if Bossman didn't ask
+- Keep everything goal-oriented and efficient under the hood
+- Update memory or logs when prompted (e.g. "remember this", "log this")
+- Reflect the user's current mood and momentum
+- Stay brief unless depth is needed
+- Own the vibe -- help Bossman focus, build, and stay on track
+`;
 }
 
-// 🔹 Array merge helper
+// 🔹 Format helper
+function formatBlock(obj = {}) {
+  if (Object.keys(obj).length === 0) return "None.";
+  return Object.entries(obj)
+    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+    .join("\n");
+}
+
 function merge(arr1 = [], arr2 = []) {
   return Array.from(new Set([...(arr1 || []), ...(arr2 || [])]));
 }
