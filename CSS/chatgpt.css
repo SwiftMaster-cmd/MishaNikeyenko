@@ -11,9 +11,9 @@
 }
 
 * {
-  box-sizing: border-box;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
 html, body {
@@ -24,24 +24,25 @@ html, body {
   overflow: hidden;
 }
 
+/* Main container with padding at bottom for input */
 main.chat-container {
-  position: relative;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background: var(--clr-card);
   padding: var(--padding);
-  padding-bottom: 4.5rem; /* space for footer input */
-  overflow: hidden;
+  padding-bottom: 5rem; /* Space for fixed input bar */
+  background: var(--clr-card);
   backdrop-filter: blur(18px);
+  overflow: hidden;
 }
 
-/* Chat log (scrollable area above input) */
+/* Scrollable chat log */
 #chat-log {
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end; /* Ensures messages stack from bottom up */
   gap: 0.5rem;
   padding-bottom: 1rem;
   scroll-behavior: auto;
@@ -69,8 +70,8 @@ main.chat-container {
   color: white;
 }
 
-/* Fixed footer input */
-#chat-form {
+/* Fixed chat input footer */
+.chat-input-bar {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -83,6 +84,7 @@ main.chat-container {
   z-index: 1000;
 }
 
+/* Input styling */
 #user-input {
   flex: 1;
   padding: 0.75rem 1rem;
@@ -98,6 +100,7 @@ main.chat-container {
   color: var(--clr-muted);
 }
 
+/* Submit button */
 button[type="submit"] {
   padding: 0.75rem 1.2rem;
   background: var(--clr-user);
@@ -113,6 +116,7 @@ button[type="submit"]:hover {
   background: #5b2ee5;
 }
 
+/* Message animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
