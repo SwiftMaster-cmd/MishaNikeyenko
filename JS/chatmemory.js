@@ -17,24 +17,41 @@ const firebaseConfig = {
   authDomain: "mishanikeyenko.firebaseapp.com",
   databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
   projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.appspot.com",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
   messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
+  measurementId: "G-L6CC27129C"
 };
 
-// Init Firebase
+// Init
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM Elements
+// DOM
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
 let chatRef = null;
+let userHasScrolled = false;
 
-// Auth and chat init
+// Detect if user manually scrolls up
+log.addEventListener("scroll", () => {
+  const threshold = 100;
+  userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
+});
+
+// Force scroll if user hasn't scrolled manually
+function scrollToBottom(force = false) {
+  if (!userHasScrolled || force) {
+    requestAnimationFrame(() => {
+      log.scrollTop = log.scrollHeight;
+    });
+  }
+}
+
+// Auth and load chat
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
@@ -50,9 +67,10 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// Submit
+// Handle submission
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   const prompt = input.value.trim();
   if (!prompt || !chatRef) return;
 
@@ -65,7 +83,7 @@ form.addEventListener("submit", async (e) => {
   push(chatRef, userMsg);
   input.value = "";
   input.focus();
-  scrollToBottom();
+  scrollToBottom(true); // Force scroll on send
 
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
@@ -85,7 +103,7 @@ form.addEventListener("submit", async (e) => {
   push(chatRef, botMsg);
 });
 
-// Render + scroll
+// Render messages and optionally auto-scroll
 function renderMessages(messages) {
   log.innerHTML = "";
 
@@ -98,18 +116,12 @@ function renderMessages(messages) {
       log.appendChild(div);
     });
 
+  const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 100;
+  userHasScrolled = !nearBottom;
   scrollToBottom();
 }
 
-function scrollToBottom() {
-  setTimeout(() => {
-    requestAnimationFrame(() => {
-      log.scrollTop = log.scrollHeight;
-    });
-  }, 30);
-}
-
-// Initial scroll to bottom
+// On load, scroll to bottom once everything is painted
 document.addEventListener("DOMContentLoaded", () => {
-  scrollToBottom();
+  scrollToBottom(true);
 });
