@@ -1,3 +1,4 @@
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase,
@@ -50,7 +51,7 @@ let userHasScrolled = false;
 function addDebugMessage(text) {
   const div = document.createElement("div");
   div.className = "msg debug-msg";
-  div.textContent = `[DEBUG] ${text}`;
+  div.textContent = "[DEBUG] " + text;
   log.appendChild(div);
   scrollToBottom(true);
 }
@@ -78,7 +79,7 @@ function renderMessages(messages) {
     .forEach((msg) => {
       const trueRole = msg.role === "bot" ? "assistant" : msg.role;
       const div = document.createElement("div");
-      div.className = `msg ${trueRole === "user" ? "user-msg" : trueRole === "assistant" ? "bot-msg" : "debug-msg"}`;
+      div.className = "msg " + (trueRole === "user" ? "user-msg" : trueRole === "assistant" ? "bot-msg" : "debug-msg");
       div.textContent = msg.content;
       log.appendChild(div);
     });
@@ -97,7 +98,7 @@ onAuthStateChanged(auth, (user) => {
   }
 
   uid = user.uid;
-  chatRef = ref(db, `chatHistory/${uid}`);
+  chatRef = ref(db, "chatHistory/" + uid);
   addDebugMessage("Auth ready. UID: " + uid);
 
   onValue(chatRef, (snapshot) => {
@@ -105,14 +106,14 @@ onAuthStateChanged(auth, (user) => {
     const messages = Object.entries(data).map(([id, msg]) => ({
       id,
       ...msg,
-      role: msg.role === "bot" ? "assistant" : msg.role // map old data
+      role: msg.role === "bot" ? "assistant" : msg.role
     }));
     renderMessages(messages);
     addDebugMessage("Chat messages loaded from Firebase.");
   });
 });
 
-// FORM SUBMIT LOGIC â€" persistent memory fix, with debug
+// Submit logic
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -122,12 +123,12 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // Push user message to Firebase
   const userMsg = {
     role: "user",
     content: prompt,
     timestamp: Date.now()
   };
+
   try {
     await push(chatRef, userMsg);
     addDebugMessage("User message written to Firebase.");
@@ -135,11 +136,11 @@ form.addEventListener("submit", async (e) => {
     addDebugMessage("Failed to write user message to Firebase: " + err.message);
     return;
   }
+
   input.value = "";
   input.focus();
   scrollToBottom(true);
 
-  // Load full chat history after update
   let allMessages = [];
   try {
     const snapshot = await new Promise(resolve => {
@@ -150,7 +151,7 @@ form.addEventListener("submit", async (e) => {
     allMessages = Object.entries(data)
       .sort((a, b) => a[1].timestamp - b[1].timestamp)
       .map(([id, msg]) => ({
-        role: msg.role === "bot" ? "assistant" : msg.role, // ensure only valid roles
+        role: msg.role === "bot" ? "assistant" : msg.role,
         content: msg.content
       }));
     addDebugMessage("Assembled all chat messages.");
@@ -159,7 +160,6 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // Build system prompt and prepend to history
   const today = new Date().toISOString().slice(0, 10);
   let messages = [];
   try {
@@ -189,7 +189,6 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // Send full message history to GPT
   let reply = "No reply.";
   try {
     addDebugMessage("Sending messages to API: " + JSON.stringify(messages));
@@ -207,18 +206,15 @@ form.addEventListener("submit", async (e) => {
     if (dataRes?.choices?.[0]?.message?.content) {
       reply = dataRes.choices[0].message.content.trim();
     } else if (dataRes?.error) {
-      reply = `[Error: ${dataRes.error}]`;
-      addDebugMessage("API error: " + dataRes.error);
+      reply = "[Error: " + dataRes.error + "]";
     } else {
-      reply = `[Debug: ${JSON.stringify(dataRes)}]`;
-      addDebugMessage("API unknown response shape.");
+      reply = "[Debug: " + JSON.stringify(dataRes) + "]";
     }
   } catch (err) {
-    reply = `[Error: ${err.message}]`;
+    reply = "[Error: " + err.message + "]";
     addDebugMessage("API fetch failed: " + err.message);
   }
 
-  // Push assistant reply to Firebase (always as "assistant")
   try {
     await push(chatRef, {
       role: "assistant",
@@ -232,7 +228,7 @@ form.addEventListener("submit", async (e) => {
 
   scrollToBottom(true);
 
-  // Optionally extract log for day/summary if detected
+  // Auto logging
   if (/\/log|remember this|today|add to log/i.test(prompt)) {
     try {
       const logRes = await fetch("/.netlify/functions/chatgpt", {
@@ -259,7 +255,7 @@ form.addEventListener("submit", async (e) => {
       await updateDayLog(uid, today, logData);
       addDebugMessage("Day log updated.");
     } catch (err) {
-      addDebugMessage("ðŸ›‘ Log failed: " + err.message);
+      addDebugMessage("🛑 Log update failed: " + err.message);
     }
   }
 });
