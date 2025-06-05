@@ -310,6 +310,7 @@ if (/^\s*[\[{]/.test(cleanJson)) {
   }
 } else {
   addDebugMessage("🛑 Log parse skipped: Assistant did not return JSON. Content: " + cleanJson);
+  console.warn("Assistant did not return JSON for log:", cleanJson);
 }
 if (logData) {
   await updateDayLog(uid, today, logData);
