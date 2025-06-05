@@ -8,8 +8,14 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
-  getMemory, getDayLog, getNotes, getCalendar, getCalcHistory,
-  updateDayLog, buildSystemPrompt
+  getMemory,
+  getDayLog,
+  getNotes,
+  getCalendar,
+  getReminders,
+  getCalcHistory,
+  updateDayLog,
+  buildSystemPrompt
 } from "./memoryManager.js";
 
 // Firebase Config
