@@ -69,15 +69,16 @@ function scrollToBottom(force = false) {
   }
 }
 
-// Renders messages from array
+// Renders messages from array (maps "bot" to "assistant")
 function renderMessages(messages) {
   log.innerHTML = "";
 
   messages
     .sort((a, b) => a.timestamp - b.timestamp)
     .forEach((msg) => {
+      const trueRole = msg.role === "bot" ? "assistant" : msg.role;
       const div = document.createElement("div");
-      div.className = `msg ${msg.role === "user" ? "user-msg" : msg.role === "assistant" ? "bot-msg" : "debug-msg"}`;
+      div.className = `msg ${trueRole === "user" ? "user-msg" : trueRole === "assistant" ? "bot-msg" : "debug-msg"}`;
       div.textContent = msg.content;
       log.appendChild(div);
     });
@@ -101,7 +102,11 @@ onAuthStateChanged(auth, (user) => {
 
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
-    const messages = Object.entries(data).map(([id, msg]) => ({ id, ...msg }));
+    const messages = Object.entries(data).map(([id, msg]) => ({
+      id,
+      ...msg,
+      role: msg.role === "bot" ? "assistant" : msg.role // map old data
+    }));
     renderMessages(messages);
     addDebugMessage("Chat messages loaded from Firebase.");
   });
@@ -145,7 +150,7 @@ form.addEventListener("submit", async (e) => {
     allMessages = Object.entries(data)
       .sort((a, b) => a[1].timestamp - b[1].timestamp)
       .map(([id, msg]) => ({
-        role: msg.role,
+        role: msg.role === "bot" ? "assistant" : msg.role, // ensure only valid roles
         content: msg.content
       }));
     addDebugMessage("Assembled all chat messages.");
@@ -213,7 +218,7 @@ form.addEventListener("submit", async (e) => {
     addDebugMessage("API fetch failed: " + err.message);
   }
 
-  // Push assistant reply to Firebase
+  // Push assistant reply to Firebase (always as "assistant")
   try {
     await push(chatRef, {
       role: "assistant",
