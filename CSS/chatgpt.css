@@ -1,7 +1,7 @@
 :root {
-  --clr-bg: radial-gradient(circle at 20% 0%, #9b6aff, #3922d3, #161026);
-  --clr-card: rgba(20, 22, 30, 0.85);
-  --clr-border: rgba(255, 255, 255, 0.08);
+  --clr-bg: #161026;
+  --clr-card: #1e1e2e;
+  --clr-border: #2e2e3e;
   --clr-text: #f8fafd;
   --clr-muted: #a1a6b9;
   --clr-user: #7e3af2;
@@ -24,16 +24,15 @@ html, body {
   overflow: hidden;
 }
 
-/* Main container (full height) */
+/* Container with scrollable messages */
 .chat-container {
   height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--clr-card);
-  backdrop-filter: blur(18px);
 }
 
-/* Scrollable message area */
+/* Chat log (scrollable message area) */
 #chat-log {
   flex: 1;
   overflow-y: auto;
@@ -41,11 +40,11 @@ html, body {
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
-  padding-bottom: 6rem; /* Space so footer never covers messages */
+  padding-bottom: 6rem; /* Prevent overlap from fixed footer */
   scroll-behavior: smooth;
 }
 
-/* Chat message bubbles */
+/* Chat messages */
 .msg {
   max-width: 75%;
   padding: 0.8rem 1rem;
@@ -67,7 +66,7 @@ html, body {
   color: white;
 }
 
-/* Fixed input bar at bottom */
+/* Input form (fixed footer bar) */
 #chat-form {
   position: fixed;
   bottom: 0;
@@ -81,14 +80,14 @@ html, body {
   z-index: 9999;
 }
 
-/* Input field */
+/* Text input field */
 #user-input {
   flex: 1;
   padding: 0.75rem 1rem;
   font-size: 1rem;
   border-radius: 12px;
   border: 1px solid var(--clr-border);
-  background: rgba(255, 255, 255, 0.06);
+  background: #2c2c3c;
   color: var(--clr-text);
   outline: none;
 }
@@ -113,7 +112,7 @@ button[type="submit"]:hover {
   background: #5b2ee5;
 }
 
-/* Fade in animation */
+/* Animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
