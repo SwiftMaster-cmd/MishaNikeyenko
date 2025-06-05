@@ -21,35 +21,25 @@ html, body {
   font-family: 'Inter', sans-serif;
   background: var(--clr-bg);
   color: var(--clr-text);
-  overflow: hidden; /* Prevent iOS bounce */
+  overflow: hidden;
 }
 
-body {
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
-}
-
-/* Chat container with keyboard-safe padding */
 .chat-container {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100vh;
   background: var(--clr-card);
-  padding: var(--padding);
-  gap: 1rem;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 6rem; /* space below for iOS keyboard */
 }
 
-/* Messages */
 #chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--padding);
+  scroll-behavior: smooth;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  scroll-behavior: smooth;
-  flex: 1;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Message bubbles */
@@ -75,18 +65,15 @@ body {
   color: white;
 }
 
-/* Chat input (sticky at bottom) */
+/* Chat input */
 #chat-form {
   display: flex;
   gap: 0.75rem;
   padding: 1rem;
-  background: var(--clr-card);
   border-top: 1px solid var(--clr-border);
-  position: sticky;
-  bottom: 0;
+  background: var(--clr-card);
 }
 
-/* Input field */
 #user-input {
   flex: 1;
   padding: 0.75rem 1rem;
@@ -102,7 +89,6 @@ body {
   color: var(--clr-muted);
 }
 
-/* Submit button */
 button[type="submit"] {
   padding: 0.75rem 1.2rem;
   background: var(--clr-user);
@@ -118,7 +104,6 @@ button[type="submit"]:hover {
   background: #5b2ee5;
 }
 
-/* Entry animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
