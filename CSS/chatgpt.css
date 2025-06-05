@@ -1,3 +1,5 @@
+/* /CSS/chat.css */
+
 :root {
   --clr-bg: radial-gradient(circle at 20% 0%, #9b6aff, #3922d3, #161026);
   --clr-card: rgba(20, 22, 30, 0.85);
@@ -24,18 +26,13 @@ html, body {
   overflow: hidden;
 }
 
-body {
-  display: flex;
-  flex-direction: column;
-}
-
 main.chat-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  padding: var(--padding);
   background: var(--clr-card);
   backdrop-filter: blur(18px) saturate(1.2);
-  padding: var(--padding);
 }
 
 /* Chat log area */
@@ -45,9 +42,7 @@ main.chat-container {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 0 0.5rem 1rem;
-  margin-top: 1rem;
-  scroll-behavior: smooth;
+  padding-bottom: 1rem;
 }
 
 /* Chat bubbles */
@@ -92,7 +87,7 @@ main.chat-container {
   color: var(--clr-text);
   font-size: 1rem;
   outline: none;
-  min-width: 0;
+  min-width: 0; /* Ensure flex shrink properly */
 }
 
 #user-input::placeholder {
