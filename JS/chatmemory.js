@@ -1,11 +1,17 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getDatabase, ref, push, onValue
+  getDatabase,
+  ref,
+  push,
+  onValue
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
-  getAuth, onAuthStateChanged
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -17,33 +23,47 @@ const firebaseConfig = {
   measurementId: "G-L6CC27129C"
 };
 
+// Init
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
+// DOM
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
 let chatRef = null;
 
+// Auth and load chat
 onAuthStateChanged(auth, (user) => {
-  if (!user) return;
+  if (!user) {
+    signInAnonymously(auth);
+    return;
+  }
 
   chatRef = ref(db, `chatHistory/${user.uid}`);
+
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
-    const messages = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+    const messages = Object.entries(data).map(([id, msg]) => ({ id, ...msg }));
     renderMessages(messages);
   });
 });
 
+// Handle submission
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   const prompt = input.value.trim();
   if (!prompt || !chatRef) return;
 
-  const userMsg = { role: "user", content: prompt, timestamp: Date.now() };
+  const userMsg = {
+    role: "user",
+    content: prompt,
+    timestamp: Date.now()
+  };
+
   push(chatRef, userMsg);
   input.value = "";
 
@@ -56,32 +76,29 @@ form.addEventListener("submit", async (e) => {
   const data = await res.json();
   const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
 
-  const botMsg = { role: "assistant", content: reply, timestamp: Date.now() };
+  const botMsg = {
+    role: "assistant",
+    content: reply,
+    timestamp: Date.now()
+  };
+
   push(chatRef, botMsg);
 });
 
-// Append and animate
+// Render messages
 function renderMessages(messages) {
   log.innerHTML = "";
+
   messages
     .sort((a, b) => a.timestamp - b.timestamp)
-    .forEach(msg => {
+    .forEach((msg) => {
       const div = document.createElement("div");
-      div.className = msg.role === "user" ? "msg user-msg" : "msg bot-msg";
+      div.className = `msg ${msg.role === "user" ? "user-msg" : "bot-msg"}`;
+      div.textContent = msg.content;
       log.appendChild(div);
-      animateText(div, msg.content);
     });
-}
 
-function animateText(elem, text) {
-  elem.textContent = "";
-  let i = 0;
-  const typing = setInterval(() => {
-    if (i < text.length) {
-      elem.textContent += text[i++];
-      log.scrollTop = log.scrollHeight;
-    } else {
-      clearInterval(typing);
-    }
-  }, 15);
+  requestAnimationFrame(() => {
+    log.scrollTop = log.scrollHeight;
+  });
 }
