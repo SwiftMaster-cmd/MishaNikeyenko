@@ -1,9 +1,70 @@
 const fetch = require("node-fetch");
 
+// --- FIREBASE SETUP ---
+const { initializeApp } = require("firebase/app");
+const { getDatabase, ref, get, push } = require("firebase/database");
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+  authDomain: "mishanikeyenko.firebaseapp.com",
+  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+  projectId: "mishanikeyenko",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
+  messagingSenderId: "1089190937368",
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// --- NOTE HELPERS ---
+async function getNotes(uid) {
+  if (!uid) return {};
+  const baseRef = ref(db, `notes/${uid}`);
+  const snapshot = await get(baseRef);
+  if (!snapshot.exists()) return {};
+  return snapshot.val() || {};
+}
+
+async function addNote(uid, content) {
+  if (!content || !uid) return false;
+  const today = new Date().toISOString().split('T')[0];
+  const todayRef = ref(db, `notes/${uid}/${today}`);
+  await push(todayRef, { content, timestamp: Date.now() });
+  return true;
+}
+
+// --- MAIN HANDLER ---
 exports.handler = async (event) => {
   try {
-    const { messages, prompt, model = "gpt-4o", temperature = 0.7 } = JSON.parse(event.body || "{}");
+    const {
+      messages,
+      prompt,
+      uid,             // User ID for notes actions
+      action,          // "readNotes" or "addNote"
+      noteContent,     // For addNote
+      model = "gpt-4o",
+      temperature = 0.7
+    } = JSON.parse(event.body || "{}");
 
+    // --- NOTES API: read or write ---
+    if (action === "readNotes" && uid) {
+      const notes = await getNotes(uid);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ notes })
+      };
+    }
+
+    if (action === "addNote" && uid && noteContent) {
+      const ok = await addNote(uid, noteContent);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ ok })
+      };
+    }
+
+    // --- GPT-4o CHAT COMPLETION ---
     if (!messages && !prompt) {
       return {
         statusCode: 400,
