@@ -28,30 +28,31 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM
+// DOM Elements
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
 let chatRef = null;
-let userHasScrolled = false;
+let manualScroll = false;
 
-// Detect if user manually scrolls up
+// Detect manual scroll
 log.addEventListener("scroll", () => {
   const threshold = 100;
-  userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
+  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - threshold;
+  manualScroll = !atBottom;
 });
 
-// Force scroll if user hasn't scrolled manually
+// Scroll to bottom
 function scrollToBottom(force = false) {
-  if (!userHasScrolled || force) {
+  if (!manualScroll || force) {
     requestAnimationFrame(() => {
       log.scrollTop = log.scrollHeight;
     });
   }
 }
 
-// Auth and load chat
+// Auth and chat setup
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
@@ -67,7 +68,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// Handle submission
+// Form submit
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -83,7 +84,7 @@ form.addEventListener("submit", async (e) => {
   push(chatRef, userMsg);
   input.value = "";
   input.focus();
-  scrollToBottom(true); // Force scroll on send
+  scrollToBottom(true);
 
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
@@ -103,7 +104,7 @@ form.addEventListener("submit", async (e) => {
   push(chatRef, botMsg);
 });
 
-// Render messages and optionally auto-scroll
+// Render messages
 function renderMessages(messages) {
   log.innerHTML = "";
 
@@ -116,12 +117,10 @@ function renderMessages(messages) {
       log.appendChild(div);
     });
 
-  const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 100;
-  userHasScrolled = !nearBottom;
   scrollToBottom();
 }
 
-// On load, scroll to bottom once everything is painted
+// Initial load
 document.addEventListener("DOMContentLoaded", () => {
   scrollToBottom(true);
 });
