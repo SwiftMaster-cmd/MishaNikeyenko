@@ -32,7 +32,21 @@ html, body {
   background: var(--clr-card);
 }
 
-/* Scrollable message area */
+#chat-form {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0 1rem;
+  align-items: center;
+  background: var(--clr-card);
+  border-top: 1px solid var(--clr-border);
+  z-index: 9999;
+}
+
 #chat-log {
   flex: 1;
   overflow-y: auto;
@@ -40,7 +54,7 @@ html, body {
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
-  padding-bottom: 4.5rem; /* Just enough space for input bar */
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   scroll-behavior: smooth;
 }
 
@@ -66,19 +80,6 @@ html, body {
   color: white;
 }
 
-/* Fixed input bar */
-#chat-form {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: var(--clr-card);
-  border-top: 1px solid var(--clr-border);
-  z-index: 9999;
-}
 
 /* Input field */
 #user-input {
