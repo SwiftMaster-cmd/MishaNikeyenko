@@ -1,126 +1,116 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getDatabase,
-  ref,
-  push,
-  onValue
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import {
-  getAuth,
-  signInAnonymously,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-// Firebase Config
-const firebaseConfig = {
-  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
-  authDomain: "mishanikeyenko.firebaseapp.com",
-  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
-  projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.firebasestorage.app",
-  messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
-  measurementId: "G-L6CC27129C"
-};
-
-// Init
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const auth = getAuth(app);
-
-// DOM Elements
-const form = document.getElementById("chat-form");
-const input = document.getElementById("user-input");
-const log = document.getElementById("chat-log");
-
-let chatRef = null;
-let manualScroll = false;
-
-// Detect manual scroll
-log.addEventListener("scroll", () => {
-  const threshold = 100;
-  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - threshold;
-  manualScroll = !atBottom;
-});
-
-// Scroll to bottom
-function scrollToBottom(force = false) {
-  if (!manualScroll || force) {
-    requestAnimationFrame(() => {
-      log.scrollTop = log.scrollHeight;
-    });
-  }
+:root {
+  --clr-bg: #161026;
+  --clr-card: #1e1e2e;
+  --clr-border: #2e2e3e;
+  --clr-text: #f8fafd;
+  --clr-muted: #a1a6b9;
+  --clr-user: #7e3af2;
+  --clr-bot: #363c66;
+  --radius: 18px;
+  --padding: 1rem;
 }
 
-// Auth and chat setup
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    signInAnonymously(auth);
-    return;
-  }
-
-  chatRef = ref(db, `chatHistory/${user.uid}`);
-
-  onValue(chatRef, (snapshot) => {
-    const data = snapshot.val() || {};
-    const messages = Object.entries(data).map(([id, msg]) => ({ id, ...msg }));
-    renderMessages(messages);
-  });
-});
-
-// Form submit
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const prompt = input.value.trim();
-  if (!prompt || !chatRef) return;
-
-  const userMsg = {
-    role: "user",
-    content: prompt,
-    timestamp: Date.now()
-  };
-
-  push(chatRef, userMsg);
-  input.value = "";
-  input.focus();
-  scrollToBottom(true);
-
-  const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt })
-  });
-
-  const data = await res.json();
-  const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
-
-  const botMsg = {
-    role: "assistant",
-    content: reply,
-    timestamp: Date.now()
-  };
-
-  push(chatRef, botMsg);
-});
-
-// Render messages
-function renderMessages(messages) {
-  log.innerHTML = "";
-
-  messages
-    .sort((a, b) => a.timestamp - b.timestamp)
-    .forEach((msg) => {
-      const div = document.createElement("div");
-      div.className = `msg ${msg.role === "user" ? "user-msg" : "bot-msg"}`;
-      div.textContent = msg.content;
-      log.appendChild(div);
-    });
-
-  scrollToBottom();
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-// Initial load
-document.addEventListener("DOMContentLoaded", () => {
-  scrollToBottom(true);
-});
+html, body {
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+  background: var(--clr-bg);
+  color: var(--clr-text);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh; /* Full dynamic height on iOS */
+  background: var(--clr-card);
+}
+
+/* Scrollable area for messages */
+#chat-log {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Chat message styles */
+.msg {
+  max-width: 75%;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius);
+  word-wrap: break-word;
+  line-height: 1.5;
+  background: #2c2c3c;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.user-msg {
+  align-self: flex-end;
+  background: var(--clr-user);
+  color: white;
+}
+
+.bot-msg {
+  align-self: flex-start;
+  background: var(--clr-bot);
+  color: white;
+}
+
+/* Input area */
+#chat-form {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  padding-bottom: env(safe-area-inset-bottom); /* For iOS nav bar */
+  background: var(--clr-card);
+  border-top: 1px solid var(--clr-border);
+}
+
+#user-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--clr-border);
+  background: #2c2c3c;
+  color: var(--clr-text);
+  outline: none;
+}
+
+#user-input::placeholder {
+  color: var(--clr-muted);
+}
+
+button[type="submit"] {
+  padding: 0.75rem 1.2rem;
+  background: var(--clr-user);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button[type="submit"]:hover {
+  background: #5b2ee5;
+}
+
+/* Entry animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
