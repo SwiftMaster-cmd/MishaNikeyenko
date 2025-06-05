@@ -5,19 +5,33 @@ import {
   set
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-// 🔹 Load persistent memory
+// 🔹 Load individual nodes
 export async function getMemory(uid) {
-  const snap = await get(ref(getDatabase(), `memory/${uid}`));
+  return fetchNode(`memory/${uid}`);
+}
+
+export async function getDayLog(uid, dateStr) {
+  return fetchNode(`dayLog/${uid}/${dateStr}`);
+}
+
+export async function getNotes(uid) {
+  return fetchNode(`notes/${uid}`);
+}
+
+export async function getCalendar(uid) {
+  return fetchNode(`calendarEvents/${uid}`);
+}
+
+export async function getCalcHistory(uid) {
+  return fetchNode(`calcHistory/${uid}`);
+}
+
+async function fetchNode(path) {
+  const snap = await get(ref(getDatabase(), path));
   return snap.exists() ? snap.val() : {};
 }
 
-// 🔹 Load log for a specific day
-export async function getDayLog(uid, dateStr) {
-  const snap = await get(ref(getDatabase(), `dayLog/${uid}/${dateStr}`));
-  return snap.exists() ? snap.val() : null;
-}
-
-// 🔹 Save or merge log entries for a day
+// 🔹 Update day log with merge logic
 export async function updateDayLog(uid, dateStr, newLog) {
   const db = getDatabase();
   const path = `dayLog/${uid}/${dateStr}`;
@@ -31,36 +45,36 @@ export async function updateDayLog(uid, dateStr, newLog) {
     questions: merge(existing.questions, newLog.questions)
   };
 
-  console.log("📥 Writing to Firebase path:", path);
-  console.log("📝 Final log content:", merged);
+  console.log("📥 Writing merged log to:", path);
   await set(ref(db, path), merged);
   return merged;
 }
 
-// 🔹 Build system message for GPT
-export function buildSystemPrompt(memory, todayLog, dateStr) {
-  const mem = Object.entries(memory || {})
-    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-    .join("\n");
-
-  const log = todayLog
-    ? Object.entries(todayLog).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join("\n")
-    : "No log entries yet.";
-
+// 🔹 Build system prompt using all user context
+export function buildSystemPrompt({ memory, todayLog, notes, calendar, calc, date }) {
   return `
-You are Nexus, a smart assistant for Bossman.
-Date: ${dateStr}
+You are Nexus, a smart, bold, and fun assistant for Bossman.
+Date: ${date}
 
 User memory:
-${mem}
+${formatBlock(memory)}
 
 Today's log:
-${log}
+${formatBlock(todayLog)}
+
+Notes:
+${formatBlock(notes)}
+
+Calendar:
+${formatBlock(calendar)}
+
+Finances:
+${formatBlock(calc)}
 
 You do this:
 - Respond clearly, directly, and with style
 - Use sharp wit or friendly humor to keep things engaging
-- Always push the conversation forward -- don't wait for direction if Bossman seems lost or unclear
+- Always push the conversation forward -- don't wait for direction if Bossman seems lost
 - Suggest next actions confidently, even if Bossman didn't ask
 - Keep everything goal-oriented and efficient under the hood
 - Update memory or logs when prompted (e.g. "remember this", "log this")
@@ -68,9 +82,16 @@ You do this:
 - Stay brief unless depth is needed
 - Own the vibe -- help Bossman focus, build, and stay on track
 `;
+}
 
+// 🔹 Format helper
+function formatBlock(obj = {}) {
+  if (Object.keys(obj).length === 0) return "None.";
+  return Object.entries(obj)
+    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+    .join("\n");
+}
 
-// 🔹 Merge arrays without duplication
 function merge(arr1 = [], arr2 = []) {
   return Array.from(new Set([...(arr1 || []), ...(arr2 || [])]));
 }

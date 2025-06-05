@@ -14,11 +14,14 @@ import {
 import {
   getMemory,
   getDayLog,
+  getNotes,
+  getCalendar,
+  getCalcHistory,
   updateDayLog,
   buildSystemPrompt
 } from "./memoryManager.js";
 
-// Firebase Config
+// 🔹 Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -29,20 +32,21 @@ const firebaseConfig = {
   appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
 };
 
-// Init Firebase
+// 🔹 Init
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM Elements
+// 🔹 DOM
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-let chatRef = null;
 let uid = null;
+let chatRef = null;
 let userHasScrolled = false;
 
+// 🔹 Scroll tracking
 log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
@@ -73,6 +77,7 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
+// 🔹 Auth listener
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
@@ -89,6 +94,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
+// 🔹 On form submit
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -107,14 +113,25 @@ form.addEventListener("submit", async (e) => {
   scrollToBottom(true);
 
   const today = new Date().toISOString().slice(0, 10);
-  const [memory, todayLog] = await Promise.all([
+
+  const [memory, dayLog, notes, calendar, calc] = await Promise.all([
     getMemory(uid),
-    getDayLog(uid, today)
+    getDayLog(uid, today),
+    getNotes(uid),
+    getCalendar(uid),
+    getCalcHistory(uid)
   ]);
 
-  const systemPrompt = buildSystemPrompt(memory, todayLog, today);
+  const systemPrompt = buildSystemPrompt({
+    memory,
+    todayLog: dayLog,
+    notes,
+    calendar,
+    calc,
+    date: today
+  });
 
-  const response = await fetch("/.netlify/functions/chatgpt", {
+  const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -127,18 +144,16 @@ form.addEventListener("submit", async (e) => {
     })
   });
 
-  const data = await response.json();
+  const data = await res.json();
   const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
 
-  const botMsg = {
+  push(chatRef, {
     role: "assistant",
     content: reply,
     timestamp: Date.now()
-  };
+  });
 
-  push(chatRef, botMsg);
-
-  // ✅ GPT-based log trigger
+  // 🔹 Auto-log trigger
   if (/\/log|remember this|today|add to log/i.test(prompt)) {
     try {
       const logRes = await fetch("/.netlify/functions/chatgpt", {
@@ -148,7 +163,7 @@ form.addEventListener("submit", async (e) => {
           messages: [
             {
               role: "system",
-              content: "Extract a structured log from this message. Return only valid JSON with fields: highlights, mood, notes, questions."
+              content: "Extract a structured log. Return JSON with: highlights, mood, notes, questions."
             },
             { role: "user", content: prompt }
           ],
@@ -164,7 +179,7 @@ form.addEventListener("submit", async (e) => {
 
       await updateDayLog(uid, today, logData);
     } catch (err) {
-      console.warn("🛑 Failed to save log:", err.message);
+      console.warn("🛑 Log failed:", err.message);
     }
   }
 });
