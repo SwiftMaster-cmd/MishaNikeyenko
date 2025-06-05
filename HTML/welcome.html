@@ -58,20 +58,15 @@
       <button class="btn-solid" type="submit">Save</button>
     </form>
 
- <!-- Chat Log (scrolls, newest messages on bottom) -->
+<!-- GPT Chat -->
 <main class="chat-container">
+  <div id="chat-log"></div>
 
-  <!-- Scrollable message area -->
-  <div id="chat-log" class="chat-log"></div>
-
-<main class="chat-container">
-  <div id="chat-log" class="chat-log"></div>
+  <form id="chat-form">
+    <input id="user-input" type="text" placeholder="Type your message..." required />
+    <button type="submit">Send</button>
+  </form>
 </main>
-
-<form id="chat-form" class="chat-input-bar">
-  <input id="user-input" type="text" placeholder="Type your message..." required />
-  <button type="submit">Send</button>
-</form>
 
 
   <!-- MODULE SCRIPTS -->
