@@ -17,36 +17,33 @@
 }
 
 html, body {
-  height: 100%;
+  height: 100dvh;
   font-family: 'Inter', sans-serif;
   background: var(--clr-bg);
   color: var(--clr-text);
   overflow: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 .chat-container {
   display: flex;
   flex-direction: column;
-  height: 100dvh; /* Full dynamic height on iOS */
+  height: 100dvh;
   background: var(--clr-card);
+  padding: 0;
 }
 
-/* Scrollable area for messages */
 #chat-log {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1;
   overflow-y: auto;
-  scroll-behavior: smooth;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
+  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  min-height: 0;
 }
 
-/* Chat message styles */
 .msg {
   max-width: 75%;
   padding: 0.8rem 1rem;
@@ -69,14 +66,16 @@ html, body {
   color: white;
 }
 
-/* Input area */
 #chat-form {
   display: flex;
   gap: 0.75rem;
   padding: 1rem;
-  padding-bottom: env(safe-area-inset-bottom); /* For iOS nav bar */
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
   background: var(--clr-card);
   border-top: 1px solid var(--clr-border);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 }
 
 #user-input {
@@ -109,7 +108,6 @@ button[type="submit"]:hover {
   background: #5b2ee5;
 }
 
-/* Entry animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
