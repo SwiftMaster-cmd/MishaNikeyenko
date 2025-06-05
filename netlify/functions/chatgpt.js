@@ -16,7 +16,8 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }]
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3
       })
     });
 
