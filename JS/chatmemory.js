@@ -20,7 +20,7 @@ import {
   getNotes,
   getCalendar,
   getCalcHistory,
-  getReminders, // ✅ fixed import
+  getReminders,
   buildSystemPrompt,
   updateDayLog
 } from "./memoryManager.js";
@@ -86,18 +86,18 @@ form.addEventListener("submit", async (e) => {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  let memory, dayLog, notes, reminders;
-  try {
-    [memory, dayLog, notes, reminders] = await Promise.all([
-      getMemory(uid),
-      getDayLog(uid, today),
-      getNotes(uid, true),
-      getReminders(uid)
-    ]);
-  } catch (err) {
-    console.warn("⚠️ Failed to fetch full memory. Falling back.", err);
-    reminders = {};
-  }
+  // 🔄 SAFE: memory, notes, logs, reminders
+  let memory = {}, dayLog = {}, notes = {}, reminders = {};
+  const results = await Promise.allSettled([
+    getMemory(uid),
+    getDayLog(uid, today),
+    getNotes(uid, true),
+    getReminders(uid)
+  ]);
+  if (results[0].status === "fulfilled") memory = results[0].value;
+  if (results[1].status === "fulfilled") dayLog = results[1].value;
+  if (results[2].status === "fulfilled") notes = results[2].value;
+  if (results[3].status === "fulfilled") reminders = results[3].value;
 
   const systemPrompt = buildSystemPrompt({
     memory,
@@ -130,9 +130,7 @@ form.addEventListener("submit", async (e) => {
     timestamp: Date.now()
   });
 
-  console.log("🤖 GPT Reply:", reply);
-
-  // 🔄 Handle structured command from GPT
+  // 🧠 Handle structured commands from GPT
   try {
     const match = reply.match(/{[\s\S]*?"action":\s*".+?"[\s\S]*?}/);
     if (match) {
@@ -150,8 +148,6 @@ form.addEventListener("submit", async (e) => {
       const result = await commandRes.json();
       const success = result.ok === true;
 
-      console.log(success ? "✅ Command succeeded" : "❌ Command failed", result);
-
       await push(chatRef, {
         role: "debug",
         content: success
@@ -161,15 +157,15 @@ form.addEventListener("submit", async (e) => {
       });
     }
   } catch (err) {
-    console.warn("🛑 Failed to parse structured command:", err.message);
+    console.warn("🛑 Structured command failed:", err.message);
     await push(chatRef, {
       role: "debug",
-      content: "🛑 Error processing GPT command.",
+      content: "🛑 Could not process structured update.",
       timestamp: Date.now()
     });
   }
 
-  // 🔁 Expand additional context if requested
+  // 🔁 Expand on request
   if (/get calendar|get finances|get reminders|more notes|expand memory/i.test(reply)) {
     const expansions = [];
 
