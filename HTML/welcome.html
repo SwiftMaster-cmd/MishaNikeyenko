@@ -56,16 +56,18 @@
     </form>
 
  <!-- Chat Log (scrolls, newest messages on bottom) -->
- <main class="chat-container">
+<main class="chat-container">
 
- <div id="chat-log"></div>
+  <!-- Scrollable message area -->
+  <div id="chat-log" class="chat-log"></div>
 
-<form id="chat-form">
+</main>
+
+<!-- Fixed footer input, placed OUTSIDE of <main> -->
+<form id="chat-form" class="chat-input-bar">
   <input id="user-input" type="text" placeholder="Type your message..." required />
   <button type="submit">Send</button>
 </form>
-  </form>
-</main>
 
 
 
