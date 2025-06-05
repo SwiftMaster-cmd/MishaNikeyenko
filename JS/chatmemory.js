@@ -1,119 +1,35 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getDatabase,
-  ref,
-  push,
-  onValue
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import {
-  getAuth,
-  signInAnonymously,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-import {
-  getMemory,
-  getDayLog,
-  getNotes,
-  getCalendar,
-  getCalcHistory,
-  updateDayLog,
-  buildSystemPrompt
-} from "./memoryManager.js";
-
-// 🔹 Firebase Config
-const firebaseConfig = {
-  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
-  authDomain: "mishanikeyenko.firebaseapp.com",
-  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
-  projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.firebasestorage.app",
-  messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
-};
-
-// 🔹 Init
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const auth = getAuth(app);
-
-// 🔹 DOM
-const form = document.getElementById("chat-form");
-const input = document.getElementById("user-input");
-const log = document.getElementById("chat-log");
-
-let uid = null;
-let chatRef = null;
-let userHasScrolled = false;
-
-// 🔹 Scroll tracking
-log.addEventListener("scroll", () => {
-  const threshold = 100;
-  userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
-});
-
-function scrollToBottom(force = false) {
-  if (!userHasScrolled || force) {
-    requestAnimationFrame(() => {
-      log.scrollTop = log.scrollHeight;
-    });
-  }
-}
-
-function renderMessages(messages) {
-  log.innerHTML = "";
-
-  messages
-    .sort((a, b) => a.timestamp - b.timestamp)
-    .forEach((msg) => {
-      const div = document.createElement("div");
-      div.className = `msg ${msg.role === "user" ? "user-msg" : "bot-msg"}`;
-      div.textContent = msg.content;
-      log.appendChild(div);
-    });
-
-  const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 100;
-  userHasScrolled = !nearBottom;
-  scrollToBottom();
-}
-
-// 🔹 Auth listener
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    signInAnonymously(auth);
-    return;
-  }
-
-  uid = user.uid;
-  chatRef = ref(db, `chatHistory/${uid}`);
-
-  onValue(chatRef, (snapshot) => {
-    const data = snapshot.val() || {};
-    const messages = Object.entries(data).map(([id, msg]) => ({ id, ...msg }));
-    renderMessages(messages);
-  });
-});
-
-// 🔹 On form submit
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const prompt = input.value.trim();
   if (!prompt || !chatRef || !uid) return;
 
+  // 1. Push the user's new message to Firebase
   const userMsg = {
     role: "user",
     content: prompt,
     timestamp: Date.now()
   };
-
-  push(chatRef, userMsg);
+  await push(chatRef, userMsg);
   input.value = "";
   input.focus();
   scrollToBottom(true);
 
-  const today = new Date().toISOString().slice(0, 10);
+  // 2. Wait for Firebase to update and get full conversation history
+  // (reload all messages for this chat)
+  const snapshot = await new Promise(resolve => {
+    onValue(chatRef, resolve, { onlyOnce: true });
+  });
+  const data = snapshot.val() || {};
+  const allMessages = Object.entries(data)
+    .sort((a, b) => a[1].timestamp - b[1].timestamp)
+    .map(([id, msg]) => ({
+      role: msg.role,
+      content: msg.content
+    }));
 
+  // 3. Prepend the latest system prompt (regenerated for every call)
+  const today = new Date().toISOString().slice(0, 10);
   const [memory, dayLog, notes, calendar, calc] = await Promise.all([
     getMemory(uid),
     getDayLog(uid, today),
@@ -121,7 +37,6 @@ form.addEventListener("submit", async (e) => {
     getCalendar(uid),
     getCalcHistory(uid)
   ]);
-
   const systemPrompt = buildSystemPrompt({
     memory,
     todayLog: dayLog,
@@ -130,30 +45,39 @@ form.addEventListener("submit", async (e) => {
     calc,
     date: today
   });
+  // Insert system prompt at the start
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...allMessages
+  ];
 
+  // 4. Add the just-entered message if not in Firebase yet (can skip if always in)
+  // (optional - usually already in Firebase)
+
+  // 5. Send all messages to the API
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt }
-      ],
+      messages,
       model: "gpt-4o",
       temperature: 0.4
     })
   });
 
-  const data = await res.json();
-  const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
+  const dataRes = await res.json();
+  const reply = dataRes?.choices?.[0]?.message?.content?.trim() || "No reply.";
 
-  push(chatRef, {
+  // 6. Push assistant reply to Firebase
+  await push(chatRef, {
     role: "assistant",
     content: reply,
     timestamp: Date.now()
   });
 
-  // 🔹 Auto-log trigger
+  scrollToBottom(true);
+
+  // 7. Optional: trigger day log logic if needed
   if (/\/log|remember this|today|add to log/i.test(prompt)) {
     try {
       const logRes = await fetch("/.netlify/functions/chatgpt", {
@@ -182,8 +106,4 @@ form.addEventListener("submit", async (e) => {
       console.warn("🛑 Log failed:", err.message);
     }
   }
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-  scrollToBottom(true);
 });
