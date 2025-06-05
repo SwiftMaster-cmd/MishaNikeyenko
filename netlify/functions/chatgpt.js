@@ -1,95 +1,23 @@
 const fetch = require("node-fetch");
-const { initializeApp } = require("firebase/app");
-const {
-  getDatabase,
-  ref,
-  get,
-  set,
-  push
-} = require("firebase/database");
-
-// 🔐 Firebase Config
-const firebaseConfig = {
-  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
-  authDomain: "mishanikeyenko.firebaseapp.com",
-  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
-  projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.firebasestorage.app",
-  messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
 
 exports.handler = async (event) => {
   try {
-    const {
-      messages,
-      prompt,
-      uid,
-      action,
-      noteContent,
-      data,
-      model = "gpt-4o",
-      temperature = 0.4
-    } = JSON.parse(event.body || "{}");
+    const { messages, prompt, model = "gpt-4o", temperature = 0.7 } = JSON.parse(event.body || "{}");
 
-    if (!uid) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing uid" }) };
-    }
-
-    // 🔧 Structured Firebase Writes (Notes, Logs, Reminders, Calendar, Memory)
-    if (action && data) {
-      const now = new Date();
-      const today = now.toISOString().split('T')[0];
-
-      if (action === "addNote") {
-        const path = ref(db, `notes/${uid}/${today}`);
-        await push(path, { ...data, timestamp: now.getTime() });
-        return success("Note added.");
-      }
-
-      if (action === "addReminder") {
-        const path = ref(db, `reminders/${uid}`);
-        await push(path, { ...data, timestamp: now.getTime() });
-        return success("Reminder added.");
-      }
-
-      if (action === "addCalendarEvent") {
-        const date = data.date || today;
-        const path = ref(db, `calendarEvents/${uid}/${date}`);
-        await push(path, { ...data, timestamp: now.getTime() });
-        return success("Calendar event added.");
-      }
-
-      if (action === "updateDayLog") {
-        const date = data.date || today;
-        const path = ref(db, `dayLog/${uid}/${date}`);
-        const snap = await get(path);
-        const existing = snap.exists() ? snap.val() : {};
-        const merged = { ...existing, ...data };
-        await set(path, merged);
-        return success("Day log updated.");
-      }
-
-      if (action === "updateMemory") {
-        const path = ref(db, `memory/${uid}`);
-        const snap = await get(path);
-        const existing = snap.exists() ? snap.val() : {};
-        const updated = { ...existing, ...data };
-        await set(path, updated);
-        return success("Memory updated.");
-      }
-    }
-
-    // 🔮 GPT Chat Call
     if (!messages && !prompt) {
-      return error("Missing input (messages or prompt)");
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Missing input (messages or prompt)" })
+      };
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) return error("Missing OpenAI API key");
+    if (!apiKey) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "Missing OpenAI API key" })
+      };
+    }
 
     const payload = messages
       ? { model, messages, temperature }
@@ -108,30 +36,23 @@ exports.handler = async (event) => {
       body: JSON.stringify(payload)
     });
 
-    const dataRes = await response.json();
-    if (dataRes.error) return error(dataRes.error.message);
+    const data = await response.json();
+
+    if (data.error) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: data.error.message })
+      };
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify(dataRes)
+      body: JSON.stringify(data)
     };
-
   } catch (err) {
-    return error(err.message);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message })
+    };
   }
 };
-
-// 🔁 Helpers
-function success(msg) {
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ ok: true, message: msg })
-  };
-}
-
-function error(msg) {
-  return {
-    statusCode: 500,
-    body: JSON.stringify({ error: msg })
-  };
-}
