@@ -30,13 +30,17 @@ export async function getCalcHistory(uid) {
   return fetchNode(`calcHistory/${uid}`);
 }
 
+export async function getReminders(uid) {
+  return fetchNode(`reminders/${uid}`);
+}
+
 // 🔹 Generic fetch utility
 async function fetchNode(path) {
   const snap = await get(ref(getDatabase(), path));
   return snap.exists() ? snap.val() : {};
 }
 
-// 🔹 Format helper (token-conscious)
+// 🔹 Format helper (token-conscious block builder)
 export function formatBlock(obj = {}, options = {}) {
   const {
     maxItems = 5,
@@ -70,22 +74,23 @@ export function formatBlock(obj = {}, options = {}) {
   return label ? `${label}\n${output.join("\n")}` : output.join("\n");
 }
 
-// 🔹 System prompt builder (lean and structured-aware)
-export function buildSystemPrompt({ memory, todayLog, notes, date }) {
+// 🔹 Smart System Prompt Generator
+export function buildSystemPrompt({ memory, todayLog, notes, reminders, date }) {
   return [
     `Assistant: Nexus\nDate: ${date}`,
     formatBlock(memory, { label: "Memory", maxItems: 3 }),
     formatBlock(todayLog, { label: "Today", maxItems: 3 }),
     formatBlock(notes, { label: "Today’s Notes", maxItems: 2 }),
-    "You may request more context (e.g. 'show full notes', 'get calendar', 'load finances').",
+    formatBlock(reminders, { label: "Reminders", maxItems: 3 }),
+    "You may request more context (e.g. 'get calendar', 'load finances').",
     "Only ask for what you need. Use structured JSON to update memory or data.",
-    "Example: { action: \"addNote\", data: { content: \"Check tire pressure\" } }",
+    "Example: { action: \"addReminder\", data: { title: \"Water plants\", time: \"18:00\" } }",
     "Supported actions: addNote, addReminder, addCalendarEvent, updateDayLog, updateMemory.",
     "When updating, respond with only the JSON. Avoid extra explanation."
   ].join("\n\n");
 }
 
-// 🔹 Merge and update daily log
+// 🔹 Merge-safe Day Log Updater
 export async function updateDayLog(uid, dateStr, newLog) {
   const db = getDatabase();
   const path = `dayLog/${uid}/${dateStr}`;
@@ -104,7 +109,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// 🔹 Update specific field in memory
+// 🔹 Field-Specific Memory Update
 export async function updateMemoryField(uid, key, value) {
   if (!uid || !key) return false;
   const db = getDatabase();

@@ -20,6 +20,7 @@ import {
   getNotes,
   getCalendar,
   getCalcHistory,
+  getReminders, // ✅ added
   buildSystemPrompt,
   updateDayLog
 } from "./memoryManager.js";
@@ -47,7 +48,7 @@ const log = document.getElementById("chat-log");
 let uid = null;
 let chatRef = null;
 
-// Scroll and render
+// Render chat messages
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -61,7 +62,7 @@ function renderMessages(messages) {
   log.scrollTop = log.scrollHeight;
 }
 
-// Auth + history
+// Auth + chat history
 onAuthStateChanged(auth, (user) => {
   if (!user) return signInAnonymously(auth);
   uid = user.uid;
@@ -73,7 +74,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// Form submit
+// Form submission
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -83,18 +84,20 @@ form.addEventListener("submit", async (e) => {
   const userMsg = { role: "user", content: prompt, timestamp: Date.now() };
   await push(chatRef, userMsg);
 
-  // Load minimal context
   const today = new Date().toISOString().slice(0, 10);
-  const [memory, dayLog, notes] = await Promise.all([
+
+  const [memory, dayLog, notes, reminders] = await Promise.all([
     getMemory(uid),
     getDayLog(uid, today),
-    getNotes(uid, true)
+    getNotes(uid, true),
+    getReminders(uid)
   ]);
 
   const systemPrompt = buildSystemPrompt({
     memory,
     todayLog: dayLog,
     notes,
+    reminders,
     date: today
   });
 
@@ -106,7 +109,6 @@ form.addEventListener("submit", async (e) => {
     }))
   ];
 
-  // Send to GPT
   const res = await fetch("/.netlify/functions/gpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -124,7 +126,7 @@ form.addEventListener("submit", async (e) => {
 
   console.log("🤖 GPT Reply:", reply);
 
-  // 🔄 Structured command handling
+  // 🔄 Structured command handler
   try {
     const match = reply.match(/{[\s\S]*?"action":\s*".+?"[\s\S]*?}/);
     if (match) {
@@ -161,18 +163,25 @@ form.addEventListener("submit", async (e) => {
     });
   }
 
-  // 🔁 Expand context if GPT asks
-  if (/get calendar|get finances|more notes|expand memory/i.test(reply)) {
+  // 🔁 Dynamic context expansion
+  if (/get calendar|get finances|get reminders|more notes|expand memory/i.test(reply)) {
     const expansions = [];
 
     if (/calendar/i.test(reply)) {
       const cal = await getCalendar(uid);
       expansions.push("📅 Calendar:\n" + JSON.stringify(cal, null, 2));
     }
+
     if (/finances/i.test(reply)) {
       const calc = await getCalcHistory(uid);
       expansions.push("💰 Finances:\n" + JSON.stringify(calc, null, 2));
     }
+
+    if (/reminders/i.test(reply)) {
+      const reminders = await getReminders(uid);
+      expansions.push("🔔 Reminders:\n" + JSON.stringify(reminders, null, 2));
+    }
+
     if (/more notes|full notes/i.test(reply)) {
       const fullNotes = await getNotes(uid, false);
       expansions.push("🗒️ Notes:\n" + JSON.stringify(fullNotes, null, 2));
