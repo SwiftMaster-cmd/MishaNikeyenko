@@ -17,7 +17,7 @@
 }
 
 html, body {
-  height: 100dvh;
+  height: 100%;
   font-family: 'Inter', sans-serif;
   background: var(--clr-bg);
   color: var(--clr-text);
@@ -27,22 +27,22 @@ html, body {
 .chat-container {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: 100vh;
   background: var(--clr-card);
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
-.chat-log {
+#chat-log {
   flex: 1;
   overflow-y: auto;
+  padding: var(--padding);
   scroll-behavior: smooth;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 1rem;
   -webkit-overflow-scrolling: touch;
 }
 
+/* Message bubbles */
 .msg {
   max-width: 75%;
   padding: 0.8rem 1rem;
@@ -65,15 +65,13 @@ html, body {
   color: white;
 }
 
+/* Chat input */
 #chat-form {
   display: flex;
   gap: 0.75rem;
   padding: 1rem;
-  background: var(--clr-card);
   border-top: 1px solid var(--clr-border);
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
+  background: var(--clr-card);
 }
 
 #user-input {
