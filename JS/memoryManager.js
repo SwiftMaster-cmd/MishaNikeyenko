@@ -5,6 +5,12 @@ import {
   set,
   push
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 // Firebase Config
 const firebaseConfig = {
@@ -30,7 +36,7 @@ export const getReminders = (uid) => fetchNode(`reminders/${uid}`);
 export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
 
 async function fetchNode(path) {
-  const snap = await get(ref(getDatabase(), path));
+  const snap = await get(ref(db, path));
   return snap.exists() ? snap.val() : {};
 }
 
@@ -38,7 +44,7 @@ async function fetchNode(path) {
 export async function addNote(uid, content) {
   if (!uid || !content) return false;
   const today = new Date().toISOString().split('T')[0];
-  await push(ref(getDatabase(), `notes/${uid}/${today}`), {
+  await push(ref(db, `notes/${uid}/${today}`), {
     content,
     timestamp: Date.now()
   });
@@ -46,7 +52,6 @@ export async function addNote(uid, content) {
 }
 
 export async function updateDayLog(uid, dateStr, newLog) {
-  const db = getDatabase();
   const path = `dayLog/${uid}/${dateStr}`;
   const existingSnap = await get(ref(db, path));
   const existing = existingSnap.exists() ? existingSnap.val() : {};
