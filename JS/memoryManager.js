@@ -2,45 +2,35 @@ import {
   getDatabase,
   ref,
   get,
-  set
+  set,
+  push,
+  update
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-// 🔹 Load individual nodes
-export async function getMemory(uid) {
-  return fetchNode(`memory/${uid}`);
+// 🔹 Helpers
+function dbRef(path) {
+  return ref(getDatabase(), path);
 }
-
-export async function getDayLog(uid, dateStr) {
-  return fetchNode(`dayLog/${uid}/${dateStr}`);
-}
-
-export async function getNotes(uid) {
-  return fetchNode(`notes/${uid}`);
-}
-
-export async function getCalendar(uid) {
-  return fetchNode(`calendarEvents/${uid}`);
-}
-
-export async function getReminders(uid) {
-  return fetchNode(`reminders/${uid}`);
-}
-
-export async function getCalcHistory(uid) {
-  return fetchNode(`calcHistory/${uid}`);
-}
-
 async function fetchNode(path) {
-  const snap = await get(ref(getDatabase(), path));
+  const snap = await get(dbRef(path));
   return snap.exists() ? snap.val() : {};
 }
 
-// 🔹 Update day log with merge logic
+// 🔹 READ FUNCTIONS
+export const getMemory = (uid) => fetchNode(`memory/${uid}`);
+export const getDayLog = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
+export const getNotes = (uid) => fetchNode(`notes/${uid}`);
+export const getCalendar = (uid) => fetchNode(`calendarEvents/${uid}`);
+export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
+export const getReminders = (uid) => fetchNode(`reminders/${uid}`);
+
+// 🔹 WRITE FUNCTIONS
+export async function setMemory(uid, obj) {
+  await set(dbRef(`memory/${uid}`), obj);
+}
 export async function updateDayLog(uid, dateStr, newLog) {
-  const db = getDatabase();
   const path = `dayLog/${uid}/${dateStr}`;
-  const existingSnap = await get(ref(db, path));
-  const existing = existingSnap.exists() ? existingSnap.val() : {};
+  const existing = await fetchNode(path);
 
   const merged = {
     highlights: merge(existing.highlights, newLog.highlights),
@@ -49,12 +39,33 @@ export async function updateDayLog(uid, dateStr, newLog) {
     questions: merge(existing.questions, newLog.questions)
   };
 
-  await set(ref(db, path), merged);
+  await set(dbRef(path), merged);
   return merged;
 }
+export async function addNote(uid, content) {
+  if (!content || !uid) return false;
+  const today = new Date().toISOString().split('T')[0];
+  const refPath = dbRef(`notes/${uid}/${today}`);
+  await push(refPath, { content, timestamp: Date.now() });
+  return true;
+}
+export async function addCalendarEvent(uid, dateStr, eventObj) {
+  const path = `calendarEvents/${uid}/${dateStr}`;
+  const events = await fetchNode(path);
+  const updated = Array.isArray(events) ? [...events, eventObj] : [eventObj];
+  await set(dbRef(path), updated);
+}
+export async function addReminder(uid, reminderObj) {
+  const path = `reminders/${uid}`;
+  await push(dbRef(path), reminderObj);
+}
+export async function addCalcHistory(uid, calcObj) {
+  const path = `calcHistory/${uid}`;
+  await push(dbRef(path), calcObj);
+}
 
-// 🔹 Build system prompt using all user context
-export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
+// 🔹 SYSTEM PROMPT BUILDER
+export function buildSystemPrompt({ memory, todayLog, notes, calendar, calc, date }) {
   return `
 You are Nexus, a smart, bold, and fun assistant for Bossman.
 Date: ${date}
@@ -70,9 +81,6 @@ ${formatBlock(notes)}
 
 Calendar:
 ${formatBlock(calendar)}
-
-Reminders:
-${formatBlock(reminders)}
 
 Finances:
 ${formatBlock(calc)}
@@ -90,14 +98,13 @@ You do this:
 `;
 }
 
-// 🔹 Format helper
+// 🔹 HELPERS
+function merge(arr1 = [], arr2 = []) {
+  return Array.from(new Set([...(arr1 || []), ...(arr2 || [])]));
+}
 function formatBlock(obj = {}) {
-  if (Object.keys(obj).length === 0) return "None.";
+  if (!obj || Object.keys(obj).length === 0) return "None.";
   return Object.entries(obj)
     .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
     .join("\n");
-}
-
-function merge(arr1 = [], arr2 = []) {
-  return Array.from(new Set([...(arr1 || []), ...(arr2 || [])]));
 }
