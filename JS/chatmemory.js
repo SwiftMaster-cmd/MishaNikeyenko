@@ -85,8 +85,8 @@ form.addEventListener("submit", async (e) => {
   push(chatRef, botMsg);
 });
 
-// Render messages
 function renderMessages(messages) {
+  const log = document.getElementById("chat-log");
   log.innerHTML = "";
 
   messages
@@ -98,6 +98,7 @@ function renderMessages(messages) {
       log.appendChild(div);
     });
 
+  // Auto-scroll to newest message
   requestAnimationFrame(() => {
     log.scrollTop = log.scrollHeight;
   });
