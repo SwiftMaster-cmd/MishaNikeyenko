@@ -66,10 +66,7 @@ form.addEventListener("submit", async (e) => {
 
   push(chatRef, userMsg);
   input.value = "";
-
-  // Refocus input and scroll bottom
   input.focus();
-  scrollToBottom();
 
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
@@ -101,11 +98,8 @@ function renderMessages(messages) {
       log.appendChild(div);
     });
 
-  scrollToBottom();
-}
-
-function scrollToBottom() {
-  requestAnimationFrame(() => {
+  // Always scroll to the bottom after DOM updates
+  setTimeout(() => {
     log.scrollTop = log.scrollHeight;
-  });
+  }, 0);
 }
