@@ -94,6 +94,9 @@ body {
 #user-input::placeholder {
   color: var(--clr-muted);
 }
+#chat-log {
+  scroll-behavior: smooth;
+}
 
 /* Submit button */
 button[type="submit"] {
