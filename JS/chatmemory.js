@@ -298,25 +298,24 @@ form.addEventListener("submit", async (e) => {
       const raw = await logRes.text();
       const parsed = JSON.parse(raw);
       const extracted = parsed?.choices?.[0]?.message?.content?.trim();
-      const cleanJson = extractJsonFromReply(extracted);
-      let logData = null;
-      try {
-        logData = JSON.parse(cleanJson);
-      } catch (err) {
-        addDebugMessage("🛑 Log parse failed: " + err.message + " | Offending content: " + cleanJson);
-        console.error("Log parse fail:", err, cleanJson);
-        logData = null;
-      }
-      if (logData) {
-        await updateDayLog(uid, today, logData);
-        addDebugMessage("Day log updated.");
-        console.log("Day log written:", logData);
-      }
-    } catch (err) {
-      addDebugMessage("🛑 Log failed: " + err.message);
-      console.error("Day log write failed", err);
-    }
+const cleanJson = extractJsonFromReply(extracted);
+let logData = null;
+if (/^\s*[\[{]/.test(cleanJson)) {
+  try {
+    logData = JSON.parse(cleanJson);
+  } catch (err) {
+    addDebugMessage("🛑 Log parse failed: " + err.message + " | Offending content: " + cleanJson);
+    console.error("Log parse fail:", err, cleanJson);
+    logData = null;
   }
+} else {
+  addDebugMessage("🛑 Log parse skipped: Assistant did not return JSON. Content: " + cleanJson);
+}
+if (logData) {
+  await updateDayLog(uid, today, logData);
+  addDebugMessage("Day log updated.");
+  console.log("Day log written:", logData);
+}
 });
 
 document.addEventListener("DOMContentLoaded", () => {
