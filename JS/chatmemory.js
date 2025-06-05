@@ -3,8 +3,7 @@ import {
   getDatabase,
   ref,
   push,
-  onValue,
-  set
+  onValue
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth,
@@ -27,31 +26,28 @@ const firebaseConfig = {
   projectId: "mishanikeyenko",
   storageBucket: "mishanikeyenko.firebasestorage.app",
   messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
-  measurementId: "G-L6CC27129C"
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
 };
 
-// Init
+// Init Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM
+// DOM Elements
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
 let chatRef = null;
-let userHasScrolled = false;
 let uid = null;
+let userHasScrolled = false;
 
-// Detect scroll
 log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
 });
 
-// Scroll to bottom
 function scrollToBottom(force = false) {
   if (!userHasScrolled || force) {
     requestAnimationFrame(() => {
@@ -60,7 +56,6 @@ function scrollToBottom(force = false) {
   }
 }
 
-// Render chat messages
 function renderMessages(messages) {
   log.innerHTML = "";
 
@@ -78,7 +73,6 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-// Load chat history
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
@@ -95,7 +89,6 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// On submit
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -114,29 +107,27 @@ form.addEventListener("submit", async (e) => {
   scrollToBottom(true);
 
   const today = new Date().toISOString().slice(0, 10);
-  const [memory, dayLogSnap] = await Promise.all([
+  const [memory, todayLog] = await Promise.all([
     getMemory(uid),
     getDayLog(uid, today)
   ]);
 
-  const systemPrompt = buildSystemPrompt(memory, dayLogSnap, today);
+  const systemPrompt = buildSystemPrompt(memory, todayLog, today);
 
-  const messages = [
-    { role: "system", content: systemPrompt },
-    { role: "user", content: prompt }
-  ];
-
-  const res = await fetch("/.netlify/functions/chatgpt", {
+  const response = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      messages,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt }
+      ],
       model: "gpt-4o",
       temperature: 0.4
     })
   });
 
-  const data = await res.json();
+  const data = await response.json();
   const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
 
   const botMsg = {
@@ -147,34 +138,37 @@ form.addEventListener("submit", async (e) => {
 
   push(chatRef, botMsg);
 
-  // Optional: extract log info from GPT (use a second GPT call or parsing)
-  if (prompt.toLowerCase().includes("today") || prompt.includes("log this")) {
-    const logRes = await fetch("/.netlify/functions/chatgpt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: "Extract a structured log from this message. Format with: highlights, mood, notes, questions." },
-          { role: "user", content: prompt }
-        ],
-        model: "gpt-4o",
-        temperature: 0.3
-      })
-    });
-
-    const logData = await logRes.json();
-    const logContent = logData?.choices?.[0]?.message?.content;
-
+  // ✅ GPT-based log trigger
+  if (/\/log|remember this|today|add to log/i.test(prompt)) {
     try {
-      const parsedLog = JSON.parse(logContent);
-      await updateDayLog(uid, today, parsedLog);
+      const logRes = await fetch("/.netlify/functions/chatgpt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: "Extract a structured log from this message. Return only valid JSON with fields: highlights, mood, notes, questions."
+            },
+            { role: "user", content: prompt }
+          ],
+          model: "gpt-4o",
+          temperature: 0.3
+        })
+      });
+
+      const raw = await logRes.text();
+      const parsed = JSON.parse(raw);
+      const extracted = parsed?.choices?.[0]?.message?.content?.trim();
+      const logData = JSON.parse(extracted);
+
+      await updateDayLog(uid, today, logData);
     } catch (err) {
-      console.warn("Could not parse day log:", err.message);
+      console.warn("🛑 Failed to save log:", err.message);
     }
   }
 });
 
-// On load, scroll to bottom
 document.addEventListener("DOMContentLoaded", () => {
   scrollToBottom(true);
 });
