@@ -1,8 +1,14 @@
 const fetch = require("node-fetch");
-
 const { initializeApp } = require("firebase/app");
-const { getDatabase, ref, get, set, push } = require("firebase/database");
+const {
+  getDatabase,
+  ref,
+  get,
+  set,
+  push
+} = require("firebase/database");
 
+// 🔐 Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -24,44 +30,66 @@ exports.handler = async (event) => {
       uid,
       action,
       noteContent,
+      data,
       model = "gpt-4o",
       temperature = 0.4
     } = JSON.parse(event.body || "{}");
 
-    // --- Add note ---
-    if (action === "addNote" && uid && noteContent) {
-      const today = new Date().toISOString().split('T')[0];
-      const todayRef = ref(db, `notes/${uid}/${today}`);
-      await push(todayRef, { content: noteContent, timestamp: Date.now() });
-      return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+    if (!uid) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing uid" }) };
     }
 
-    // --- Update memory field (from model-issued command) ---
-    if (action === "updateMemory" && uid && noteContent) {
-      const memoryRef = ref(db, `memory/${uid}`);
-      const snap = await get(memoryRef);
-      const existing = snap.exists() ? snap.val() : {};
-      const data = JSON.parse(noteContent); // expected JSON format
-      const updated = { ...existing, ...data };
-      await set(memoryRef, updated);
-      return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+    // 🔧 Structured Firebase Writes (Notes, Logs, Reminders, Calendar, Memory)
+    if (action && data) {
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+
+      if (action === "addNote") {
+        const path = ref(db, `notes/${uid}/${today}`);
+        await push(path, { ...data, timestamp: now.getTime() });
+        return success("Note added.");
+      }
+
+      if (action === "addReminder") {
+        const path = ref(db, `reminders/${uid}`);
+        await push(path, { ...data, timestamp: now.getTime() });
+        return success("Reminder added.");
+      }
+
+      if (action === "addCalendarEvent") {
+        const date = data.date || today;
+        const path = ref(db, `calendarEvents/${uid}/${date}`);
+        await push(path, { ...data, timestamp: now.getTime() });
+        return success("Calendar event added.");
+      }
+
+      if (action === "updateDayLog") {
+        const date = data.date || today;
+        const path = ref(db, `dayLog/${uid}/${date}`);
+        const snap = await get(path);
+        const existing = snap.exists() ? snap.val() : {};
+        const merged = { ...existing, ...data };
+        await set(path, merged);
+        return success("Day log updated.");
+      }
+
+      if (action === "updateMemory") {
+        const path = ref(db, `memory/${uid}`);
+        const snap = await get(path);
+        const existing = snap.exists() ? snap.val() : {};
+        const updated = { ...existing, ...data };
+        await set(path, updated);
+        return success("Memory updated.");
+      }
     }
 
-    // --- Validate prompt ---
+    // 🔮 GPT Chat Call
     if (!messages && !prompt) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Missing input (messages or prompt)" })
-      };
+      return error("Missing input (messages or prompt)");
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "Missing OpenAI API key" })
-      };
-    }
+    if (!apiKey) return error("Missing OpenAI API key");
 
     const payload = messages
       ? { model, messages, temperature }
@@ -80,23 +108,30 @@ exports.handler = async (event) => {
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
-
-    if (data.error) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: data.error.message })
-      };
-    }
+    const dataRes = await response.json();
+    if (dataRes.error) return error(dataRes.error.message);
 
     return {
       statusCode: 200,
-      body: JSON.stringify(data)
+      body: JSON.stringify(dataRes)
     };
+
   } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message })
-    };
+    return error(err.message);
   }
 };
+
+// 🔁 Helpers
+function success(msg) {
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ ok: true, message: msg })
+  };
+}
+
+function error(msg) {
+  return {
+    statusCode: 500,
+    body: JSON.stringify({ error: msg })
+  };
+}

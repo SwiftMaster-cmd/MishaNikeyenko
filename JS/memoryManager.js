@@ -36,7 +36,7 @@ async function fetchNode(path) {
   return snap.exists() ? snap.val() : {};
 }
 
-// 🔹 Format helper (trimmed, token-aware)
+// 🔹 Format helper (token-conscious)
 export function formatBlock(obj = {}, options = {}) {
   const {
     maxItems = 5,
@@ -70,7 +70,7 @@ export function formatBlock(obj = {}, options = {}) {
   return label ? `${label}\n${output.join("\n")}` : output.join("\n");
 }
 
-// 🔹 System prompt builder (lean by default)
+// 🔹 System prompt builder (lean and structured-aware)
 export function buildSystemPrompt({ memory, todayLog, notes, date }) {
   return [
     `Assistant: Nexus\nDate: ${date}`,
@@ -78,7 +78,10 @@ export function buildSystemPrompt({ memory, todayLog, notes, date }) {
     formatBlock(todayLog, { label: "Today", maxItems: 3 }),
     formatBlock(notes, { label: "Today’s Notes", maxItems: 2 }),
     "You may request more context (e.g. 'show full notes', 'get calendar', 'load finances').",
-    "Only ask for what you need. Keep responses focused and efficient unless expanded."
+    "Only ask for what you need. Use structured JSON to update memory or data.",
+    "Example: { action: \"addNote\", data: { content: \"Check tire pressure\" } }",
+    "Supported actions: addNote, addReminder, addCalendarEvent, updateDayLog, updateMemory.",
+    "When updating, respond with only the JSON. Avoid extra explanation."
   ].join("\n\n");
 }
 
@@ -101,7 +104,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// 🔹 Process model-issued memory updates
+// 🔹 Update specific field in memory
 export async function updateMemoryField(uid, key, value) {
   if (!uid || !key) return false;
   const db = getDatabase();

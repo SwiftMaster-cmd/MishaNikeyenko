@@ -24,7 +24,7 @@ import {
   updateDayLog
 } from "./memoryManager.js";
 
-// CONFIG
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -47,7 +47,7 @@ const log = document.getElementById("chat-log");
 let uid = null;
 let chatRef = null;
 
-// RENDER
+// Scroll and render
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -61,7 +61,7 @@ function renderMessages(messages) {
   log.scrollTop = log.scrollHeight;
 }
 
-// AUTH + HISTORY
+// Auth + history
 onAuthStateChanged(auth, (user) => {
   if (!user) return signInAnonymously(auth);
   uid = user.uid;
@@ -73,7 +73,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// SUBMIT
+// Form submit
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -83,14 +83,19 @@ form.addEventListener("submit", async (e) => {
   const userMsg = { role: "user", content: prompt, timestamp: Date.now() };
   await push(chatRef, userMsg);
 
+  // Load minimal context
   const today = new Date().toISOString().slice(0, 10);
   const [memory, dayLog, notes] = await Promise.all([
     getMemory(uid),
     getDayLog(uid, today),
     getNotes(uid, true)
   ]);
+
   const systemPrompt = buildSystemPrompt({
-    memory, todayLog: dayLog, notes, date: today
+    memory,
+    todayLog: dayLog,
+    notes,
+    date: today
   });
 
   const allMessages = [
@@ -101,11 +106,13 @@ form.addEventListener("submit", async (e) => {
     }))
   ];
 
+  // Send to GPT
   const res = await fetch("/.netlify/functions/gpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages: allMessages, uid })
   });
+
   const data = await res.json();
   const reply = data?.choices?.[0]?.message?.content?.trim() || "No reply.";
 
@@ -115,7 +122,46 @@ form.addEventListener("submit", async (e) => {
     timestamp: Date.now()
   });
 
-  // 🔄 DYNAMIC EXPANSION IF GPT SUGGESTS
+  console.log("🤖 GPT Reply:", reply);
+
+  // 🔄 Structured command handling
+  try {
+    const match = reply.match(/{[\s\S]*?"action":\s*".+?"[\s\S]*?}/);
+    if (match) {
+      const command = JSON.parse(match[0]);
+      const commandRes = await fetch("/.netlify/functions/gpt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid,
+          action: command.action,
+          data: command.data
+        })
+      });
+
+      const result = await commandRes.json();
+      const success = result.ok === true;
+
+      console.log(success ? "✅ Command succeeded" : "❌ Command failed", result);
+
+      await push(chatRef, {
+        role: "debug",
+        content: success
+          ? `✅ ${command.action} saved.`
+          : `❌ Failed to ${command.action}: ${result.error || "Unknown error"}`,
+        timestamp: Date.now()
+      });
+    }
+  } catch (err) {
+    console.warn("🛑 Failed to parse structured command:", err.message);
+    await push(chatRef, {
+      role: "debug",
+      content: "🛑 Error processing GPT command.",
+      timestamp: Date.now()
+    });
+  }
+
+  // 🔁 Expand context if GPT asks
   if (/get calendar|get finances|more notes|expand memory/i.test(reply)) {
     const expansions = [];
 
