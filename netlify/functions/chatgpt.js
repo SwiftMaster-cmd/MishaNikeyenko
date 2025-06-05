@@ -12,11 +12,11 @@ exports.handler = async (event) => {
     if (!apiKey) return { statusCode: 500, body: "Missing OpenAI API key" };
 
     const payload = messages
-      ? { model: "gpt-4o", messages, temperature: 0.4 }
+      ? { model: "gpt-4o", messages, temperature: 0.7 }
       : {
           model: "gpt-4o",
           messages: [{ role: "user", content: prompt }],
-          temperature: 0.4
+          temperature: 0.7
         };
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
