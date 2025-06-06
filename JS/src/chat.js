@@ -1,4 +1,4 @@
-// 🔹 chat.js – dual‐mode memory saving + storage debug
+// 🔹 chat.js – dual‐mode memory saving + persistent storage status
 import {
   ref,
   push,
@@ -30,7 +30,6 @@ import {
   listEvents
 } from "./commandHandlers.js";
 import { extractJson, detectMemoryType } from "./chatUtils.js";
-import { watchStorageDebug } from "./storageDebug.js"; // ← added
 
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
@@ -88,9 +87,6 @@ onAuthStateChanged(auth, (user) => {
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
 
-  // Start watching storage changes
-  watchStorageDebug(uid, addDebugMessage);
-
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
     const allMessages = Object.entries(data).map(([id, msg]) => ({
@@ -135,7 +131,7 @@ form.addEventListener("submit", async (e) => {
   // ── Default chat + memory logic ──
   await push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
 
-  // Fetch last 20 messages
+  // 1) Fetch last 20 messages
   let messages = [];
   try {
     const snap = await get(child(ref(db), `chatHistory/${uid}`));
@@ -152,7 +148,7 @@ form.addEventListener("submit", async (e) => {
     addDebugMessage("❌ Error fetching chat history: " + err.message);
   }
 
-  // Fetch memory/context
+  // 2) Fetch memory/context
   const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
     getMemory(uid),
     getDayLog(uid, today),
@@ -162,6 +158,7 @@ form.addEventListener("submit", async (e) => {
     getCalcHistory(uid)
   ]);
 
+  // 3) Build system prompt
   const sysPrompt = buildSystemPrompt({
     memory,
     todayLog: dayLog,
@@ -173,7 +170,7 @@ form.addEventListener("submit", async (e) => {
   });
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // Memory‐type detection
+  // 4) Memory‐type detection & storage write
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
   if (memoryType) {
     let extractedData = null;
@@ -245,7 +242,31 @@ RULES:
     addDebugMessage("🔕 No valid memory trigger.");
   }
 
-  // Assistant reply
+  // 5) Fetch storage counts and display status text
+  try {
+    // a) Notes (today)
+    const notesSnap = await get(child(ref(db), `notes/${uid}/${today}`));
+    const notesCount = notesSnap.exists() ? Object.keys(notesSnap.val()).length : 0;
+
+    // b) Reminders (all)
+    const remSnap = await get(child(ref(db), `reminders/${uid}`));
+    const remCount = remSnap.exists() ? Object.keys(remSnap.val()).length : 0;
+
+    // c) Events (all)
+    const evSnap = await get(child(ref(db), `calendarEvents/${uid}`));
+    const evCount = evSnap.exists() ? Object.keys(evSnap.val()).length : 0;
+
+    // d) Memory entries (all)
+    const memSnap = await get(child(ref(db), `memory/${uid}`));
+    const memCount = memSnap.exists() ? Object.keys(memSnap.val()).length : 0;
+
+    const statusText = `📦 Storage: Notes(today)=${notesCount} | Reminders=${remCount} | Events=${evCount} | Memory=${memCount}`;
+    await push(chatRef, { role: "assistant", content: statusText, timestamp: Date.now() });
+  } catch (err) {
+    addDebugMessage("❌ Error fetching storage counts: " + err.message);
+  }
+
+  // 6) Assistant reply
   let reply = "[No reply]";
   try {
     const replyRes = await fetch("/.netlify/functions/chatgpt", {
