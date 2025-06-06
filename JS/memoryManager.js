@@ -1,14 +1,15 @@
-// memoryManager.js – handles memory read/write/prompt generation
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+// 🔹 memoryManager.js – handles all memory fetches and writes
 import {
-  getDatabase, ref, get, push, set
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase, ref, get, set, push
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// 🔧 Firebase Config
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -23,13 +24,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// 🔹 Universal fetcher
-async function fetchNode(path) {
-  const snap = await get(ref(db, path));
-  return snap.exists() ? snap.val() : {};
-}
-
-// 🔹 Read functions
+// Load memory nodes
 export const getMemory = (uid) => fetchNode(`memory/${uid}`);
 export const getDayLog = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
 export const getNotes = (uid) => fetchNode(`notes/${uid}`);
@@ -37,7 +32,12 @@ export const getCalendar = (uid) => fetchNode(`calendarEvents/${uid}`);
 export const getReminders = (uid) => fetchNode(`reminders/${uid}`);
 export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
 
-// 🔹 Add Note
+async function fetchNode(path) {
+  const snap = await get(ref(db, path));
+  return snap.exists() ? snap.val() : {};
+}
+
+// Write helpers
 export async function addNote(uid, content) {
   if (!uid || !content) return false;
   const today = new Date().toISOString().split('T')[0];
@@ -48,7 +48,6 @@ export async function addNote(uid, content) {
   return true;
 }
 
-// 🔹 Update Daily Log
 export async function updateDayLog(uid, dateStr, newLog) {
   const path = `dayLog/${uid}/${dateStr}`;
   const existingSnap = await get(ref(db, path));
@@ -65,7 +64,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// 🔹 Prompt Builder
+// System prompt builder
 export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
   return `
 You are Nexus, a second brain for Bossman.
@@ -89,16 +88,18 @@ ${formatBlock(reminders)}
 Finances:
 ${formatBlock(calc)}
 
-Instructions:
-- Respond clearly and only to what Bossman asks.
-- Do not suggest actions unless Bossman asks.
-- Do not ask if the user wants to chat more.
-- Be brief, accurate, and task-focused.
-- Reflect Bossman's intent. No filler or small talk.
+You do this:
+- Respond clearly and only to what Bossman asks
+- Do not suggest next actions unless Bossman asks for them
+- Do not ask if the user wants to chat more
+- Stay brief, accurate, and task-focused
+- Reflect Bossman's intent. Prioritize clarity over chatter
+- Only include relevant info -- no small talk or filler
+- Use calendar, notes, logs, and reminders when relevant
 `;
 }
 
-// 🔹 Helpers
+// Helpers
 function merge(arr1 = [], arr2 = []) {
   return Array.from(new Set([...(arr1 || []), ...(arr2 || [])]));
 }
