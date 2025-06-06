@@ -41,25 +41,35 @@ let uid = null;
 let chatRef = null;
 let userHasScrolled = false;
 
-// Push into debugInfo array; not appended to chat
+// Push into debugInfo array; not appended to chat  
 function addDebugMessage(text) {
   debugInfo.push(text);
 }
 
-// Create the debug overlay element (hidden by default), matching CSS selectors
+/**
+ * Create the debug overlay element (hidden by default).
+ * Structure:
+ *
+ * <div id="debug-overlay">
+ *   <div id="debug-modal">
+ *     <button class="close-btn">Close</button>
+ *     <div id="debug-content"></div>
+ *   </div>
+ * </div>
+ */
 function createDebugOverlay() {
   // Outer overlay
   const overlay = document.createElement("div");
   overlay.id = "debug-overlay";
   Object.assign(overlay.style, {
-    display: "none",
+    display: "none",            // hidden by default
     position: "fixed",
     top: "0",
     left: "0",
     width: "100vw",
     height: "100vh",
-    backgroundColor: "rgba(0, 0, 0, 0.85)",
-    zIndex: 9999
+    backgroundColor: "rgba(0, 0, 0, 0.85)", // semi‐opaque black
+    zIndex: 9999                 // sit on top of everything
   });
 
   // Centered modal box inside the overlay
@@ -70,7 +80,7 @@ function createDebugOverlay() {
     top: "50%",
     left: "50%",
     transform: "translate(-50%, -50%)",
-    backgroundColor: "var(--clr-card)",
+    backgroundColor: "var(--clr-card)",    // your card color from CSS
     color: "var(--clr-text)",
     padding: "1rem 1.5rem",
     borderRadius: "12px",
@@ -78,10 +88,10 @@ function createDebugOverlay() {
     maxWidth: "80vw",
     maxHeight: "80vh",
     overflowY: "auto",
-    border: "1px solid var(--clr-border)"
+    border: "1px solid var(--clr-border)",
   });
 
-  // Close button inside the modal
+  // "Close" button in the top-right of the modal
   const closeBtn = document.createElement("button");
   closeBtn.className = "close-btn";
   closeBtn.textContent = "Close";
@@ -101,24 +111,25 @@ function createDebugOverlay() {
     overlay.style.display = "none";
   });
 
-  // Container for debug text inside the modal
+  // Container for debug lines inside the modal
   const contentDiv = document.createElement("div");
   contentDiv.id = "debug-content";
   Object.assign(contentDiv.style, {
-    marginTop: "32px",
+    marginTop: "32px",      // leave room for the close button
     whiteSpace: "pre-wrap",
     fontFamily: "monospace",
     fontSize: "0.9rem",
-    lineHeight: "1.4"
+    lineHeight: "1.4",
   });
 
+  // Append everything in the proper hierarchy:
   modal.appendChild(closeBtn);
   modal.appendChild(contentDiv);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 }
 
-// Populate and show the debug overlay
+/** Populate and show the debug overlay */
 function showDebugOverlay() {
   const overlay = document.getElementById("debug-overlay");
   const contentDiv = document.getElementById("debug-content");
@@ -127,7 +138,7 @@ function showDebugOverlay() {
   overlay.style.display = "block";
 }
 
-// Scroll log to bottom unless user manually scrolled up
+/** Scroll log to bottom unless user manually scrolled up */
 log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
@@ -140,7 +151,7 @@ function scrollToBottom(force = false) {
   }
 }
 
-// Render the last 20 messages, and add an info icon to the most recent assistant bubble
+/** Render the last 20 messages, and add an info icon to the most recent assistant bubble */
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -153,12 +164,12 @@ function renderMessages(messages) {
         role === "assistant" ? "bot-msg" :
         "debug-msg"
       }`;
-      // Use innerHTML so that any HTML (e.g., <img> for GIFs) renders properly
+      // Use innerHTML so that any <img> or HTML markup renders properly:
       div.innerHTML = msg.content;
       log.appendChild(div);
     });
 
-  // After rendering all messages, locate the last assistant message
+  // After rendering all messages, find the last assistant bubble
   const assistantBubbles = log.querySelectorAll(".bot-msg");
   if (assistantBubbles.length > 0) {
     const lastBubble = assistantBubbles[assistantBubbles.length - 1];
@@ -168,7 +179,7 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-// Attach a small ℹ️ icon to the given assistant bubble element
+/** Attach a small "ℹ️" icon to the given assistant bubble element */
 function attachInfoIcon(bubbleElement) {
   // Remove any existing icons to avoid duplicates
   const existingIcon = bubbleElement.querySelector(".info-icon");
@@ -176,7 +187,7 @@ function attachInfoIcon(bubbleElement) {
 
   const icon = document.createElement("span");
   icon.className = "info-icon";
-  icon.textContent = " ℹ️";
+  icon.textContent = " ℹ️";  // Simple Unicode info icon
   Object.assign(icon.style, {
     cursor: "pointer",
     fontSize: "0.9em",
@@ -223,7 +234,7 @@ form.addEventListener("submit", async (e) => {
   if (!prompt || !chatRef || !uid) return;
   input.value = "";
 
-  // -------------------------- Handle static & listing commands first --------------------------
+  // ------------------------------------ Handle static & listing commands first ------------------------------------
   const staticCommands = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
   if (staticCommands.includes(prompt)) {
     await handleStaticCommand(prompt, chatRef, uid);
@@ -242,11 +253,11 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // -------------------------- 1) Push user message --------------------------
+  // ------------------------------------ 1) Push user message ------------------------------------
   const now = Date.now();
   await push(chatRef, { role: "user", content: prompt, timestamp: now });
 
-  // -------------------------- 2) In parallel: assistant reply + memory write --------------------------
+  // ------------------------------------ 2) In parallel: assistant reply + memory write ------------------------------------
   (async () => {
     const today = new Date().toISOString().slice(0, 10);
 
