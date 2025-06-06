@@ -118,9 +118,15 @@ form.addEventListener("submit", async (e) => {
 
   // Get chat history
   const snapshot = await new Promise(resolve => onValue(chatRef, resolve, { onlyOnce: true }));
-  const messages = Object.entries(snapshot.val() || {}).map(([id, msg]) => ({
-    role: msg.role === "bot" ? "assistant" : msg.role, content: msg.content
-  }));
+  const allMessages = Object.entries(snapshot.val() || {}).map(([id, msg]) => ({
+  role: msg.role === "bot" ? "assistant" : msg.role,
+  content: msg.content,
+  timestamp: msg.timestamp || 0
+}));
+
+const messages = allMessages
+  .sort((a, b) => a.timestamp - b.timestamp)
+  .slice(-20); // last 20 only
 
   // Add context
   const today = new Date().toISOString().slice(0, 10);
