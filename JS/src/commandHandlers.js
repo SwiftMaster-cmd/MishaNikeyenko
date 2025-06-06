@@ -1,26 +1,41 @@
 import { db } from "./firebaseConfig.js";
-import { ref, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { ref, get, child, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { appendNode } from "./firebaseHelpers.js";
 
-export function handleStaticCommand(cmd, chatRef) {
+// Handle static commands ("/time", "/date", "/uid", etc.)
+export async function handleStaticCommand(cmd, chatRef, uid) {
   const today = new Date().toISOString().slice(0, 10);
 
   switch (cmd) {
     case "/time": {
       const time = new Date().toLocaleTimeString();
-      return appendNode(chatRef, { role: "assistant", content: `🕒 Current time is ${time}`, timestamp: Date.now() });
+      return appendNode(chatRef, {
+        role: "assistant",
+        content: `🕒 Current time is ${time}`,
+        timestamp: Date.now()
+      });
     }
+
     case "/date":
-      return appendNode(chatRef, { role: "assistant", content: `📅 Today's date is ${today}`, timestamp: Date.now() });
+      return appendNode(chatRef, {
+        role: "assistant",
+        content: `📅 Today's date is ${today}`,
+        timestamp: Date.now()
+      });
 
     case "/uid":
-      return appendNode(chatRef, { role: "assistant", content: `🆔 Your UID is: ${chatRef._path.pieces_[1]}`, timestamp: Date.now() });
+      // Now uses the passed‐in uid directly:
+      return appendNode(chatRef, {
+        role: "assistant",
+        content: `🆔 Your UID is: ${uid}`,
+        timestamp: Date.now()
+      });
 
     case "/clearchat":
       return clearChatHistory(chatRef);
 
     case "/summary":
-      return sendSummary(chatRef, today);
+      return sendSummary(chatRef, uid, today);
 
     case "/commands":
       return listCommands(chatRef);
@@ -32,7 +47,11 @@ export function handleStaticCommand(cmd, chatRef) {
 
 async function clearChatHistory(chatRef) {
   await set(chatRef, {});
-  return appendNode(chatRef, { role: "assistant", content: "🧼 Chat history cleared.", timestamp: Date.now() });
+  return appendNode(chatRef, {
+    role: "assistant",
+    content: "🧼 Chat history cleared.",
+    timestamp: Date.now()
+  });
 }
 
 function listCommands(chatRef) {
@@ -51,19 +70,28 @@ function listCommands(chatRef) {
     { cmd: "/uid",      desc: "Show your Firebase user ID" }
   ];
   const response = commandList.map(c => `🔹 **${c.cmd}** – ${c.desc}`).join("\n");
-  return appendNode(chatRef, { role: "assistant", content: `🧭 **Available Commands**:\n\n${response}`, timestamp: Date.now() });
+  return appendNode(chatRef, {
+    role: "assistant",
+    content: `🧭 **Available Commands**:\n\n${response}`,
+    timestamp: Date.now()
+  });
 }
 
-async function sendSummary(chatRef, today) {
+async function sendSummary(chatRef, uid, today) {
   const { getDayLog, getNotes } = await import("./memoryManager.js");
-  const uid = chatRef._path.pieces_[1];
   const [dayLog, notes] = await Promise.all([getDayLog(uid, today), getNotes(uid)]);
-  const noteList = Object.values(notes?.[today] || {}).map(n => `- ${n.content}`).join("\n") || "No notes.";
+  const noteList = Object.values(notes?.[today] || {})
+    .map(n => `- ${n.content}`)
+    .join("\n") || "No notes.";
   const logSummary = Object.entries(dayLog || {})
     .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
     .join("\n") || "No log.";
   const content = `📝 **Today’s Summary**:\n\n📓 Log:\n${logSummary}\n\n🗒️ Notes:\n${noteList}`;
-  return appendNode(chatRef, { role: "assistant", content, timestamp: Date.now() });
+  return appendNode(chatRef, {
+    role: "assistant",
+    content,
+    timestamp: Date.now()
+  });
 }
 
 export async function listNotes(chatRef) {
@@ -74,7 +102,10 @@ export async function listNotes(chatRef) {
     const notesForToday = snap.exists() ? snap.val()[today] || {} : {};
     const keys = Object.keys(notesForToday);
     if (!keys.length) {
-      return appendNode(chatRef, { role: "assistant", content: "🗒️ You have no notes for today." });
+      return appendNode(chatRef, {
+        role: "assistant",
+        content: "🗒️ You have no notes for today."
+      });
     }
     const lines = keys.map(key => {
       const { content, timestamp } = notesForToday[key];
@@ -82,9 +113,15 @@ export async function listNotes(chatRef) {
       return `• [${time}] ${content}`;
     });
     const response = "🗒️ **Today's Notes:**\n" + lines.join("\n");
-    return appendNode(chatRef, { role: "assistant", content: response });
+    return appendNode(chatRef, {
+      role: "assistant",
+      content: response
+    });
   } catch (err) {
-    return appendNode(chatRef, { role: "assistant", content: `❌ Error fetching notes: ${err.message}` });
+    return appendNode(chatRef, {
+      role: "assistant",
+      content: `❌ Error fetching notes: ${err.message}`
+    });
   }
 }
 
@@ -95,7 +132,10 @@ export async function listReminders(chatRef) {
     const remData = snap.exists() ? snap.val() : {};
     const keys = Object.keys(remData);
     if (!keys.length) {
-      return appendNode(chatRef, { role: "assistant", content: "⏰ You have no reminders set." });
+      return appendNode(chatRef, {
+        role: "assistant",
+        content: "⏰ You have no reminders set."
+      });
     }
     const lines = keys.map(key => {
       const { content, timestamp, date } = remData[key];
@@ -103,9 +143,15 @@ export async function listReminders(chatRef) {
       return `• [${time}] ${content}`;
     });
     const response = "⏰ **Your Reminders:**\n" + lines.join("\n");
-    return appendNode(chatRef, { role: "assistant", content: response });
+    return appendNode(chatRef, {
+      role: "assistant",
+      content: response
+    });
   } catch (err) {
-    return appendNode(chatRef, { role: "assistant", content: `❌ Error fetching reminders: ${err.message}` });
+    return appendNode(chatRef, {
+      role: "assistant",
+      content: `❌ Error fetching reminders: ${err.message}`
+    });
   }
 }
 
@@ -116,7 +162,10 @@ export async function listEvents(chatRef) {
     const evData = snap.exists() ? snap.val() : {};
     const keys = Object.keys(evData);
     if (!keys.length) {
-      return appendNode(chatRef, { role: "assistant", content: "📆 You have no calendar events." });
+      return appendNode(chatRef, {
+        role: "assistant",
+        content: "📆 You have no calendar events."
+      });
     }
     const lines = keys.map(key => {
       const { content, timestamp, date } = evData[key];
@@ -124,8 +173,14 @@ export async function listEvents(chatRef) {
       return `• [${time}] ${content}`;
     });
     const response = "📆 **Your Events:**\n" + lines.join("\n");
-    return appendNode(chatRef, { role: "assistant", content: response });
+    return appendNode(chatRef, {
+      role: "assistant",
+      content: response
+    });
   } catch (err) {
-    return appendNode(chatRef, { role: "assistant", content: `❌ Error fetching calendar events: ${err.message}` });
+    return appendNode(chatRef, {
+      role: "assistant",
+      content: `❌ Error fetching calendar events: ${err.message}`
+    });
   }
 }

@@ -1,6 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"; // only needed if not using firebaseConfig
 import {
-  getDatabase,
   ref,
   push,
   set,
@@ -22,7 +20,6 @@ import {
   getCalendar,
   getReminders,
   getCalcHistory,
-  updateDayLog,
   buildSystemPrompt
 } from "./memoryManager.js";
 import {
@@ -69,7 +66,11 @@ function renderMessages(messages) {
     .forEach((msg) => {
       const role = msg.role === "bot" ? "assistant" : msg.role;
       const div = document.createElement("div");
-      div.className = `msg ${role === "user" ? "user-msg" : role === "assistant" ? "bot-msg" : "debug-msg"}`;
+      div.className = `msg ${
+        role === "user" ? "user-msg" :
+        role === "assistant" ? "bot-msg" :
+        "debug-msg"
+      }`;
       div.textContent = msg.content;
       log.appendChild(div);
     });
@@ -93,7 +94,9 @@ onAuthStateChanged(auth, (user) => {
       content: msg.content,
       timestamp: msg.timestamp || 0
     }));
-    const messages = allMessages.sort((a, b) => a.timestamp - b.timestamp).slice(-20);
+    const messages = allMessages
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-20);
     renderMessages(messages);
   });
 });
@@ -105,10 +108,10 @@ form.addEventListener("submit", async (e) => {
   const today = new Date().toISOString().slice(0, 10);
   input.value = "";
 
-  // ── Static or listing commands ──
+  // ── Static & Listing Commands ──
   const staticCommands = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
   if (staticCommands.includes(prompt)) {
-    await handleStaticCommand(prompt, chatRef);
+    await handleStaticCommand(prompt, chatRef, uid);
     return;
   }
   if (prompt === "/notes") {
@@ -137,7 +140,9 @@ form.addEventListener("submit", async (e) => {
       content: msg.content,
       timestamp: msg.timestamp || 0
     }));
-    messages = allMessages.sort((a, b) => a.timestamp - b.timestamp).slice(-20);
+    messages = allMessages
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-20);
   } catch (err) {
     addDebugMessage("❌ Error fetching chat history: " + err.message);
   }
@@ -218,7 +223,6 @@ RULES:
             : extractedData.type === "log"
             ? `dayLog/${uid}/${today}`
             : `notes/${uid}/${today}`;
-
         const entry = {
           content: extractedData.content,
           timestamp: Date.now(),
