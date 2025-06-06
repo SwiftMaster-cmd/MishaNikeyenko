@@ -168,17 +168,19 @@ form.addEventListener("submit", async (e) => {
       body: JSON.stringify({
         messages: [
           {
-            role: "system",
-            content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
+{
+  role: "system",
+  content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
 \`\`\`json
 {
-  "type": "note",
-  "content": "string",
-  "date": "optional YYYY-MM-DD"
+  "type": "calendar",
+  "content": "Lunch with client",
+  "date": "2025-06-07"
 }
 \`\`\`
-Only return the JSON block. Supported types: note, calendar, reminder, log.`
-          },
+
+Only return the JSON block. Supported types: note, calendar, reminder, log. The "type" must match the intent. Never include explanation.`
+},
           { role: "user", content: rawPrompt }
         ],
         model: "gpt-4o", temperature: 0.3
