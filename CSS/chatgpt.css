@@ -266,63 +266,6 @@ button[type="submit"]:active {
   }
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   UPDATED DEBUG OVERLAY SECTION
-   ────────────────────────────────────────────────────────────────────────── */
-
-/* Full‐screen, semi‐opaque backdrop */
-#debug-overlay {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.85);
-  z-index: 9999;
-  /* backdrop-filter: blur(4px); /* optional blur behind overlay */ 
-}
-
-/* Centered "modal" box inside the overlay */
-#debug-modal {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: var(--clr-card);
-  color: var(--clr-text);
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-  max-width: 80vw;
-  max-height: 80vh;
-  overflow-y: auto;
-  border: 1px solid var(--clr-border);
-}
-
-/* "Close" button in the modal */
-#debug-modal .close-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: var(--clr-border);
-  color: var(--clr-text);
-  border: none;
-  padding: 4px 8px;
-  cursor: pointer;
-  border-radius: 4px;
-  font-size: 0.9rem;
-}
-
-/* Container for the debug text */
-#debug-content {
-  margin-top: 32px;
-  white-space: pre-wrap;
-  font-family: monospace;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
 /* ────────────────────────────────────────────────────────────────────────── 
    End of updated debug overlay section
    ────────────────────────────────────────────────────────────────────────── */
