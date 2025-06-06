@@ -121,6 +121,9 @@ form.addEventListener("submit", async (e) => {
 
   const today = new Date().toISOString().slice(0, 10);
 
+  // Immediately clear the input box
+  input.value = "";
+
   // 🔹 Functional Commands (No GPT Required)
   if (prompt === "/time") {
     const time = new Date().toLocaleTimeString();
