@@ -1,4 +1,4 @@
-// 🔹 chat.js – dual‐mode memory saving (commands + natural input)
+// 🔹 chat.js – dual‐mode memory saving (commands + natural input + list commands)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase,
@@ -6,7 +6,7 @@ import {
   push,
   set,
   onValue,
-  get,            // ← import get() for one‐time reads
+  get,
   child
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
@@ -41,7 +41,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM elements
+// DOM
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
@@ -85,7 +85,7 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-// Auth: anonymous sign‐in and initial listener
+// Auth
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
@@ -96,7 +96,6 @@ onAuthStateChanged(auth, (user) => {
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
 
-  // Real‐time listener: show last 20 messages whenever chatHistory changes
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
     const allMessages = Object.entries(data).map(([id, msg]) => ({
@@ -131,7 +130,8 @@ form.addEventListener("submit", async (e) => {
   const today = new Date().toISOString().slice(0, 10);
   input.value = "";
 
-  // 🔹 Static Utility Commands
+  // ── Static Utility Commands ──
+
   if (prompt === "/time") {
     const time = new Date().toLocaleTimeString();
     await push(chatRef, { role: "assistant", content: `🕒 Current time is ${time}`, timestamp: Date.now() });
@@ -156,14 +156,15 @@ form.addEventListener("submit", async (e) => {
   }
 
   if (prompt === "/summary") {
-    const [dayLog, notes] = await Promise.all([
-      getDayLog(uid, today),
-      getNotes(uid)
-    ]);
-    const noteList = Object.values(notes?.[today] || {}).map(n => `- ${n.content}`).join("\n") || "No notes.";
-    const logSummary = Object.entries(dayLog || {}).map(([k, v]) =>
-      `${k}: ${Array.isArray(v) ? v.join(", ") : v}`
-    ).join("\n") || "No log.";
+    const [dayLog, notes] = await Promise.all([getDayLog(uid, today), getNotes(uid)]);
+    const noteList = Object.values(notes?.[today] || {})
+      .map(n => `- ${n.content}`)
+      .join("\n") || "No notes.";
+
+    const logSummary = Object.entries(dayLog || {})
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+      .join("\n") || "No log.";
+
     await push(chatRef, {
       role: "assistant",
       content: `📝 **Today’s Summary**:\n\n📓 Log:\n${logSummary}\n\n🗒️ Notes:\n${noteList}`,
@@ -174,15 +175,18 @@ form.addEventListener("submit", async (e) => {
 
   if (prompt === "/commands") {
     const commandList = [
-      { cmd: "/note", desc: "Save a note (e.g. /note call Mom later)" },
+      { cmd: "/note",     desc: "Save a note (e.g. /note call Mom later)" },
       { cmd: "/reminder", desc: "Set a reminder (e.g. /reminder pay bill tomorrow)" },
       { cmd: "/calendar", desc: "Create a calendar event (e.g. /calendar dinner Friday)" },
-      { cmd: "/log", desc: "Add to your day log (e.g. /log felt great after run)" },
-      { cmd: "/summary", desc: "Summarize today’s log and notes" },
-      { cmd: "/clearchat", desc: "Clear the visible chat history" },
-      { cmd: "/time", desc: "Show current time" },
-      { cmd: "/date", desc: "Show today’s date" },
-      { cmd: "/uid", desc: "Show your Firebase user ID" }
+      { cmd: "/log",      desc: "Add to your day log (e.g. /log felt great after run)" },
+      { cmd: "/notes",    desc: "List all notes saved today" },
+      { cmd: "/reminders",desc: "List all reminders" },
+      { cmd: "/events",   desc: "List all calendar events" },
+      { cmd: "/summary",  desc: "Summarize today’s log and notes" },
+      { cmd: "/clearchat",desc: "Clear the visible chat history" },
+      { cmd: "/time",     desc: "Show current time" },
+      { cmd: "/date",     desc: "Show today’s date" },
+      { cmd: "/uid",      desc: "Show your Firebase user ID" }
     ];
     const response = commandList.map(c => `🔹 **${c.cmd}** – ${c.desc}`).join("\n");
     await push(chatRef, {
@@ -193,12 +197,90 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // ------ Default chat and memory flow ------
+  // ── List Notes ──
+  if (prompt === "/notes") {
+    try {
+      const allNotes = await get(child(ref(db), `notes/${uid}`));
+      const notesForToday = allNotes.exists() ? allNotes.val()[today] || {} : {};
+      const keys = Object.keys(notesForToday);
 
-  // 1) Push the user's message
+      if (!keys.length) {
+        await push(chatRef, { role: "assistant", content: "🗒️ You have no notes for today." });
+        return;
+      }
+
+      const lines = keys.map(key => {
+        const { content, timestamp } = notesForToday[key];
+        const time = new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        return `• [${time}] ${content}`;
+      });
+
+      const response = "🗒️ **Today's Notes:**\n" + lines.join("\n");
+      await push(chatRef, { role: "assistant", content: response });
+    } catch (err) {
+      addDebugMessage("❌ Error fetching notes: " + err.message);
+    }
+    return;
+  }
+
+  // ── List Reminders ──
+  if (prompt === "/reminders") {
+    try {
+      const allRem = await get(child(ref(db), `reminders/${uid}`));
+      const remData = allRem.exists() ? allRem.val() : {};
+      const keys = Object.keys(remData);
+
+      if (!keys.length) {
+        await push(chatRef, { role: "assistant", content: "⏰ You have no reminders set." });
+        return;
+      }
+
+      const lines = keys.map(key => {
+        const { content, timestamp, date } = remData[key];
+        const time = date ? date : new Date(timestamp).toLocaleDateString();
+        return `• [${time}] ${content}`;
+      });
+
+      const response = "⏰ **Your Reminders:**\n" + lines.join("\n");
+      await push(chatRef, { role: "assistant", content: response });
+    } catch (err) {
+      addDebugMessage("❌ Error fetching reminders: " + err.message);
+    }
+    return;
+  }
+
+  // ── List Calendar Events ──
+  if (prompt === "/events" || prompt === "/calendar") {
+    try {
+      const allCal = await get(child(ref(db), `calendarEvents/${uid}`));
+      const evData = allCal.exists() ? allCal.val() : {};
+      const keys = Object.keys(evData);
+
+      if (!keys.length) {
+        await push(chatRef, { role: "assistant", content: "📆 You have no calendar events." });
+        return;
+      }
+
+      const lines = keys.map(key => {
+        const { content, timestamp, date } = evData[key];
+        const time = date ? date : new Date(timestamp).toLocaleDateString();
+        return `• [${time}] ${content}`;
+      });
+
+      const response = "📆 **Your Events:**\n" + lines.join("\n");
+      await push(chatRef, { role: "assistant", content: response });
+    } catch (err) {
+      addDebugMessage("❌ Error fetching calendar events: " + err.message);
+    }
+    return;
+  }
+
+  // ── Default chat + memory logic ──
+
+  // 1) Push user message
   await push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
 
-  // 2) Fetch the last 20 messages with a one‐time read (get):
+  // 2) Fetch last 20 messages with get()
   let messages = [];
   try {
     const snap = await get(child(ref(db), `chatHistory/${uid}`));
@@ -223,7 +305,7 @@ form.addEventListener("submit", async (e) => {
     getCalcHistory(uid)
   ]);
 
-  // 4) Build system prompt & full conversation
+  // 4) Build system prompt & full history
   const sysPrompt = buildSystemPrompt({
     memory,
     todayLog: dayLog,
@@ -235,19 +317,36 @@ form.addEventListener("submit", async (e) => {
   });
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // 5) Detect "memory" triggers
+  // 5) Memory‐type detection
   const lower = prompt.toLowerCase();
-  const isNote = lower.startsWith("/note ");
+  const isNote     = lower.startsWith("/note ");
   const isReminder = lower.startsWith("/reminder ");
   const isCalendar = lower.startsWith("/calendar ");
-  const isLog = lower.startsWith("/log ");
-  const hasCommand = isNote || isReminder || isCalendar || isLog;
-  const rawPrompt = prompt.replace(/^\/(note|reminder|calendar|log)\s*/i, "").trim();
-  const looksLikeMemory = hasCommand || /(remember|remind|log|note)/i.test(prompt);
-  const memoryType = isNote ? "note" : isReminder ? "reminder" : isCalendar ? "calendar" : isLog ? "log" : null;
+  const isLog      = lower.startsWith("/log ");
+  const hasSlash   = isNote || isReminder || isCalendar || isLog;
+  const rawPrompt  = prompt.replace(/^\/(note|reminder|calendar|log)\s*/i, "").trim();
 
-  if (looksLikeMemory) {
-    const memoryPrompt = hasCommand
+  let inferredType = null;
+  if (!hasSlash) {
+    if (/\b(remind me|reminder|remember)\b/i.test(prompt)) {
+      inferredType = "reminder";
+    } else if (/\b(on\s+\w+|tomorrow|today|at\s+\d{1,2}(:\d{2})?|am|pm|Monday|Tuesday|Friday|Saturday|Sunday)\b/i.test(prompt)) {
+      inferredType = "calendar";
+    } else if (/\b(log|journal)\b/i.test(prompt)) {
+      inferredType = "log";
+    }
+  }
+
+  const memoryType = hasSlash
+    ? (isNote     ? "note"
+     : isReminder ? "reminder"
+     : isCalendar ? "calendar"
+     : isLog      ? "log"
+     : null)
+    : inferredType;
+
+  if (memoryType) {
+    const memoryPrompt = hasSlash
       ? `Type: ${memoryType}\nContent: ${rawPrompt}`
       : prompt;
 
@@ -261,15 +360,21 @@ form.addEventListener("submit", async (e) => {
             {
               role: "system",
               content: `
-You are a memory parser. Extract structured memory from the user input in this exact JSON format:
-\`\`\`json
+You are a memory extraction engine. ALWAYS return exactly one JSON object with these keys:
 {
-  "type": "note",
-  "content": "string",
-  "date": "optional YYYY-MM-DD"
+  "type":   "note" | "reminder" | "calendar" | "log",
+  "content":"string",
+  "date":   "optional YYYY-MM-DD"
 }
-\`\`\`
-If type is provided, use that. Otherwise, infer it. Only return the JSON block.`
+
+RULES:
+1. If text begins with "/note", type="note".
+2. If it begins with "/reminder" or "remind me", type="reminder".
+3. If it mentions a specific date/time (e.g. "tomorrow", "Friday at 3pm", "on 2025-06-10"), type="calendar".
+4. If it begins with "/log" or includes "journaled", "logged", type="log".
+5. Otherwise, type="note" only as last resort.
+6. Populate "date" only when user explicitly gives it.
+7. Return ONLY the JSON block.`
             },
             { role: "user", content: memoryPrompt }
           ],
@@ -296,6 +401,7 @@ If type is provided, use that. Otherwise, infer it. Only return the JSON block.`
             : extractedData.type === "log"
             ? `dayLog/${uid}/${today}`
             : `notes/${uid}/${today}`;
+
         const refNode = ref(db, path);
         const entry = {
           content: extractedData.content,
@@ -311,10 +417,10 @@ If type is provided, use that. Otherwise, infer it. Only return the JSON block.`
       addDebugMessage("⚠️ GPT returned incomplete memory structure.");
     }
   } else {
-    addDebugMessage("🔕 Memory not saved (no trigger).");
+    addDebugMessage("🔕 No valid memory trigger.");
   }
 
-  // 6) Ask GPT for an assistant reply
+  // 6) Assistant reply
   let reply = "[No reply]";
   try {
     const replyRes = await fetch("/.netlify/functions/chatgpt", {

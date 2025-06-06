@@ -1,7 +1,10 @@
 // 🔹 memoryManager.js – Firebase read/write helpers + system prompt builder
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getDatabase, ref, get, set, push
+  getDatabase,
+  ref,
+  get,
+  set
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -35,10 +38,10 @@ export async function updateDayLog(uid, dateStr, newLog) {
   const existing = existingSnap.exists() ? existingSnap.val() : {};
 
   const merged = {
-    highlights: merge(existing.highlights, newLog.highlights),
-    mood: newLog.mood || existing.mood || "",
-    notes: merge(existing.notes, newLog.notes),
-    questions: merge(existing.questions, newLog.questions)
+    highlights: mergeArrays(existing.highlights, newLog.highlights),
+    mood: newLog.mood ?? existing.mood ?? "",
+    notes: mergeArrays(existing.notes, newLog.notes),
+    questions: mergeArrays(existing.questions, newLog.questions)
   };
 
   await set(ref(db, path), merged);
@@ -51,47 +54,108 @@ export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders
 You are Nexus, a second brain for Bossman.
 Date: ${date}
 
-User memory:
+-- User memory:
 ${formatBlock(memory)}
 
-Today's log:
+-- Today's log:
 ${formatBlock(todayLog)}
 
-Notes:
+-- Notes:
 ${formatBlock(notes)}
 
-Calendar:
+-- Calendar:
 ${formatBlock(calendar)}
 
-Reminders:
+-- Reminders:
 ${formatBlock(reminders)}
 
-Finances:
+-- Finances (calc history):
 ${formatBlock(calc)}
 
-You do this:
-- Respond clearly and only to what Bossman asks
-- Do not suggest next actions unless Bossman asks for them
-- Do not ask if the user wants to chat more
-- Stay brief, accurate, and task-focused
-- Reflect Bossman's intent. Prioritize clarity over chatter
-- Only include relevant info -- no small talk or filler
+Instructions for Nexus:
+- Respond directly and only to exactly what Bossman asks.
+- Do NOT suggest next actions unless Bossman explicitly asks.
+- Do NOT ask if the user wants to chat more.
+- Stay brief, accurate, and task‐focused.
+- Reflect Bossman's intent; prioritize clarity over filler.
+- Include only relevant info; omit small talk.
 `;
 }
 
 // 🔹 Internal Helpers
+
 async function fetchNode(path) {
   const snap = await get(ref(db, path));
   return snap.exists() ? snap.val() : {};
 }
 
-function merge(arr1 = [], arr2 = []) {
-  return Array.from(new Set([...(arr1 || []), ...(arr2 || [])]));
+function mergeArrays(arr1 = [], arr2 = []) {
+  if (!Array.isArray(arr1)) arr1 = [];
+  if (!Array.isArray(arr2)) arr2 = [];
+  return Array.from(new Set([...arr1, ...arr2]));
 }
 
+/**
+ * formatBlock:
+ * - If obj is empty or falsy, returns "None."
+ * - If obj is a flat object of primitives or arrays, formats as "key: value".
+ * - If obj is nested two levels deep (e.g. { date: { id: {...} } }), 
+ *   it iterates dates and lists item contents in a semicolon-separated line.
+ */
 function formatBlock(obj = {}) {
-  if (!obj || Object.keys(obj).length === 0) return "None.";
+  if (!obj || Object.keys(obj).length === 0) {
+    return "None.";
+  }
+
+  // Detect two‐level nesting where children have a 'content' field
+  const isTwoLevel = Object.values(obj).every(
+    (v) =>
+      v &&
+      typeof v === "object" &&
+      Object.values(v).every(
+        (child) =>
+          child &&
+          typeof child === "object" &&
+          ("content" in child || "amount" in child || "value" in child)
+      )
+  );
+
+  if (isTwoLevel) {
+    // Example: notes or calendar or reminders structure
+    // { "2025-06-06": { id1: {content, timestamp, ...}, id2: {...} }, ... }
+    return Object.entries(obj)
+      .map(([outerKey, innerObj]) => {
+        const items = Object.values(innerObj).map((entry) => {
+          // If it has 'content', use that; else try any stringifiable field
+          if ("content" in entry) {
+            // Optionally include a simplified timestamp or date if present
+            if ("date" in entry) {
+              return `${entry.date}: ${entry.content}`;
+            }
+            if ("timestamp" in entry) {
+              const t = new Date(entry.timestamp).toLocaleString();
+              return `${t}: ${entry.content}`;
+            }
+            return entry.content;
+          }
+          // Fallback: stringify the entry
+          return JSON.stringify(entry);
+        });
+        return `${outerKey}: ${items.join("; ")}`;
+      })
+      .join("\n");
+  }
+
+  // Otherwise, handle flat objects or simple arrays
   return Object.entries(obj)
-    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+    .map(([k, v]) => {
+      if (Array.isArray(v)) {
+        return `${k}: [${v.join(", ")}]`;
+      }
+      if (typeof v === "object") {
+        return `${k}: ${JSON.stringify(v)}`;
+      }
+      return `${k}: ${v}`;
+    })
     .join("\n");
 }
