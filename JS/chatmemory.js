@@ -153,13 +153,24 @@ form.addEventListener("submit", async (e) => {
 
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // Ask GPT to parse memory action
+  // Ask GPT to classify memory
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       messages: [
-        { role: "system", content: "Classify and extract memory: type (note/calendar/reminder/log), content, date(optional)." },
+        {
+          role: "system",
+          content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
+\`\`\`json
+{
+  "type": "note",
+  "content": "string",
+  "date": "optional YYYY-MM-DD"
+}
+\`\`\`
+Only return the JSON block. Supported types: note, calendar, reminder, log.`
+        },
         { role: "user", content: prompt }
       ],
       model: "gpt-4o", temperature: 0.3
@@ -167,11 +178,19 @@ form.addEventListener("submit", async (e) => {
   });
 
   const raw = await res.text();
-  const parsed = JSON.parse(raw);
-  const extracted = parsed?.choices?.[0]?.message?.content;
-  const data = extractJson(extracted);
+  let parsed, extracted, data;
+
+  try {
+    parsed = JSON.parse(raw);
+    extracted = parsed?.choices?.[0]?.message?.content;
+    data = extractJson(extracted);
+  } catch (err) {
+    console.warn("[PARSE FAIL]", raw);
+    addDebugMessage("❌ JSON parse error.");
+  }
 
   if (!data || !data.type || !data.content) {
+    console.warn("[MEMORY FAIL]", extracted);
     addDebugMessage("⚠️ GPT returned invalid or incomplete memory structure.");
   } else {
     try {
@@ -192,7 +211,7 @@ form.addEventListener("submit", async (e) => {
     }
   }
 
-  // Response
+  // Generate assistant reply
   const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -200,5 +219,19 @@ form.addEventListener("submit", async (e) => {
   });
   const replyData = await replyRes.json();
   const reply = replyData?.choices?.[0]?.message?.content || "[No reply]";
+
   await push(chatRef, { role: "assistant", content: reply, timestamp: Date.now() });
+
+  // Optional: persist long-term memory
+  await push(ref(db, `longMemory/${uid}`), {
+    role: "user",
+    content: prompt,
+    timestamp: Date.now()
+  });
+
+  await push(ref(db, `longMemory/${uid}`), {
+    role: "assistant",
+    content: reply,
+    timestamp: Date.now()
+  });
 });
