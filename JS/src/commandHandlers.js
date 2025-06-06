@@ -1,8 +1,13 @@
 import { db } from "./firebaseConfig.js";
-import { ref, get, child, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import {
+  ref,
+  get,
+  child,
+  set
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { appendNode } from "./firebaseHelpers.js";
 
-// Handle static commands ("/time", "/date", "/uid", etc.)
+// Handles static commands ("/time", "/date", "/uid", etc.)
 export async function handleStaticCommand(cmd, chatRef, uid) {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -24,7 +29,6 @@ export async function handleStaticCommand(cmd, chatRef, uid) {
       });
 
     case "/uid":
-      // Now uses the passed‐in uid directly:
       return appendNode(chatRef, {
         role: "assistant",
         content: `🆔 Your UID is: ${uid}`,
@@ -69,7 +73,11 @@ function listCommands(chatRef) {
     { cmd: "/date",     desc: "Show today’s date" },
     { cmd: "/uid",      desc: "Show your Firebase user ID" }
   ];
-  const response = commandList.map(c => `🔹 **${c.cmd}** – ${c.desc}`).join("\n");
+
+  const response = commandList
+    .map(c => `🔹 **${c.cmd}** – ${c.desc}`)
+    .join("\n");
+
   return appendNode(chatRef, {
     role: "assistant",
     content: `🧭 **Available Commands**:\n\n${response}`,
@@ -79,14 +87,29 @@ function listCommands(chatRef) {
 
 async function sendSummary(chatRef, uid, today) {
   const { getDayLog, getNotes } = await import("./memoryManager.js");
-  const [dayLog, notes] = await Promise.all([getDayLog(uid, today), getNotes(uid)]);
+  const [dayLog, notes] = await Promise.all([
+    getDayLog(uid, today),
+    getNotes(uid)
+  ]);
+
   const noteList = Object.values(notes?.[today] || {})
     .map(n => `- ${n.content}`)
     .join("\n") || "No notes.";
+
   const logSummary = Object.entries(dayLog || {})
     .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
     .join("\n") || "No log.";
-  const content = `📝 **Today’s Summary**:\n\n📓 Log:\n${logSummary}\n\n🗒️ Notes:\n${noteList}`;
+
+  const content = `
+📝 **Today’s Summary**:
+
+📓 Log:
+${logSummary}
+
+🗒️ Notes:
+${noteList}
+  `.trim();
+
   return appendNode(chatRef, {
     role: "assistant",
     content,
@@ -97,21 +120,25 @@ async function sendSummary(chatRef, uid, today) {
 export async function listNotes(chatRef) {
   const uid = chatRef._path.pieces_[1];
   const today = new Date().toISOString().slice(0, 10);
+
   try {
     const snap = await get(child(ref(db), `notes/${uid}`));
     const notesForToday = snap.exists() ? snap.val()[today] || {} : {};
     const keys = Object.keys(notesForToday);
+
     if (!keys.length) {
       return appendNode(chatRef, {
         role: "assistant",
         content: "🗒️ You have no notes for today."
       });
     }
+
     const lines = keys.map(key => {
       const { content, timestamp } = notesForToday[key];
       const time = new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       return `• [${time}] ${content}`;
     });
+
     const response = "🗒️ **Today's Notes:**\n" + lines.join("\n");
     return appendNode(chatRef, {
       role: "assistant",
@@ -127,21 +154,25 @@ export async function listNotes(chatRef) {
 
 export async function listReminders(chatRef) {
   const uid = chatRef._path.pieces_[1];
+
   try {
     const snap = await get(child(ref(db), `reminders/${uid}`));
     const remData = snap.exists() ? snap.val() : {};
     const keys = Object.keys(remData);
+
     if (!keys.length) {
       return appendNode(chatRef, {
         role: "assistant",
         content: "⏰ You have no reminders set."
       });
     }
+
     const lines = keys.map(key => {
       const { content, timestamp, date } = remData[key];
       const time = date || new Date(timestamp).toLocaleDateString();
       return `• [${time}] ${content}`;
     });
+
     const response = "⏰ **Your Reminders:**\n" + lines.join("\n");
     return appendNode(chatRef, {
       role: "assistant",
@@ -157,21 +188,25 @@ export async function listReminders(chatRef) {
 
 export async function listEvents(chatRef) {
   const uid = chatRef._path.pieces_[1];
+
   try {
     const snap = await get(child(ref(db), `calendarEvents/${uid}`));
     const evData = snap.exists() ? snap.val() : {};
     const keys = Object.keys(evData);
+
     if (!keys.length) {
       return appendNode(chatRef, {
         role: "assistant",
         content: "📆 You have no calendar events."
       });
     }
+
     const lines = keys.map(key => {
       const { content, timestamp, date } = evData[key];
       const time = date || new Date(timestamp).toLocaleDateString();
       return `• [${time}] ${content}`;
     });
+
     const response = "📆 **Your Events:**\n" + lines.join("\n");
     return appendNode(chatRef, {
       role: "assistant",
