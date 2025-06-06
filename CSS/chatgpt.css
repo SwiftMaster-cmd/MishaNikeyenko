@@ -1,4 +1,14 @@
-
+:root {
+  --clr-bg: #161026;
+  --clr-card: #1e1e2e;
+  --clr-border: #2e2e3e;
+  --clr-text: #f8fafd;
+  --clr-muted: #a1a6b9;
+  --clr-user: #7e3af2;
+  --clr-bot: #363c66;
+  --radius: 18px;
+  --padding: 1rem;
+}
 
 *,
 *::before,
@@ -8,8 +18,7 @@
   box-sizing: border-box;
 }
 
-html,
-body {
+html, body {
   height: 100%;
   width: 100vw;
   min-width: 100vw;
@@ -23,20 +32,6 @@ body {
   width: 100vw;
   min-width: 100vw;
 }
-<button id="debug-toggle" style="
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  z-index: 10000;
-  padding: 0.5rem 1rem;
-  background: var(--clr-border);
-  color: var(--clr-text);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-">
-  Debug
-</button>
 
 main.chat-container {
   display: flex;
@@ -82,12 +77,10 @@ main.chat-container {
   color: white;
 }
 
-.bot-msg,
-.assistant-msg {
+.bot-msg, .assistant-msg {
   align-self: flex-start;
   background: var(--clr-bot);
   color: white;
-  position: relative;
 }
 
 .debug-msg {
@@ -98,25 +91,6 @@ main.chat-container {
   align-self: center;
   border: none;
   box-shadow: none;
-}
-
-.bot-msg img,
-.user-msg img {
-  max-width: 300px;
-  border-radius: 8px;
-  display: block;
-  margin: 8px 0;
-}
-
-.info-icon {
-  display: inline;
-  cursor: pointer;
-  font-size: 0.9em;
-  margin-left: 6px;
-  opacity: 0.6;
-}
-.bot-msg:hover .info-icon {
-  opacity: 1;
 }
 
 #chat-form {
@@ -157,31 +131,19 @@ button[type="submit"] {
   transition: background 0.2s;
   min-width: 80px;
 }
+
 button[type="submit"]:hover,
 button[type="submit"]:active {
   background: #5b2ee5;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ────────────────────────────────────────────────────────────────────────── 
-   End of updated debug overlay section
-   ────────────────────────────────────────────────────────────────────────── */
-
 /* Remove unwanted right shift from any ancestor */
-body,
-html,
-.chat-container,
-main.chat-container {
+body, html, .chat-container, main.chat-container {
   margin: 0 !important;
   padding: 0 !important;
   left: 0 !important;
@@ -190,12 +152,6 @@ main.chat-container {
 }
 
 @media (max-width: 600px) {
-  .msg {
-    max-width: 94vw;
-    font-size: 0.98rem;
-  }
-  #chat-form {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
+  .msg { max-width: 94vw; font-size: 0.98rem; }
+  #chat-form { flex-direction: column; gap: 0.5rem; }
 }
