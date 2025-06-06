@@ -1,15 +1,9 @@
-// 🔹 chatLogic.js -- handles chat submission and logic
 
-// Firebase Setup
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getDatabase, ref, push, onValue
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import {
-  getAuth, signInAnonymously, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Config
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -24,31 +18,19 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// External Modules
+
+// 🔹 chatLogic.js -- handles chat submission and logic
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getMemory,
-  getDayLog,
-  getNotes,
-  getCalendar,
-  getReminders,
-  getCalcHistory,
-  buildSystemPrompt
+  getMemory, getDayLog, getNotes, getCalendar, getReminders, getCalcHistory, buildSystemPrompt
 } from "./memoryManager.js";
+import { form, input, renderMessages, addDebugMessage, setupScrollListener } from "./chatUI.js";
+import { handleMemoryCommand } from "./chatMemory.js";
 
-import {
-  form,
-  input,
-  renderMessages,
-  addDebugMessage,
-  setupScrollListener
-} from "./chatUI.js";
-
-import {
-  handleMemoryCommand
-} from "./chatMemory.js";
-
-// Main Chat Logic Setup
 export function setupChatLogic() {
+  const app = getDatabase();
+  const auth = getAuth();
   let uid = null;
   let chatRef = null;
 
@@ -62,8 +44,7 @@ export function setupChatLogic() {
     }
 
     uid = user.uid;
-    chatRef = ref(db, `chatHistory/${uid}`);
-
+    chatRef = ref(app, `chatHistory/${uid}`);
     onValue(chatRef, (snapshot) => {
       const data = snapshot.val() || {};
       const allMessages = Object.entries(data).map(([id, msg]) => ({
@@ -109,10 +90,8 @@ export function setupChatLogic() {
 
     const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-    // Handle memory commands like /note, /log, etc.
-    await handleMemoryCommand(prompt, uid, today);
+    await handleMemoryCommand(prompt, uid, today, app);
 
-    // Send to GPT
     const replyRes = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -121,11 +100,6 @@ export function setupChatLogic() {
 
     const replyData = await replyRes.json();
     const reply = replyData?.choices?.[0]?.message?.content || "[No reply]";
-
-    await push(chatRef, {
-      role: "assistant",
-      content: reply,
-      timestamp: Date.now()
-    });
+    await push(chatRef, { role: "assistant", content: reply, timestamp: Date.now() });
   });
 }

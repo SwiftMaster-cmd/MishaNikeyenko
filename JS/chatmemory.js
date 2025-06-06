@@ -1,12 +1,7 @@
-// 🔹 chatMemory.js -- handles memory-saving commands via GPT
 
-// Firebase Setup
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getDatabase, ref, push
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-import { addDebugMessage } from "./chatUI.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 // Firebase Config
 const firebaseConfig = {
@@ -21,14 +16,16 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
 
-// Extract clean JSON block from GPT response
+
+// 🔹 chatMemory.js -- command parsing and memory write
+import { ref, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { addDebugMessage } from "./chatUI.js";
+
 export function extractJson(raw) {
   if (!raw) return null;
-  const clean = raw
-    .replace(/```json\\s*([\\s\\S]*?)```/gi, "$1")
-    .replace(/```([\\s\\S]*?)```/gi, "$1")
-    .trim();
+  const clean = raw.replace(/```json\s*([\s\S]*?)```/gi, '$1').replace(/```([\s\S]*?)```/gi, '$1').trim();
   try {
     return JSON.parse(clean);
   } catch {
@@ -36,8 +33,7 @@ export function extractJson(raw) {
   }
 }
 
-// Detect command and write memory (if triggered)
-export async function handleMemoryCommand(prompt, uid, today) {
+export async function handleMemoryCommand(prompt, uid, today, db) {
   const lower = prompt.toLowerCase();
   const isNote = lower.startsWith("/note ");
   const isReminder = lower.startsWith("/reminder ");
@@ -96,22 +92,16 @@ Only return the JSON block. Supported types: note, calendar, reminder, log.`
     return null;
   }
 
-  const path =
-    data.type === "calendar"
-      ? `calendarEvents/${uid}`
-      : data.type === "reminder"
-      ? `reminders/${uid}`
-      : data.type === "log"
-      ? `dayLog/${uid}/${today}`
-      : `notes/${uid}/${today}`;
-
+  const path = data.type === "calendar" ? `calendarEvents/${uid}` :
+               data.type === "reminder" ? `reminders/${uid}` :
+               data.type === "log" ? `dayLog/${uid}/${today}` :
+               `notes/${uid}/${today}`;
   const refNode = ref(db, path);
   const entry = {
     content: data.content,
     timestamp: Date.now(),
     ...(data.date ? { date: data.date } : {})
   };
-
   await push(refNode, entry);
   addDebugMessage(`✅ Memory added to /${data.type}`);
   return data;
