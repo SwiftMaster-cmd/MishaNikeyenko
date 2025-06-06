@@ -1,3 +1,4 @@
+
 // 🔹 chat.js – dual-mode memory saving (commands + natural input)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -122,36 +123,13 @@ form.addEventListener("submit", async (e) => {
   const today = new Date().toISOString().slice(0, 10);
   input.value = "";
 
-  // 🔹 Static Utility Commands
-  if (prompt === "/time") {
-    const time = new Date().toLocaleTimeString();
-    await push(chatRef, { role: "assistant", content: `🕒 Current time is ${time}`, timestamp: Date.now() });
-    return;
-  }
-
-  if (prompt === "/date") {
-    await push(chatRef, { role: "assistant", content: `📅 Today's date is ${today}`, timestamp: Date.now() });
-    return;
-  }
-
-  if (prompt === "/uid") {
-    await push(chatRef, { role: "assistant", content: `🆔 Your UID is: ${uid}`, timestamp: Date.now() });
-    return;
-  }
-
-  if (prompt === "/clearchat") {
-    await set(chatRef, {});
-    log.innerHTML = "";
-    await push(chatRef, { role: "assistant", content: "🧼 Chat history cleared.", timestamp: Date.now() });
-    return;
-  }
-
   if (prompt === "/summary") {
     const [dayLog, notes] = await Promise.all([
       getDayLog(uid, today),
       getNotes(uid)
     ]);
-    const noteList = Object.values(notes?.[today] || {}).map(n => `- ${n.content}`).join("\n") || "No notes.";
+    const rawNotes = notes?.[today] || {};
+    const noteList = Object.entries(rawNotes).map(([id, n]) => `- ${n.content || "[empty note]"}`).join("\n") || "No notes found.";
     const logSummary = Object.entries(dayLog || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join("\n") || "No log.";
     await push(chatRef, {
       role: "assistant",
@@ -161,28 +139,6 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  if (prompt === "/commands") {
-    const commandList = [
-      { cmd: "/note", desc: "Save a note (e.g. /note call Mom later)" },
-      { cmd: "/reminder", desc: "Set a reminder (e.g. /reminder pay bill tomorrow)" },
-      { cmd: "/calendar", desc: "Create a calendar event (e.g. /calendar dinner Friday)" },
-      { cmd: "/log", desc: "Add to your day log (e.g. /log felt great after run)" },
-      { cmd: "/summary", desc: "Summarize today’s log and notes" },
-      { cmd: "/clearchat", desc: "Clear the visible chat history" },
-      { cmd: "/time", desc: "Show current time" },
-      { cmd: "/date", desc: "Show today’s date" },
-      { cmd: "/uid", desc: "Show your Firebase user ID" }
-    ];
-    const response = commandList.map(c => `🔹 **${c.cmd}** – ${c.desc}`).join("\n");
-    await push(chatRef, {
-      role: "assistant",
-      content: `🧭 **Available Commands**:\n\n${response}`,
-      timestamp: Date.now()
-    });
-    return;
-  }
-
-  // Default chat and memory flow
   await push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
 
   const snapshot = await new Promise(resolve => onValue(chatRef, resolve, { onlyOnce: true }));
@@ -207,7 +163,6 @@ form.addEventListener("submit", async (e) => {
   });
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // 🔍 Detect memory trigger
   const lower = prompt.toLowerCase();
   const isNote = lower.startsWith("/note ");
   const isReminder = lower.startsWith("/reminder ");
@@ -215,7 +170,6 @@ form.addEventListener("submit", async (e) => {
   const isLog = lower.startsWith("/log ");
   const hasCommand = isNote || isReminder || isCalendar || isLog;
   const rawPrompt = prompt.replace(/^\/(note|reminder|calendar|log)\s*/i, "").trim();
-
   const looksLikeMemory = hasCommand || /(remember|remind|log|note)/i.test(prompt);
   const memoryType = isNote ? "note" : isReminder ? "reminder" : isCalendar ? "calendar" : isLog ? "log" : null;
 
@@ -259,12 +213,10 @@ If type is provided, use that. Otherwise, infer it from the content. Only return
       extracted = parsed?.choices?.[0]?.message?.content;
       data = extractJson(extracted);
     } catch (err) {
-      console.warn("[PARSE FAIL]", raw);
       addDebugMessage("❌ JSON parse error.");
     }
 
     if (!data || !data.type || !data.content) {
-      console.warn("[MEMORY FAIL]", extracted);
       addDebugMessage("⚠️ GPT returned invalid or incomplete memory structure.");
     } else {
       try {
@@ -288,7 +240,6 @@ If type is provided, use that. Otherwise, infer it from the content. Only return
     addDebugMessage("🔕 Memory not saved (no trigger phrase).");
   }
 
-  // Assistant reply
   const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
