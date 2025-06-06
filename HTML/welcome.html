@@ -159,30 +159,28 @@
     <button class="btn-solid" type="submit">Save</button>
   </form>
 
-  <!-- GPT Chat -->
-  <main class="chat-container">
-     <div id="debug-overlay">
-     <div id="debug-modal">
-       <button class="close-btn">Close</button>
-       <div id="debug-content">
-         <!-- all debug lines get injected here -->
-       </div>
-     </div>
-   </div>
-    <div id="chat-log"></div>
+<!-- GPT Chat -->
+<main class="chat-container">
+  <div id="chat-log"></div>
 
-    <form id="chat-form">
-      <input id="user-input" type="text" placeholder="Type your message..." required />
-      <button type="submit">Send</button>
-    </form>
-  </main>
+  <form id="chat-form">
+    <input
+      id="user-input"
+      type="text"
+      placeholder="Type your message..."
+      required
+    />
+    <button type="submit">Send</button>
+  </form>
+</main>
 
-  <!-- Debug Overlay (populated by JS) -->
-  <div id="debug-overlay">
-    <button>Close</button>
+<!-- Debug Overlay (populated by JS) -->
+<div id="debug-overlay">
+  <div id="debug-modal">
+    <button class="close-btn">Close</button>
     <div id="debug-content"></div>
   </div>
-
+</div>
   <!-- MODULE SCRIPTS -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
