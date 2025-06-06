@@ -1,7 +1,7 @@
-// 🔹 chat.js – command-based memory triggers with GPT classification + /calendar history support
+// 🔹 chat.js – command-based memory triggers with GPT classification
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getDatabase, ref, push, set, onValue
+  getDatabase, ref, push, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth, signInAnonymously, onAuthStateChanged
@@ -143,39 +143,24 @@ form.addEventListener("submit", async (e) => {
     getCalcHistory(uid)
   ]);
 
-  // ─── Manual Trigger for /calendar history ───
-  const lower = prompt.toLowerCase();
-  if (lower === "/calendar history") {
-    const events = calendar && typeof calendar === "object"
-      ? Object.values(calendar).map(event => `• ${event.content || JSON.stringify(event)}`).join("\n")
-      : "No calendar events found.";
-
-    await push(chatRef, {
-      role: "assistant",
-      content: events || "No calendar events found.",
-      timestamp: Date.now()
-    });
-    return;
-  }
-
   const sysPrompt = buildSystemPrompt({
     memory, todayLog: dayLog, notes, calendar, reminders, calc, date: today
   });
 
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // Detect command triggers
+  // 🔹 Command Triggers
+  const lower = prompt.toLowerCase();
   const isNote = lower.startsWith("/note ");
   const isReminder = lower.startsWith("/reminder ");
   const isCalendar = lower.startsWith("/calendar ");
   const isLog = lower.startsWith("/log ");
   const shouldSaveMemory = isNote || isReminder || isCalendar || isLog;
+  const type = isNote ? "note" : isReminder ? "reminder" : isCalendar ? "calendar" : isLog ? "log" : null;
+  const rawPrompt = shouldSaveMemory ? prompt.replace(/^\/(note|reminder|calendar|log)\s*/i, "").trim() : prompt;
 
-  const rawPrompt = shouldSaveMemory
-    ? prompt.replace(/^\/(note|reminder|calendar|log)\s*/i, "").trim()
-    : prompt;
-
-  if (shouldSaveMemory) {
+  // 🔹 Write to Firebase if triggered
+  if (shouldSaveMemory && type) {
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -183,19 +168,20 @@ form.addEventListener("submit", async (e) => {
         messages: [
           {
             role: "system",
-            content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
+            content: `You are a memory parser. Extract a memory object of type "${type}" from the user input in this exact format:
 \`\`\`json
 {
-  "type": "calendar",
-  "content": "Lunch with client",
-  "date": "2025-06-07"
+  "type": "${type}",
+  "content": "string",
+  "date": "optional YYYY-MM-DD"
 }
 \`\`\`
-Only return the JSON block. Supported types: note, calendar, reminder, log. The "type" must match the intent. Never include explanation.`
+Only return that JSON block.`
           },
           { role: "user", content: rawPrompt }
         ],
-        model: "gpt-4o", temperature: 0.3
+        model: "gpt-4o",
+        temperature: 0.3
       })
     });
 
@@ -206,13 +192,11 @@ Only return the JSON block. Supported types: note, calendar, reminder, log. The 
       parsed = JSON.parse(raw);
       extracted = parsed?.choices?.[0]?.message?.content;
       data = extractJson(extracted);
-    } catch (err) {
-      console.warn("[PARSE FAIL]", raw);
+    } catch {
       addDebugMessage("❌ JSON parse error.");
     }
 
     if (!data || !data.type || !data.content) {
-      console.warn("[MEMORY FAIL]", extracted);
       addDebugMessage("⚠️ GPT returned invalid or incomplete memory structure.");
     } else {
       try {
@@ -236,6 +220,7 @@ Only return the JSON block. Supported types: note, calendar, reminder, log. The 
     addDebugMessage("🔕 Memory not saved (no command trigger).");
   }
 
+  // 🔹 Get Assistant Reply
   const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
