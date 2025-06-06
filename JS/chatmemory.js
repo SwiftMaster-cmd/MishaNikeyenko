@@ -1,4 +1,4 @@
-// 🔹 chat.js – controlled memory save with last-20 context
+// 🔹 chat.js – command-based memory triggers with GPT classification
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, set, onValue
@@ -149,8 +149,17 @@ form.addEventListener("submit", async (e) => {
 
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // Optional memory save trigger
-  const shouldSaveMemory = prompt.toLowerCase().includes("save this");
+  // Detect command triggers
+  const lower = prompt.toLowerCase();
+  const isNote = lower.startsWith("/note ");
+  const isReminder = lower.startsWith("/reminder ");
+  const isCalendar = lower.startsWith("/calendar ");
+  const isLog = lower.startsWith("/log ");
+
+  const shouldSaveMemory = isNote || isReminder || isCalendar || isLog;
+  const rawPrompt = shouldSaveMemory
+    ? prompt.replace(/^\/(note|reminder|calendar|log)\s*/i, "").trim()
+    : prompt;
 
   if (shouldSaveMemory) {
     const res = await fetch("/.netlify/functions/chatgpt", {
@@ -170,7 +179,7 @@ form.addEventListener("submit", async (e) => {
 \`\`\`
 Only return the JSON block. Supported types: note, calendar, reminder, log.`
           },
-          { role: "user", content: prompt }
+          { role: "user", content: rawPrompt }
         ],
         model: "gpt-4o", temperature: 0.3
       })
@@ -210,10 +219,10 @@ Only return the JSON block. Supported types: note, calendar, reminder, log.`
       }
     }
   } else {
-    addDebugMessage("🔕 Memory not saved (no save trigger found).");
+    addDebugMessage("🔕 Memory not saved (no command trigger).");
   }
 
-  // Send assistant reply
+  // Assistant reply
   const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
