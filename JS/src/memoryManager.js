@@ -1,4 +1,4 @@
-// 🔹 memoryManager.js – Firebase read/write helpers + system prompt builder
+// 🔹 memoryManager.js – Firebase read/write + enhanced system prompt builder
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase,
@@ -29,6 +29,8 @@ export const getNotes       = (uid) => fetchNode(`notes/${uid}`);
 export const getCalendar    = (uid) => fetchNode(`calendarEvents/${uid}`);
 export const getReminders   = (uid) => fetchNode(`reminders/${uid}`);
 export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
+export const getLocation    = (uid) => fetchNode(`location/${uid}`);
+export const getPreferences = (uid) => fetchNode(`preferences/${uid}`);
 
 // 🔹 Write Helper for Day Log
 export async function updateDayLog(uid, dateStr, newLog) {
@@ -47,23 +49,74 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// 🔹 Prompt Builder
-export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
+// 🔹 Prompt Builder (enhanced)
+export async function buildSystemPrompt({ uid, memory, todayLog, notes, calendar, reminders, calc, date }) {
+  // 1) Detect "current calendar event"
+  let currentEvent = "None.";
+  const now = new Date();
+  Object.values(calendar || {}).forEach(evt => {
+    const start = evt.dateStart ? new Date(evt.dateStart) : null;
+    const end   = evt.dateEnd   ? new Date(evt.dateEnd)   : null;
+    if (start && end && start <= now && now <= end) {
+      currentEvent = evt.title || evt.content || "Untitled event";
+    }
+  });
+
+  // 2) Fetch latest location if exists
+  let locationLine = "None.";
+  const locBlock = await fetchNode(`location/${uid}`);
+  if (locBlock && Object.keys(locBlock).length) {
+    const latestKey = Object.entries(locBlock)
+      .sort(([, a], [, b]) => b.timestamp - a.timestamp)
+      .map(([k]) => k)[0];
+    const loc = locBlock[latestKey];
+    if (loc && loc.lat != null && loc.lon != null) {
+      const ts = new Date(loc.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      locationLine = `${loc.lat.toFixed(3)},${loc.lon.toFixed(3)} at ${ts}`;
+    }
+  }
+
+  // 3) Pattern hints (from memory entries of type="pattern")
+  let patternHints = "None.";
+  const memBlock = await fetchNode(`memory/${uid}`);
+  if (memBlock) {
+    const patterns = Object.values(memBlock)
+      .filter(item => item.type === "pattern" && item.content)
+      .map(item => item.content);
+    if (patterns.length) patternHints = patterns.join("\n");
+  }
+
+  // 4) Preferences (likes/dislikes)
+  let preferenceLines = "None.";
+  const prefBlock = await fetchNode(`preferences/${uid}`);
+  if (prefBlock && Object.keys(prefBlock).length) {
+    preferenceLines = Object.values(prefBlock)
+      .map(p => {
+        const txt = p.content;
+        const ts  = new Date(p.timestamp).toLocaleDateString();
+        return `${ts}: ${txt}`;
+      })
+      .join("\n");
+  }
+
   return `
 You are Nexus, a second brain for Bossman.
 Date: ${date}
 
--- User memory:
+-- Memory summary (recent):
 ${formatBlock(memory)}
 
--- Today's log:
+-- Today’s log:
 ${formatBlock(todayLog)}
 
 -- Notes:
 ${formatBlock(notes)}
 
--- Calendar:
+-- Upcoming calendar events:
 ${formatBlock(calendar)}
+
+-- Current calendar event:
+${currentEvent}
 
 -- Reminders:
 ${formatBlock(reminders)}
@@ -71,14 +124,25 @@ ${formatBlock(reminders)}
 -- Finances (calc history):
 ${formatBlock(calc)}
 
+-- Location (latest):
+${locationLine}
+
+-- Pattern hints (keywords from last 30 days of notes):
+${patternHints}
+
+-- Preferences (likes/dislikes):
+${preferenceLines}
+
 Instructions for Nexus:
 - Respond directly and only to exactly what Bossman asks.
-- Do NOT suggest next actions unless Bossman explicitly asks.
-- Do NOT ask if the user wants to chat more.
-- Do NOT append ANY extra closing sentence or salutation (e.g. "If there's anything else you'd like to do, let me know.").
-- End your response immediately after providing the answer; no trailing remarks.
+- Do NOT suggest next actions unless explicitly asked.
+- Do NOT ask if user wants to chat more.
+- If a current event exists, keep responses brief and relevant to that context.
+- If location is provided, use it for personalized suggestions (e.g. nearby stores).
+- Use pattern hints to surface recurring needs (e.g. "You often mention groceries").
+- Use preferences to tailor tone and suggestions (e.g. preferred music, favorite foods).
+- Do NOT append any closing lines like "If you need more …".
 - Stay brief, accurate, and task-focused.
-- Reflect Bossman's intent; prioritize clarity over filler.
 - Include only relevant info; omit small talk.
 `;
 }
@@ -109,7 +173,7 @@ function formatBlock(obj = {}) {
         (child) =>
           child &&
           typeof child === "object" &&
-          ("content" in child || "amount" in child || "value" in child)
+          ("content" in child || "summary" in child || "lat" in child || "lon" in child)
       )
   );
 
@@ -126,6 +190,14 @@ function formatBlock(obj = {}) {
               return `${t}: ${entry.content}`;
             }
             return entry.content;
+          }
+          if ("summary" in entry) {
+            const t = new Date(entry.timestamp).toLocaleString();
+            return `${t}: ${entry.summary}`;
+          }
+          if ("lat" in entry && "lon" in entry) {
+            const t = new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            return `Location: ${entry.lat.toFixed(3)},${entry.lon.toFixed(3)} at ${t}`;
           }
           return JSON.stringify(entry);
         });
