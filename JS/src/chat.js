@@ -1,3 +1,4 @@
+// 🔹 chat.js – dual‐mode memory saving + storage debug
 import {
   ref,
   push,
@@ -29,7 +30,8 @@ import {
   listEvents
 } from "./commandHandlers.js";
 import { extractJson, detectMemoryType } from "./chatUtils.js";
-import { mountStorageIndicator } from "./storageDebug.js"; // ← added
+import { watchStorageDebug } from "./storageDebug.js"; // ← added
+
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
@@ -85,6 +87,9 @@ onAuthStateChanged(auth, (user) => {
   }
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
+
+  // Start watching storage changes
+  watchStorageDebug(uid, addDebugMessage);
 
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
