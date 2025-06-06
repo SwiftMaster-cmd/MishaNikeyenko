@@ -1,11 +1,9 @@
-// 🔹 memoryManager.js – loads memory and builds GPT prompt
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+// 🔹 memoryManager.js – handles all memory fetches and writes
 import {
-  getDatabase,
-  ref,
-  get,
-  set,
-  push
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase, ref, get, set, push
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth
@@ -17,7 +15,7 @@ const firebaseConfig = {
   authDomain: "mishanikeyenko.firebaseapp.com",
   databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
   projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.appspot.com",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
   messagingSenderId: "1089190937368",
   appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
 };
@@ -26,7 +24,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// 🔹 Get data blocks
+// Load memory nodes
 export const getMemory = (uid) => fetchNode(`memory/${uid}`);
 export const getDayLog = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
 export const getNotes = (uid) => fetchNode(`notes/${uid}`);
@@ -34,11 +32,26 @@ export const getCalendar = (uid) => fetchNode(`calendarEvents/${uid}`);
 export const getReminders = (uid) => fetchNode(`reminders/${uid}`);
 export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
 
-// 🔹 Write day log (merges with previous)
+async function fetchNode(path) {
+  const snap = await get(ref(db, path));
+  return snap.exists() ? snap.val() : {};
+}
+
+// Write helpers
+export async function addNote(uid, content) {
+  if (!uid || !content) return false;
+  const today = new Date().toISOString().split('T')[0];
+  await push(ref(db, `notes/${uid}/${today}`), {
+    content,
+    timestamp: Date.now()
+  });
+  return true;
+}
+
 export async function updateDayLog(uid, dateStr, newLog) {
   const path = `dayLog/${uid}/${dateStr}`;
-  const snap = await get(ref(db, path));
-  const existing = snap.exists() ? snap.val() : {};
+  const existingSnap = await get(ref(db, path));
+  const existing = existingSnap.exists() ? existingSnap.val() : {};
 
   const merged = {
     highlights: merge(existing.highlights, newLog.highlights),
@@ -51,7 +64,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// 🔹 Build system prompt for GPT
+// System prompt builder
 export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
   return `
 You are Nexus, a second brain for Bossman.
@@ -82,10 +95,11 @@ You do this:
 - Stay brief, accurate, and task-focused
 - Reflect Bossman's intent. Prioritize clarity over chatter
 - Only include relevant info -- no small talk or filler
+- Use calendar, notes, logs, and reminders when relevant
 `;
 }
 
-// 🔹 Helpers
+// Helpers
 function merge(arr1 = [], arr2 = []) {
   return Array.from(new Set([...(arr1 || []), ...(arr2 || [])]));
 }
@@ -95,9 +109,4 @@ function formatBlock(obj = {}) {
   return Object.entries(obj)
     .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
     .join("\n");
-}
-
-async function fetchNode(path) {
-  const snap = await get(ref(db, path));
-  return snap.exists() ? snap.val() : {};
 }
