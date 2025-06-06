@@ -1,9 +1,13 @@
-// 🔹 memoryManager.js – handles all memory fetches and writes
+// 🔹 memoryManager.js – Unified memory read/write system
 import {
   initializeApp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getDatabase, ref, get, set, push
+  getDatabase,
+  ref,
+  get,
+  set,
+  push
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth
@@ -24,26 +28,46 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// Load memory nodes
-export const getMemory = (uid) => fetchNode(`memory/${uid}`);
-export const getDayLog = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
-export const getNotes = (uid) => fetchNode(`notes/${uid}`);
-export const getCalendar = (uid) => fetchNode(`calendarEvents/${uid}`);
-export const getReminders = (uid) => fetchNode(`reminders/${uid}`);
-export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
+// 🔹 Fetch wrappers
+export const getMemory       = (uid) => fetchNode(`memory/${uid}`);
+export const getDayLog       = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
+export const getNotes        = (uid) => fetchNode(`notes/${uid}`);
+export const getCalendar     = (uid) => fetchNode(`calendarEvents/${uid}`);
+export const getReminders    = (uid) => fetchNode(`reminders/${uid}`);
+export const getCalcHistory  = (uid) => fetchNode(`calcHistory/${uid}`);
 
 async function fetchNode(path) {
   const snap = await get(ref(db, path));
   return snap.exists() ? snap.val() : {};
 }
 
-// Write helpers
-export async function addNote(uid, content) {
+// 🔹 Write handlers
+export async function addNote(uid, content, dateOverride = null) {
   if (!uid || !content) return false;
-  const today = new Date().toISOString().split('T')[0];
+  const today = dateOverride || new Date().toISOString().split('T')[0];
   await push(ref(db, `notes/${uid}/${today}`), {
     content,
     timestamp: Date.now()
+  });
+  return true;
+}
+
+export async function addReminder(uid, content, dateOverride = null) {
+  if (!uid || !content) return false;
+  await push(ref(db, `reminders/${uid}`), {
+    content,
+    timestamp: Date.now(),
+    ...(dateOverride ? { date: dateOverride } : {})
+  });
+  return true;
+}
+
+export async function addCalendarEvent(uid, content, dateOverride = null) {
+  if (!uid || !content) return false;
+  await push(ref(db, `calendarEvents/${uid}`), {
+    content,
+    timestamp: Date.now(),
+    ...(dateOverride ? { date: dateOverride } : {})
   });
   return true;
 }
@@ -64,7 +88,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// System prompt builder
+// 🔹 Prompt Builder
 export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
   return `
 You are Nexus, a second brain for Bossman.
@@ -95,11 +119,10 @@ You do this:
 - Stay brief, accurate, and task-focused
 - Reflect Bossman's intent. Prioritize clarity over chatter
 - Only include relevant info -- no small talk or filler
-- Use calendar, notes, logs, and reminders when relevant
 `;
 }
 
-// Helpers
+// 🔹 Helpers
 function merge(arr1 = [], arr2 = []) {
   return Array.from(new Set([...(arr1 || []), ...(arr2 || [])]));
 }
