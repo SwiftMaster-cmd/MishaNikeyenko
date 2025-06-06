@@ -70,7 +70,7 @@ function renderMessages(messages) {
     .forEach((msg) => {
       const role = msg.role === "bot" ? "assistant" : msg.role;
       const div = document.createElement("div");
-      div.className = \`msg \${role === "user" ? "user-msg" : role === "assistant" ? "bot-msg" : "debug-msg"}\`;
+      div.className = `msg ${role === "user" ? "user-msg" : role === "assistant" ? "bot-msg" : "debug-msg"}`;
       div.textContent = msg.content;
       log.appendChild(div);
     });
@@ -86,7 +86,7 @@ onAuthStateChanged(auth, (user) => {
   }
 
   uid = user.uid;
-  chatRef = ref(db, \`chatHistory/\${uid}\`);
+  chatRef = ref(db, `chatHistory/${uid}`);
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
     const allMessages = Object.entries(data).map(([id, msg]) => ({
@@ -149,7 +149,7 @@ form.addEventListener("submit", async (e) => {
 
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // Detect command triggers
+  // Command detection
   const lower = prompt.toLowerCase();
   const isNote = lower.startsWith("/note ");
   const isReminder = lower.startsWith("/reminder ");
@@ -169,7 +169,7 @@ form.addEventListener("submit", async (e) => {
         messages: [
           {
             role: "system",
-            content: \`You are a memory parser. Extract structured memory from the user input in this exact JSON format:
+            content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
 \`\`\`json
 {
   "type": "note",
@@ -177,7 +177,7 @@ form.addEventListener("submit", async (e) => {
   "date": "optional YYYY-MM-DD"
 }
 \`\`\`
-Only return the JSON block. Supported types: note, calendar, reminder, log.\`
+Only return the JSON block. Supported types: note, calendar, reminder, log.`
           },
           { role: "user", content: rawPrompt }
         ],
@@ -202,10 +202,10 @@ Only return the JSON block. Supported types: note, calendar, reminder, log.\`
       addDebugMessage("⚠️ GPT returned invalid or incomplete memory structure.");
     } else {
       try {
-        const path = data.type === "calendar" ? \`calendarEvents/\${uid}\` :
-                    data.type === "reminder" ? \`reminders/\${uid}\` :
-                    data.type === "log" ? \`dayLog/\${uid}/\${today}\` :
-                    \`notes/\${uid}/\${today}\`;
+        const path = data.type === "calendar" ? `calendarEvents/${uid}` :
+                    data.type === "reminder" ? `reminders/${uid}` :
+                    data.type === "log" ? `dayLog/${uid}/${today}` :
+                    `notes/${uid}/${today}`;
         const refNode = ref(db, path);
         const entry = {
           content: data.content,
@@ -213,7 +213,7 @@ Only return the JSON block. Supported types: note, calendar, reminder, log.\`
           ...(data.date ? { date: data.date } : {})
         };
         await push(refNode, entry);
-        addDebugMessage(\`✅ Memory added to /\${data.type}\`);
+        addDebugMessage(`✅ Memory added to /${data.type}`);
       } catch (err) {
         addDebugMessage("❌ Firebase write failed: " + err.message);
       }
@@ -222,6 +222,7 @@ Only return the JSON block. Supported types: note, calendar, reminder, log.\`
     addDebugMessage("🔕 Memory not saved (no command trigger).");
   }
 
+  // Assistant reply
   const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
