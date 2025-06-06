@@ -95,6 +95,7 @@ You do this:
 - Stay brief, accurate, and task-focused
 - Reflect Bossman's intent. Prioritize clarity over chatter
 - Only include relevant info -- no small talk or filler
+- Use calendar, notes, logs, and reminders when relevant
 `;
 }
 
