@@ -1,4 +1,4 @@
-// ðŸ"¹ chat.js â€" dualâ€mode memory saving + hoverâ€toâ€view debug/info overlay
+// 🔹 chat.js – dual-mode memory saving + hover-to-view debug/info overlay
 import {
   ref,
   push,
@@ -41,62 +41,80 @@ let uid = null;
 let chatRef = null;
 let userHasScrolled = false;
 
+// Push into debugInfo array; not appended to chat
 function addDebugMessage(text) {
-  // Push into debugInfo array; not appended to chat
   debugInfo.push(text);
 }
 
-// Create the debug overlay element (hidden by default)
+// Create the debug overlay element (hidden by default), matching CSS selectors
 function createDebugOverlay() {
+  // Outer overlay
   const overlay = document.createElement("div");
   overlay.id = "debug-overlay";
   Object.assign(overlay.style, {
     display: "none",
     position: "fixed",
+    top: "0",
+    left: "0",
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    zIndex: 9999
+  });
+
+  // Centered modal box inside the overlay
+  const modal = document.createElement("div");
+  modal.id = "debug-modal";
+  Object.assign(modal.style, {
+    position: "absolute",
     top: "50%",
     left: "50%",
     transform: "translate(-50%, -50%)",
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
-    color: "#fff",
-    padding: "20px",
-    borderRadius: "8px",
-    maxHeight: "70vh",
+    backgroundColor: "var(--clr-card)",
+    color: "var(--clr-text)",
+    padding: "1rem 1.5rem",
+    borderRadius: "12px",
+    boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
     maxWidth: "80vw",
+    maxHeight: "80vh",
     overflowY: "auto",
-    zIndex: 10000,
-    boxShadow: "0 2px 10px rgba(0,0,0,0.5)"
+    border: "1px solid var(--clr-border)"
   });
 
-  // Close button
+  // Close button inside the modal
   const closeBtn = document.createElement("button");
+  closeBtn.className = "close-btn";
   closeBtn.textContent = "Close";
   Object.assign(closeBtn.style, {
     position: "absolute",
-    top: "10px",
-    right: "10px",
-    background: "#444",
-    color: "#fff",
+    top: "8px",
+    right: "8px",
+    background: "var(--clr-border)",
+    color: "var(--clr-text)",
     border: "none",
-    padding: "6px 10px",
+    padding: "4px 8px",
     cursor: "pointer",
-    borderRadius: "4px"
+    borderRadius: "4px",
+    fontSize: "0.9rem"
   });
   closeBtn.addEventListener("click", () => {
     overlay.style.display = "none";
   });
-  overlay.appendChild(closeBtn);
 
-  // Container for debug lines
+  // Container for debug text inside the modal
   const contentDiv = document.createElement("div");
   contentDiv.id = "debug-content";
   Object.assign(contentDiv.style, {
-    marginTop: "30px",
+    marginTop: "32px",
     whiteSpace: "pre-wrap",
     fontFamily: "monospace",
-    fontSize: "14px"
+    fontSize: "0.9rem",
+    lineHeight: "1.4"
   });
-  overlay.appendChild(contentDiv);
 
+  modal.appendChild(closeBtn);
+  modal.appendChild(contentDiv);
+  overlay.appendChild(modal);
   document.body.appendChild(overlay);
 }
 
@@ -105,7 +123,6 @@ function showDebugOverlay() {
   const overlay = document.getElementById("debug-overlay");
   const contentDiv = document.getElementById("debug-content");
   if (!overlay || !contentDiv) return;
-  // Combine all debugInfo entries into one string
   contentDiv.textContent = debugInfo.join("\n");
   overlay.style.display = "block";
 }
@@ -136,7 +153,8 @@ function renderMessages(messages) {
         role === "assistant" ? "bot-msg" :
         "debug-msg"
       }`;
-      div.textContent = msg.content;
+      // Use innerHTML so that any HTML (e.g., <img> for GIFs) renders properly
+      div.innerHTML = msg.content;
       log.appendChild(div);
     });
 
@@ -150,7 +168,7 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-// Attach a small "â„¹ï¸" icon to the given assistant bubble element
+// Attach a small ℹ️ icon to the given assistant bubble element
 function attachInfoIcon(bubbleElement) {
   // Remove any existing icons to avoid duplicates
   const existingIcon = bubbleElement.querySelector(".info-icon");
@@ -158,7 +176,7 @@ function attachInfoIcon(bubbleElement) {
 
   const icon = document.createElement("span");
   icon.className = "info-icon";
-  icon.textContent = " â„¹ï¸";
+  icon.textContent = " ℹ️";
   Object.assign(icon.style, {
     cursor: "pointer",
     fontSize: "0.9em",
@@ -205,7 +223,7 @@ form.addEventListener("submit", async (e) => {
   if (!prompt || !chatRef || !uid) return;
   input.value = "";
 
-  // â"€â"€ Handle static & listing commands first â"€â"€
+  // -------------------------- Handle static & listing commands first --------------------------
   const staticCommands = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
   if (staticCommands.includes(prompt)) {
     await handleStaticCommand(prompt, chatRef, uid);
@@ -224,32 +242,32 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // â"€â"€ 1) Push user message â"€â"€
+  // -------------------------- 1) Push user message --------------------------
   const now = Date.now();
   await push(chatRef, { role: "user", content: prompt, timestamp: now });
 
-  // â"€â"€ 2) In parallel: assistant reply + memory write â"€â"€
+  // -------------------------- 2) In parallel: assistant reply + memory write --------------------------
   (async () => {
     const today = new Date().toISOString().slice(0, 10);
 
-    // Fetch last 20 messages for context
+    // a) Fetch last 20 messages for context
     let last20 = [];
     try {
       const snap = await get(child(ref(db), `chatHistory/${uid}`));
       const data = snap.exists() ? snap.val() : {};
-      const allMessages = Object.entries(data).map(([id, msg]) => ({
+      const allMsgs = Object.entries(data).map(([id, msg]) => ({
         role: msg.role === "bot" ? "assistant" : msg.role,
         content: msg.content,
         timestamp: msg.timestamp || 0
       }));
-      last20 = allMessages
+      last20 = allMsgs
         .sort((a, b) => a.timestamp - b.timestamp)
         .slice(-20);
     } catch (err) {
       addDebugMessage("Error fetching last 20 for reply: " + err.message);
     }
 
-    // Fetch memory/context
+    // b) Fetch memory/context
     const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
       getMemory(uid),
       getDayLog(uid, today),
@@ -259,7 +277,7 @@ form.addEventListener("submit", async (e) => {
       getCalcHistory(uid)
     ]);
 
-    // Build system prompt + conversation for assistant
+    // c) Build system prompt + conversation for assistant
     const sysPrompt = buildSystemPrompt({
       memory,
       todayLog: dayLog,
@@ -271,7 +289,7 @@ form.addEventListener("submit", async (e) => {
     });
     const full = [{ role: "system", content: sysPrompt }, ...last20];
 
-    // Detect "memory" commands and write to appropriate nodes
+    // d) Detect "memory" commands and write to appropriate nodes
     const { memoryType, rawPrompt } = detectMemoryType(prompt);
     if (memoryType) {
       try {
@@ -331,7 +349,7 @@ RULES:
       }
     }
 
-    // Get the assistantâ€™s reply from GPT
+    // e) Get the assistant’s reply from GPT
     let assistantReply = "[No reply]";
     try {
       const replyRes = await fetch("/.netlify/functions/chatgpt", {
@@ -345,11 +363,11 @@ RULES:
       addDebugMessage("GPT reply error: " + err.message);
     }
 
-    // Push the assistantâ€™s reply into chatHistory
+    // f) Push the assistant’s reply into chatHistory
     await push(chatRef, { role: "assistant", content: assistantReply, timestamp: Date.now() });
   })();
 
-  // â"€â"€ 3) In parallel: if total messages is a multiple of 20, summarize and save to memory â"€â"€
+  // ------------------ 3) In parallel: if total messages is a multiple of 20, summarize and save to memory ------------------
   (async () => {
     let allCount = 0;
     let last20ForSummary = [];
