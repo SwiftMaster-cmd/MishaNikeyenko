@@ -149,14 +149,13 @@ form.addEventListener("submit", async (e) => {
 
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // Command detection
   const lower = prompt.toLowerCase();
   const isNote = lower.startsWith("/note ");
   const isReminder = lower.startsWith("/reminder ");
   const isCalendar = lower.startsWith("/calendar ");
   const isLog = lower.startsWith("/log ");
-
   const shouldSaveMemory = isNote || isReminder || isCalendar || isLog;
+
   const rawPrompt = shouldSaveMemory
     ? prompt.replace(/^\/(note|reminder|calendar|log)\s*/i, "").trim()
     : prompt;
@@ -168,9 +167,8 @@ form.addEventListener("submit", async (e) => {
       body: JSON.stringify({
         messages: [
           {
-{
-  role: "system",
-  content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
+            role: "system",
+            content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
 \`\`\`json
 {
   "type": "calendar",
@@ -179,8 +177,8 @@ form.addEventListener("submit", async (e) => {
 }
 \`\`\`
 
-Only return the JSON block. Supported types: note, calendar, reminder, log. The "type" must match the intent. Never include explanation.`
-},
+Only return the JSON block. Supported types: note, calendar, reminder, log. The "type" must match the intent. Never include explanations.`
+          },
           { role: "user", content: rawPrompt }
         ],
         model: "gpt-4o", temperature: 0.3
@@ -224,7 +222,6 @@ Only return the JSON block. Supported types: note, calendar, reminder, log. The 
     addDebugMessage("🔕 Memory not saved (no command trigger).");
   }
 
-  // Assistant reply
   const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
