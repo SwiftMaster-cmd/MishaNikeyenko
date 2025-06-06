@@ -1,4 +1,4 @@
-// 🔹 chat.js – command-based memory triggers with GPT classification + /calendar history support
+// 🔹 chat.js – command-based memory triggers with GPT classification
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, set, onValue
@@ -143,21 +143,6 @@ form.addEventListener("submit", async (e) => {
     getCalcHistory(uid)
   ]);
 
-  // ─── Manual Trigger for /calendar history ───
-  const lower = prompt.toLowerCase();
-  if (lower === "/calendar history") {
-    const events = calendar && typeof calendar === "object"
-      ? Object.values(calendar).map(event => `• ${event.content || JSON.stringify(event)}`).join("\n")
-      : "No calendar events found.";
-
-    await push(chatRef, {
-      role: "assistant",
-      content: events || "No calendar events found.",
-      timestamp: Date.now()
-    });
-    return;
-  }
-
   const sysPrompt = buildSystemPrompt({
     memory, todayLog: dayLog, notes, calendar, reminders, calc, date: today
   });
@@ -165,12 +150,13 @@ form.addEventListener("submit", async (e) => {
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
   // Detect command triggers
+  const lower = prompt.toLowerCase();
   const isNote = lower.startsWith("/note ");
   const isReminder = lower.startsWith("/reminder ");
   const isCalendar = lower.startsWith("/calendar ");
   const isLog = lower.startsWith("/log ");
-  const shouldSaveMemory = isNote || isReminder || isCalendar || isLog;
 
+  const shouldSaveMemory = isNote || isReminder || isCalendar || isLog;
   const rawPrompt = shouldSaveMemory
     ? prompt.replace(/^\/(note|reminder|calendar|log)\s*/i, "").trim()
     : prompt;
@@ -186,12 +172,12 @@ form.addEventListener("submit", async (e) => {
             content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
 \`\`\`json
 {
-  "type": "calendar",
-  "content": "Lunch with client",
-  "date": "2025-06-07"
+  "type": "note",
+  "content": "string",
+  "date": "optional YYYY-MM-DD"
 }
 \`\`\`
-Only return the JSON block. Supported types: note, calendar, reminder, log. The "type" must match the intent. Never include explanation.`
+Only return the JSON block. Supported types: note, calendar, reminder, log.`
           },
           { role: "user", content: rawPrompt }
         ],
@@ -236,6 +222,7 @@ Only return the JSON block. Supported types: note, calendar, reminder, log. The 
     addDebugMessage("🔕 Memory not saved (no command trigger).");
   }
 
+  // Assistant reply
   const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
