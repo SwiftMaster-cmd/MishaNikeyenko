@@ -48,31 +48,21 @@ function addDebugMessage(text) {
 
 /**
  * Create the debug overlay element (hidden by default).
- * Structure:
- *
- * <div id="debug-overlay">
- *   <div id="debug-modal">
- *     <button class="close-btn">Close</button>
- *     <div id="debug-content"></div>
- *   </div>
- * </div>
  */
 function createDebugOverlay() {
-  // Outer overlay
   const overlay = document.createElement("div");
   overlay.id = "debug-overlay";
   Object.assign(overlay.style, {
-    display: "none",            // hidden by default
+    display: "none",
     position: "fixed",
     top: "0",
     left: "0",
     width: "100vw",
     height: "100vh",
-    backgroundColor: "rgba(0, 0, 0, 0.85)", // semi‐opaque black
-    zIndex: 9999                 // sit on top of everything
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    zIndex: 9999
   });
 
-  // Centered modal box inside the overlay
   const modal = document.createElement("div");
   modal.id = "debug-modal";
   Object.assign(modal.style, {
@@ -80,7 +70,7 @@ function createDebugOverlay() {
     top: "50%",
     left: "50%",
     transform: "translate(-50%, -50%)",
-    backgroundColor: "var(--clr-card)",    // your card color from CSS
+    backgroundColor: "var(--clr-card)",
     color: "var(--clr-text)",
     padding: "1rem 1.5rem",
     borderRadius: "12px",
@@ -88,10 +78,9 @@ function createDebugOverlay() {
     maxWidth: "80vw",
     maxHeight: "80vh",
     overflowY: "auto",
-    border: "1px solid var(--clr-border)",
+    border: "1px solid var(--clr-border)"
   });
 
-  // "Close" button in the top-right of the modal
   const closeBtn = document.createElement("button");
   closeBtn.className = "close-btn";
   closeBtn.textContent = "Close";
@@ -111,18 +100,16 @@ function createDebugOverlay() {
     overlay.style.display = "none";
   });
 
-  // Container for debug lines inside the modal
   const contentDiv = document.createElement("div");
   contentDiv.id = "debug-content";
   Object.assign(contentDiv.style, {
-    marginTop: "32px",      // leave room for the close button
+    marginTop: "32px",
     whiteSpace: "pre-wrap",
     fontFamily: "monospace",
     fontSize: "0.9rem",
-    lineHeight: "1.4",
+    lineHeight: "1.4"
   });
 
-  // Append everything in the proper hierarchy:
   modal.appendChild(closeBtn);
   modal.appendChild(contentDiv);
   overlay.appendChild(modal);
@@ -151,7 +138,7 @@ function scrollToBottom(force = false) {
   }
 }
 
-/** Render the last 20 messages, and add an info icon to the most recent assistant bubble */
+/** Render the last 20 messages (no info icon on assistant bubbles) */
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -164,44 +151,21 @@ function renderMessages(messages) {
         role === "assistant" ? "bot-msg" :
         "debug-msg"
       }`;
-      // Use innerHTML so that any <img> or HTML markup renders properly:
       div.innerHTML = msg.content;
       log.appendChild(div);
     });
 
-  // After rendering all messages, find the last assistant bubble
-  const assistantBubbles = log.querySelectorAll(".bot-msg");
-  if (assistantBubbles.length > 0) {
-    const lastBubble = assistantBubbles[assistantBubbles.length - 1];
-    attachInfoIcon(lastBubble);
-  }
-
   scrollToBottom();
-}
-
-/** Attach a small "ℹ️" icon to the given assistant bubble element */
-function attachInfoIcon(bubbleElement) {
-  // Remove any existing icons to avoid duplicates
-  const existingIcon = bubbleElement.querySelector(".info-icon");
-  if (existingIcon) existingIcon.remove();
-
-  const icon = document.createElement("span");
-  icon.className = "info-icon";
-  icon.textContent = " ℹ️";  // Simple Unicode info icon
-  Object.assign(icon.style, {
-    cursor: "pointer",
-    fontSize: "0.9em",
-    marginLeft: "6px",
-    opacity: "0.6"
-  });
-  // Show overlay on click
-  icon.addEventListener("click", showDebugOverlay);
-  // Append to bubble
-  bubbleElement.appendChild(icon);
 }
 
 // Initial debug overlay creation
 createDebugOverlay();
+
+// Add Debug button listener
+const debugToggle = document.getElementById("debug-toggle");
+if (debugToggle) {
+  debugToggle.addEventListener("click", showDebugOverlay);
+}
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
@@ -234,7 +198,7 @@ form.addEventListener("submit", async (e) => {
   if (!prompt || !chatRef || !uid) return;
   input.value = "";
 
-  // ------------------------------------ Handle static & listing commands first ------------------------------------
+  // Handle static & listing commands first
   const staticCommands = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
   if (staticCommands.includes(prompt)) {
     await handleStaticCommand(prompt, chatRef, uid);
@@ -253,11 +217,11 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // ------------------------------------ 1) Push user message ------------------------------------
+  // 1) Push user message
   const now = Date.now();
   await push(chatRef, { role: "user", content: prompt, timestamp: now });
 
-  // ------------------------------------ 2) In parallel: assistant reply + memory write ------------------------------------
+  // 2) In parallel: assistant reply + memory write
   (async () => {
     const today = new Date().toISOString().slice(0, 10);
 
@@ -378,7 +342,7 @@ RULES:
     await push(chatRef, { role: "assistant", content: assistantReply, timestamp: Date.now() });
   })();
 
-  // ------------------ 3) In parallel: if total messages is a multiple of 20, summarize and save to memory ------------------
+  // 3) In parallel: if total messages is a multiple of 20, summarize and save to memory
   (async () => {
     let allCount = 0;
     let last20ForSummary = [];
