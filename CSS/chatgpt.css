@@ -10,6 +10,7 @@
   --padding: 1rem;
 }
 
+/* Reset and box‐sizing */
 *,
 *::before,
 *::after {
@@ -18,7 +19,9 @@
   box-sizing: border-box;
 }
 
-html, body {
+/* Global html/body styling */
+html,
+body {
   height: 100%;
   width: 100vw;
   min-width: 100vw;
@@ -33,6 +36,7 @@ body {
   min-width: 100vw;
 }
 
+/* Main chat container: fill the viewport */
 main.chat-container {
   display: flex;
   flex-direction: column;
@@ -47,6 +51,7 @@ main.chat-container {
   position: relative;
 }
 
+/* Chat log: scrollable column of messages */
 #chat-log {
   flex: 1 1 auto;
   width: 100%;
@@ -61,6 +66,7 @@ main.chat-container {
   background: transparent;
 }
 
+/* Generic message bubble styling */
 .msg {
   max-width: 75%;
   padding: 0.8rem 1rem;
@@ -71,18 +77,23 @@ main.chat-container {
   animation: fadeIn 0.2s ease-in-out;
 }
 
+/* User message bubble */
 .user-msg {
   align-self: flex-end;
   background: var(--clr-user);
   color: white;
 }
 
-.bot-msg, .assistant-msg {
+/* Assistant/bot message bubble */
+.bot-msg,
+.assistant-msg {
   align-self: flex-start;
   background: var(--clr-bot);
   color: white;
+  position: relative; /* for info-icon positioning */
 }
 
+/* Debug message styling (if ever appended) */
 .debug-msg {
   color: #ffde59;
   font-style: italic;
@@ -93,6 +104,28 @@ main.chat-container {
   box-shadow: none;
 }
 
+/* GIF images inside chat bubbles */
+.bot-msg img,
+.user-msg img {
+  max-width: 300px;
+  border-radius: 8px;
+  display: block;
+  margin: 8px 0;
+}
+
+/* Info-icon styling: appears in assistant bubble on hover */
+.info-icon {
+  display: inline;
+  cursor: pointer;
+  font-size: 0.9em;
+  margin-left: 6px;
+  opacity: 0.6;
+}
+.bot-msg:hover .info-icon {
+  opacity: 1;
+}
+
+/* Chat form at bottom */
 #chat-form {
   display: flex;
   flex-direction: row;
@@ -104,6 +137,7 @@ main.chat-container {
   box-sizing: border-box;
 }
 
+/* Text input in chat form */
 #user-input {
   flex: 1 1 auto;
   min-width: 0;
@@ -120,6 +154,7 @@ main.chat-container {
   color: var(--clr-muted);
 }
 
+/* Send button */
 button[type="submit"] {
   padding: 0.75rem 1.2rem;
   background: var(--clr-user);
@@ -131,19 +166,63 @@ button[type="submit"] {
   transition: background 0.2s;
   min-width: 80px;
 }
-
 button[type="submit"]:hover,
 button[type="submit"]:active {
   background: #5b2ee5;
 }
 
+/* Fade‐in animation for messages */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Remove unwanted right shift from any ancestor */
-body, html, .chat-container, main.chat-container {
+/* Debug overlay styling */
+#debug-overlay {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  max-height: 70vh;
+  max-width: 80vw;
+  overflow-y: auto;
+  z-index: 10000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+#debug-overlay button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #444;
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+#debug-content {
+  margin-top: 30px;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+/* Remove unwanted right-side shift */
+body,
+html,
+.chat-container,
+main.chat-container {
   margin: 0 !important;
   padding: 0 !important;
   left: 0 !important;
@@ -151,7 +230,14 @@ body, html, .chat-container, main.chat-container {
   box-sizing: border-box !important;
 }
 
+/* Responsive tweaks for small screens */
 @media (max-width: 600px) {
-  .msg { max-width: 94vw; font-size: 0.98rem; }
-  #chat-form { flex-direction: column; gap: 0.5rem; }
+  .msg {
+    max-width: 94vw;
+    font-size: 0.98rem;
+  }
+  #chat-form {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }
