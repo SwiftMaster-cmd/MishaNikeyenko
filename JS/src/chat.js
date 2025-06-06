@@ -1,8 +1,7 @@
-// 🔹 chat.js – dual‐mode memory saving + 20‐message auto‐summary to memory
+// 🔹 chat.js – auto-summarize last 20 messages into memory (non-blocking)
 import {
   ref,
   push,
-  set,
   onValue,
   get,
   child
@@ -87,6 +86,7 @@ onAuthStateChanged(auth, (user) => {
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
 
+  // Whenever chatHistory changes, re-render last 20 for the UI
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
     const allMessages = Object.entries(data).map(([id, msg]) => ({
@@ -95,10 +95,10 @@ onAuthStateChanged(auth, (user) => {
       content: msg.content,
       timestamp: msg.timestamp || 0
     }));
-    const messages = allMessages
+    const last20 = allMessages
       .sort((a, b) => a.timestamp - b.timestamp)
       .slice(-20);
-    renderMessages(messages);
+    renderMessages(last20);
   });
 });
 
@@ -106,10 +106,9 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
   if (!prompt || !chatRef || !uid) return;
-  const today = new Date().toISOString().slice(0, 10);
   input.value = "";
 
-  // ── Static & Listing Commands ──
+  // ── Handle static or list commands immediately ──
   const staticCommands = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
   if (staticCommands.includes(prompt)) {
     await handleStaticCommand(prompt, chatRef, uid);
@@ -128,66 +127,68 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // ── Default chat + memory logic ──
+  // ── 1) Push the user message ──
+  const now = Date.now();
+  await push(chatRef, { role: "user", content: prompt, timestamp: now });
 
-  // 1) Push user message
-  await push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
+  // ── 2) Immediately fire off assistant reply & memory logic in parallel ──
+  //    (so the UI doesn’t wait for summarization)
 
-  // 2) Fetch entire chatHistory to count total messages
-  let totalCount = 0;
-  let messages = [];
-  let rawData = {};
-  try {
-    const snap = await get(child(ref(db), `chatHistory/${uid}`));
-    rawData = snap.exists() ? snap.val() : {};
-    totalCount = Object.keys(rawData).length;
-    const allMessages = Object.entries(rawData).map(([id, msg]) => ({
-      role: msg.role === "bot" ? "assistant" : msg.role,
-      content: msg.content,
-      timestamp: msg.timestamp || 0
-    }));
-    messages = allMessages
-      .sort((a, b) => a.timestamp - b.timestamp)
-      .slice(-20);
-  } catch (err) {
-    addDebugMessage("❌ Error fetching chat history: " + err.message);
-  }
+  // 2a) Build the "assistant reply" flow (unaffected by summary)
+  (async () => {
+    const today = new Date().toISOString().slice(0, 10);
 
-  // 3) Fetch memory/context
-  const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
-    getMemory(uid),
-    getDayLog(uid, today),
-    getNotes(uid),
-    getCalendar(uid),
-    getReminders(uid),
-    getCalcHistory(uid)
-  ]);
-
-  // 4) Build system prompt & full conversation
-  const sysPrompt = buildSystemPrompt({
-    memory,
-    todayLog: dayLog,
-    notes,
-    calendar,
-    reminders,
-    calc,
-    date: today
-  });
-  const full = [{ role: "system", content: sysPrompt }, ...messages];
-
-  // 5) Memory‐type detection & storage write
-  const { memoryType, rawPrompt } = detectMemoryType(prompt);
-  if (memoryType) {
-    let extractedData = null;
+    // Fetch last 20 messages for context
+    let last20 = [];
     try {
-      const res = await fetch("/.netlify/functions/chatgpt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content: `
+      const snap = await get(child(ref(db), `chatHistory/${uid}`));
+      const data = snap.exists() ? snap.val() : {};
+      const allMessages = Object.entries(data).map(([id, msg]) => ({
+        role: msg.role === "bot" ? "assistant" : msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp || 0
+      }));
+      last20 = allMessages
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(-20);
+    } catch (err) {
+      addDebugMessage("❌ Error fetching last 20 for reply: " + err.message);
+    }
+
+    // Fetch memory/context slices
+    const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
+      getMemory(uid),
+      getDayLog(uid, today),
+      getNotes(uid),
+      getCalendar(uid),
+      getReminders(uid),
+      getCalcHistory(uid)
+    ]);
+
+    // Build system + conversation for assistant reply
+    const sysPrompt = buildSystemPrompt({
+      memory,
+      todayLog: dayLog,
+      notes,
+      calendar,
+      reminders,
+      calc,
+      date: today
+    });
+    const full = [{ role: "system", content: sysPrompt }, ...last20];
+
+    // Check for any "memory‐type" (notes, reminders, etc.), write to those nodes
+    const { memoryType, rawPrompt } = detectMemoryType(prompt);
+    if (memoryType) {
+      try {
+        const parsed = await fetch("/.netlify/functions/chatgpt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: "system",
+                content: `
 You are a memory extraction engine. ALWAYS return exactly one JSON object with these keys:
 {
   "type":   "note" | "reminder" | "calendar" | "log",
@@ -198,125 +199,119 @@ You are a memory extraction engine. ALWAYS return exactly one JSON object with t
 RULES:
 1. If text begins with "/note", type="note".
 2. If it begins with "/reminder" or "remind me", type="reminder".
-3. If it mentions a specific date/time (e.g. "tomorrow", "Friday at 3pm", "on 2025-06-10"), type="calendar".
-4. If it begins with "/log" or includes "journaled", "logged", type="log".
-5. Otherwise, type="note" only as last resort.
-6. Populate "date" only when user explicitly gives it.
-7. Do NOT append any closing lines like "If you need more information or assistance...".
-8. Return ONLY the JSON block.`
-            },
-            { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
-          ],
-          model: "gpt-4o",
-          temperature: 0.3
-        })
-      });
-      const raw = await res.text();
-      const parsed = JSON.parse(raw);
-      const extracted = parsed.choices?.[0]?.message?.content || "";
-      extractedData = extractJson(extracted);
-    } catch (err) {
-      console.warn("[PARSE FAIL]", err);
-      addDebugMessage("❌ JSON parse error (memory).");
-    }
-
-    if (extractedData?.type && extractedData?.content) {
-      try {
-        const path =
-          extractedData.type === "calendar"
-            ? `calendarEvents/${uid}`
-            : extractedData.type === "reminder"
-            ? `reminders/${uid}`
-            : extractedData.type === "log"
-            ? `dayLog/${uid}/${today}`
-            : `notes/${uid}/${today}`;
-        const entry = {
-          content: extractedData.content,
-          timestamp: Date.now(),
-          ...(extractedData.date ? { date: extractedData.date } : {})
-        };
-        await push(ref(db, path), entry);
-        addDebugMessage(`✅ Memory added to /${extractedData.type}`);
+3. If it mentions a date/time (e.g. "tomorrow", "Friday", "on 2025-06-10"), type="calendar".
+4. If it begins with "/log" or includes "journal", type="log".
+5. Otherwise, type="note" as a last resort.
+6. Populate "date" only when explicitly given.
+7. Return ONLY the JSON block.`
+              },
+              { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
+            ],
+            model: "gpt-4o",
+            temperature: 0.3
+          })
+        });
+        const text = await parsed.text();
+        const parsedJSON = JSON.parse(text);
+        const extracted = extractJson(parsedJSON.choices?.[0]?.message?.content || "");
+        if (extracted?.type && extracted?.content) {
+          const path =
+            extracted.type === "calendar"
+              ? `calendarEvents/${uid}`
+              : extracted.type === "reminder"
+              ? `reminders/${uid}`
+              : extracted.type === "log"
+              ? `dayLog/${uid}/${today}`
+              : `notes/${uid}/${today}`;
+          await push(ref(db, path), {
+            content: extracted.content,
+            timestamp: Date.now(),
+            ...(extracted.date ? { date: extracted.date } : {})
+          });
+          addDebugMessage(`✅ Memory ${extracted.type} saved`);
+        } else {
+          addDebugMessage("⚠️ Incomplete memory structure");
+        }
       } catch (err) {
-        addDebugMessage("❌ Firebase write failed: " + err.message);
+        addDebugMessage("❌ Memory parse/write failed: " + err.message);
       }
-    } else {
-      addDebugMessage("⚠️ GPT returned incomplete memory structure.");
     }
-  } else {
-    addDebugMessage("🔕 No valid memory trigger.");
-  }
 
-  // 6) If totalCount is a multiple of 20, summarize last 20 and push to memory/{uid}
-  if (totalCount > 0 && totalCount % 20 === 0) {
-    // Build a summary prompt with the last 20 messages
-    const convoText = messages
-      .map(m => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
-      .join("\n");
+    // 2b) Now ask GPT for the assistant's response
+    let assistantReply = "[No reply]";
     try {
-      const summaryRes = await fetch("/.netlify/functions/chatgpt", {
+      const replyRes = await fetch("/.netlify/functions/chatgpt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content: `
-You are a helpful summarizer. Summarize the following conversation into a concise paragraph:
-`
-            },
-            { role: "user", content: convoText }
-          ],
-          model: "gpt-4o",
-          temperature: 0.5
-        })
+        body: JSON.stringify({ messages: full, model: "gpt-4o", temperature: 0.8 })
       });
-      const summaryData = await summaryRes.json();
-      const summary = summaryData.choices?.[0]?.message?.content || "[No summary]";
-      // Push summary into memory/{uid}
-      await push(ref(db, `memory/${uid}`), {
-        summary,
-        timestamp: Date.now()
-      });
-      addDebugMessage("🗄️ Auto‐summary saved to memory");
+      const replyData = await replyRes.json();
+      assistantReply = replyData.choices?.[0]?.message?.content || assistantReply;
     } catch (err) {
-      addDebugMessage("❌ Error generating/saving summary: " + err.message);
+      addDebugMessage("❌ GPT reply error: " + err.message);
     }
-  }
 
-  // 7) Fetch storage counts and display status text
-  try {
-    const notesSnap = await get(child(ref(db), `notes/${uid}/${today}`));
-    const notesCount = notesSnap.exists() ? Object.keys(notesSnap.val()).length : 0;
+    // Finally push the assistant’s actual reply to chatHistory
+    await push(chatRef, { role: "assistant", content: assistantReply, timestamp: Date.now() });
+  })();
 
-    const remSnap = await get(child(ref(db), `reminders/${uid}`));
-    const remCount = remSnap.exists() ? Object.keys(remSnap.val()).length : 0;
+  // ── 3) In parallel: if this is the Nth (20th, 40th, etc.) message, create & save a summary ──
+  (async () => {
+    // Fetch total number of chatHistory entries
+    let allCount = 0;
+    let last20ForSummary = [];
+    try {
+      const snap = await get(child(ref(db), `chatHistory/${uid}`));
+      const data = snap.exists() ? snap.val() : {};
+      allCount = Object.keys(data).length;
+      const allMessages = Object.entries(data).map(([id, msg]) => ({
+        role: msg.role === "bot" ? "assistant" : msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp || 0
+      }));
+      last20ForSummary = allMessages
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(-20);
+    } catch (err) {
+      addDebugMessage("❌ Error fetching chatHistory for summary: " + err.message);
+      return;
+    }
 
-    const evSnap = await get(child(ref(db), `calendarEvents/${uid}`));
-    const evCount = evSnap.exists() ? Object.keys(evSnap.val()).length : 0;
+    // Only trigger when total count is a multiple of 20
+    if (allCount > 0 && allCount % 20 === 0) {
+      // Construct a simple "conversation text" of those 20 messages
+      const convoText = last20ForSummary
+        .map(m => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
+        .join("\n");
 
-    const memSnap = await get(child(ref(db), `memory/${uid}`));
-    const memCount = memSnap.exists() ? Object.keys(memSnap.val()).length : 0;
-
-    const statusText = `📦 Storage: Notes(today)=${notesCount} | Reminders=${remCount} | Events=${evCount} | Memory summaries=${memCount}`;
-    await push(chatRef, { role: "assistant", content: statusText, timestamp: Date.now() });
-  } catch (err) {
-    addDebugMessage("❌ Error fetching storage counts: " + err.message);
-  }
-
-  // 8) Assistant reply
-  let reply = "[No reply]";
-  try {
-    const replyRes = await fetch("/.netlify/functions/chatgpt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: full, model: "gpt-4o", temperature: 0.8 })
-    });
-    const replyData = await replyRes.json();
-    reply = replyData.choices?.[0]?.message?.content || reply;
-  } catch (err) {
-    addDebugMessage("❌ Error getting GPT reply: " + err.message);
-  }
-
-  await push(chatRef, { role: "assistant", content: reply, timestamp: Date.now() });
+      try {
+        // Ask GPT to summarize those 20 lines
+        const summaryRes = await fetch("/.netlify/functions/chatgpt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: "system",
+                content: `You are a concise summarizer. Summarize the next conversation block into one paragraph:`
+              },
+              { role: "user", content: convoText }
+            ],
+            model: "gpt-4o",
+            temperature: 0.5
+          })
+        });
+        const summaryJson = await summaryRes.json();
+        const summary = summaryJson.choices?.[0]?.message?.content || "[No summary]";
+        // Save that summary under memory/{uid}
+        await push(ref(db, `memory/${uid}`), {
+          summary,
+          timestamp: Date.now()
+        });
+        addDebugMessage(`🗄️ 20-msg summary saved to memory`);
+      } catch (err) {
+        addDebugMessage("❌ Summary generation failed: " + err.message);
+      }
+    }
+  })();
 });
