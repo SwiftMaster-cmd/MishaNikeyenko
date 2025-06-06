@@ -5,11 +5,19 @@ exports.handler = async (event) => {
     const { messages, prompt, model = "gpt-4o", temperature = 0.7 } = JSON.parse(event.body || "{}");
 
     if (!messages && !prompt) {
-      return { statusCode: 400, body: "Missing input (messages or prompt)" };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Missing input (messages or prompt)" })
+      };
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) return { statusCode: 500, body: "Missing OpenAI API key" };
+    if (!apiKey) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "Missing OpenAI API key" })
+      };
+    }
 
     const payload = messages
       ? { model, messages, temperature }
@@ -41,7 +49,6 @@ exports.handler = async (event) => {
       statusCode: 200,
       body: JSON.stringify(data)
     };
-
   } catch (err) {
     return {
       statusCode: 500,
