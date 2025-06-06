@@ -1,8 +1,8 @@
 /* ──────────────────────────────────────────────────────────────────────────
-   DEBUG OVERLAY (REPLACE your existing #debug-overlay / #debug-content rules)
+   DEBUG OVERLAY AND MODAL STYLES
    ────────────────────────────────────────────────────────────────────────── */
 
-/* Make the overlay fill the viewport, dim the background */
+/* Full‐screen, semi‐opaque backdrop */
 #debug-overlay {
   display: none;                /* hidden by default */
   position: fixed;
@@ -10,10 +10,8 @@
   left: 0;
   width: 100vw;                 /* cover full width */
   height: 100vh;                /* cover full height */
-  background-color: rgba(0, 0, 0, 0.85);  /* dark, semi‐opaque backdrop */
-  z-index: 9999;                /* highest possible so it sits on top */
-  /* Optional blur behind it (uncomment if you like a slight blur) */
-  /* backdrop-filter: blur(4px); */
+  background-color: rgba(0, 0, 0, 0.85);  /* dark backdrop */
+  z-index: 9999;                /* on top of everything */
 }
 
 /* Centered "modal" box inside the overlay */
@@ -22,7 +20,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: var(--clr-card);  /* use your card background color */
+  background-color: var(--clr-card);
   color: var(--clr-text);
   padding: 1rem 1.5rem;
   border-radius: 12px;
@@ -33,7 +31,7 @@
   border: 1px solid var(--clr-border);
 }
 
-/* "Close" button in the top‐right corner of the modal */
+/* "Close" button inside the modal */
 #debug-modal .close-btn {
   position: absolute;
   top: 8px;
@@ -49,13 +47,26 @@
 
 /* Container for the debug text */
 #debug-content {
-  margin-top: 32px;            /* leave space under the close button */
+  margin-top: 32px;            /* space beneath the close button */
   white-space: pre-wrap;       /* preserve line breaks */
   font-family: monospace;
   font-size: 0.9rem;
   line-height: 1.4;
 }
 
+/* Info-icon styling */
+.info-icon {
+  display: inline;
+  cursor: pointer;
+  font-size: 0.9em;
+  margin-left: 6px;
+  opacity: 0.6;
+}
+.bot-msg:hover .info-icon {
+  opacity: 1;
+}
+
+/* (Your existing chat CSS below--no changes needed except what we showed above) */
 /* ────────────────────────────────────────────────────────────────────────── 
    CHANGES TO HTML STRUCTURE (for reference)
 
