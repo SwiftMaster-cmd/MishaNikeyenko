@@ -54,6 +54,7 @@ log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
 });
+
 function scrollToBottom(force = false) {
   if (!userHasScrolled || force) {
     requestAnimationFrame(() => {
@@ -88,10 +89,17 @@ onAuthStateChanged(auth, (user) => {
   chatRef = ref(db, `chatHistory/${uid}`);
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
-    const messages = Object.entries(data).map(([id, msg]) => ({
-      id, ...msg,
-      role: msg.role === "bot" ? "assistant" : msg.role
+    const allMessages = Object.entries(data).map(([id, msg]) => ({
+      id,
+      role: msg.role === "bot" ? "assistant" : msg.role,
+      content: msg.content,
+      timestamp: msg.timestamp || 0
     }));
+
+    const messages = allMessages
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-20); // Last 20 only
+
     renderMessages(messages);
   });
 });
@@ -116,33 +124,31 @@ form.addEventListener("submit", async (e) => {
   await push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
   input.value = "";
 
-  // Get chat history
+  // Get chat history (last 20)
   const snapshot = await new Promise(resolve => onValue(chatRef, resolve, { onlyOnce: true }));
   const allMessages = Object.entries(snapshot.val() || {}).map(([id, msg]) => ({
-const allMessages = Object.entries(data).map(([id, msg]) => ({
-  id,
-  role: msg.role === "bot" ? "assistant" : msg.role,
-  content: msg.content,
-  timestamp: msg.timestamp || 0
-}));
+    role: msg.role === "bot" ? "assistant" : msg.role,
+    content: msg.content,
+    timestamp: msg.timestamp || 0
+  }));
 
-
-
-const messages = allMessages
-  .sort((a, b) => a.timestamp - b.timestamp)
-  .slice(-20); // last 20 only
+  const messages = allMessages
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .slice(-20);
 
   // Add context
   const today = new Date().toISOString().slice(0, 10);
-  const [memory, dayLog, notes, calendar, calc] = await Promise.all([
+  const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
     getMemory(uid),
     getDayLog(uid, today),
     getNotes(uid),
     getCalendar(uid),
+    getReminders(uid),
     getCalcHistory(uid)
   ]);
+
   const sysPrompt = buildSystemPrompt({
-    memory, todayLog: dayLog, notes, calendar, calc, date: today
+    memory, todayLog: dayLog, notes, calendar, reminders, calc, date: today
   });
 
   const full = [{ role: "system", content: sysPrompt }, ...messages];
