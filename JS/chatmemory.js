@@ -1,4 +1,4 @@
-// 🔹 chat.js – full memory command support with visual debugging
+// 🔹 chat.js – controlled memory save with last-20 context
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, set, onValue
@@ -98,13 +98,12 @@ onAuthStateChanged(auth, (user) => {
 
     const messages = allMessages
       .sort((a, b) => a.timestamp - b.timestamp)
-      .slice(-20); // Last 20 only
+      .slice(-20);
 
     renderMessages(messages);
   });
 });
 
-// Extract JSON from GPT
 function extractJson(raw) {
   if (!raw) return null;
   const clean = raw.replace(/```json\s*([\s\S]*?)```/gi, '$1').replace(/```([\s\S]*?)```/gi, '$1').trim();
@@ -115,7 +114,6 @@ function extractJson(raw) {
   }
 }
 
-// Submit
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -124,7 +122,6 @@ form.addEventListener("submit", async (e) => {
   await push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
   input.value = "";
 
-  // Get chat history (last 20)
   const snapshot = await new Promise(resolve => onValue(chatRef, resolve, { onlyOnce: true }));
   const allMessages = Object.entries(snapshot.val() || {}).map(([id, msg]) => ({
     role: msg.role === "bot" ? "assistant" : msg.role,
@@ -136,7 +133,6 @@ form.addEventListener("submit", async (e) => {
     .sort((a, b) => a.timestamp - b.timestamp)
     .slice(-20);
 
-  // Add context
   const today = new Date().toISOString().slice(0, 10);
   const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
     getMemory(uid),
@@ -153,15 +149,18 @@ form.addEventListener("submit", async (e) => {
 
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // Ask GPT to classify memory
-  const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: [
-        {
-          role: "system",
-          content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
+  // Optional memory save trigger
+  const shouldSaveMemory = prompt.toLowerCase().includes("save this");
+
+  if (shouldSaveMemory) {
+    const res = await fetch("/.netlify/functions/chatgpt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
 \`\`\`json
 {
   "type": "note",
@@ -170,68 +169,58 @@ form.addEventListener("submit", async (e) => {
 }
 \`\`\`
 Only return the JSON block. Supported types: note, calendar, reminder, log.`
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "gpt-4o", temperature: 0.3
-    })
-  });
+          },
+          { role: "user", content: prompt }
+        ],
+        model: "gpt-4o", temperature: 0.3
+      })
+    });
 
-  const raw = await res.text();
-  let parsed, extracted, data;
+    const raw = await res.text();
+    let parsed, extracted, data;
 
-  try {
-    parsed = JSON.parse(raw);
-    extracted = parsed?.choices?.[0]?.message?.content;
-    data = extractJson(extracted);
-  } catch (err) {
-    console.warn("[PARSE FAIL]", raw);
-    addDebugMessage("❌ JSON parse error.");
-  }
-
-  if (!data || !data.type || !data.content) {
-    console.warn("[MEMORY FAIL]", extracted);
-    addDebugMessage("⚠️ GPT returned invalid or incomplete memory structure.");
-  } else {
     try {
-      const path = data.type === "calendar" ? `calendarEvents/${uid}` :
-                  data.type === "reminder" ? `reminders/${uid}` :
-                  data.type === "log" ? `dayLog/${uid}/${today}` :
-                  `notes/${uid}/${today}`;
-      const refNode = ref(db, path);
-      const entry = {
-        content: data.content,
-        timestamp: Date.now(),
-        ...(data.date ? { date: data.date } : {})
-      };
-      await push(refNode, entry);
-      addDebugMessage(`✅ Memory added to /${data.type}`);
+      parsed = JSON.parse(raw);
+      extracted = parsed?.choices?.[0]?.message?.content;
+      data = extractJson(extracted);
     } catch (err) {
-      addDebugMessage("❌ Firebase write failed: " + err.message);
+      console.warn("[PARSE FAIL]", raw);
+      addDebugMessage("❌ JSON parse error.");
     }
+
+    if (!data || !data.type || !data.content) {
+      console.warn("[MEMORY FAIL]", extracted);
+      addDebugMessage("⚠️ GPT returned invalid or incomplete memory structure.");
+    } else {
+      try {
+        const path = data.type === "calendar" ? `calendarEvents/${uid}` :
+                    data.type === "reminder" ? `reminders/${uid}` :
+                    data.type === "log" ? `dayLog/${uid}/${today}` :
+                    `notes/${uid}/${today}`;
+        const refNode = ref(db, path);
+        const entry = {
+          content: data.content,
+          timestamp: Date.now(),
+          ...(data.date ? { date: data.date } : {})
+        };
+        await push(refNode, entry);
+        addDebugMessage(`✅ Memory added to /${data.type}`);
+      } catch (err) {
+        addDebugMessage("❌ Firebase write failed: " + err.message);
+      }
+    }
+  } else {
+    addDebugMessage("🔕 Memory not saved (no save trigger found).");
   }
 
-  // Generate assistant reply
+  // Send assistant reply
   const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages: full, model: "gpt-4o", temperature: 0.8 })
   });
+
   const replyData = await replyRes.json();
   const reply = replyData?.choices?.[0]?.message?.content || "[No reply]";
-
   await push(chatRef, { role: "assistant", content: reply, timestamp: Date.now() });
-
-  // Optional: persist long-term memory
-  await push(ref(db, `longMemory/${uid}`), {
-    role: "user",
-    content: prompt,
-    timestamp: Date.now()
-  });
-
-  await push(ref(db, `longMemory/${uid}`), {
-    role: "assistant",
-    content: reply,
-    timestamp: Date.now()
-  });
 });
