@@ -1,4 +1,4 @@
-// 🔹 chat.js – dual-mode memory saving + enhanced context + GIF support
+// ðŸ"¹ chat.js â€" dualâ€mode memory saving + hoverâ€toâ€view debug/info overlay
 import {
   ref,
   push,
@@ -20,8 +20,6 @@ import {
   getCalendar,
   getReminders,
   getCalcHistory,
-  getLocation,
-  getPreferences,
   buildSystemPrompt
 } from "./memoryManager.js";
 import {
@@ -36,19 +34,19 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-// Store debug lines here; not in chat bubbles
+// Store debug messages in this array instead of appending to chat
 const debugInfo = [];
 
-// Giphy API key
-const GIPHY_API_KEY = "pZmJaNsF62Lie54ZMcn7qtVujC7sQ7KA";
+let uid = null;
+let chatRef = null;
+let userHasScrolled = false;
 
-// Add a debug message to internal array
 function addDebugMessage(text) {
+  // Push into debugInfo array; not appended to chat
   debugInfo.push(text);
-  console.debug("[DEBUG]", text);
 }
 
-// Create a hidden overlay for debug info
+// Create the debug overlay element (hidden by default)
 function createDebugOverlay() {
   const overlay = document.createElement("div");
   overlay.id = "debug-overlay";
@@ -69,6 +67,7 @@ function createDebugOverlay() {
     boxShadow: "0 2px 10px rgba(0,0,0,0.5)"
   });
 
+  // Close button
   const closeBtn = document.createElement("button");
   closeBtn.textContent = "Close";
   Object.assign(closeBtn.style, {
@@ -87,6 +86,7 @@ function createDebugOverlay() {
   });
   overlay.appendChild(closeBtn);
 
+  // Container for debug lines
   const contentDiv = document.createElement("div");
   contentDiv.id = "debug-content";
   Object.assign(contentDiv.style, {
@@ -100,17 +100,17 @@ function createDebugOverlay() {
   document.body.appendChild(overlay);
 }
 
-// Show and populate debug overlay
+// Populate and show the debug overlay
 function showDebugOverlay() {
   const overlay = document.getElementById("debug-overlay");
   const contentDiv = document.getElementById("debug-content");
   if (!overlay || !contentDiv) return;
+  // Combine all debugInfo entries into one string
   contentDiv.textContent = debugInfo.join("\n");
   overlay.style.display = "block";
 }
 
-// Scroll logic
-let userHasScrolled = false;
+// Scroll log to bottom unless user manually scrolled up
 log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
@@ -123,7 +123,7 @@ function scrollToBottom(force = false) {
   }
 }
 
-// Render last 20 messages, attach info icon to last assistant bubble
+// Render the last 20 messages, and add an info icon to the most recent assistant bubble
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -136,12 +136,13 @@ function renderMessages(messages) {
         role === "assistant" ? "bot-msg" :
         "debug-msg"
       }`;
-      div.innerHTML = msg.content;
+      div.textContent = msg.content;
       log.appendChild(div);
     });
 
+  // After rendering all messages, locate the last assistant message
   const assistantBubbles = log.querySelectorAll(".bot-msg");
-  if (assistantBubbles.length) {
+  if (assistantBubbles.length > 0) {
     const lastBubble = assistantBubbles[assistantBubbles.length - 1];
     attachInfoIcon(lastBubble);
   }
@@ -149,44 +150,29 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-// Attach a small ℹ️ icon to the given assistant bubble
-function attachInfoIcon(bubble) {
-  const existing = bubble.querySelector(".info-icon");
-  if (existing) existing.remove();
+// Attach a small "â„¹ï¸" icon to the given assistant bubble element
+function attachInfoIcon(bubbleElement) {
+  // Remove any existing icons to avoid duplicates
+  const existingIcon = bubbleElement.querySelector(".info-icon");
+  if (existingIcon) existingIcon.remove();
 
   const icon = document.createElement("span");
   icon.className = "info-icon";
-  icon.textContent = " ℹ️";
+  icon.textContent = " â„¹ï¸";
   Object.assign(icon.style, {
     cursor: "pointer",
     fontSize: "0.9em",
     marginLeft: "6px",
     opacity: "0.6"
   });
+  // Show overlay on click
   icon.addEventListener("click", showDebugOverlay);
-  bubble.appendChild(icon);
+  // Append to bubble
+  bubbleElement.appendChild(icon);
 }
 
-// Minimal CSS for info icon
-const style = document.createElement("style");
-style.textContent = `
-  .bot-msg {
-    position: relative;
-  }
-  .info-icon {
-    display: inline;
-  }
-  .bot-msg:hover .info-icon {
-    opacity: 1;
-  }
-`;
-document.head.appendChild(style);
-
-// Create debug overlay on load
+// Initial debug overlay creation
 createDebugOverlay();
-
-let uid = null;
-let chatRef = null;
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
@@ -197,7 +183,7 @@ onAuthStateChanged(auth, (user) => {
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
 
-  // Listen for last 20 messages
+  // Listen to chatHistory changes and re-render last 20
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
     const allMessages = Object.entries(data).map(([id, msg]) => ({
@@ -211,54 +197,6 @@ onAuthStateChanged(auth, (user) => {
       .slice(-20);
     renderMessages(last20);
   });
-
-  // Capture geolocation once
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const { latitude, longitude } = pos.coords;
-      await push(ref(db, `location/${uid}`), {
-        lat: latitude,
-        lon: longitude,
-        timestamp: Date.now()
-      });
-      addDebugMessage(`Location saved: ${latitude.toFixed(3)},${longitude.toFixed(3)}`);
-    }, (err) => {
-      addDebugMessage("Geolocation error: " + err.message);
-    });
-  }
-
-  // Pattern mining (last 30 days of notes)
-  (async () => {
-    try {
-      const aggregated = {};
-      for (let i = 0; i < 30; i++) {
-        const date = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-        const snap = await get(child(ref(db), `notes/${uid}/${date}`));
-        if (!snap.exists()) continue;
-        Object.values(snap.val()).forEach(entry => {
-          entry.content.split(/\W+/).forEach(word => {
-            const w = word.toLowerCase();
-            if (w.length > 3) {
-              aggregated[w] = (aggregated[w] || 0) + 1;
-            }
-          });
-        });
-      }
-      const patterns = Object.entries(aggregated)
-        .filter(([, cnt]) => cnt >= 3)
-        .map(([kw]) => kw);
-      if (patterns.length) {
-        await push(ref(db, `memory/${uid}`), {
-          type: "pattern",
-          content: `Frequent keywords: ${patterns.join(", ")}`,
-          timestamp: Date.now()
-        });
-        addDebugMessage("Pattern summary saved to memory");
-      }
-    } catch (err) {
-      addDebugMessage("Pattern mining failed: " + err.message);
-    }
-  })();
 });
 
 form.addEventListener("submit", async (e) => {
@@ -267,7 +205,7 @@ form.addEventListener("submit", async (e) => {
   if (!prompt || !chatRef || !uid) return;
   input.value = "";
 
-  // ── Handle static & listing commands ──
+  // â"€â"€ Handle static & listing commands first â"€â"€
   const staticCommands = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
   if (staticCommands.includes(prompt)) {
     await handleStaticCommand(prompt, chatRef, uid);
@@ -285,78 +223,44 @@ form.addEventListener("submit", async (e) => {
     await listEvents(chatRef);
     return;
   }
-  if (prompt.startsWith("/gif ")) {
-    // User-triggered GIF command
-    const term = prompt.slice(5).trim();
-    try {
-      const resp = await fetch(
-        `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}` +
-        `&q=${encodeURIComponent(term)}&limit=1&rating=pg-13`
-      );
-      const { data } = await resp.json();
-      if (data && data.length) {
-        const gifUrl = data[0].images.fixed_height.url;
-        await push(chatRef, {
-          role: "assistant",
-          content: `<img src="${gifUrl}" alt="${term}" style="max-width:300px; border-radius:8px;" />`,
-          timestamp: Date.now()
-        });
-      } else {
-        await push(chatRef, {
-          role: "assistant",
-          content: `Sorry, I couldn't find a GIF for "${term}".`,
-          timestamp: Date.now()
-        });
-      }
-    } catch (err) {
-      await push(chatRef, {
-        role: "assistant",
-        content: `Error fetching GIF: ${err.message}`,
-        timestamp: Date.now()
-      });
-    }
-    return;
-  }
 
-  // ── 1) Push user message ──
-  await push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
+  // â"€â"€ 1) Push user message â"€â"€
+  const now = Date.now();
+  await push(chatRef, { role: "user", content: prompt, timestamp: now });
 
-  // ── 2) Assistant reply & memory writes (non-blocking) ──
+  // â"€â"€ 2) In parallel: assistant reply + memory write â"€â"€
   (async () => {
     const today = new Date().toISOString().slice(0, 10);
 
-    // a) Fetch last 20 messages for context
+    // Fetch last 20 messages for context
     let last20 = [];
     try {
       const snap = await get(child(ref(db), `chatHistory/${uid}`));
       const data = snap.exists() ? snap.val() : {};
-      const allMsgs = Object.entries(data).map(([id, msg]) => ({
+      const allMessages = Object.entries(data).map(([id, msg]) => ({
         role: msg.role === "bot" ? "assistant" : msg.role,
         content: msg.content,
         timestamp: msg.timestamp || 0
       }));
-      last20 = allMsgs
+      last20 = allMessages
         .sort((a, b) => a.timestamp - b.timestamp)
         .slice(-20);
     } catch (err) {
       addDebugMessage("Error fetching last 20 for reply: " + err.message);
     }
 
-    // b) Fetch context slices
-    const [memory, dayLog, notes, calendar, reminders, calc, locationBlock, prefBlock] = await Promise.all([
+    // Fetch memory/context
+    const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
       getMemory(uid),
       getDayLog(uid, today),
       getNotes(uid),
       getCalendar(uid),
       getReminders(uid),
-      getCalcHistory(uid),
-      getLocation(uid),
-      getPreferences(uid)
+      getCalcHistory(uid)
     ]);
 
-    // c) Build enhanced system prompt
-    const sysPrompt = await buildSystemPrompt({
-      uid,
+    // Build system prompt + conversation for assistant
+    const sysPrompt = buildSystemPrompt({
       memory,
       todayLog: dayLog,
       notes,
@@ -367,7 +271,7 @@ form.addEventListener("submit", async (e) => {
     });
     const full = [{ role: "system", content: sysPrompt }, ...last20];
 
-    // d) Memory-type detection & writes (including preference)
+    // Detect "memory" commands and write to appropriate nodes
     const { memoryType, rawPrompt } = detectMemoryType(prompt);
     if (memoryType) {
       try {
@@ -381,7 +285,7 @@ form.addEventListener("submit", async (e) => {
                 content: `
 You are a memory extraction engine. ALWAYS return exactly one JSON object with these keys:
 {
-  "type":   "note" | "reminder" | "calendar" | "log" | "preference",
+  "type":   "note" | "reminder" | "calendar" | "log",
   "content": "string",
   "date":   "optional YYYY-MM-DD"
 }
@@ -391,10 +295,9 @@ RULES:
 2. If it begins with "/reminder" or "remind me", type="reminder".
 3. If it mentions a date/time (e.g. "tomorrow", "Friday", "on 2025-06-10"), type="calendar".
 4. If it begins with "/log" or includes "journal", type="log".
-5. If it expresses a like/dislike (starts with "I like", "I love", "I prefer", "I hate", "I dislike"), type="preference".
-6. Otherwise, type="note" as a last resort.
-7. Populate "date" only when explicitly given.
-8. Return ONLY the JSON block.`
+5. Otherwise, type="note" as a last resort.
+6. Populate "date" only when explicitly given.
+7. Return ONLY the JSON block.`
               },
               { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
             ],
@@ -406,19 +309,14 @@ RULES:
         const parsedJSON = JSON.parse(text);
         const extracted = extractJson(parsedJSON.choices?.[0]?.message?.content || "");
         if (extracted?.type && extracted?.content) {
-          let path;
-          switch (extracted.type) {
-            case "calendar":
-              path = `calendarEvents/${uid}`; break;
-            case "reminder":
-              path = `reminders/${uid}`; break;
-            case "log":
-              path = `dayLog/${uid}/${today}`; break;
-            case "preference":
-              path = `preferences/${uid}`; break;
-            default:
-              path = `notes/${uid}/${today}`;
-          }
+          const path =
+            extracted.type === "calendar"
+              ? `calendarEvents/${uid}`
+              : extracted.type === "reminder"
+              ? `reminders/${uid}`
+              : extracted.type === "log"
+              ? `dayLog/${uid}/${today}`
+              : `notes/${uid}/${today}`;
           await push(ref(db, path), {
             content: extracted.content,
             timestamp: Date.now(),
@@ -433,8 +331,8 @@ RULES:
       }
     }
 
-    // e) Fetch assistant’s reply from GPT
-    let rawReply = "[No reply]";
+    // Get the assistantâ€™s reply from GPT
+    let assistantReply = "[No reply]";
     try {
       const replyRes = await fetch("/.netlify/functions/chatgpt", {
         method: "POST",
@@ -442,48 +340,16 @@ RULES:
         body: JSON.stringify({ messages: full, model: "gpt-4o", temperature: 0.8 })
       });
       const replyData = await replyRes.json();
-      rawReply = replyData.choices?.[0]?.message?.content || rawReply;
+      assistantReply = replyData.choices?.[0]?.message?.content || assistantReply;
     } catch (err) {
       addDebugMessage("GPT reply error: " + err.message);
     }
 
-    // f) Handle possible GIF instruction
-    if (rawReply.startsWith("GIF:")) {
-      const term = rawReply.slice(4).trim();
-      try {
-        const resp = await fetch(
-          `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}` +
-          `&q=${encodeURIComponent(term)}&limit=1&rating=pg-13`
-        );
-        const { data } = await resp.json();
-        if (data && data.length) {
-          const gifUrl = data[0].images.fixed_height.url;
-          await push(chatRef, {
-            role: "assistant",
-            content: `<img src="${gifUrl}" alt="${term}" style="max-width:300px; border-radius:8px;" />`,
-            timestamp: Date.now()
-          });
-        } else {
-          await push(chatRef, {
-            role: "assistant",
-            content: `Sorry, I couldn't find a GIF for "${term}".`,
-            timestamp: Date.now()
-          });
-        }
-      } catch (err) {
-        await push(chatRef, {
-          role: "assistant",
-          content: `Error fetching GIF: ${err.message}`,
-          timestamp: Date.now()
-        });
-      }
-    } else {
-      // Normal text reply
-      await push(chatRef, { role: "assistant", content: rawReply, timestamp: Date.now() });
-    }
+    // Push the assistantâ€™s reply into chatHistory
+    await push(chatRef, { role: "assistant", content: assistantReply, timestamp: Date.now() });
   })();
 
-  // ── 3) In parallel: Every 20 messages → summarize last 20 into memory ──
+  // â"€â"€ 3) In parallel: if total messages is a multiple of 20, summarize and save to memory â"€â"€
   (async () => {
     let allCount = 0;
     let last20ForSummary = [];
@@ -493,4 +359,48 @@ RULES:
       allCount = Object.keys(data).length;
       const allMessages = Object.entries(data).map(([id, msg]) => ({
         role: msg.role === "bot" ? "assistant" : msg.role,
-        content:
+        content: msg.content,
+        timestamp: msg.timestamp || 0
+      }));
+      last20ForSummary = allMessages
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(-20);
+    } catch (err) {
+      addDebugMessage("Error fetching chatHistory for summary: " + err.message);
+      return;
+    }
+
+    if (allCount > 0 && allCount % 20 === 0) {
+      const convoText = last20ForSummary
+        .map(m => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
+        .join("\n");
+
+      try {
+        const summaryRes = await fetch("/.netlify/functions/chatgpt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: "system",
+                content: `You are a concise summarizer. Summarize the following conversation block into one paragraph:`
+              },
+              { role: "user", content: convoText }
+            ],
+            model: "gpt-4o",
+            temperature: 0.5
+          })
+        });
+        const summaryJson = await summaryRes.json();
+        const summary = summaryJson.choices?.[0]?.message?.content || "[No summary]";
+        await push(ref(db, `memory/${uid}`), {
+          summary,
+          timestamp: Date.now()
+        });
+        addDebugMessage("20-message summary saved to memory");
+      } catch (err) {
+        addDebugMessage("Summary generation failed: " + err.message);
+      }
+    }
+  })();
+});
