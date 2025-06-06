@@ -4,18 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Console</title>
-<!-- Styles -->
-<link rel="stylesheet" href="../CSS/calculator.css">
-<link rel="stylesheet" href="../CSS/calendar.css">
-<link rel="stylesheet" href="../CSS/chatgpt.css">
-<link rel="stylesheet" href="../CSS/index.css">
-<link rel="stylesheet" href="../CSS/jsloader.css">
-<link rel="stylesheet" href="../CSS/links.css">
-<link rel="stylesheet" href="../CSS/notes.css">
-<link rel="stylesheet" href="../CSS/profile.css">
-<link rel="stylesheet" href="../CSS/register.css">
-<link rel="stylesheet" href="../CSS/variables.css">
 
+  <!-- Styles -->
+  <link rel="stylesheet" href="../CSS/variables.css">
+  <link rel="stylesheet" href="../CSS/profile.css">
+  <link rel="stylesheet" href="../CSS/links.css">
+  <link rel="stylesheet" href="../CSS/notes.css">
+  <link rel="stylesheet" href="../CSS/jsloader.css">
+  <link rel="stylesheet" href="../CSS/index.css">
+  <link rel="stylesheet" href="../CSS/calendar.css">
+  <link rel="stylesheet" href="../CSS/calculator.css">
+  <link rel="stylesheet" href="../CSS/chatgpt.css">
 
   <style>.hidden { display: none }</style>
 </head>
@@ -49,42 +48,36 @@
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- MAIN DASHBOARD -->
-
-
-    <!-- add-link form -->
-    <form id="add-link-form" class="collapsed" autocomplete="off">
-      <input id="link-title" type="text" placeholder="Link title" required />
-      <input id="link-url" type="url" placeholder="https://example.com" required />
-      <select id="link-category" required></select>
-      <input id="new-cat-input" class="hidden" placeholder="New category name" />
-      <button class="btn-solid" type="submit">Save</button>
-    </form>
-
-<!-- GPT Chat -->
-<main class="chat-container">
-  <div id="chat-log"></div>
-
-  <form id="chat-form">
-    <input id="user-input" type="text" placeholder="Type your message..." required />
-    <button type="submit">Send</button>
+  <!-- Add Link Form -->
+  <form id="add-link-form" class="collapsed" autocomplete="off">
+    <input id="link-title" type="text" placeholder="Link title" required />
+    <input id="link-url" type="url" placeholder="https://example.com" required />
+    <select id="link-category" required></select>
+    <input id="new-cat-input" class="hidden" placeholder="New category name" />
+    <button class="btn-solid" type="submit">Save</button>
   </form>
-</main>
 
+  <!-- GPT Chat -->
+  <main class="chat-container">
+    <div id="chat-log"></div>
+    <form id="chat-form">
+      <input id="user-input" type="text" placeholder="Type your message..." required />
+      <button type="submit">Send</button>
+    </form>
+  </main>
 
-  <!-- MODULE SCRIPTS -->
+  <!-- Module Scripts -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
+  <script type="module" src="../JS/notesapi.js"></script>
 
-    <script type="module" src="../JS/chatmemory.js"></script>
-        <script type="module" src="../JS/memoryManager.js"></script>
-                        <script type="module" src="../JS/chatui.js"></script>
-                        <script type="module" src="../JS/chatmemory.js"></script>
-                        <script type="module" src="../JS/chatlogic.js"></script>
-                <script type="module" src="../JS/notesapi.js"></script>
+  <!-- GPT Chat Modules -->
+  <script type="module" src="../JS/memoryManager.js"></script>
+  <script type="module" src="../JS/chatuI.js"></script>
+  <script type="module" src="../JS/chatmemory.js"></script>
+  <script type="module" src="../JS/chatlogic.js"></script>
 
-
-  <!-- Controls -->
+  <!-- UI Controls -->
   <script type="module">
     document.addEventListener('DOMContentLoaded', () => {
       const sidebar = document.getElementById('side-nav');
