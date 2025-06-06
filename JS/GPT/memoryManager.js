@@ -76,7 +76,8 @@ Instructions for Nexus:
 - Respond directly and only to exactly what Bossman asks.
 - Do NOT suggest next actions unless Bossman explicitly asks.
 - Do NOT ask if the user wants to chat more.
-- Stay brief, accurate, and task‐focused.
+- Do NOT append any closing lines like "If you need more information or assistance…".
+- Stay brief, accurate, and task-focused.
 - Reflect Bossman's intent; prioritize clarity over filler.
 - Include only relevant info; omit small talk.
 `;
@@ -107,7 +108,7 @@ function formatBlock(obj = {}) {
     return "None.";
   }
 
-  // Detect two‐level nesting where children have a 'content' field
+  // Detect two-level nesting where each inner entry has a 'content' or simple value
   const isTwoLevel = Object.values(obj).every(
     (v) =>
       v &&
@@ -121,14 +122,10 @@ function formatBlock(obj = {}) {
   );
 
   if (isTwoLevel) {
-    // Example: notes or calendar or reminders structure
-    // { "2025-06-06": { id1: {content, timestamp, ...}, id2: {...} }, ... }
     return Object.entries(obj)
       .map(([outerKey, innerObj]) => {
         const items = Object.values(innerObj).map((entry) => {
-          // If it has 'content', use that; else try any stringifiable field
           if ("content" in entry) {
-            // Optionally include a simplified timestamp or date if present
             if ("date" in entry) {
               return `${entry.date}: ${entry.content}`;
             }
@@ -138,7 +135,6 @@ function formatBlock(obj = {}) {
             }
             return entry.content;
           }
-          // Fallback: stringify the entry
           return JSON.stringify(entry);
         });
         return `${outerKey}: ${items.join("; ")}`;
