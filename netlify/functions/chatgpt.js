@@ -2,12 +2,12 @@ const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   try {
-    const { messages, model = "gpt-4o", temperature = 0.7 } = JSON.parse(event.body || "{}");
+    const { messages, prompt, model = "gpt-4o", temperature = 0.8 } = JSON.parse(event.body || "{}");
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!messages && !prompt) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Missing or invalid 'messages' array" })
+        body: "Missing input (messages or prompt)"
       };
     }
 
@@ -15,21 +15,25 @@ exports.handler = async (event) => {
     if (!apiKey) {
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "Missing OpenAI API key in environment" })
+        body: "Missing OpenAI API key"
       };
     }
+
+    const payload = messages
+      ? { model, messages, temperature }
+      : {
+          model,
+          messages: [{ role: "user", content: prompt }],
+          temperature
+        };
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature
-      })
+      body: JSON.stringify(payload)
     });
 
     const data = await response.json();
@@ -48,7 +52,7 @@ exports.handler = async (event) => {
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Internal Server Error", details: err.message })
+      body: `Unexpected error: ${err.message}`
     };
   }
 };
