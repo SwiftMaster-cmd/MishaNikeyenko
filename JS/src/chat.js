@@ -29,7 +29,7 @@ import {
   listEvents
 } from "./commandHandlers.js";
 import { extractJson, detectMemoryType } from "./chatUtils.js";
-import { mountStorageIndicator } from "./storageIndicator.js"; // ← added
+import { mountStorageIndicator } from "./storageDebug.js"; // ← added
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
