@@ -1,4 +1,4 @@
-// 🔹 chat.js – dual‐mode memory saving + persistent storage status
+// 🔹 chat.js – dual‐mode memory saving + 20‐message auto‐summary to memory
 import {
   ref,
   push,
@@ -129,14 +129,19 @@ form.addEventListener("submit", async (e) => {
   }
 
   // ── Default chat + memory logic ──
+
+  // 1) Push user message
   await push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
 
-  // 1) Fetch last 20 messages
+  // 2) Fetch entire chatHistory to count total messages
+  let totalCount = 0;
   let messages = [];
+  let rawData = {};
   try {
     const snap = await get(child(ref(db), `chatHistory/${uid}`));
-    const data = snap.exists() ? snap.val() : {};
-    const allMessages = Object.entries(data).map(([id, msg]) => ({
+    rawData = snap.exists() ? snap.val() : {};
+    totalCount = Object.keys(rawData).length;
+    const allMessages = Object.entries(rawData).map(([id, msg]) => ({
       role: msg.role === "bot" ? "assistant" : msg.role,
       content: msg.content,
       timestamp: msg.timestamp || 0
@@ -148,7 +153,7 @@ form.addEventListener("submit", async (e) => {
     addDebugMessage("❌ Error fetching chat history: " + err.message);
   }
 
-  // 2) Fetch memory/context
+  // 3) Fetch memory/context
   const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
     getMemory(uid),
     getDayLog(uid, today),
@@ -158,7 +163,7 @@ form.addEventListener("submit", async (e) => {
     getCalcHistory(uid)
   ]);
 
-  // 3) Build system prompt
+  // 4) Build system prompt & full conversation
   const sysPrompt = buildSystemPrompt({
     memory,
     todayLog: dayLog,
@@ -170,7 +175,7 @@ form.addEventListener("submit", async (e) => {
   });
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // 4) Memory‐type detection & storage write
+  // 5) Memory‐type detection & storage write
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
   if (memoryType) {
     let extractedData = null;
@@ -242,31 +247,64 @@ RULES:
     addDebugMessage("🔕 No valid memory trigger.");
   }
 
-  // 5) Fetch storage counts and display status text
+  // 6) If totalCount is a multiple of 20, summarize last 20 and push to memory/{uid}
+  if (totalCount > 0 && totalCount % 20 === 0) {
+    // Build a summary prompt with the last 20 messages
+    const convoText = messages
+      .map(m => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
+      .join("\n");
+    try {
+      const summaryRes = await fetch("/.netlify/functions/chatgpt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: `
+You are a helpful summarizer. Summarize the following conversation into a concise paragraph:
+`
+            },
+            { role: "user", content: convoText }
+          ],
+          model: "gpt-4o",
+          temperature: 0.5
+        })
+      });
+      const summaryData = await summaryRes.json();
+      const summary = summaryData.choices?.[0]?.message?.content || "[No summary]";
+      // Push summary into memory/{uid}
+      await push(ref(db, `memory/${uid}`), {
+        summary,
+        timestamp: Date.now()
+      });
+      addDebugMessage("🗄️ Auto‐summary saved to memory");
+    } catch (err) {
+      addDebugMessage("❌ Error generating/saving summary: " + err.message);
+    }
+  }
+
+  // 7) Fetch storage counts and display status text
   try {
-    // a) Notes (today)
     const notesSnap = await get(child(ref(db), `notes/${uid}/${today}`));
     const notesCount = notesSnap.exists() ? Object.keys(notesSnap.val()).length : 0;
 
-    // b) Reminders (all)
     const remSnap = await get(child(ref(db), `reminders/${uid}`));
     const remCount = remSnap.exists() ? Object.keys(remSnap.val()).length : 0;
 
-    // c) Events (all)
     const evSnap = await get(child(ref(db), `calendarEvents/${uid}`));
     const evCount = evSnap.exists() ? Object.keys(evSnap.val()).length : 0;
 
-    // d) Memory entries (all)
     const memSnap = await get(child(ref(db), `memory/${uid}`));
     const memCount = memSnap.exists() ? Object.keys(memSnap.val()).length : 0;
 
-    const statusText = `📦 Storage: Notes(today)=${notesCount} | Reminders=${remCount} | Events=${evCount} | Memory=${memCount}`;
+    const statusText = `📦 Storage: Notes(today)=${notesCount} | Reminders=${remCount} | Events=${evCount} | Memory summaries=${memCount}`;
     await push(chatRef, { role: "assistant", content: statusText, timestamp: Date.now() });
   } catch (err) {
     addDebugMessage("❌ Error fetching storage counts: " + err.message);
   }
 
-  // 6) Assistant reply
+  // 8) Assistant reply
   let reply = "[No reply]";
   try {
     const replyRes = await fetch("/.netlify/functions/chatgpt", {
