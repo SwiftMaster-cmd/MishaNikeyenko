@@ -200,8 +200,8 @@ form.addEventListener("submit", async (e) => {
   // ── List Notes ──
   if (prompt === "/notes") {
     try {
-      const allNotes = await get(child(ref(db), `notes/${uid}`));
-      const notesForToday = allNotes.exists() ? allNotes.val()[today] || {} : {};
+      const allNotesSnap = await get(child(ref(db), `notes/${uid}`));
+      const notesForToday = allNotesSnap.exists() ? allNotesSnap.val()[today] || {} : {};
       const keys = Object.keys(notesForToday);
 
       if (!keys.length) {
@@ -226,8 +226,8 @@ form.addEventListener("submit", async (e) => {
   // ── List Reminders ──
   if (prompt === "/reminders") {
     try {
-      const allRem = await get(child(ref(db), `reminders/${uid}`));
-      const remData = allRem.exists() ? allRem.val() : {};
+      const allRemSnap = await get(child(ref(db), `reminders/${uid}`));
+      const remData = allRemSnap.exists() ? allRemSnap.val() : {};
       const keys = Object.keys(remData);
 
       if (!keys.length) {
@@ -250,10 +250,10 @@ form.addEventListener("submit", async (e) => {
   }
 
   // ── List Calendar Events ──
-  if (prompt === "/events" || prompt === "/calendar") {
+  if (prompt === "/events") {
     try {
-      const allCal = await get(child(ref(db), `calendarEvents/${uid}`));
-      const evData = allCal.exists() ? allCal.val() : {};
+      const allCalSnap = await get(child(ref(db), `calendarEvents/${uid}`));
+      const evData = allCalSnap.exists() ? allCalSnap.val() : {};
       const keys = Object.keys(evData);
 
       if (!keys.length) {
@@ -363,7 +363,7 @@ form.addEventListener("submit", async (e) => {
 You are a memory extraction engine. ALWAYS return exactly one JSON object with these keys:
 {
   "type":   "note" | "reminder" | "calendar" | "log",
-  "content":"string",
+  "content": "string",
   "date":   "optional YYYY-MM-DD"
 }
 
@@ -374,7 +374,8 @@ RULES:
 4. If it begins with "/log" or includes "journaled", "logged", type="log".
 5. Otherwise, type="note" only as last resort.
 6. Populate "date" only when user explicitly gives it.
-7. Return ONLY the JSON block.`
+7. Do NOT append any closing lines like "If you need more information or assistance...".
+8. Return ONLY the JSON block.`
             },
             { role: "user", content: memoryPrompt }
           ],
