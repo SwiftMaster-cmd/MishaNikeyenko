@@ -1,4 +1,4 @@
-// 🔹 chat.js – command-based memory triggers with GPT classification
+// 🔹 chat.js – enhanced command-based chat with GPT classification
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase, ref, push, set, onValue
@@ -77,7 +77,7 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-// Auth and Chat History
+// Auth
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
@@ -119,8 +119,70 @@ form.addEventListener("submit", async (e) => {
   const prompt = input.value.trim();
   if (!prompt || !chatRef || !uid) return;
 
+  const today = new Date().toISOString().slice(0, 10);
+
+  // 🔹 Functional Commands (No GPT Required)
+  if (prompt === "/time") {
+    const time = new Date().toLocaleTimeString();
+    await push(chatRef, { role: "assistant", content: `🕒 Current time is ${time}`, timestamp: Date.now() });
+    return;
+  }
+
+  if (prompt === "/date") {
+    await push(chatRef, { role: "assistant", content: `📅 Today's date is ${today}`, timestamp: Date.now() });
+    return;
+  }
+
+  if (prompt === "/uid") {
+    await push(chatRef, { role: "assistant", content: `🆔 Your UID is: ${uid}`, timestamp: Date.now() });
+    return;
+  }
+
+  if (prompt === "/clearchat") {
+    await set(chatRef, {});
+    log.innerHTML = "";
+    await push(chatRef, { role: "assistant", content: "🧼 Chat history cleared.", timestamp: Date.now() });
+    return;
+  }
+
+  if (prompt === "/summary") {
+    const [dayLog, notes] = await Promise.all([
+      getDayLog(uid, today),
+      getNotes(uid)
+    ]);
+    const noteList = Object.values(notes?.[today] || {}).map(n => `- ${n.content}`).join("\n") || "No notes.";
+    const logSummary = Object.entries(dayLog || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join("\n") || "No log.";
+    await push(chatRef, {
+      role: "assistant",
+      content: `📝 **Today’s Summary**:\n\n📓 Log:\n${logSummary}\n\n🗒️ Notes:\n${noteList}`,
+      timestamp: Date.now()
+    });
+    return;
+  }
+
+  if (prompt === "/commands") {
+    const commandList = [
+      { cmd: "/note", desc: "Save a note (e.g. /note call Mom later)" },
+      { cmd: "/reminder", desc: "Set a reminder (e.g. /reminder pay bill tomorrow)" },
+      { cmd: "/calendar", desc: "Create a calendar event (e.g. /calendar dinner Friday)" },
+      { cmd: "/log", desc: "Add to your day log (e.g. /log felt great after run)" },
+      { cmd: "/summary", desc: "Summarize today’s log and notes" },
+      { cmd: "/clearchat", desc: "Clear the visible chat history" },
+      { cmd: "/time", desc: "Show current time" },
+      { cmd: "/date", desc: "Show today’s date" },
+      { cmd: "/uid", desc: "Show your Firebase user ID" }
+    ];
+    const response = commandList.map(c => `🔹 **${c.cmd}** – ${c.desc}`).join("\n");
+    await push(chatRef, {
+      role: "assistant",
+      content: `🧭 **Available Commands**:\n\n${response}`,
+      timestamp: Date.now()
+    });
+    return;
+  }
+
+  // Default: Chat + Memory Trigger
   await push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
-  input.value = "";
 
   const snapshot = await new Promise(resolve => onValue(chatRef, resolve, { onlyOnce: true }));
   const allMessages = Object.entries(snapshot.val() || {}).map(([id, msg]) => ({
@@ -128,12 +190,8 @@ form.addEventListener("submit", async (e) => {
     content: msg.content,
     timestamp: msg.timestamp || 0
   }));
+  const messages = allMessages.sort((a, b) => a.timestamp - b.timestamp).slice(-20);
 
-  const messages = allMessages
-    .sort((a, b) => a.timestamp - b.timestamp)
-    .slice(-20);
-
-  const today = new Date().toISOString().slice(0, 10);
   const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
     getMemory(uid),
     getDayLog(uid, today),
@@ -146,10 +204,8 @@ form.addEventListener("submit", async (e) => {
   const sysPrompt = buildSystemPrompt({
     memory, todayLog: dayLog, notes, calendar, reminders, calc, date: today
   });
-
   const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  // Detect command triggers
   const lower = prompt.toLowerCase();
   const isNote = lower.startsWith("/note ");
   const isReminder = lower.startsWith("/reminder ");
@@ -222,7 +278,7 @@ Only return the JSON block. Supported types: note, calendar, reminder, log.`
     addDebugMessage("🔕 Memory not saved (no command trigger).");
   }
 
-  // Assistant reply
+  // GPT Reply
   const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

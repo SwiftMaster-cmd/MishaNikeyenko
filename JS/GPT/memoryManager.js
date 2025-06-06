@@ -20,20 +20,15 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// 🔹 Reads
-export const getMemory       = (uid) => fetchNode(`memory/${uid}`);
-export const getDayLog       = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
-export const getNotes        = (uid) => fetchNode(`notes/${uid}`);
-export const getCalendar     = (uid) => fetchNode(`calendarEvents/${uid}`);
-export const getReminders    = (uid) => fetchNode(`reminders/${uid}`);
-export const getCalcHistory  = (uid) => fetchNode(`calcHistory/${uid}`);
+// 🔹 Read Helpers
+export const getMemory      = (uid) => fetchNode(`memory/${uid}`);
+export const getDayLog      = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
+export const getNotes       = (uid) => fetchNode(`notes/${uid}`);
+export const getCalendar    = (uid) => fetchNode(`calendarEvents/${uid}`);
+export const getReminders   = (uid) => fetchNode(`reminders/${uid}`);
+export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
 
-async function fetchNode(path) {
-  const snap = await get(ref(db, path));
-  return snap.exists() ? snap.val() : {};
-}
-
-// 🔹 Writer
+// 🔹 Write Helper for Day Log
 export async function updateDayLog(uid, dateStr, newLog) {
   const path = `dayLog/${uid}/${dateStr}`;
   const existingSnap = await get(ref(db, path));
@@ -50,7 +45,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// 🔹 Prompt
+// 🔹 Prompt Builder
 export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
   return `
 You are Nexus, a second brain for Bossman.
@@ -84,7 +79,12 @@ You do this:
 `;
 }
 
-// 🔹 Utils
+// 🔹 Internal Helpers
+async function fetchNode(path) {
+  const snap = await get(ref(db, path));
+  return snap.exists() ? snap.val() : {};
+}
+
 function merge(arr1 = [], arr2 = []) {
   return Array.from(new Set([...(arr1 || []), ...(arr2 || [])]));
 }
