@@ -1,10 +1,34 @@
-// 🔹 chatMemory.js -- command parsing and memory write
-import { ref, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+// 🔹 chatMemory.js -- handles memory-saving commands via GPT
+
+// Firebase Setup
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase, ref, push
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
 import { addDebugMessage } from "./chatUI.js";
 
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+  authDomain: "mishanikeyenko.firebaseapp.com",
+  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+  projectId: "mishanikeyenko",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
+  messagingSenderId: "1089190937368",
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// Extract clean JSON block from GPT response
 export function extractJson(raw) {
   if (!raw) return null;
-  const clean = raw.replace(/```json\s*([\s\S]*?)```/gi, '$1').replace(/```([\s\S]*?)```/gi, '$1').trim();
+  const clean = raw
+    .replace(/```json\\s*([\\s\\S]*?)```/gi, "$1")
+    .replace(/```([\\s\\S]*?)```/gi, "$1")
+    .trim();
   try {
     return JSON.parse(clean);
   } catch {
@@ -12,7 +36,8 @@ export function extractJson(raw) {
   }
 }
 
-export async function handleMemoryCommand(prompt, uid, today, db) {
+// Detect command and write memory (if triggered)
+export async function handleMemoryCommand(prompt, uid, today) {
   const lower = prompt.toLowerCase();
   const isNote = lower.startsWith("/note ");
   const isReminder = lower.startsWith("/reminder ");
@@ -71,16 +96,22 @@ Only return the JSON block. Supported types: note, calendar, reminder, log.`
     return null;
   }
 
-  const path = data.type === "calendar" ? `calendarEvents/${uid}` :
-               data.type === "reminder" ? `reminders/${uid}` :
-               data.type === "log" ? `dayLog/${uid}/${today}` :
-               `notes/${uid}/${today}`;
+  const path =
+    data.type === "calendar"
+      ? `calendarEvents/${uid}`
+      : data.type === "reminder"
+      ? `reminders/${uid}`
+      : data.type === "log"
+      ? `dayLog/${uid}/${today}`
+      : `notes/${uid}/${today}`;
+
   const refNode = ref(db, path);
   const entry = {
     content: data.content,
     timestamp: Date.now(),
     ...(data.date ? { date: data.date } : {})
   };
+
   await push(refNode, entry);
   addDebugMessage(`✅ Memory added to /${data.type}`);
   return data;

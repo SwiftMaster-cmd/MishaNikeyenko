@@ -1,10 +1,13 @@
-// 🔹 chatUI.js -- UI handling and rendering
+// 🔹 chatUI.js -- handles DOM, rendering, scroll behavior
+
+// DOM elements
 export const form = document.getElementById("chat-form");
 export const input = document.getElementById("user-input");
 export const log = document.getElementById("chat-log");
 
 let userHasScrolled = false;
 
+// Add a debug/system message to the chat log
 export function addDebugMessage(text) {
   const div = document.createElement("div");
   div.className = "msg debug-msg";
@@ -13,6 +16,7 @@ export function addDebugMessage(text) {
   scrollToBottom(true);
 }
 
+// Render an array of chat messages
 export function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -27,6 +31,7 @@ export function renderMessages(messages) {
   scrollToBottom();
 }
 
+// Auto-scroll control
 function scrollToBottom(force = false) {
   if (!userHasScrolled || force) {
     requestAnimationFrame(() => {
@@ -35,6 +40,7 @@ function scrollToBottom(force = false) {
   }
 }
 
+// Track whether user is reading older messages
 export function setupScrollListener() {
   log.addEventListener("scroll", () => {
     const threshold = 100;
