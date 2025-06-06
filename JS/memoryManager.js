@@ -1,14 +1,10 @@
-
-import {
-  getDatabase,
-  ref,
-  get,
-  set,
-  push
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+// 🔹 memoryManager.js – handles all memory fetches and writes
 import {
   initializeApp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase, ref, get, set, push
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -28,7 +24,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// Load
+// Load memory nodes
 export const getMemory = (uid) => fetchNode(`memory/${uid}`);
 export const getDayLog = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
 export const getNotes = (uid) => fetchNode(`notes/${uid}`);
@@ -41,7 +37,7 @@ async function fetchNode(path) {
   return snap.exists() ? snap.val() : {};
 }
 
-// Write
+// Write helpers
 export async function addNote(uid, content) {
   if (!uid || !content) return false;
   const today = new Date().toISOString().split('T')[0];
@@ -68,7 +64,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// Prompt builder
+// System prompt builder
 export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
   return `
 You are Nexus, a second brain for Bossman.
@@ -99,9 +95,11 @@ You do this:
 - Stay brief, accurate, and task-focused
 - Reflect Bossman's intent. Prioritize clarity over chatter
 - Only include relevant info -- no small talk or filler
+- Use calendar, notes, logs, and reminders when relevant
 `;
 }
 
+// Helpers
 function merge(arr1 = [], arr2 = []) {
   return Array.from(new Set([...(arr1 || []), ...(arr2 || [])]));
 }

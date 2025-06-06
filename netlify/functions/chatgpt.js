@@ -1,108 +1,58 @@
+const fetch = require("node-fetch");
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-// Firebase Config
-const firebaseConfig = {
-  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
-  authDomain: "mishanikeyenko.firebaseapp.com",
-  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
-  projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.firebasestorage.app",
-  messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const auth = getAuth(app);
-
-
-// 🔹 chatMemory.js -- command parsing and memory write
-import { ref, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { addDebugMessage } from "./chatUI.js";
-
-export function extractJson(raw) {
-  if (!raw) return null;
-  const clean = raw.replace(/```json\s*([\s\S]*?)```/gi, '$1').replace(/```([\s\S]*?)```/gi, '$1').trim();
+exports.handler = async (event) => {
   try {
-    return JSON.parse(clean);
-  } catch {
-    return null;
-  }
-}
+    const { messages, prompt, model = "gpt-4o", temperature = 0.7 } = JSON.parse(event.body || "{}");
 
-export async function handleMemoryCommand(prompt, uid, today, db) {
-  const lower = prompt.toLowerCase();
-  const isNote = lower.startsWith("/note ");
-  const isReminder = lower.startsWith("/reminder ");
-  const isCalendar = lower.startsWith("/calendar ");
-  const isLog = lower.startsWith("/log ");
+    if (!messages && !prompt) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Missing input (messages or prompt)" })
+      };
+    }
 
-  const shouldSave = isNote || isReminder || isCalendar || isLog;
-  const rawPrompt = shouldSave
-    ? prompt.replace(/^\/(note|reminder|calendar|log)\s*/i, "").trim()
-    : prompt;
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "Missing OpenAI API key" })
+      };
+    }
 
-  if (!shouldSave) {
-    addDebugMessage("🔕 Memory not saved (no command trigger).");
-    return null;
-  }
+    const payload = messages
+      ? { model, messages, temperature }
+      : {
+          model,
+          messages: [{ role: "user", content: prompt }],
+          temperature
+        };
 
-  const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: [
-        {
-          role: "system",
-          content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
-\`\`\`json
-{
-  "type": "note",
-  "content": "string",
-  "date": "optional YYYY-MM-DD"
-}
-\`\`\`
-Only return the JSON block. Supported types: note, calendar, reminder, log.`
-        },
-        { role: "user", content: rawPrompt }
-      ],
-      model: "gpt-4o", temperature: 0.3
-    })
-  });
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
 
-  const raw = await res.text();
-  let parsed, extracted, data;
+    const data = await response.json();
 
-  try {
-    parsed = JSON.parse(raw);
-    extracted = parsed?.choices?.[0]?.message?.content;
-    data = extractJson(extracted);
+    if (data.error) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: data.error.message })
+      };
+    }
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(data)
+    };
   } catch (err) {
-    console.warn("[PARSE FAIL]", raw);
-    addDebugMessage("❌ JSON parse error.");
-    return null;
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message })
+    };
   }
-
-  if (!data || !data.type || !data.content) {
-    console.warn("[MEMORY FAIL]", extracted);
-    addDebugMessage("⚠️ GPT returned invalid or incomplete memory structure.");
-    return null;
-  }
-
-  const path = data.type === "calendar" ? `calendarEvents/${uid}` :
-               data.type === "reminder" ? `reminders/${uid}` :
-               data.type === "log" ? `dayLog/${uid}/${today}` :
-               `notes/${uid}/${today}`;
-  const refNode = ref(db, path);
-  const entry = {
-    content: data.content,
-    timestamp: Date.now(),
-    ...(data.date ? { date: data.date } : {})
-  };
-  await push(refNode, entry);
-  addDebugMessage(`✅ Memory added to /${data.type}`);
-  return data;
-}
+};
