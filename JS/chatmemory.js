@@ -1,21 +1,24 @@
-// 🔹 chat.js – intelligent chat system using memoryManager.js
+// 🔹 chat.js – command-based memory triggers with GPT classification + /calendar history support
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  initializeApp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getDatabase, ref, push, onValue
+  getDatabase, ref, push, set, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth, signInAnonymously, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
-  getMemory, getDayLog, getNotes, getCalendar,
-  getReminders, getCalcHistory, updateDayLog,
+  getMemory,
+  getDayLog,
+  getNotes,
+  getCalendar,
+  getReminders,
+  getCalcHistory,
+  updateDayLog,
   buildSystemPrompt
 } from "./memoryManager.js";
 
-// 🔐 Firebase Config
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
@@ -30,93 +33,149 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// 💬 DOM Elements
+// DOM
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
 let uid = null;
 let chatRef = null;
+let userHasScrolled = false;
 
-function scrollToBottom() {
-  requestAnimationFrame(() => {
-    log.scrollTop = log.scrollHeight;
-  });
-}
-
-function addMessage(role, content) {
+function addDebugMessage(text) {
   const div = document.createElement("div");
-  div.className = `msg ${role === "user" ? "user-msg" : "bot-msg"}`;
-  div.textContent = content;
+  div.className = "msg debug-msg";
+  div.textContent = `[DEBUG] ${text}`;
   log.appendChild(div);
-  scrollToBottom();
+  scrollToBottom(true);
 }
 
-function extractJson(raw) {
-  if (!raw) return null;
-  const cleaned = raw
-    .replace(/```json\s*/gi, "")
-    .replace(/```/g, "")
-    .trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    return null;
+log.addEventListener("scroll", () => {
+  const threshold = 100;
+  userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
+});
+
+function scrollToBottom(force = false) {
+  if (!userHasScrolled || force) {
+    requestAnimationFrame(() => {
+      log.scrollTop = log.scrollHeight;
+    });
   }
 }
 
-// 👤 Firebase Auth
-onAuthStateChanged(auth, async (user) => {
+function renderMessages(messages) {
+  log.innerHTML = "";
+  messages
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .forEach((msg) => {
+      const role = msg.role === "bot" ? "assistant" : msg.role;
+      const div = document.createElement("div");
+      div.className = `msg ${role === "user" ? "user-msg" : role === "assistant" ? "bot-msg" : "debug-msg"}`;
+      div.textContent = msg.content;
+      log.appendChild(div);
+    });
+  scrollToBottom();
+}
+
+// Auth and Chat History
+onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
+    addDebugMessage("Signed in anonymously.");
     return;
   }
 
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
-
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
-    const msgs = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
-    log.innerHTML = "";
-    msgs.slice(-20).forEach(msg => addMessage(msg.role, msg.content));
+    const allMessages = Object.entries(data).map(([id, msg]) => ({
+      id,
+      role: msg.role === "bot" ? "assistant" : msg.role,
+      content: msg.content,
+      timestamp: msg.timestamp || 0
+    }));
+
+    const messages = allMessages
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-20);
+
+    renderMessages(messages);
   });
 });
 
-// 📩 Message Submission
+function extractJson(raw) {
+  if (!raw) return null;
+  const clean = raw.replace(/```json\s*([\s\S]*?)```/gi, '$1').replace(/```([\s\S]*?)```/gi, '$1').trim();
+  try {
+    return JSON.parse(clean);
+  } catch {
+    return null;
+  }
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
-  if (!prompt || !uid || !chatRef) return;
+  if (!prompt || !chatRef || !uid) return;
 
-  input.value = "";
   await push(chatRef, { role: "user", content: prompt, timestamp: Date.now() });
+  input.value = "";
 
-  const today = new Date().toISOString().split('T')[0];
+  const snapshot = await new Promise(resolve => onValue(chatRef, resolve, { onlyOnce: true }));
+  const allMessages = Object.entries(snapshot.val() || {}).map(([id, msg]) => ({
+    role: msg.role === "bot" ? "assistant" : msg.role,
+    content: msg.content,
+    timestamp: msg.timestamp || 0
+  }));
+
+  const messages = allMessages
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .slice(-20);
+
+  const today = new Date().toISOString().slice(0, 10);
   const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
-    getMemory(uid), getDayLog(uid, today), getNotes(uid),
-    getCalendar(uid), getReminders(uid), getCalcHistory(uid)
+    getMemory(uid),
+    getDayLog(uid, today),
+    getNotes(uid),
+    getCalendar(uid),
+    getReminders(uid),
+    getCalcHistory(uid)
   ]);
+
+  // ─── Manual Trigger for /calendar history ───
+  const lower = prompt.toLowerCase();
+  if (lower === "/calendar history") {
+    const events = calendar && typeof calendar === "object"
+      ? Object.values(calendar).map(event => `• ${event.content || JSON.stringify(event)}`).join("\n")
+      : "No calendar events found.";
+
+    await push(chatRef, {
+      role: "assistant",
+      content: events || "No calendar events found.",
+      timestamp: Date.now()
+    });
+    return;
+  }
 
   const sysPrompt = buildSystemPrompt({
     memory, todayLog: dayLog, notes, calendar, reminders, calc, date: today
   });
 
-  const historySnap = await new Promise(resolve => onValue(chatRef, resolve, { onlyOnce: true }));
-  const messages = Object.values(historySnap.val() || {})
-    .sort((a, b) => a.timestamp - b.timestamp)
-    .slice(-20)
-    .map(msg => ({ role: msg.role, content: msg.content }));
+  const full = [{ role: "system", content: sysPrompt }, ...messages];
 
-  const fullMessages = [{ role: "system", content: sysPrompt }, ...messages];
+  // Detect command triggers
+  const isNote = lower.startsWith("/note ");
+  const isReminder = lower.startsWith("/reminder ");
+  const isCalendar = lower.startsWith("/calendar ");
+  const isLog = lower.startsWith("/log ");
+  const shouldSaveMemory = isNote || isReminder || isCalendar || isLog;
 
-  const cmd = prompt.toLowerCase().trim();
-  const isCommand = cmd.startsWith("/note ") || cmd.startsWith("/calendar ") ||
-                    cmd.startsWith("/reminder ") || cmd.startsWith("/log ");
+  const rawPrompt = shouldSaveMemory
+    ? prompt.replace(/^\/(note|reminder|calendar|log)\s*/i, "").trim()
+    : prompt;
 
-  if (isCommand) {
-    const raw = prompt.replace(/^\/(note|calendar|reminder|log)\s*/i, "").trim();
-
+  if (shouldSaveMemory) {
     const res = await fetch("/.netlify/functions/chatgpt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -124,61 +183,66 @@ form.addEventListener("submit", async (e) => {
         messages: [
           {
             role: "system",
-            content: `Extract this memory command to JSON:
+            content: `You are a memory parser. Extract structured memory from the user input in this exact JSON format:
 \`\`\`json
 {
-  "type": "note | calendar | reminder | log",
-  "content": "string",
-  "date": "optional YYYY-MM-DD"
+  "type": "calendar",
+  "content": "Lunch with client",
+  "date": "2025-06-07"
 }
 \`\`\`
-Only return JSON.`
+Only return the JSON block. Supported types: note, calendar, reminder, log. The "type" must match the intent. Never include explanation.`
           },
-          { role: "user", content: raw }
+          { role: "user", content: rawPrompt }
         ],
-        model: "gpt-4o", temperature: 0.2
+        model: "gpt-4o", temperature: 0.3
       })
     });
 
-    const text = await res.text();
-    const json = extractJson(text);
+    const raw = await res.text();
+    let parsed, extracted, data;
 
-    if (json?.type && json?.content) {
-      const date = json.date || today;
-      const path =
-        json.type === "note" ? `notes/${uid}/${date}` :
-        json.type === "calendar" ? `calendarEvents/${uid}` :
-        json.type === "reminder" ? `reminders/${uid}` :
-        json.type === "log" ? `dayLog/${uid}/${date}` :
-        null;
-
-      if (path) {
-        await push(ref(db, path), {
-          content: json.content,
-          timestamp: Date.now(),
-          ...(json.date ? { date: json.date } : {})
-        });
-        addMessage("bot", `✅ ${json.type} saved.`);
-      } else {
-        addMessage("bot", "❌ Unknown type.");
-      }
-    } else {
-      addMessage("bot", "❌ Could not parse command.");
+    try {
+      parsed = JSON.parse(raw);
+      extracted = parsed?.choices?.[0]?.message?.content;
+      data = extractJson(extracted);
+    } catch (err) {
+      console.warn("[PARSE FAIL]", raw);
+      addDebugMessage("❌ JSON parse error.");
     }
+
+    if (!data || !data.type || !data.content) {
+      console.warn("[MEMORY FAIL]", extracted);
+      addDebugMessage("⚠️ GPT returned invalid or incomplete memory structure.");
+    } else {
+      try {
+        const path = data.type === "calendar" ? `calendarEvents/${uid}` :
+                    data.type === "reminder" ? `reminders/${uid}` :
+                    data.type === "log" ? `dayLog/${uid}/${today}` :
+                    `notes/${uid}/${today}`;
+        const refNode = ref(db, path);
+        const entry = {
+          content: data.content,
+          timestamp: Date.now(),
+          ...(data.date ? { date: data.date } : {})
+        };
+        await push(refNode, entry);
+        addDebugMessage(`✅ Memory added to /${data.type}`);
+      } catch (err) {
+        addDebugMessage("❌ Firebase write failed: " + err.message);
+      }
+    }
+  } else {
+    addDebugMessage("🔕 Memory not saved (no command trigger).");
   }
 
-  // 🤖 Get assistant reply
-  const reply = await fetch("/.netlify/functions/chatgpt", {
+  const replyRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: fullMessages,
-      model: "gpt-4o",
-      temperature: 0.7
-    })
+    body: JSON.stringify({ messages: full, model: "gpt-4o", temperature: 0.8 })
   });
 
-  const data = await reply.json();
-  const content = data?.choices?.[0]?.message?.content || "[No reply]";
-  await push(chatRef, { role: "assistant", content, timestamp: Date.now() });
+  const replyData = await replyRes.json();
+  const reply = replyData?.choices?.[0]?.message?.content || "[No reply]";
+  await push(chatRef, { role: "assistant", content: reply, timestamp: Date.now() });
 });
