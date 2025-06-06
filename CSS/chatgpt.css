@@ -1,3 +1,89 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   DEBUG OVERLAY (REPLACE your existing #debug-overlay / #debug-content rules)
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Make the overlay fill the viewport, dim the background */
+#debug-overlay {
+  display: none;                /* hidden by default */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;                 /* cover full width */
+  height: 100vh;                /* cover full height */
+  background-color: rgba(0, 0, 0, 0.85);  /* dark, semi‐opaque backdrop */
+  z-index: 9999;                /* highest possible so it sits on top */
+  /* Optional blur behind it (uncomment if you like a slight blur) */
+  /* backdrop-filter: blur(4px); */
+}
+
+/* Centered "modal" box inside the overlay */
+#debug-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--clr-card);  /* use your card background color */
+  color: var(--clr-text);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  max-width: 80vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid var(--clr-border);
+}
+
+/* "Close" button in the top‐right corner of the modal */
+#debug-modal .close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--clr-border);
+  color: var(--clr-text);
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* Container for the debug text */
+#debug-content {
+  margin-top: 32px;            /* leave space under the close button */
+  white-space: pre-wrap;       /* preserve line breaks */
+  font-family: monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* ────────────────────────────────────────────────────────────────────────── 
+   CHANGES TO HTML STRUCTURE (for reference)
+
+   Make sure your HTML/JS creates exactly this structure when you call
+   createDebugOverlay() / showDebugOverlay():
+   
+   <div id="debug-overlay">
+     <div id="debug-modal">
+       <button class="close-btn">Close</button>
+       <div id="debug-content">
+         <!-- all debug lines get injected here -->
+       </div>
+     </div>
+   </div>
+
+   Your JS should toggle `#debug-overlay { display: block; }` to show it, and
+   set it back to `none` to hide it.
+   ────────────────────────────────────────────────────────────────────────── */
+
+
+/* ──────────────────────────────────────────────────────────────────────────
+   FULL CSS CONTEXT (merge with your existing CSS)
+
+   Below is your previous chat/CSS plus just the updated overlay section.
+   Copy everything and paste into your CSS file, replacing only the old
+   #debug-overlay / #debug-content rules.
+   ────────────────────────────────────────────────────────────────────────── */
+
 :root {
   --clr-bg: #161026;
   --clr-card: #1e1e2e;
@@ -10,7 +96,6 @@
   --padding: 1rem;
 }
 
-/* Reset and box‐sizing */
 *,
 *::before,
 *::after {
@@ -19,7 +104,6 @@
   box-sizing: border-box;
 }
 
-/* Global html/body styling */
 html,
 body {
   height: 100%;
@@ -36,7 +120,6 @@ body {
   min-width: 100vw;
 }
 
-/* Main chat container: fill the viewport */
 main.chat-container {
   display: flex;
   flex-direction: column;
@@ -51,7 +134,6 @@ main.chat-container {
   position: relative;
 }
 
-/* Chat log: scrollable column of messages */
 #chat-log {
   flex: 1 1 auto;
   width: 100%;
@@ -66,7 +148,6 @@ main.chat-container {
   background: transparent;
 }
 
-/* Generic message bubble styling */
 .msg {
   max-width: 75%;
   padding: 0.8rem 1rem;
@@ -77,23 +158,20 @@ main.chat-container {
   animation: fadeIn 0.2s ease-in-out;
 }
 
-/* User message bubble */
 .user-msg {
   align-self: flex-end;
   background: var(--clr-user);
   color: white;
 }
 
-/* Assistant/bot message bubble */
 .bot-msg,
 .assistant-msg {
   align-self: flex-start;
   background: var(--clr-bot);
   color: white;
-  position: relative; /* for info-icon positioning */
+  position: relative;
 }
 
-/* Debug message styling (if ever appended) */
 .debug-msg {
   color: #ffde59;
   font-style: italic;
@@ -104,7 +182,6 @@ main.chat-container {
   box-shadow: none;
 }
 
-/* GIF images inside chat bubbles */
 .bot-msg img,
 .user-msg img {
   max-width: 300px;
@@ -113,7 +190,6 @@ main.chat-container {
   margin: 8px 0;
 }
 
-/* Info-icon styling: appears in assistant bubble on hover */
 .info-icon {
   display: inline;
   cursor: pointer;
@@ -125,7 +201,6 @@ main.chat-container {
   opacity: 1;
 }
 
-/* Chat form at bottom */
 #chat-form {
   display: flex;
   flex-direction: row;
@@ -137,7 +212,6 @@ main.chat-container {
   box-sizing: border-box;
 }
 
-/* Text input in chat form */
 #user-input {
   flex: 1 1 auto;
   min-width: 0;
@@ -154,7 +228,6 @@ main.chat-container {
   color: var(--clr-muted);
 }
 
-/* Send button */
 button[type="submit"] {
   padding: 0.75rem 1.2rem;
   background: var(--clr-user);
@@ -171,7 +244,6 @@ button[type="submit"]:active {
   background: #5b2ee5;
 }
 
-/* Fade‐in animation for messages */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -183,42 +255,68 @@ button[type="submit"]:active {
   }
 }
 
-/* Debug overlay styling */
+/* ──────────────────────────────────────────────────────────────────────────
+   UPDATED DEBUG OVERLAY SECTION
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Full‐screen, semi‐opaque backdrop */
 #debug-overlay {
   display: none;
   position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  /* backdrop-filter: blur(4px); /* optional blur behind overlay */ 
+}
+
+/* Centered "modal" box inside the overlay */
+#debug-modal {
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: rgba(0, 0, 0, 0.9);
-  color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  max-height: 70vh;
-  max-width: 80vw;
-  overflow-y: auto;
-  z-index: 10000;
+  background-color: var(--clr-card);
+  color: var(--clr-text);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-}
-#debug-overlay button {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: #444;
-  color: #fff;
-  border: none;
-  padding: 6px 10px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-#debug-content {
-  margin-top: 30px;
-  white-space: pre-wrap;
-  font-family: monospace;
-  font-size: 14px;
+  max-width: 80vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid var(--clr-border);
 }
 
-/* Remove unwanted right-side shift */
+/* "Close" button in the modal */
+#debug-modal .close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--clr-border);
+  color: var(--clr-text);
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* Container for the debug text */
+#debug-content {
+  margin-top: 32px;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* ────────────────────────────────────────────────────────────────────────── 
+   End of updated debug overlay section
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Remove unwanted right shift from any ancestor */
 body,
 html,
 .chat-container,
@@ -230,7 +328,6 @@ main.chat-container {
   box-sizing: border-box !important;
 }
 
-/* Responsive tweaks for small screens */
 @media (max-width: 600px) {
   .msg {
     max-width: 94vw;
