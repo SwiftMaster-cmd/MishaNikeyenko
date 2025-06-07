@@ -1,11 +1,11 @@
-import { db } from "./firebaseConfig.js";
+import { db } from "./firebaseconfig.js";
 import {
   ref,
   get,
   child,
   set
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { appendNode } from "./firebaseHelpers.js";
+import { appendNode } from "./firebasehelpers.js";
 
 // Handles static commands ("/time", "/date", "/uid", etc.)
 export async function handleStaticCommand(cmd, chatRef, uid) {
@@ -86,7 +86,7 @@ function listCommands(chatRef) {
 }
 
 async function sendSummary(chatRef, uid, today) {
-  const { getDayLog, getNotes } = await import("./memoryManager.js");
+  const { getDayLog, getNotes } = await import("./memorymanager.js");
   const [dayLog, notes] = await Promise.all([
     getDayLog(uid, today),
     getNotes(uid)
