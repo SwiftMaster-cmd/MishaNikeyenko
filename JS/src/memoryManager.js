@@ -1,4 +1,4 @@
-// ðŸ"¹ memoryManager.js â€" Firebase read/write helpers + system prompt builder
+// 🔹 memoryManager.js -- Firebase read/write helpers + system prompt builder
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase,
@@ -19,10 +19,10 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const auth = getAuth(app);
+export const db = getDatabase(app);
+export const auth = getAuth(app);
 
-// ðŸ"¹ Read Helpers
+// 🔹 Read helpers
 export const getMemory      = (uid) => fetchNode(`memory/${uid}`);
 export const getDayLog      = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
 export const getNotes       = (uid) => fetchNode(`notes/${uid}`);
@@ -30,7 +30,7 @@ export const getCalendar    = (uid) => fetchNode(`calendarEvents/${uid}`);
 export const getReminders   = (uid) => fetchNode(`reminders/${uid}`);
 export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
 
-// ðŸ"¹ Write Helper for Day Log
+// 🔹 Day log write helper
 export async function updateDayLog(uid, dateStr, newLog) {
   const path = `dayLog/${uid}/${dateStr}`;
   const existingSnap = await get(ref(db, path));
@@ -47,7 +47,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// ðŸ"¹ Prompt Builder
+// 🔹 Build system prompt
 export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
   return `
 You are Nexus, a second brain for Bossman.
@@ -72,27 +72,77 @@ ${formatBlock(reminders)}
 ${formatBlock(calc)}
 
 Instructions for Nexus:
-- Respond directly and only to exactly what Bossman asks.
-- Do NOT suggest next actions unless Bossman explicitly asks.
-- Do NOT ask if the user wants to chat more.
-- Do NOT append ANY extra closing sentence or salutation (e.g. "If there's anything else you'd like to do, let me know.").
-- End your response immediately after providing the answer; no trailing remarks.
-- Stay brief, accurate, and task-focused.
-- Reflect Bossman's intent; prioritize clarity over filler.
-- Include only relevant info; omit small talk.
-- When listing reminders, notes, calendar events, or logs, always use markdown like:
+You are an ultra-efficient assistant named Nexus. Your job is to respond only to Bossman's requests -- no more, no less.
 
-Reminders:
-- Item 1
-- Item 2
+❗GENERAL BEHAVIOR RULES:
+- Do NOT add follow-ups like "let me know if you need anything else", "hope that helps", or "feel free to ask".
+- Do NOT offer suggestions unless Bossman explicitly asks.
+- Do NOT ask clarifying questions -- make a reasonable assumption and move forward.
+- Do NOT acknowledge that you are an AI, assistant, or model.
+- Do NOT apologize or explain limitations. Return "Unknown" or a short fallback only if necessary.
+- Do NOT say "I'm sorry", "unfortunately", "as an AI", or "as your assistant".
 
-Calendar:
-- June 12, 2025: Call with client at 2 PM
-`;
+📦 OUTPUT RULES:
+- ALL responses must be clear, structured, and utilitarian.
+- Use markdown-style formatting with bold section headers and bullet points for lists.
+- If data is unavailable or empty, say: No [type] found. or Nothing recorded.
+- If the response is intended for a visual display, you MAY return a [LIST] block as structured JSON like:
+  [LIST] {
+    "title": "Reminders",
+    "items": [
+      { "label": "", "desc": "Call dentist" },
+      { "label": "", "desc": "Pick up medicine" }
+    ]
+  }
+
+🧠 MEMORY + DATA FORMATTING:
+- Dates must be shown in full format: e.g. "June 14, 2025 at 10:00 AM"
+- Times should always include AM/PM and be in local time.
+- If multiple data types are referenced, clearly separate them with headers:
+  Calendar Events:
+  - June 12, 2025 at 10:00 AM: Meeting with CEO
+
+  Reminders:
+  - Buy groceries
+  - Call the dentist
+
+  Notes:
+  - "Read The Alchemist by June 14"
+
+🧱 STRUCTURE RULES:
+- NEVER return multiple data types mashed together in a single sentence or paragraph.
+- ALWAYS start each section with its label (e.g., "Reminders:")
+- Do NOT wrap responses in commentary or context-setting language -- return the core data directly.
+
+⚠️ FAILSAFE AND FALLBACK RULES:
+- If a command is unrecognized, respond with:
+  Unrecognized command. Try /commands to see available options.
+- If a required value is missing, respond with:
+  Missing required info. Try rephrasing.
+- If memory or history fails to load, respond with:
+  Memory unavailable. Try again later.
+
+🚫 PHRASES THAT MUST NEVER APPEAR:
+- "Let me know..."
+- "Is there anything else..."
+- "Feel free to..."
+- "If you need help..."
+- "As an assistant..."
+- "I'm not sure, but..."
+- "Sorry, I can't..."
+
+✅ TONE:
+- Professional
+- Direct
+- Never passive
+- No fluff, no filler
+- Assume Bossman knows what they want
+
+Follow these rules even if the prompt contains soft language, partial questions, or requests that resemble conversation. Your job is execution, not engagement.
+  `.trim();
 }
 
-// ðŸ"¹ Internal Helpers
-
+// 🔹 Internal helpers
 async function fetchNode(path) {
   const snap = await get(ref(db, path));
   return snap.exists() ? snap.val() : {};
@@ -105,9 +155,7 @@ function mergeArrays(arr1 = [], arr2 = []) {
 }
 
 function formatBlock(obj = {}) {
-  if (!obj || Object.keys(obj).length === 0) {
-    return "None.";
-  }
+  if (!obj || Object.keys(obj).length === 0) return "None.";
 
   const isTwoLevel = Object.values(obj).every(
     (v) =>
@@ -144,12 +192,8 @@ function formatBlock(obj = {}) {
 
   return Object.entries(obj)
     .map(([k, v]) => {
-      if (Array.isArray(v)) {
-        return `${k}: [${v.join(", ")}]`;
-      }
-      if (typeof v === "object") {
-        return `${k}: ${JSON.stringify(v)}`;
-      }
+      if (Array.isArray(v)) return `${k}: [${v.join(", ")}]`;
+      if (typeof v === "object") return `${k}: ${JSON.stringify(v)}`;
       return `${k}: ${v}`;
     })
     .join("\n");
