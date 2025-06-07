@@ -116,7 +116,13 @@ form.addEventListener("submit", async (e) => {
     if (prompt === "/reminders") return listReminders(chatRef);
     if (prompt === "/events") return listEvents(chatRef);
 
-    await saveMessageToChat("user", prompt, uid);
+    try {
+      await saveMessageToChat("user", prompt, uid);
+    } catch (err) {
+      window.setStatusFeedback("error", "Write failed: check Firebase rules.");
+      window.debug("[FIREBASE WRITE ERROR]", err.message || err);
+      return;
+    }
 
     const memory = await extractMemoryFromPrompt(prompt, uid);
     const [last20, context] = await Promise.all([
@@ -137,14 +143,19 @@ form.addEventListener("submit", async (e) => {
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     const assistantReply = await getAssistantReply(full);
 
-    await saveMessageToChat("assistant", assistantReply, uid);
+    try {
+      await saveMessageToChat("assistant", assistantReply, uid);
+    } catch (err) {
+      window.setStatusFeedback("error", "Write failed: assistant response not saved.");
+      window.debug("[FIREBASE WRITE ERROR]", err.message || err);
+    }
+
     updateHeaderWithAssistantReply(assistantReply);
     window.logAssistantReply(assistantReply);
     speakText(assistantReply);
 
     // ========== 6. Auto List Rendering ==========
     try {
-      // Format: [LIST] { ... }
       if (assistantReply.startsWith("[LIST]")) {
         const jsonStart = assistantReply.indexOf("{");
         const payload = JSON.parse(assistantReply.slice(jsonStart));
@@ -153,7 +164,6 @@ form.addEventListener("submit", async (e) => {
         return;
       }
 
-      // Format: **Section:** - Item - Item
       const cardPattern = /\*\*(.+?):\*\*((?:\s*-\s*[^*]+)+)/g;
       let foundInline = false;
       let match;
@@ -171,7 +181,6 @@ form.addEventListener("submit", async (e) => {
         return;
       }
 
-      // Format: Title:\n- item\n- item
       const sectionPattern = /^(.*?):\s*\n((?:[-•]\s?.+\n?)+)/gm;
       let sectionMatch;
       while ((sectionMatch = sectionPattern.exec(assistantReply)) !== null) {
@@ -186,7 +195,6 @@ form.addEventListener("submit", async (e) => {
         window.renderInfoList({ containerId: "main", title, items });
       }
 
-      // Format: JSON object with .items[]
       if (assistantReply.trim().startsWith("{")) {
         const parsed = JSON.parse(assistantReply);
         if (parsed.items && Array.isArray(parsed.items)) {
@@ -202,7 +210,6 @@ form.addEventListener("submit", async (e) => {
       window.debug("[List Render Error]", err);
     }
 
-    // ========== 7. Optional Summary ==========
     await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
   } catch (err) {
