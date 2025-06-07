@@ -92,7 +92,6 @@ main.chat-container {
   border: none;
   box-shadow: none;
 }
-
 /* ========== Chat input, spinner, and status indicator ========== */
 
 #chat-form {
@@ -198,7 +197,6 @@ main.chat-container {
   padding: 0;
   margin: 0;
 }
-
 /* ========== Send button ========== */
 button[type="submit"] {
   padding: 0.75rem 1.2rem;
@@ -231,18 +229,25 @@ body, html, .chat-container, main.chat-container {
   right: 0 !important;
   box-sizing: border-box !important;
 }
+
 .msg {
   transition: opacity 0.3s ease, transform 0.3s ease;
   will-change: opacity, transform;
 }
+
 /* Responsive tweaks */
 @media (max-width: 600px) {
-  .msg { max-width: 94vw; font-size: 0.98rem; }
+  .msg {
+    max-width: 94vw;
+    font-size: 0.98rem;
+  }
+
   #chat-form {
     flex-direction: column;
     gap: 0.5rem;
     align-items: stretch;
   }
+
   #status-indicator {
     margin-left: 0;
     align-self: flex-end;
@@ -250,3 +255,106 @@ body, html, .chat-container, main.chat-container {
     min-width: 38px;
   }
 }
+/* ========== Onscreen Console ========== */
+#onscreen-console {
+  position: fixed;
+  bottom: 64px;
+  left: 16px;
+  width: 96vw;
+  max-width: 520px;
+  max-height: 35vh;
+  background: rgba(30, 32, 48, 0.96);
+  backdrop-filter: blur(12px) saturate(1.2);
+  color: #e5e7ef;
+  font: 14px/1.5 'Menlo', 'Monaco', 'Consolas', monospace;
+  z-index: 99999;
+  box-shadow: 0 2px 18px #0008, 0 0 0 1.5px #47425b;
+  overflow-y: auto;
+  padding: 14px 18px 8px 18px;
+  border-radius: 12px;
+  border: 1.5px solid #36324a;
+  display: none;
+  user-select: text;
+  pointer-events: auto;
+  transition: box-shadow 0.13s;
+}
+
+#chat-status-bar {
+  text-align: center;
+  margin-top: 4px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  opacity: 0;
+  color: #1db954;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(29, 185, 84, 0.08);
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#onscreen-console-messages {
+  min-height: 38px;
+  max-height: 22vh;
+  overflow-y: auto;
+  word-break: break-word;
+  padding-bottom: 6px;
+}
+
+#onscreen-console-messages .debug-line {
+  margin-bottom: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+
+#onscreen-console-messages .debug-line:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Console Controls */
+#onscreen-console button {
+  margin-right: 8px;
+  padding: 3px 15px;
+  border-radius: 7px;
+  font-size: 0.98rem;
+  font-weight: 600;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  margin-top: 7px;
+  transition: background 0.18s, color 0.18s;
+  box-shadow: 0 1px 4px #0002;
+}
+
+#onscreen-console button:last-child {
+  margin-right: 0;
+}
+
+#onscreen-console button[onclick*="clearDebugLog"] {
+  background: #d7263d;
+  color: #fff;
+}
+
+#onscreen-console button[onclick*="exportDebugLog"] {
+  background: #ffd600;
+  color: #36324a;
+}
+
+#onscreen-console button[onclick*="showDebugOverlay"] {
+  background: #2e89ff;
+  color: #fff;
+}
+
+#onscreen-console button[onclick*="autoScrollConsole"] {
+  background: #333;
+  color: #eee;
+}
+
+/* Floating Toggle Button */
+#console-toggle-btn {
+  padding: 
