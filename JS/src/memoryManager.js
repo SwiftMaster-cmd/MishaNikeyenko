@@ -1,4 +1,5 @@
 // 🔹 memoryManager.js -- Firebase read/write helpers + system prompt builder
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase,
@@ -18,7 +19,7 @@ const firebaseConfig = {
   appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
 };
 
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
 export const auth = getAuth(app);
 
