@@ -1,4 +1,4 @@
-// 🔹 chat.js – input and flow control only, all UI/logic in modules + auto-list rendering
+// 🔹 chat.js – input and flow control only, all UI/logic in modules + auto-list (multi-list) rendering
 
 import {
   onValue,
@@ -36,7 +36,6 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
-// Import list renderer (ensure it's globally exposed as window.renderInfoList in your HTML or import here)
 import { renderInfoList } from "./lists.js";
 window.renderInfoList = renderInfoList;
 
@@ -156,9 +155,9 @@ form.addEventListener("submit", async (e) => {
     window.logAssistantReply(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
 
-    // --- AUTO-LIST RENDERING (detect and render pretty lists) ---
+    // --- AUTO-LIST (MULTI-LIST) RENDERING ---
     try {
-      // Pattern 1: [LIST]{...}
+      // Pattern 1: [LIST]{...} (single)
       if (assistantReply.startsWith("[LIST]")) {
         const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());
         window.renderInfoList({
@@ -168,30 +167,41 @@ form.addEventListener("submit", async (e) => {
         showChatInputSpinner(false);
         return;
       }
-      // Pattern 2: Markdown-style list (fallback)
-      const match = assistantReply.match(/^(\w+ List|Notes|Reminders|Events):\s*\n((?:[-•].+\n?)+)/im);
-      if (match) {
-        const title = match[1] || "List";
-        const rawItems = match[2]
-          .split('\n')
-          .filter(Boolean)
-          .map(line => {
-            const m = line.match(/[-•]\s*(\[([^\]]+)\])?\s*(.+)/);
-            return {
-              label: m?.[2] || "",
-              desc: m?.[3] || line.replace(/^[-•]\s*/, "")
-            };
+
+      // Pattern 2: Multiple Markdown-style lists (your use case)
+      // Splits the reply into sections starting with e.g. "Calendar Events:"/"Reminders:" etc.
+      const listSections = assistantReply.split(/\n(?=[A-Za-z ]+:\n)/g);
+      let anyListRendered = false;
+      for (const section of listSections) {
+        const match = section.match(/^([A-Za-z ]+):\s*\n((?:[-•].+\n?)+)/im);
+        if (match) {
+          const title = match[1].trim() || "List";
+          const rawItems = match[2]
+            .split('\n')
+            .filter(Boolean)
+            .map(line => {
+              // "- June 12, 2025: Meeting ..." or "- Call the dentist ..."
+              const m = line.match(/[-•]\s*(.+)/);
+              return {
+                label: "",
+                desc: m?.[1] || line.replace(/^[-•]\s*/, "")
+              };
+            });
+          window.renderInfoList({
+            containerId: "main",
+            title,
+            icon: "",
+            items: rawItems
           });
-        window.renderInfoList({
-          containerId: "main",
-          title,
-          icon: "",
-          items: rawItems
-        });
+          anyListRendered = true;
+        }
+      }
+      if (anyListRendered) {
         showChatInputSpinner(false);
         return;
       }
-      // Pattern 3: Direct JSON
+
+      // Pattern 3: Direct JSON (rare, but supported)
       if (assistantReply.trim().startsWith("{") && assistantReply.trim().endsWith("}")) {
         const payload = JSON.parse(assistantReply);
         if (payload.items && Array.isArray(payload.items)) {
