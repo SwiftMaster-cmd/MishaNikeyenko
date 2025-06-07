@@ -1,4 +1,4 @@
-// 🔹 chat.js – input and flow control only, all UI/logic in modules
+// 🔹 chat.js – Full assistant input and flow control
 
 import {
   onValue,
@@ -17,7 +17,6 @@ import {
   listReminders,
   listEvents
 } from "./commandHandlers.js";
-
 import {
   saveMessageToChat,
   fetchLast20Messages,
@@ -26,7 +25,6 @@ import {
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
-
 import { buildSystemPrompt } from "./memoryManager.js";
 import {
   renderMessages,
@@ -36,27 +34,14 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
-// ========== 1. DOM Elements ==========
+// ========== 1. DOM ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
-const debugToggle = document.getElementById("debug-toggle");
 
-// Sanity check
-if (!form || !input) {
-  console.error("Form or input element not found");
-  throw new Error("chat.js aborted: missing DOM elements");
-}
-
-// ========== 2. Init ==========
+// ========== 2. Scroll ==========
 initScrollTracking();
 
-if (debugToggle) {
-  debugToggle.addEventListener("click", () => {
-    if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
-  });
-}
-
-// ========== 3. Auth & Chat History ==========
+// ========== 3. Auth ==========
 let uid = null;
 let chatRef = null;
 
@@ -72,6 +57,11 @@ onAuthStateChanged(auth, (user) => {
   chatRef = ref(db, `chatHistory/${uid}`);
   window.debug("Auth Ready → UID:", uid);
 
+  // ✅ Remove loader on auth success
+  const loader = document.getElementById("initial-loader");
+  if (loader) loader.remove();
+
+  // Load latest messages
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
     const messages = Object.entries(data).map(([id, msg]) => ({
@@ -80,22 +70,12 @@ onAuthStateChanged(auth, (user) => {
       content: msg.content,
       timestamp: msg.timestamp || 0
     }));
+    window.debug("Chat history loaded", messages.length);
     renderMessages(messages.slice(-20));
   });
-
-  // ✅ Remove loading screen once everything is ready
-  document.getElementById("initial-loader")?.remove();
 });
 
-// 🕒 Fallback: If auth never completes
-setTimeout(() => {
-  if (!uid) {
-    const loader = document.getElementById("initial-loader");
-    if (loader) loader.textContent = "⚠️ Still loading... Check your connection or Firebase config.";
-  }
-}, 6000);
-
-// ========== 4. Submit Handler ==========
+// ========== 4. Submission ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -107,6 +87,7 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
+    // Static Commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -114,18 +95,21 @@ form.addEventListener("submit", async (e) => {
       showChatInputSpinner(false);
       return;
     }
+
     if (prompt === "/notes") {
       await listNotes(chatRef);
       window.setStatusFeedback("success", "Notes listed");
       showChatInputSpinner(false);
       return;
     }
+
     if (prompt === "/reminders") {
       await listReminders(chatRef);
       window.setStatusFeedback("success", "Reminders listed");
       showChatInputSpinner(false);
       return;
     }
+
     if (prompt === "/events") {
       await listEvents(chatRef);
       window.setStatusFeedback("success", "Events listed");
@@ -133,20 +117,18 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // Step 1: Save user message
+    // Save user message
     await saveMessageToChat("user", prompt, uid);
-    window.debug("[STEP 1] User message saved.");
+    window.debug("[STEP 1] User message saved");
 
-    // Step 2: Try memory extraction
-    window.debug("[STEP 2] Checking for memory...");
+    // Try memory extraction
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
       window.setStatusFeedback("success", `Memory saved (${memory.type})`);
       window.debug("[MEMORY]", memory);
     }
 
-    // Step 3: Build assistant prompt
-    window.debug("[STEP 3] Fetching context...");
+    // Build assistant prompt
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
@@ -163,13 +145,13 @@ form.addEventListener("submit", async (e) => {
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     window.debug("[GPT INPUT]", full);
 
-    // Step 4: Get assistant reply
-    const assistantReply = await getAssistantReply(full);
-    await saveMessageToChat("assistant", assistantReply, uid);
-    window.logAssistantReply(assistantReply);
-    updateHeaderWithAssistantReply(assistantReply);
+    // Get assistant reply
+    const reply = await getAssistantReply(full);
+    await saveMessageToChat("assistant", reply, uid);
+    window.logAssistantReply(reply);
+    updateHeaderWithAssistantReply(reply);
 
-    // Step 5: Summarize if needed
+    // Optional summary
     await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
   } catch (err) {
