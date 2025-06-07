@@ -55,18 +55,18 @@
   <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
 </div>
 
-<!-- GPT Chat -->
 <main class="chat-container">
   <div id="chat-log"></div>
-  <form id="chat-form">
+  <form id="chat-form" style="display:flex;align-items:center;gap:10px;">
     <input
       id="user-input"
       type="text"
       placeholder="Type your message..."
       required
+      style="flex:1;"
     />
-    <!-- The spinner is *immediately* after the chat input -->
-    <span id="chat-loading-spinner" style="display:none;margin-left:10px;vertical-align:middle;">
+    <!-- Spinner -->
+    <span id="chat-loading-spinner" style="display:none;">
       <svg width="20" height="20" viewBox="0 0 50 50">
         <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
         <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
@@ -74,19 +74,14 @@
         </circle>
       </svg>
     </span>
-    <button type="submit">Send</button>
+    <!-- Status Icon/Tooltip RIGHT after spinner -->
+    <span id="status-indicator" style="display:flex;align-items:center;gap:4px;min-width:40px;">
+      <span id="status-icon" style="font-size:1.5rem;"></span>
+      <span id="status-tooltip" style="font-size:0.92rem;color:#999;opacity:0.95;display:none;background:rgba(30,30,50,0.93);padding:2px 8px;border-radius:6px;white-space:nowrap;z-index:1;position:absolute;top:calc(100% + 3px);"></span>
+    </span>
+    <button type="submit" style="margin-left:4px;">Send</button>
   </form>
 </main>
-
-<!-- If you have other forms (like Add-Link), keep them *outside* of main.chat-container to avoid interference -->
-<form id="add-link-form" class="collapsed" autocomplete="off">
-  <input id="link-title" type="text" placeholder="Link title" required />
-  <input id="link-url" type="url" placeholder="https://example.com" required />
-  <select id="link-category" required></select>
-  <input id="new-cat-input" class="hidden" placeholder="New category name" />
-  <button class="btn-solid" type="submit">Save</button>
-</form>
-
 
 
   <!-- MODULE SCRIPTS -->
