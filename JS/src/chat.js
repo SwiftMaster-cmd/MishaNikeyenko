@@ -35,6 +35,15 @@ import { extractJson, detectMemoryType } from "./chatUtils.js";
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
+const header = document.getElementById("header-title");
+function updateHeaderWithAssistantReply(text) {
+  if (!header) return;
+  header.style.opacity = 0;
+  setTimeout(() => {
+    header.textContent = text;
+    header.style.opacity = 1;
+  }, 150);
+}
 
 // ========== 2. Visual Feedback Utilities ==========
 
