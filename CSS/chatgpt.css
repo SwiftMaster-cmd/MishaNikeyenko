@@ -231,7 +231,10 @@ body, html, .chat-container, main.chat-container {
   right: 0 !important;
   box-sizing: border-box !important;
 }
-
+.msg {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  will-change: opacity, transform;
+}
 /* Responsive tweaks */
 @media (max-width: 600px) {
   .msg { max-width: 94vw; font-size: 0.98rem; }
