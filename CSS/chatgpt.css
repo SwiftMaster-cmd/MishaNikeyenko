@@ -305,6 +305,35 @@ button[type="submit"]:active {
   cursor: pointer;
 }
 
+#blob-bg {
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.6;
+  animation: moveBlobs 40s infinite ease-in-out alternate;
+  mix-blend-mode: screen;
+}
+
+@keyframes moveBlobs {
+  0%   { transform: translate(0, 0) scale(1); }
+  25%  { transform: translate(20vw, -10vh) scale(1.1); }
+  50%  { transform: translate(-15vw, 15vh) scale(0.95); }
+  75%  { transform: translate(10vw, -20vh) scale(1.05); }
+  100% { transform: translate(0, 0) scale(1); }
+}
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
@@ -324,6 +353,7 @@ body, html, .chat-container, main.chat-container {
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
+
 
 /* Responsive */
 @media (max-width: 600px) {
