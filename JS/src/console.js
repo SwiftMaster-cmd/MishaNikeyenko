@@ -1,3 +1,7 @@
+// console.js – Persistent Debug Console + Suggestions Panel
+
+import { fetchSelfImprovementSuggestions } from "./memoryManager.js";
+
 const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
@@ -102,6 +106,8 @@ window.logAssistantReply = function (replyText) {
 window.showDebugOverlay = function () {
   const overlay = document.getElementById("debug-overlay");
   const content = document.getElementById("debug-content");
+  const suggestionsBtn = document.getElementById("show-suggestions-btn");
+  const suggestionsDiv = document.getElementById("suggestions-list");
   if (!overlay || !content) return;
 
   const logs = loadPersistedLogs();
@@ -109,6 +115,8 @@ window.showDebugOverlay = function () {
     ? logs.map(log => `[${formatTime(log.timestamp)}] ${log.content}`).join("\n")
     : "No logs available.";
   overlay.style.display = "flex";
+  // Hide suggestions on open
+  if (suggestionsDiv) suggestionsDiv.style.display = "none";
 };
 
 // Render grouped logs
@@ -169,16 +177,44 @@ function renderLogGroups(logs) {
   }
 }
 
-// Init on page ready
+// ==== SUGGESTIONS PANEL LOGIC ====
+
+async function loadSuggestionsPanel() {
+  const suggestionsDiv = document.getElementById("suggestions-list");
+  if (!suggestionsDiv) return;
+  suggestionsDiv.style.display = "block";
+  suggestionsDiv.innerHTML = "Loading...";
+  // Get UID from auth, fallback to global
+  const uid = (window.auth && window.auth.currentUser && window.auth.currentUser.uid) || "";
+  if (!uid) {
+    suggestionsDiv.innerHTML = "Not signed in.";
+    return;
+  }
+  const result = await fetchSelfImprovementSuggestions(uid);
+  if (!result || !result.items) {
+    suggestionsDiv.innerHTML = "No suggestions found.";
+  } else {
+    suggestionsDiv.innerHTML = `<b>${result.title}</b><ul>` +
+      result.items.map(x => `<li>${x}</li>`).join("") +
+      "</ul>";
+  }
+}
+
+// ==== DOM READY ====
+
 document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("console-toggle-btn");
   const panel = document.getElementById("onscreen-console");
+  const suggestionsBtn = document.getElementById("show-suggestions-btn");
+  const suggestionsDiv = document.getElementById("suggestions-list");
 
   if (toggleBtn && panel) {
     toggleBtn.addEventListener("click", () => {
       const isVisible = panel.style.display === "block";
       panel.style.display = isVisible ? "none" : "block";
       if (!isVisible) renderLogGroups(loadPersistedLogs());
+      // Hide suggestions panel on open
+      if (suggestionsDiv) suggestionsDiv.style.display = "none";
     });
   }
 
@@ -189,6 +225,17 @@ document.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => e.target.classList.remove("clicked"), 400);
     }
   });
+
+  // Self-Improvement Suggestions Button Handler
+  if (suggestionsBtn && suggestionsDiv) {
+    suggestionsBtn.onclick = () => {
+      if (suggestionsDiv.style.display === "block") {
+        suggestionsDiv.style.display = "none";
+        return;
+      }
+      loadSuggestionsPanel();
+    };
+  }
 
   const style = document.createElement("style");
   style.textContent = `
@@ -227,6 +274,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
     .debug-line.clicked {
       background: #32cd3277 !important;
+    }
+    #show-suggestions-btn {
+      margin: 10px 0 0 0;
+      background: #242a47;
+      color: #d8e3fd;
+      border: none;
+      border-radius: 9px;
+      padding: 7px 16px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.18s;
+      display: block;
+    }
+    #show-suggestions-btn:hover {
+      background: #354061;
+    }
+    #suggestions-list {
+      margin: 10px 0 0 0;
+      background: #23243c;
+      border-radius: 12px;
+      padding: 12px;
+      color: #e9f3fe;
+      display: none;
+      font-size: 0.96rem;
+      word-break: break-word;
+      box-shadow: 0 2px 18px #12122033;
+    }
+    #suggestions-list ul {
+      margin: 8px 0 0 0;
+      padding-left: 19px;
+    }
+    #suggestions-list li {
+      margin: 0 0 4px 0;
+      padding: 0;
     }
   `;
   document.head.appendChild(style);
