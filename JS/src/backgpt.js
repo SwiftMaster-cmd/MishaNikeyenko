@@ -1,4 +1,4 @@
-// 🔹 backgpt.js – Assistant replies, context fetching, GPT summaries, and Firebase log writes
+// 🔹 backgpt.js – Assistant reply engine, memory context, Firebase logic
 
 import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "./firebaseConfig.js";
@@ -15,23 +15,17 @@ import { extractJson, detectMemoryType } from "./chatUtils.js";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-// 🔹 Firebase Debug Logger
-async function debugLogToFirebase(uid, tag, content) {
-  if (!uid || !content) return;
-  await push(ref(db, `debugLogs/${uid}`), {
-    tag,
+// 🔹 1. Save message to Firebase chat history
+export async function saveMessageToChat(role, content, uid) {
+  const chatRef = ref(db, `chatHistory/${uid}`);
+  await push(chatRef, {
+    role,
     content,
     timestamp: Date.now()
   });
 }
 
-// 🔹 1. Save a message to chat
-export async function saveMessageToChat(role, content, uid) {
-  const chatRef = ref(db, `chatHistory/${uid}`);
-  await push(chatRef, { role, content, timestamp: Date.now() });
-}
-
-// 🔹 2. Get last 20 messages
+// 🔹 2. Fetch last 20 messages
 export async function fetchLast20Messages(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return [];
@@ -46,7 +40,7 @@ export async function fetchLast20Messages(uid) {
     .slice(-20);
 }
 
-// 🔹 3. Get all context + summary logging
+// 🔹 3. Gather full memory context
 export async function getAllContext(uid) {
   const today = todayStr();
   const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
@@ -57,66 +51,25 @@ export async function getAllContext(uid) {
     getReminders(uid),
     getCalcHistory(uid)
   ]);
-
-  const contextNodes = {
-    memory,
-    dayLog,
-    notes,
-    calendar,
-    reminders,
-    calc
-  };
-
-  for (const [key, data] of Object.entries(contextNodes)) {
-    const summary = await summarizeOneNode(uid, key, data);
-    if (summary) await debugLogToFirebase(uid, "MEMORY", `[${key}] ${summary}`);
-  }
-
-  return contextNodes;
+  return { memory, dayLog, notes, calendar, reminders, calc };
 }
 
-// 🔹 4. Summarize one context node
-async function summarizeOneNode(uid, label, data) {
-  try {
-    const response = await fetch("/.netlify/functions/chatgpt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        temperature: 0.3,
-        messages: [
-          {
-            role: "system",
-            content: `You are a summarizer. Summarize the following JSON into a single line that describes its overall content.`
-          },
-          {
-            role: "user",
-            content: JSON.stringify(data).slice(0, 6000) // truncate large objects
-          }
-        ]
-      })
-    });
-
-    const result = await response.json();
-    return result.choices?.[0]?.message?.content || null;
-  } catch (err) {
-    console.error("Summary error:", err);
-    return null;
-  }
-}
-
-// 🔹 5. Get assistant reply from GPT
+// 🔹 4. Send GPT request
 export async function getAssistantReply(fullMessages) {
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages: fullMessages, model: "gpt-4o", temperature: 0.8 })
+    body: JSON.stringify({
+      messages: fullMessages,
+      model: "gpt-4o",
+      temperature: 0.7
+    })
   });
   const data = await res.json();
-  return data.choices?.[0]?.message?.content || "[No reply]";
+  return data.reply || "[No reply]";
 }
 
-// 🔹 6. Extract structured memory
+// 🔹 5. Extract memory (note, reminder, calendar, log)
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
@@ -130,25 +83,31 @@ export async function extractMemoryFromPrompt(prompt, uid) {
         {
           role: "system",
           content: `
-You are a memory extraction engine. ALWAYS return exactly one JSON object:
+You are a memory extraction engine. Output one JSON object like this:
 {
-  "type": "note" | "reminder" | "calendar" | "log",
+  "type":   "note" | "reminder" | "calendar" | "log",
   "content": "string",
-  "date": "optional YYYY-MM-DD"
-}`
+  "date":   "optional YYYY-MM-DD"
+}
+
+RULES:
+- /note → note
+- /reminder, "remind me" → reminder
+- Mentions of dates (e.g. tomorrow, on June 10) → calendar
+- /log or "journal" → log
+- Otherwise default to note.
+Return ONLY the JSON block.
+          `.trim()
         },
-        {
-          role: "user",
-          content: memoryType.startsWith("/") ? rawPrompt : prompt
-        }
+        { role: "user", content: rawPrompt }
       ],
       model: "gpt-4o",
       temperature: 0.3
     })
   });
 
-  const text = await res.text();
-  const parsed = extractJson(text);
+  const rawText = await res.text();
+  const parsed = extractJson(rawText);
   if (!parsed?.type || !parsed?.content) return null;
 
   const path =
@@ -166,11 +125,10 @@ You are a memory extraction engine. ALWAYS return exactly one JSON object:
     ...(parsed.date ? { date: parsed.date } : {})
   });
 
-  await debugLogToFirebase(uid, "MEMORY", `[EXTRACTED ${parsed.type.toUpperCase()}] ${parsed.content}`);
   return parsed;
 }
 
-// 🔹 7. Auto-summarize chat every 20 messages
+// 🔹 6. Auto-summarize every 20 messages
 export async function summarizeChatIfNeeded(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return;
@@ -199,21 +157,70 @@ export async function summarizeChatIfNeeded(uid) {
       messages: [
         {
           role: "system",
-          content: "Summarize this conversation block into a concise paragraph."
+          content: "You are a concise summarizer. Summarize the following conversation block into one paragraph:"
         },
         { role: "user", content: convoText }
       ],
       model: "gpt-4o",
-      temperature: 0.5
+      temperature: 0.4
     })
   });
 
-  const result = await res.json();
-  const summary = result.choices?.[0]?.message?.content || "[No summary]";
+  const dataJson = await res.json();
+  const summary = dataJson.reply || "[No summary]";
   await push(ref(db, `memory/${uid}`), {
     summary,
     timestamp: Date.now()
   });
+}
 
-  await debugLogToFirebase(uid, "SUMMARY", summary);
+// 🔹 7. Summarize all node types (optional for debug panel)
+export async function generateMemorySummaries(uid) {
+  const today = todayStr();
+  const paths = {
+    Notes: `notes/${uid}/${today}`,
+    Reminders: `reminders/${uid}`,
+    Calendar: `calendarEvents/${uid}`,
+    Logs: `dayLog/${uid}/${today}`,
+    Memory: `memory/${uid}`
+  };
+
+  const summaries = [];
+
+  for (const [label, path] of Object.entries(paths)) {
+    try {
+      const snap = await get(ref(db, path));
+      if (!snap.exists()) {
+        summaries.push(`[${label}] Empty`);
+        continue;
+      }
+
+      const content = JSON.stringify(snap.val(), null, 2);
+      const res = await fetch("/.netlify/functions/chatgpt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: `Summarize this ${label} data in one sentence.`
+            },
+            {
+              role: "user",
+              content: content.slice(0, 2000) // Limit token size
+            }
+          ],
+          model: "gpt-4o",
+          temperature: 0.4
+        })
+      });
+
+      const data = await res.json();
+      summaries.push(`[${label}] ${data.reply || "No summary"}`);
+    } catch (err) {
+      summaries.push(`[${label}] Failed to summarize`);
+    }
+  }
+
+  return summaries;
 }

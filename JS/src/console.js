@@ -1,117 +1,106 @@
-import { ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { ref, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db, auth } from "./firebaseConfig.js";
-import { getNotes, getReminders, getCalendar, getMemory, getDayLog } from "./memoryManager.js";
 
-const LOG_KEY = "assistantDebugLog";
+// Auto-scroll toggle and debug mode
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
 
-// === Persistence ===
-function loadLogs() {
+// Utility: format timestamp
+function formatTimestamp(ts) {
+  if (!ts) return "Invalid";
   try {
-    const raw = localStorage.getItem(LOG_KEY);
-    return Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+    return new Date(ts).toLocaleTimeString();
   } catch {
-    return [];
+    return "Invalid";
   }
 }
 
-function saveLogs(logs) {
-  localStorage.setItem(LOG_KEY, JSON.stringify(logs));
-}
-
-// === Logging ===
+// Debug logger
 window.debugLog = function (...args) {
-  const logs = loadLogs();
-  const msg = args.map(a => typeof a === "object" ? JSON.stringify(a, null, 2) : a).join(" ");
-  const tag = /^\[(\w+)\]/.exec(msg)?.[1]?.toUpperCase() || "INFO";
-  const ts = new Date().toISOString();
+  const timestamp = Date.now();
+  const content = args.map(a => (typeof a === "object" ? JSON.stringify(a, null, 2) : a)).join(" ");
+  const tagMatch = content.match(/^\[(\w+)\]/);
+  const tag = tagMatch ? tagMatch[1].toUpperCase() : "INFO";
 
-  logs.push({ tag, timestamp: ts, content: msg });
-  saveLogs(logs);
-  renderLogGroups([logs.at(-1)]);
+  const log = { tag, content, timestamp };
+  renderLogGroups([log], true);
 };
 
-window.clearDebugLog = () => {
-  localStorage.removeItem(LOG_KEY);
-  renderLogGroups([]);
+// Shortcut
+window.debug = (...args) => {
+  if (window.DEBUG_MODE) window.debugLog(...args);
 };
 
-window.exportDebugLog = () => {
-  const logs = loadLogs();
-  const blob = new Blob([logs.map(l => `[${l.timestamp}] ${l.content}`).join("\n")], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement("a"), {
-    href: url,
-    download: `assistant-log-${new Date().toISOString().slice(0, 10)}.txt`
-  });
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-window.setStatusFeedback = (type, msg = "") => {
-  const bar = document.getElementById("chat-status-bar");
-  if (!bar) return;
-
-  const styles = {
-    success: { color: "#1db954", bg: "#1db95422" },
-    error: { color: "#d7263d", bg: "#d7263d22" },
-    loading: { color: "#ffd600", bg: "#ffd60022" }
-  };
-
-  if (!styles[type]) {
-    bar.style.opacity = 0;
-    return;
-  }
-
-  bar.textContent = msg;
-  bar.style.color = styles[type].color;
-  bar.style.background = styles[type].bg;
-  bar.style.opacity = 1;
-
-  if (type !== "loading") setTimeout(() => (bar.style.opacity = 0), 1800);
-};
-
-window.logAssistantReply = reply => {
-  const preview = reply.length > 80 ? reply.slice(0, 77) + "..." : reply;
-  window.debugLog("[REPLY]", preview);
-  window.setStatusFeedback("success", "Assistant responded");
-};
-
-// === Debug Panel & Overlay ===
-window.showDebugOverlay = () => {
+// Show debug overlay
+window.showDebugOverlay = function () {
   const overlay = document.getElementById("debug-overlay");
   const content = document.getElementById("debug-content");
-  const logs = loadLogs();
   if (!overlay || !content) return;
-  content.textContent = logs.length ? logs.map(l => `[${l.timestamp}] ${l.content}`).join("\n") : "No logs yet.";
+
+  content.textContent = "[Loading logs from Firebase...]";
   overlay.style.display = "flex";
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) return;
+    const uid = user.uid;
+    const paths = [
+      { path: `notes/${uid}`, label: "Notes" },
+      { path: `reminders/${uid}`, label: "Reminders" },
+      { path: `calendarEvents/${uid}`, label: "Calendar" },
+      { path: `memory/${uid}`, label: "Memory" },
+      { path: `dayLog/${uid}`, label: "Day Log" },
+    ];
+
+    let summary = "";
+
+    for (let { path, label } of paths) {
+      try {
+        const snap = await get(ref(db, path));
+        if (!snap.exists()) {
+          summary += `[${label}] No data\n`;
+          continue;
+        }
+
+        const data = snap.val();
+        const count = Object.keys(data).length;
+        const preview = JSON.stringify(data, null, 2).slice(0, 200);
+        summary += `[${label}] ${count} entries\n${preview}\n\n`;
+      } catch (err) {
+        summary += `[${label}] Error loading\n`;
+      }
+    }
+
+    content.textContent = summary;
+  });
 };
 
-// === Log Rendering ===
-function renderLogGroups(logs) {
+// Render groups of logs
+function renderLogGroups(logs = [], append = false) {
   const container = document.getElementById("onscreen-console-messages");
   if (!container) return;
+  if (!append) container.innerHTML = "";
 
-  const all = logs.length ? [...loadLogs(), ...logs] : loadLogs();
-  const grouped = {};
-  all.forEach(log => {
-    if (!log.tag) return;
-    grouped[log.tag] = grouped[log.tag] || [];
-    grouped[log.tag].push(log);
+  const groups = {};
+
+  logs.forEach(log => {
+    if (!log || !log.tag || !log.content || !log.timestamp) return;
+    if (!groups[log.tag]) groups[log.tag] = [];
+    groups[log.tag].push(log);
   });
 
-  container.innerHTML = "";
-
-  Object.entries(grouped)
-    .sort((a, b) => new Date(b[1].at(-1).timestamp) - new Date(a[1].at(-1).timestamp))
+  Object.entries(groups)
+    .sort((a, b) => {
+      const aTime = a[1][a.length - 1].timestamp;
+      const bTime = b[1][b.length - 1].timestamp;
+      return aTime - bTime;
+    })
     .forEach(([tag, entries]) => {
       const group = document.createElement("div");
       group.className = `log-group ${tag.toLowerCase()}`;
 
       const header = document.createElement("div");
       header.className = "group-header";
-      header.textContent = `[${tag}] (${entries.length}) -- ${formatTime(entries.at(-1).timestamp)}`;
+      header.textContent = `[${tag}] (${entries.length}) -- ${formatTimestamp(entries.at(-1).timestamp)}`;
       group.appendChild(header);
 
       const logList = document.createElement("div");
@@ -121,7 +110,7 @@ function renderLogGroups(logs) {
       entries.forEach(entry => {
         const line = document.createElement("div");
         line.className = "debug-line";
-        line.textContent = `[${formatTime(entry.timestamp)}] ${entry.content}`;
+        line.textContent = `[${formatTimestamp(entry.timestamp)}] ${entry.content}`;
         logList.appendChild(line);
       });
 
@@ -138,79 +127,48 @@ function renderLogGroups(logs) {
   }
 }
 
-function formatTime(ts) {
-  const d = new Date(ts);
-  return isNaN(d) ? "Invalid time" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
-
-// === Summarize Firebase nodes
-window.fetchFirebaseSummaries = async () => {
-  const uid = auth.currentUser?.uid;
-  if (!uid) return window.debugLog("[ERROR] No user");
-
-  try {
-    const nodes = {
-      notes: await getNotes(uid),
-      reminders: await getReminders(uid),
-      calendar: await getCalendar(uid),
-      memory: await getMemory(uid),
-      log: await getDayLog(uid, new Date().toISOString().slice(0, 10))
-    };
-
-    const prompt = `
-Summarize each node in 1 short line.
-Respond ONLY in this JSON format:
-{
-  "notes": "...",
-  "reminders": "...",
-  "calendar": "...",
-  "memory": "...",
-  "log": "..."
-}`;
-
-    const res = await fetch("/.netlify/functions/chatgpt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: prompt },
-          { role: "user", content: JSON.stringify(nodes, null, 2) }
-        ],
-        model: "gpt-4o",
-        temperature: 0.3
-      })
-    });
-
-    const raw = await res.text();
-    const parsed = JSON.parse(raw.match(/{[\s\S]+}/)?.[0] || "{}");
-
-    Object.entries(parsed).forEach(([k, v]) =>
-      window.debugLog(`[INFO] ${k.toUpperCase()}: ${v}`)
-    );
-  } catch (err) {
-    window.debugLog("[ERROR] Failed to fetch summaries:", err.message);
-  }
-};
-
-// === Init
+// Inject styles + click handlers
 document.addEventListener("DOMContentLoaded", () => {
-  const toggle = document.getElementById("console-toggle-btn");
-  const panel = document.getElementById("onscreen-console");
+  const style = document.createElement("style");
+  style.textContent = `
+    .log-group { border-left: 4px solid #444; margin: 8px 0; padding-left: 8px; }
+    .log-group.info    { border-color: #999; }
+    .log-group.success { border-color: #1db954; }
+    .log-group.error   { border-color: #d7263d; }
+    .log-group.debug   { border-color: #368bff; }
+    .log-group.reply   { border-color: #ffa500; }
 
-  if (toggle && panel) {
-    toggle.onclick = () => {
-      panel.style.display = panel.style.display === "block" ? "none" : "block";
-      if (panel.style.display === "block") renderLogGroups([]);
-    };
-  }
+    .group-header {
+      font-weight: bold;
+      font-size: 0.85rem;
+      padding: 2px 0;
+      cursor: pointer;
+      color: #aaa;
+    }
+
+    .log-list {
+      padding-left: 4px;
+    }
+
+    .debug-line {
+      font-family: monospace;
+      font-size: 0.75rem;
+      padding: 2px 0;
+      color: #f8fafd;
+      white-space: pre-wrap;
+    }
+
+    .debug-line.clicked {
+      background: #32cd3277 !important;
+    }
+  `;
+  document.head.appendChild(style);
 
   document.addEventListener("click", (e) => {
     if (e.target.classList.contains("debug-line")) {
       navigator.clipboard.writeText(e.target.textContent);
       e.target.classList.add("clicked");
-      setTimeout(() => e.target.classList.remove("clicked"), 300);
+      setTimeout(() => e.target.classList.remove("clicked"), 400);
     }
   });
-
-  renderLogGroups([]);
 });
