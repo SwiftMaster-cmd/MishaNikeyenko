@@ -168,7 +168,7 @@ onAuthStateChanged(auth, user => {
     return;
   }
   uid = user.uid;
-  chatRef = ref(db, `chathistory/${uid}`);
+  chatRef = ref(db, `chatHistory/${uid}`);
 
   onValue(chatRef, snap => {
     const data = snap.val() || {};
