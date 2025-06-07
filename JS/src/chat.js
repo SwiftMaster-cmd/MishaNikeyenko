@@ -1,4 +1,4 @@
-// 🔹 chat.js – input, flow control, voice in/out, auto-list rendering
+// 🔹 chat.js – input, flow control, voice input/output, auto-list rendering
 
 import {
   onValue,
@@ -37,27 +37,32 @@ import {
 } from "./uiShell.js";
 
 import { renderInfoList } from "./lists.js";
-import { startVoiceRecognition, speakText } from "./voice.js";
+import {
+  startVoiceRecognition,
+  speakText
+} from "./voice.js";
 
 window.renderInfoList = renderInfoList;
 
 // ========== 1. DOM ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
-const micButton = document.getElementById("mic-button");
 const debugToggle = document.getElementById("debug-toggle");
+const micButton = document.getElementById("mic-button");
 
 initScrollTracking();
 
-micButton?.addEventListener("click", () => {
-  startVoiceRecognition((transcript) => {
-    input.value = transcript;
+if (debugToggle) {
+  debugToggle.addEventListener("click", () => {
+    if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
   });
-});
+}
 
-debugToggle?.addEventListener("click", () => {
-  if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
-});
+if (micButton) {
+  micButton.addEventListener("click", () => startVoiceRecognition((transcript) => {
+    input.value = transcript;
+  }));
+}
 
 // ========== 2. Auth ==========
 let uid = null;
@@ -66,10 +71,12 @@ let chatRef = null;
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
+    window.setStatusFeedback("loading", "Signing in...");
     return;
   }
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
+  window.debug("Auth Ready → UID:", uid);
 
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
@@ -95,9 +102,12 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    if (["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"].includes(prompt)) {
+    // Commands
+    const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
+    if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
-      return showChatInputSpinner(false);
+      showChatInputSpinner(false);
+      return;
     }
     if (prompt === "/notes") return listNotes(chatRef);
     if (prompt === "/reminders") return listReminders(chatRef);
@@ -109,7 +119,6 @@ form.addEventListener("submit", async (e) => {
       fetchLast20Messages(uid),
       getAllContext(uid)
     ]);
-
     const sysPrompt = buildSystemPrompt({
       memory: context.memory,
       todayLog: context.dayLog,
@@ -119,20 +128,23 @@ form.addEventListener("submit", async (e) => {
       calc: context.calc,
       date: new Date().toISOString().slice(0, 10)
     });
-
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     const assistantReply = await getAssistantReply(full);
 
     await saveMessageToChat("assistant", assistantReply, uid);
     window.logAssistantReply(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
-    speakText(assistantReply); // 🔊 Voice Output
 
-    // Try rendering as info list
+    // Voice Output
+    speakText(assistantReply);
+
+    // Smart list rendering
     try {
       if (assistantReply.startsWith("[LIST]")) {
         const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());
-        return window.renderInfoList({ containerId: "main", ...payload });
+        window.renderInfoList({ containerId: "main", ...payload });
+        showChatInputSpinner(false);
+        return;
       }
 
       const cardPattern = /\*\*(.+?):\*\*((?:\s*-\s*[^*]+)+)/g;
@@ -144,7 +156,10 @@ form.addEventListener("submit", async (e) => {
         window.renderInfoList({ containerId: "main", title, items });
         foundInline = true;
       }
-      if (foundInline) return;
+      if (foundInline) {
+        showChatInputSpinner(false);
+        return;
+      }
 
       const listSections = assistantReply.split(/\n(?=[A-Za-z ]+:\n)/g);
       for (const section of listSections) {
