@@ -12,7 +12,7 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-import { db, auth } from "./firebaseConfig.js";
+import { db, auth } from "./firebaseconfig.js";
 import {
   getMemory,
   getDayLog,
@@ -21,14 +21,14 @@ import {
   getReminders,
   getCalcHistory,
   buildSystemPrompt
-} from "./memoryManager.js";
+} from "./memorymanager.js";
 import {
   handleStaticCommand,
   listNotes,
   listReminders,
   listEvents
-} from "./commandHandlers.js";
-import { extractJson, detectMemoryType } from "./chatUtils.js";
+} from "./commandhandlers.js";
+import { extractJson, detectMemoryType } from "./chatutils.js";
 
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
@@ -168,7 +168,7 @@ onAuthStateChanged(auth, user => {
     return;
   }
   uid = user.uid;
-  chatRef = ref(db, `chatHistory/${uid}`);
+  chatRef = ref(db, `chathistory/${uid}`);
 
   onValue(chatRef, snap => {
     const data = snap.val() || {};
