@@ -1,4 +1,4 @@
-// 🔹 chat.js – modern feedback: chat spinner + top-right indicator + persistent console
+// 🔹 chat.js – Complete, with modular debug overlay integration
 
 import {
   ref,
@@ -31,13 +31,19 @@ import {
 } from "./commandHandlers.js";
 import { extractJson, detectMemoryType } from "./chatUtils.js";
 
+import {
+  addDebugMessage,
+  createDebugOverlay,
+  showDebugOverlay,
+  setupDebugShortcut
+} from "./debugOverlay.js";
+
 // ========== 1. UI Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-// ========== 2. Visual Feedback Utilities ==========
-
+// ========== 2. Visual Feedback ==========
 function showChatInputSpinner(show = true) {
   const spinner = document.getElementById("chat-loading-spinner");
   const inputField = document.getElementById("user-input");
@@ -64,7 +70,6 @@ function setStatusIndicator(type, tooltip = "") {
   } else {
     tip.style.display = "none";
   }
-  // Fade out automatically (except loading)
   if (type !== "loading" && html) {
     setTimeout(() => {
       icon.textContent = "";
@@ -73,96 +78,12 @@ function setStatusIndicator(type, tooltip = "") {
   }
 }
 
-// ========== 3. Debug Logging (persistent to onscreen console) ==========
-const debugInfo = [];
-function addDebugMessage(...args) {
-  if (typeof window.debugLog === "function") {
-    window.debugLog(...args);
-  }
-  debugInfo.push(args.join(" "));
-}
-
-// ========== 4. State ==========
+// ========== 3. State ==========
 let uid = null;
 let chatRef = null;
 let userHasScrolled = false;
 
-// ========== 5. Debug Overlay ==========
-function createDebugOverlay() {
-  const overlay = document.createElement("div");
-  overlay.id = "debug-overlay";
-  Object.assign(overlay.style, {
-    display: "none",
-    position: "fixed",
-    top: "0",
-    left: "0",
-    width: "100vw",
-    height: "100vh",
-    backgroundColor: "rgba(0, 0, 0, 0.85)",
-    zIndex: 9999
-  });
-
-  const modal = document.createElement("div");
-  modal.id = "debug-modal";
-  Object.assign(modal.style, {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    backgroundColor: "var(--clr-card)",
-    color: "var(--clr-text)",
-    padding: "1rem 1.5rem",
-    borderRadius: "12px",
-    boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
-    maxWidth: "80vw",
-    maxHeight: "80vh",
-    overflowY: "auto",
-    border: "1px solid var(--clr-border)"
-  });
-
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "close-btn";
-  closeBtn.textContent = "Close";
-  Object.assign(closeBtn.style, {
-    position: "absolute",
-    top: "8px",
-    right: "8px",
-    background: "var(--clr-border)",
-    color: "var(--clr-text)",
-    border: "none",
-    padding: "4px 8px",
-    cursor: "pointer",
-    borderRadius: "4px",
-    fontSize: "0.9rem"
-  });
-  closeBtn.addEventListener("click", () => {
-    overlay.style.display = "none";
-  });
-
-  const contentDiv = document.createElement("div");
-  contentDiv.id = "debug-content";
-  Object.assign(contentDiv.style, {
-    marginTop: "32px",
-    whiteSpace: "pre-wrap",
-    fontFamily: "monospace",
-    fontSize: "0.9rem",
-    lineHeight: "1.4"
-  });
-
-  modal.appendChild(closeBtn);
-  modal.appendChild(contentDiv);
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-}
-function showDebugOverlay() {
-  const overlay = document.getElementById("debug-overlay");
-  const contentDiv = document.getElementById("debug-content");
-  if (!overlay || !contentDiv) return;
-  contentDiv.textContent = debugInfo.join("\n");
-  overlay.style.display = "block";
-}
-
-// ========== 6. Scroll Logic ==========
+// ========== 4. Scroll Logic ==========
 log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
@@ -175,7 +96,7 @@ function scrollToBottom(force = false) {
   }
 }
 
-// ========== 7. Render Messages ==========
+// ========== 5. Render Messages ==========
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -194,14 +115,15 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-// ========== 8. Debug Button Integration ==========
+// ========== 6. Debug Overlay Setup ==========
 createDebugOverlay();
+setupDebugShortcut();
 const debugToggle = document.getElementById("debug-toggle");
 if (debugToggle) {
   debugToggle.addEventListener("click", showDebugOverlay);
 }
 
-// ========== 9. Firebase Auth/Chat Initialization ==========
+// ========== 7. Firebase Auth/Chat Initialization ==========
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
@@ -229,7 +151,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 10. Main Submit Logic ==========
+// ========== 8. Main Submit Logic ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
