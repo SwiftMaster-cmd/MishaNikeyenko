@@ -117,12 +117,17 @@ Rules:
     })
   });
 
-  const text = await res.text();
-  window.debug("[MEMORY RAW RESPONSE]", text);
+  // Get the parsed API response, then extract JUST the assistant's reply content:
+  const data = await res.json();
+  window.debug("[MEMORY RAW RESPONSE]", data);
 
-  const parsed = extractJson(text);
+  const content = data.choices?.[0]?.message?.content || "";
+  const parsed = extractJson(content);
+
+  window.debug("[MEMORY PARSED CONTENT]", { content, parsed });
+
   if (!parsed?.type || !parsed?.content) {
-    window.debug("[ERROR] Memory extraction failed.", { prompt, text, parsed });
+    window.debug("[ERROR] Memory extraction failed.", { prompt, content, parsed });
     return null;
   }
 
