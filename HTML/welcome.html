@@ -61,8 +61,10 @@
 </div>
 
 <main class="chat-container">
+  <!-- Chat Log -->
   <div id="chat-log"></div>
 
+  <!-- Chat Form -->
   <form id="chat-form">
     <!-- Console Toggle Button -->
     <button id="console-toggle-btn" type="button" class="inline-btn">Console</button>
@@ -95,6 +97,28 @@
     <!-- Submit Button -->
     <button type="submit" class="send-btn">Send</button>
   </form>
+
+  <!-- Chat Status Feedback -->
+  <div id="chat-status-bar"></div>
+
+  <!-- Onscreen Console -->
+  <div id="onscreen-console">
+    <div id="onscreen-console-messages"></div>
+    <div style="margin-top: 10px;">
+      <button onclick="window.clearDebugLog()">Clear Logs</button>
+      <button onclick="window.exportDebugLog()">Export Logs</button>
+      <button onclick="window.showDebugOverlay()">Full View</button>
+      <button onclick="window.autoScrollConsole = !window.autoScrollConsole; this.style.opacity = window.autoScrollConsole ? '1' : '0.5';">AutoScroll</button>
+    </div>
+  </div>
+
+  <!-- Debug Overlay -->
+  <div id="debug-overlay">
+    <div id="debug-modal">
+      <button class="close-btn" onclick="document.getElementById('debug-overlay').style.display='none'">Close</button>
+      <div id="debug-content"></div>
+    </div>
+  </div>
 </main>
   <!-- MODULE SCRIPTS -->
   <script type="module" src="../JS/profile.js"></script>
