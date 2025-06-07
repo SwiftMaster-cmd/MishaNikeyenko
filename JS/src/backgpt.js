@@ -15,24 +15,24 @@ import { extractJson, detectMemoryType } from "./chatUtils.js";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-// 🔹 1. Save message
+// 🔹 1. Save a message to Firebase
 export async function saveMessageToChat(role, content, uid) {
+  window.debug(`[SUBMIT] ${role.toUpperCase()}: ${content}`);
   const chatRef = ref(db, `chatHistory/${uid}`);
   await push(chatRef, {
     role,
     content,
     timestamp: Date.now()
   });
-  window.debug(`[SAVE] ${role}: ${content}`);
 }
 
-// 🔹 2. Load last 20 messages
+// 🔹 2. Get last 20 messages from chatHistory
 export async function fetchLast20Messages(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return [];
   const data = snap.val();
   return Object.entries(data)
-    .map(([_, msg]) => ({
+    .map(([id, msg]) => ({
       role: msg.role === "bot" ? "assistant" : msg.role,
       content: msg.content,
       timestamp: msg.timestamp || 0
@@ -41,7 +41,7 @@ export async function fetchLast20Messages(uid) {
     .slice(-20);
 }
 
-// 🔹 3. Gather full context
+// 🔹 3. Fetch all contextual memory
 export async function getAllContext(uid) {
   const today = todayStr();
   const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
@@ -52,13 +52,14 @@ export async function getAllContext(uid) {
     getReminders(uid),
     getCalcHistory(uid)
   ]);
-  window.debug("[CONTEXT] Loaded all memory types");
+  window.debug("[INFO] Context loaded.");
   return { memory, dayLog, notes, calendar, reminders, calc };
 }
 
-// 🔹 4. GPT reply
+// 🔹 4. Generate assistant reply via GPT
 export async function getAssistantReply(fullMessages) {
-  window.debug("[GPT] Requesting reply...");
+  window.debug("[INFO] Sending prompt to GPT...");
+
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -67,17 +68,17 @@ export async function getAssistantReply(fullMessages) {
 
   const data = await res.json();
   const reply = data.choices?.[0]?.message?.content || "[No reply]";
-  window.debug("[GPT] Reply received");
+
+  window.debug("[REPLY]", reply);
   return reply;
 }
 
-// 🔹 5. Memory extraction
+// 🔹 5. Try to extract memory (note/reminder/calendar/log) from prompt
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
-
   if (!memoryType) {
-    window.debug("[MEMORY] No memory type detected");
+    window.debug("[MEMORY] No memory type detected.");
     return null;
   }
 
@@ -89,20 +90,21 @@ export async function extractMemoryFromPrompt(prompt, uid) {
         {
           role: "system",
           content: `
-You are a memory extraction engine. ALWAYS return one JSON object with these keys:
+You are a memory extraction engine. ALWAYS return exactly one JSON object with these keys:
 {
-  "type": "note" | "reminder" | "calendar" | "log",
+  "type":   "note" | "reminder" | "calendar" | "log",
   "content": "string",
-  "date": "optional YYYY-MM-DD"
+  "date":   "optional YYYY-MM-DD"
 }
 
-Rules:
-1. If starts with "/note", type = "note"
-2. If starts with "/reminder" or "remind me", type = "reminder"
-3. If mentions future date, type = "calendar"
-4. If starts with "/log" or mentions journaling, type = "log"
-5. Else default to "note"
-Only return the JSON block.`
+RULES:
+1. If text begins with "/note", type="note".
+2. If it begins with "/reminder" or "remind me", type="reminder".
+3. If it mentions a date/time (e.g. "tomorrow", "Friday", "on 2025-06-10"), type="calendar".
+4. If it begins with "/log" or includes "journal", type="log".
+5. Otherwise, type="note" as a last resort.
+6. Populate "date" only when explicitly given.
+7. Return ONLY the JSON block.`
         },
         { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
       ],
@@ -114,7 +116,7 @@ Only return the JSON block.`
   const text = await res.text();
   const parsed = extractJson(text);
   if (!parsed?.type || !parsed?.content) {
-    window.debug("[MEMORY] Extraction failed", text);
+    window.debug("[ERROR] Memory extraction failed.");
     return null;
   }
 
@@ -133,25 +135,26 @@ Only return the JSON block.`
     ...(parsed.date ? { date: parsed.date } : {})
   });
 
-  window.debug(`[MEMORY] Saved ${parsed.type}: ${parsed.content}`);
+  window.debug(`[MEMORY] Stored ${parsed.type}: ${parsed.content}`);
   return parsed;
 }
 
-// 🔹 6. Periodic summarizer
+// 🔹 6. Run summary if message count % 20 === 0
 export async function summarizeChatIfNeeded(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return;
 
   const data = snap.val();
   const allMessages = Object.entries(data)
-    .map(([_, msg]) => ({
+    .map(([id, msg]) => ({
       role: msg.role === "bot" ? "assistant" : msg.role,
       content: msg.content,
       timestamp: msg.timestamp || 0
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
 
-  if (allMessages.length % 20 !== 0) return;
+  const count = allMessages.length;
+  if (count % 20 !== 0) return;
 
   const convoText = allMessages
     .slice(-20)
@@ -163,7 +166,10 @@ export async function summarizeChatIfNeeded(uid) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       messages: [
-        { role: "system", content: "You are a concise summarizer. Summarize the conversation:" },
+        {
+          role: "system",
+          content: "You are a concise summarizer. Summarize the following conversation block into one paragraph:"
+        },
         { role: "user", content: convoText }
       ],
       model: "gpt-4o",
@@ -178,5 +184,5 @@ export async function summarizeChatIfNeeded(uid) {
     timestamp: Date.now()
   });
 
-  window.debug("[MEMORY] Summary saved");
+  window.debug("[MEMORY] Summary added to memory.");
 }
