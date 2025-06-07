@@ -24,19 +24,9 @@ html, body {
   width: 100vw;
   min-width: 100vw;
   font-family: 'Inter', sans-serif;
-  background: var(--clr-bg);
-  background-attachment: fixed;
-  background-size: 400% 400%;
-  animation: animatedGradient 12s ease infinite;
-  color: var(--clr-text);
-  overflow: hidden;
 }
 
-@keyframes animatedGradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+
 
 body {
   width: 100vw;
