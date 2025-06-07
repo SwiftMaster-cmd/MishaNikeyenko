@@ -56,19 +56,22 @@ window.exportDebugLog = function () {
   URL.revokeObjectURL(url);
 };
 
-// 🔹 Assistant reply logger (silent to UI)
+// 🔹 Log assistant reply + update centered feedback bar
 window.logAssistantReply = function (replyText) {
-  const icon = document.getElementById("status-icon");
-  const tip = document.getElementById("status-tooltip");
-
-  if (icon) icon.textContent = "";
-  if (tip) {
-    tip.textContent = "";
-    tip.style.display = "none";
-  }
+  const statusBar = document.getElementById("chat-status-bar");
+  if (!statusBar) return;
 
   const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
   window.debugLog("🧠 Assistant responded:", preview);
+
+  statusBar.textContent = "Assistant responded";
+  statusBar.style.color = "#1db954";
+  statusBar.style.background = "rgba(29,185,84,0.08)";
+  statusBar.style.opacity = 1;
+
+  setTimeout(() => {
+    statusBar.style.opacity = 0;
+  }, 2000);
 };
 
 // 🔹 Console UI init
