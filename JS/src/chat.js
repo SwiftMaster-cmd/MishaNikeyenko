@@ -1,4 +1,4 @@
-// 🔹 chat.js – input, flow control, voice input/output, auto-list rendering
+// 🔹 chat.js – input, flow control, voice in/out, auto-list rendering
 
 import {
   onValue,
@@ -41,27 +41,23 @@ import { startVoiceRecognition, speakText } from "./voice.js";
 
 window.renderInfoList = renderInfoList;
 
-// ========== 1. DOM Elements ==========
+// ========== 1. DOM ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
-const debugToggle = document.getElementById("debug-toggle");
 const micButton = document.getElementById("mic-button");
+const debugToggle = document.getElementById("debug-toggle");
 
 initScrollTracking();
 
-if (debugToggle) {
-  debugToggle.addEventListener("click", () => {
-    if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
+micButton?.addEventListener("click", () => {
+  startVoiceRecognition((transcript) => {
+    input.value = transcript;
   });
-}
+});
 
-if (micButton) {
-  micButton.addEventListener("click", () => {
-    startVoiceRecognition((transcript) => {
-      input.value = transcript;
-    });
-  });
-}
+debugToggle?.addEventListener("click", () => {
+  if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
+});
 
 // ========== 2. Auth ==========
 let uid = null;
@@ -70,13 +66,10 @@ let chatRef = null;
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
-    window.setStatusFeedback("loading", "Signing in...");
-    window.debug("Auth: Signing in anonymously...");
     return;
   }
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
-  window.debug("Auth Ready → UID:", uid);
 
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
@@ -90,7 +83,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 3. Submit Handler ==========
+// ========== 3. Submit ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -102,11 +95,9 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
-    if (quick.includes(prompt)) {
+    if (["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"].includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
-      showChatInputSpinner(false);
-      return;
+      return showChatInputSpinner(false);
     }
     if (prompt === "/notes") return listNotes(chatRef);
     if (prompt === "/reminders") return listReminders(chatRef);
@@ -118,6 +109,7 @@ form.addEventListener("submit", async (e) => {
       fetchLast20Messages(uid),
       getAllContext(uid)
     ]);
+
     const sysPrompt = buildSystemPrompt({
       memory: context.memory,
       todayLog: context.dayLog,
@@ -127,22 +119,20 @@ form.addEventListener("submit", async (e) => {
       calc: context.calc,
       date: new Date().toISOString().slice(0, 10)
     });
+
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     const assistantReply = await getAssistantReply(full);
 
     await saveMessageToChat("assistant", assistantReply, uid);
     window.logAssistantReply(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
+    speakText(assistantReply); // 🔊 Voice Output
 
-    // 🔊 Voice Output
-    speakText(assistantReply);
-
-    // 🔹 List Renderer
+    // Try rendering as info list
     try {
       if (assistantReply.startsWith("[LIST]")) {
         const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());
-        window.renderInfoList({ containerId: "main", ...payload });
-        return;
+        return window.renderInfoList({ containerId: "main", ...payload });
       }
 
       const cardPattern = /\*\*(.+?):\*\*((?:\s*-\s*[^*]+)+)/g;
