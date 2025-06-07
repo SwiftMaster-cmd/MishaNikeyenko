@@ -1,4 +1,4 @@
-// Ã°Å¸"Â¹ memoryManager.js Ã¢â‚¬" Firebase read/write helpers + system prompt builder
+// ðŸ"¹ memoryManager.js â€" Firebase read/write helpers + system prompt builder
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase,
@@ -22,7 +22,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// Ã°Å¸"Â¹ Read Helpers
+// ðŸ"¹ Read Helpers
 export const getMemory      = (uid) => fetchNode(`memory/${uid}`);
 export const getDayLog      = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
 export const getNotes       = (uid) => fetchNode(`notes/${uid}`);
@@ -30,7 +30,7 @@ export const getCalendar    = (uid) => fetchNode(`calendarEvents/${uid}`);
 export const getReminders   = (uid) => fetchNode(`reminders/${uid}`);
 export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
 
-// Ã°Å¸"Â¹ Write Helper for Day Log
+// ðŸ"¹ Write Helper for Day Log
 export async function updateDayLog(uid, dateStr, newLog) {
   const path = `dayLog/${uid}/${dateStr}`;
   const existingSnap = await get(ref(db, path));
@@ -47,7 +47,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// Ã°Å¸"Â¹ Prompt Builder
+// ðŸ"¹ Prompt Builder
 export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
   return `
 You are Nexus, a second brain for Bossman.
@@ -83,7 +83,7 @@ Instructions for Nexus:
 `;
 }
 
-// Ã°Å¸"Â¹ Internal Helpers
+// ðŸ"¹ Internal Helpers
 
 async function fetchNode(path) {
   const snap = await get(ref(db, path));
