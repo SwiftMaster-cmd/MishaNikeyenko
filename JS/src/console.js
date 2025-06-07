@@ -1,7 +1,8 @@
-// onscreenConsole.js with persistent logging and utility functions
+// debugConsole.js – Single source for all debug, console, and overlay
+
 const LOG_STORAGE_KEY = "assistantDebugLog";
 
-// Load logs from localStorage
+// Persistent log helpers
 function loadPersistedLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
@@ -10,15 +11,12 @@ function loadPersistedLogs() {
     return [];
   }
 }
-
-// Save logs to localStorage
 function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
 // Add and persist a new log
 window.debugLog = function (...args) {
-  const el = document.getElementById("onscreen-console-messages");
   const logs = loadPersistedLogs();
   const msg = args.map(a =>
     (typeof a === "object" ? JSON.stringify(a, null, 2) : a)
@@ -27,6 +25,8 @@ window.debugLog = function (...args) {
   logs.push(logEntry);
   saveLogs(logs);
 
+  // Console panel live update
+  const el = document.getElementById("onscreen-console-messages");
   if (el) {
     const line = document.createElement("div");
     line.style.marginBottom = "2px";
@@ -36,14 +36,14 @@ window.debugLog = function (...args) {
   }
 };
 
-// Clear logs both visually and in localStorage
+// Clear logs visually and in storage
 window.clearDebugLog = function() {
   localStorage.removeItem(LOG_STORAGE_KEY);
   const el = document.getElementById("onscreen-console-messages");
   if (el) el.innerHTML = "";
 };
 
-// Export logs as text file
+// Export logs as .txt file
 window.exportDebugLog = function() {
   const logs = loadPersistedLogs();
   const blob = new Blob([logs.join("\n")], { type: "text/plain" });
@@ -55,8 +55,9 @@ window.exportDebugLog = function() {
   URL.revokeObjectURL(url);
 };
 
-// Insert toggle button and onscreen console as before
+// === On-screen console (bottom left, with toggle) ===
 (function() {
+  // Toggle button
   if (!document.getElementById('console-toggle-btn')) {
     const btn = document.createElement("button");
     btn.id = "console-toggle-btn";
@@ -68,7 +69,7 @@ window.exportDebugLog = function() {
     `;
     document.body.appendChild(btn);
   }
-
+  // Console panel
   if (!document.getElementById('onscreen-console')) {
     const panel = document.createElement("div");
     panel.id = "onscreen-console";
@@ -101,8 +102,7 @@ window.exportDebugLog = function() {
 
     document.body.appendChild(panel);
   }
-
-  // Show/hide logic, and load persisted logs on open
+  // Show/hide logic and loading
   const consoleBtn = document.getElementById("console-toggle-btn");
   const consolePanel = document.getElementById("onscreen-console");
   if (consoleBtn && consolePanel) {
@@ -125,3 +125,78 @@ window.exportDebugLog = function() {
     });
   }
 })();
+
+// === Debug Overlay (full screen modal, also shows logs) ===
+window.showDebugOverlay = function() {
+  let overlay = document.getElementById("debug-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "debug-overlay";
+    Object.assign(overlay.style, {
+      display: "none",
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0, 0, 0, 0.85)",
+      zIndex: 99999
+    });
+
+    const modal = document.createElement("div");
+    modal.id = "debug-modal";
+    Object.assign(modal.style, {
+      position: "absolute",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      backgroundColor: "#1e1e2e",
+      color: "#f8fafd",
+      padding: "1rem 1.5rem",
+      borderRadius: "12px",
+      boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
+      maxWidth: "80vw",
+      maxHeight: "80vh",
+      overflowY: "auto",
+      border: "1px solid #2e2e3e"
+    });
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "close-btn";
+    closeBtn.textContent = "Close";
+    Object.assign(closeBtn.style, {
+      position: "absolute",
+      top: "8px",
+      right: "8px",
+      background: "#2e2e3e",
+      color: "#f8fafd",
+      border: "none",
+      padding: "4px 8px",
+      cursor: "pointer",
+      borderRadius: "4px",
+      fontSize: "0.9rem"
+    });
+    closeBtn.addEventListener("click", () => {
+      overlay.style.display = "none";
+    });
+
+    const contentDiv = document.createElement("div");
+    contentDiv.id = "debug-content";
+    Object.assign(contentDiv.style, {
+      marginTop: "32px",
+      whiteSpace: "pre-wrap",
+      fontFamily: "monospace",
+      fontSize: "0.9rem",
+      lineHeight: "1.4"
+    });
+
+    modal.appendChild(closeBtn);
+    modal.appendChild(contentDiv);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  }
+  // Always update content to latest logs
+  const logs = loadPersistedLogs();
+  document.getElementById("debug-content").textContent = logs.join("\n");
+  overlay.style.display = "block";
+};
