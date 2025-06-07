@@ -1,4 +1,4 @@
-// 🔹 chat.js – input and flow control only, all UI/logic in modules + auto-list (multi-list) rendering
+// 🔹 chat.js – input and flow control only, all UI/logic in modules + multi-format auto-list rendering
 
 import {
   onValue,
@@ -155,9 +155,9 @@ form.addEventListener("submit", async (e) => {
     window.logAssistantReply(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
 
-    // --- AUTO-LIST (MULTI-LIST) RENDERING ---
+    // --- AUTO-LIST RENDERING (multi-format, multi-list, fallback support) ---
     try {
-      // Pattern 1: [LIST]{...} (single)
+      // [LIST]{...} JSON object (ideal, 100% accurate)
       if (assistantReply.startsWith("[LIST]")) {
         const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());
         window.renderInfoList({
@@ -168,8 +168,31 @@ form.addEventListener("submit", async (e) => {
         return;
       }
 
-      // Pattern 2: Multiple Markdown-style lists (your use case)
-      // Splits the reply into sections starting with e.g. "Calendar Events:"/"Reminders:" etc.
+      // **Section:** - item - item ... (all inline, bold section headers)
+      const cardPattern = /\*\*(.+?):\*\*((?:\s*-\s*[^*]+)+)/g;
+      let match;
+      let foundInlineList = false;
+      while ((match = cardPattern.exec(assistantReply)) !== null) {
+        const title = match[1].trim();
+        const itemsRaw = match[2]
+          .split(/\s*-\s*/)
+          .map(s => s.trim())
+          .filter(Boolean);
+        const items = itemsRaw.map(item => ({ label: "", desc: item }));
+        window.renderInfoList({
+          containerId: "main",
+          title,
+          icon: "",
+          items
+        });
+        foundInlineList = true;
+      }
+      if (foundInlineList) {
+        showChatInputSpinner(false);
+        return;
+      }
+
+      // Multiple markdown lists: Section:\n- item\n- item\n...
       const listSections = assistantReply.split(/\n(?=[A-Za-z ]+:\n)/g);
       let anyListRendered = false;
       for (const section of listSections) {
@@ -180,7 +203,6 @@ form.addEventListener("submit", async (e) => {
             .split('\n')
             .filter(Boolean)
             .map(line => {
-              // "- June 12, 2025: Meeting ..." or "- Call the dentist ..."
               const m = line.match(/[-•]\s*(.+)/);
               return {
                 label: "",
@@ -201,7 +223,7 @@ form.addEventListener("submit", async (e) => {
         return;
       }
 
-      // Pattern 3: Direct JSON (rare, but supported)
+      // Direct JSON object with .items[] (fallback for structured LLM output)
       if (assistantReply.trim().startsWith("{") && assistantReply.trim().endsWith("}")) {
         const payload = JSON.parse(assistantReply);
         if (payload.items && Array.isArray(payload.items)) {
