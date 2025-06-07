@@ -70,6 +70,7 @@
     <!-- Console Toggle Button -->
     <button id="console-toggle-btn" type="button" class="inline-btn">Console</button>
 
+    <!-- Mic Button -->
     <button id="mic-button" type="button" class="inline-btn">🎤</button>
 
     <!-- Input Field -->
@@ -104,22 +105,22 @@
   <!-- Chat Status Feedback -->
   <div id="chat-status-bar"></div>
 
-  <!-- Onscreen Console -->
+  <!-- Mini Console -->
   <div id="onscreen-console">
     <div id="onscreen-console-messages"></div>
-    <div style="margin-top: 10px;">
-      <button onclick="window.clearDebugLog()">Clear Logs</button>
-      <button onclick="window.exportDebugLog()">Export Logs</button>
-      <button onclick="window.showDebugOverlay()">Full View</button>
-      <button onclick="window.autoScrollConsole = !window.autoScrollConsole; this.style.opacity = window.autoScrollConsole ? '1' : '0.5';">AutoScroll</button>
+    <div class="console-controls">
+      <button onclick="window.clearDebugLog()">Clear</button>
+      <button onclick="window.exportDebugLog()">Export</button>
+      <button onclick="window.showDebugOverlay()">Expand</button>
+      <button onclick="window.autoScrollConsole = !window.autoScrollConsole; this.style.opacity = window.autoScrollConsole ? '1' : '0.5';">⇵</button>
     </div>
   </div>
 
-  <!-- Debug Overlay -->
-  <div id="debug-overlay">
+  <!-- Full Debug Overlay -->
+  <div id="debug-overlay" style="display: none;">
     <div id="debug-modal">
-      <button class="close-btn" onclick="document.getElementById('debug-overlay').style.display='none'">Close</button>
-      <div id="debug-content"></div>
+      <button class="close-btn" onclick="document.getElementById('debug-overlay').style.display='none'">✖</button>
+      <pre id="debug-content"></pre>
     </div>
   </div>
 </main>
