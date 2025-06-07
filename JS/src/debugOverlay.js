@@ -1,10 +1,16 @@
-// 🔹 debugOverlay.js – Persistent debug log + overlay modal
-
 const debugInfo = [];
+const lastNodeData = {};  // NEW: keeps the last snapshot per label
 
 export function addDebugMessage(...args) {
   if (typeof window.debugLog === "function") window.debugLog(...args);
   debugInfo.push(args.join(" "));
+  // Optionally trim debugInfo for performance:
+  // if (debugInfo.length > 200) debugInfo.shift();
+}
+
+// New function to set and show node snapshot for a label
+export function setDebugNodeData(label, data) {
+  lastNodeData[label] = data;
 }
 
 // Overlay modal setup
@@ -51,8 +57,24 @@ export function createDebugOverlay() {
     fontFamily: "monospace", fontSize: "0.9rem", lineHeight: "1.4"
   });
 
+  // NEW: Node snapshot container
+  const snapshotDiv = document.createElement("div");
+  snapshotDiv.id = "debug-snapshots";
+  Object.assign(snapshotDiv.style, {
+    marginTop: "16px",
+    background: "#232336",
+    padding: "10px 16px",
+    borderRadius: "9px",
+    fontFamily: "monospace",
+    fontSize: "0.93rem",
+    color: "#a9f8fd",
+    maxHeight: "240px",
+    overflowY: "auto"
+  });
+
   modal.appendChild(closeBtn);
   modal.appendChild(contentDiv);
+  modal.appendChild(snapshotDiv); // Add below log
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 }
@@ -60,8 +82,19 @@ export function createDebugOverlay() {
 export function showDebugOverlay() {
   const overlay = document.getElementById("debug-overlay");
   const contentDiv = document.getElementById("debug-content");
-  if (!overlay || !contentDiv) return;
+  const snapshotDiv = document.getElementById("debug-snapshots");
+  if (!overlay || !contentDiv || !snapshotDiv) return;
+
+  // Debug log
   contentDiv.textContent = debugInfo.join("\n");
+
+  // Show each last snapshot
+  let out = "";
+  for (const label in lastNodeData) {
+    out += `\n\n${label}:\n` +
+      JSON.stringify(lastNodeData[label], null, 2);
+  }
+  snapshotDiv.textContent = out.trim() || "[No database snapshots yet]";
   overlay.style.display = "block";
 }
 
