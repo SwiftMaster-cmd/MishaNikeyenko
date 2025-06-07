@@ -3,71 +3,84 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Assistant Console</title>
+  <title>Console</title>
 
-  <!-- Styles -->
-  <link rel="stylesheet" href="../CSS/variables.css" />
-  <link rel="stylesheet" href="../CSS/index.css" />
-  <link rel="stylesheet" href="../CSS/chatgpt.css" />
-  <link rel="stylesheet" href="../CSS/console.css" />
-  <link rel="stylesheet" href="../CSS/background.css" />
-  <link rel="stylesheet" href="../CSS/calendar.css" />
-  <link rel="stylesheet" href="../CSS/calculator.css" />
-  <link rel="stylesheet" href="../CSS/links.css" />
-  <link rel="stylesheet" href="../CSS/profile.css" />
-  <link rel="stylesheet" href="../CSS/notes.css" />
-  <link rel="stylesheet" href="../CSS/register.css" />
-  <link rel="icon" href="/favicon.ico" />
+  <!-- 🔹 Stylesheets -->
+  <link rel="stylesheet" href="../CSS/variables.css">
+  <link rel="stylesheet" href="../CSS/index.css">
+  <link rel="stylesheet" href="../CSS/profile.css">
+  <link rel="stylesheet" href="../CSS/links.css">
+  <link rel="stylesheet" href="../CSS/register.css">
+  <link rel="stylesheet" href="../CSS/notes.css">
+  <link rel="stylesheet" href="../CSS/calendar.css">
+  <link rel="stylesheet" href="../CSS/calculator.css">
+  <link rel="stylesheet" href="../CSS/chatgpt.css">
+  <link rel="stylesheet" href="../CSS/console.css">
+  <link rel="stylesheet" href="../CSS/jsloader.css">
+  <link rel="stylesheet" href="../CSS/background.css">
 </head>
 
 <body>
-  <!-- 🔄 Initial Loading Feedback -->
-  <div id="initial-loader" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:1.2rem;">
-    Loading assistant...
-  </div>
+  <!-- 🔮 Blob Background (handled by background.js) -->
 
-  <!-- HEADER -->
+  <!-- 🔹 HEADER -->
   <header class="header-bar">
     <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
     <div id="chat-status-bar"></div>
-    <button id="profile-toggle-btn" class="profile-toggle-btn">Profile</button>
+    <button id="profile-toggle-btn" class="profile-toggle-btn"
+            aria-haspopup="true" aria-controls="profile-card">Profile</button>
   </header>
 
-  <!-- SIDEBAR -->
+  <!-- 🔹 SIDEBAR -->
   <nav id="side-nav" class="side-nav" aria-hidden="true">
     <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
     <div id="links-list" class="sidebar-links"></div>
-    <a href="welcome.html" class="nav-item">Dashboard</a>
-    <a href="notes.html" class="nav-item">Notes</a>
-    <a href="es-module.html" class="nav-item">ES-Module</a>
+    <a href="welcome.html"    class="nav-item">Dashboard</a>
+    <a href="notes.html"      class="nav-item">Notes</a>
+    <a href="es-module.html"  class="nav-item">ES-Module</a>
     <a href="calculator.html" class="nav-item">Calculator</a>
-    <a href="calendar.html" class="nav-item">Calendar</a>
+    <a href="calendar.html"   class="nav-item">Calendar</a>
   </nav>
 
-  <!-- PROFILE -->
+  <!-- 🔹 PROFILE CARD -->
   <aside id="profile-card" class="profile-card" aria-hidden="true">
     <div id="user-info"></div>
     <div id="config-status"></div>
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- MAIN CHAT CONSOLE -->
+  <!-- 🔹 FIXED STATUS INDICATOR -->
+  <div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
+    <span id="status-icon" style="font-size:2rem;"></span>
+    <span id="status-tooltip" class="tooltip" style="margin-left:6px;font-size:1rem;"></span>
+  </div>
+
+  <!-- 🔹 MAIN CHAT -->
   <main class="chat-container">
-    <!-- Chat Log -->
     <div id="chat-log"></div>
 
-    <!-- Chat Form -->
     <form id="chat-form">
-      <button id="console-toggle-btn" type="button">Console</button>
+      <button id="console-toggle-btn" type="button" class="inline-btn">Console</button>
       <input id="user-input" type="text" placeholder="Type your message..." required class="chat-input" />
-      <span id="chat-loading-spinner" class="spinner"></span>
+
+      <span id="chat-loading-spinner" class="spinner">
+        <svg width="20" height="20" viewBox="0 0 50 50">
+          <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
+          <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
+            <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 25 25" to="360 25 25" repeatCount="indefinite"/>
+          </circle>
+        </svg>
+      </span>
+
+      <span id="status-indicator" class="status-indicator">
+        <span id="status-icon"></span>
+        <span id="status-tooltip" class="tooltip"></span>
+      </span>
+
       <button type="submit" class="send-btn">Send</button>
     </form>
 
-    <!-- Status Feedback -->
-    <div id="chat-status-bar"></div>
-
-    <!-- Onscreen Console -->
+    <!-- 🔹 Console -->
     <div id="onscreen-console">
       <div id="onscreen-console-messages"></div>
       <div style="margin-top: 10px;">
@@ -78,7 +91,7 @@
       </div>
     </div>
 
-    <!-- Debug Overlay -->
+    <!-- 🔹 Debug Overlay -->
     <div id="debug-overlay">
       <div id="debug-modal">
         <button class="close-btn" onclick="document.getElementById('debug-overlay').style.display='none'">Close</button>
@@ -87,9 +100,7 @@
     </div>
   </main>
 
-  <!-- Module Scripts (deferred order matters) -->
-  <script type="module" src="../JS/profile.js"></script>
-  <script type="module" src="../JS/links.js"></script>
+  <!-- 🔹 MODULE SCRIPTS -->
   <script type="module" src="../JS/src/firebaseConfig.js"></script>
   <script type="module" src="../JS/src/firebaseHelpers.js"></script>
   <script type="module" src="../JS/src/storageDebug.js"></script>
@@ -101,27 +112,27 @@
   <script type="module" src="../JS/src/uiShell.js"></script>
   <script type="module" src="../JS/src/chat.js"></script>
   <script type="module" src="../JS/src/background.js"></script>
+  <script type="module" src="../JS/profile.js"></script>
+  <script type="module" src="../JS/links.js"></script>
 
-  <!-- Sidebar Logic -->
+  <!-- 🔹 Sidebar Controls -->
   <script type="module">
     document.addEventListener('DOMContentLoaded', () => {
       const sidebar = document.getElementById('side-nav');
-      const burger = document.getElementById('menu-toggle');
-      const addBtn = document.getElementById('toggle-form-btn');
-      const form = document.getElementById('add-link-form');
+      const burger  = document.getElementById('menu-toggle');
+      const addBtn  = document.getElementById('toggle-form-btn');
+      const form    = document.getElementById('add-link-form');
 
       burger.onclick = () => {
         const open = sidebar.classList.toggle('open');
         document.body.classList.toggle('sidebar-open', open);
       };
 
-      if (addBtn && form) {
-        addBtn.onclick = () => {
-          const collapsed = form.classList.toggle('collapsed');
-          addBtn.classList.toggle('active', !collapsed);
-          if (!collapsed) document.getElementById('link-title').focus();
-        };
-      }
+      addBtn.onclick = () => {
+        const collapsed = form.classList.toggle('collapsed');
+        addBtn.classList.toggle('active', !collapsed);
+        if (!collapsed) document.getElementById('link-title').focus();
+      };
     });
   </script>
 </body>

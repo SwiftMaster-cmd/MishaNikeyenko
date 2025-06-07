@@ -42,7 +42,7 @@ export function scrollToBottom(force = false) {
   }
 }
 
-// ========== 4. Render messages w/ animation ==========
+// ========== 4. Render messages with animation ==========
 export function renderMessages(messages) {
   const log = document.getElementById("chat-log");
   if (!log) return;
@@ -71,4 +71,13 @@ export function renderMessages(messages) {
     });
 
   scrollToBottom();
+}
+
+// ========== 5. Lazy DOM safety ==========
+if (document.readyState === "complete" || document.readyState === "interactive") {
+  initScrollTracking();
+} else {
+  document.addEventListener("DOMContentLoaded", () => {
+    initScrollTracking();
+  });
 }
