@@ -1,8 +1,8 @@
-// onscreenConsole.js – Single source of debug truth, persistent, docked panel
+// onscreenConsole.js – Persistent, docked console panel with localStorage history
 
 const LOG_STORAGE_KEY = "assistantDebugLog";
 
-// Load logs from localStorage
+// ========== Utility: Load/Save Persistent Log ==========
 function loadPersistedLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
@@ -11,13 +11,11 @@ function loadPersistedLogs() {
     return [];
   }
 }
-
-// Save logs to localStorage
 function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
-// Add and persist a new log line
+// ========== Main Logging API ==========
 window.debugLog = function (...args) {
   const el = document.getElementById("onscreen-console-messages");
   const logs = loadPersistedLogs();
@@ -37,14 +35,12 @@ window.debugLog = function (...args) {
   }
 };
 
-// Clear logs visually and in localStorage
+// ========== Clear/Export ==========
 window.clearDebugLog = function() {
   localStorage.removeItem(LOG_STORAGE_KEY);
   const el = document.getElementById("onscreen-console-messages");
   if (el) el.innerHTML = "";
 };
-
-// Export logs as text file
 window.exportDebugLog = function() {
   const logs = loadPersistedLogs();
   const blob = new Blob([logs.join("\n")], { type: "text/plain" });
@@ -56,9 +52,9 @@ window.exportDebugLog = function() {
   URL.revokeObjectURL(url);
 };
 
-// Insert console panel and toggle button
+// ========== Panel and Button Injection ==========
 (function() {
-  // Only once!
+  // ---- Panel ----
   if (!document.getElementById('onscreen-console')) {
     const panel = document.createElement("aside");
     panel.id = "onscreen-console";
@@ -76,7 +72,7 @@ window.exportDebugLog = function() {
     `;
     document.body.appendChild(panel);
 
-    // Hide button logic
+    // Hide panel
     panel.querySelector('.osc-hide-btn').onclick = () => {
       panel.classList.add('osc-hidden');
       const btn = document.getElementById("osc-toggle-btn");
@@ -84,9 +80,9 @@ window.exportDebugLog = function() {
     };
   }
 
-  // Insert side toggle button inline with chat bar (preferred) or bottom left fallback
+  // ---- Toggle Button ----
   if (!document.getElementById('osc-toggle-btn')) {
-    // Try to put next to input bar
+    // Prefer: insert next to chat input, else bottom left fallback
     let chatForm = document.getElementById('chat-form');
     let btn = document.createElement("button");
     btn.id = "osc-toggle-btn";
@@ -110,10 +106,11 @@ window.exportDebugLog = function() {
         }, 40);
       }
     };
+
     if (chatForm && chatForm.lastElementChild) {
       chatForm.insertBefore(btn, chatForm.lastElementChild);
     } else {
-      // Fallback: add to bottom left of screen if no chat-form found
+      // Fallback: bottom left if no chat-form
       btn.style.position = "fixed";
       btn.style.bottom = "18px";
       btn.style.left = "18px";
@@ -122,6 +119,24 @@ window.exportDebugLog = function() {
     }
   }
 
-  // Load existing logs
+  // ---- Log Initial Render ----
   function showLogs() {
-    const el = document.getElementById("onscreen-console-messages
+    const el = document.getElementById("onscreen-console-messages");
+    if (el) {
+      el.innerHTML = "";
+      loadPersistedLogs().forEach(msg => {
+        const line = document.createElement("div");
+        line.className = "osc-log-line";
+        line.textContent = msg;
+        el.appendChild(line);
+      });
+      el.parentElement.scrollTop = el.parentElement.scrollHeight;
+    }
+  }
+  showLogs();
+
+  // ---- Sync logs across tabs ----
+  window.addEventListener("storage", e => {
+    if (e.key === LOG_STORAGE_KEY) showLogs();
+  });
+})();

@@ -1,4 +1,4 @@
-// 🔹 chat.js – Complete, with modular debug overlay integration
+// chat.js – Main chat logic for persistent split UI with onscreenConsole.js
 
 import {
   ref,
@@ -30,13 +30,6 @@ import {
   listEvents
 } from "./commandHandlers.js";
 import { extractJson, detectMemoryType } from "./chatUtils.js";
-
-import {
-  addDebugMessage,
-  createDebugOverlay,
-  showDebugOverlay,
-  setupDebugShortcut
-} from "./debugOverlay.js";
 
 // ========== 1. UI Elements ==========
 const form = document.getElementById("chat-form");
@@ -107,7 +100,7 @@ function renderMessages(messages) {
       div.className = `msg ${
         role === "user" ? "user-msg" :
         role === "assistant" ? "bot-msg" :
-        "debug-msg"
+        ""
       }`;
       div.innerHTML = msg.content;
       log.appendChild(div);
@@ -115,25 +108,17 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-// ========== 6. Debug Overlay Setup ==========
-createDebugOverlay();
-setupDebugShortcut();
-const debugToggle = document.getElementById("debug-toggle");
-if (debugToggle) {
-  debugToggle.addEventListener("click", showDebugOverlay);
-}
-
-// ========== 7. Firebase Auth/Chat Initialization ==========
+// ========== 6. Firebase Auth/Chat Initialization ==========
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
-    addDebugMessage("Auth: Signed in anonymously.");
+    window.debugLog("Auth: Signed in anonymously.");
     setStatusIndicator("loading", "Signing in...");
     return;
   }
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
-  addDebugMessage("Auth: UID is", uid);
+  window.debugLog("Auth: UID is", uid);
 
   // Listen to chatHistory changes and re-render last 20
   onValue(chatRef, (snapshot) => {
@@ -151,7 +136,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 8. Main Submit Logic ==========
+// ========== 7. Main Submit Logic ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -160,7 +145,7 @@ form.addEventListener("submit", async (e) => {
 
   setStatusIndicator("loading", "Processing...");
   showChatInputSpinner(true);
-  addDebugMessage("User submitted:", prompt);
+  window.debugLog("User submitted:", prompt);
 
   try {
     // --- Command/Listing Shortcuts ---
@@ -168,28 +153,28 @@ form.addEventListener("submit", async (e) => {
     if (staticCommands.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
       setStatusIndicator("success", "Command executed!");
-      addDebugMessage("Static command handled:", prompt);
+      window.debugLog("Static command handled:", prompt);
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/notes") {
       await listNotes(chatRef);
       setStatusIndicator("success", "Listed notes.");
-      addDebugMessage("Listed notes.");
+      window.debugLog("Listed notes.");
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/reminders") {
       await listReminders(chatRef);
       setStatusIndicator("success", "Listed reminders.");
-      addDebugMessage("Listed reminders.");
+      window.debugLog("Listed reminders.");
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/events") {
       await listEvents(chatRef);
       setStatusIndicator("success", "Listed events.");
-      addDebugMessage("Listed events.");
+      window.debugLog("Listed events.");
       showChatInputSpinner(false);
       return;
     }
@@ -197,7 +182,7 @@ form.addEventListener("submit", async (e) => {
     // 1) Push user message
     const now = Date.now();
     await push(chatRef, { role: "user", content: prompt, timestamp: now });
-    addDebugMessage("User message pushed:", prompt);
+    window.debugLog("User message pushed:", prompt);
 
     // 2) In parallel: assistant reply + memory write
     (async () => {
@@ -216,9 +201,9 @@ form.addEventListener("submit", async (e) => {
         last20 = allMsgs
           .sort((a, b) => a.timestamp - b.timestamp)
           .slice(-20);
-        addDebugMessage("Fetched last 20 messages for context.");
+        window.debugLog("Fetched last 20 messages for context.");
       } catch (err) {
-        addDebugMessage("Error fetching last 20 for reply:", err.message, err);
+        window.debugLog("Error fetching last 20 for reply:", err.message, err);
       }
 
       // b) Fetch memory/context
@@ -232,9 +217,9 @@ form.addEventListener("submit", async (e) => {
           getReminders(uid),
           getCalcHistory(uid)
         ]);
-        addDebugMessage("Fetched memory/context.");
+        window.debugLog("Fetched memory/context.");
       } catch (err) {
-        addDebugMessage("Memory/context fetch error:", err.message, err);
+        window.debugLog("Memory/context fetch error:", err.message, err);
       }
 
       // c) Build system prompt + conversation for assistant
@@ -285,7 +270,7 @@ RULES:
             })
           });
           const text = await parsed.text();
-          addDebugMessage("Memory extraction response raw:", text);
+          window.debugLog("Memory extraction response raw:", text);
           const parsedJSON = JSON.parse(text);
           const extracted = extractJson(parsedJSON.choices?.[0]?.message?.content || "");
           if (extracted?.type && extracted?.content) {
@@ -302,14 +287,14 @@ RULES:
               timestamp: Date.now(),
               ...(extracted.date ? { date: extracted.date } : {})
             });
-            addDebugMessage(`Memory saved: type=${extracted.type}, content="${extracted.content}"`);
+            window.debugLog(`Memory saved: type=${extracted.type}, content="${extracted.content}"`);
             setStatusIndicator("success", `Memory saved (${extracted.type})!`);
           } else {
-            addDebugMessage("Incomplete memory structure returned");
+            window.debugLog("Incomplete memory structure returned");
             setStatusIndicator("error", "Could not save memory.");
           }
         } catch (err) {
-          addDebugMessage("Memory parse/write failed:", err.message, err);
+          window.debugLog("Memory parse/write failed:", err.message, err);
           setStatusIndicator("error", "Memory extraction failed.");
         }
       }
@@ -325,10 +310,10 @@ RULES:
         });
         const replyData = await replyRes.json();
         assistantReply = replyData.choices?.[0]?.message?.content || assistantReply;
-        addDebugMessage("Assistant reply received:", assistantReply);
+        window.debugLog("Assistant reply received:", assistantReply);
         setStatusIndicator("success", "Assistant replied!");
       } catch (err) {
-        addDebugMessage("GPT reply error:", err.message, err);
+        window.debugLog("GPT reply error:", err.message, err);
         assistantReply = "[Assistant error: " + err.message + "]";
         setStatusIndicator("error", "Failed to get assistant reply.");
       }
@@ -336,9 +321,9 @@ RULES:
       // f) Push the assistant’s reply into chatHistory
       try {
         await push(chatRef, { role: "assistant", content: assistantReply, timestamp: Date.now() });
-        addDebugMessage("Assistant reply pushed.");
+        window.debugLog("Assistant reply pushed.");
       } catch (err) {
-        addDebugMessage("Failed to push assistant reply:", err.message, err);
+        window.debugLog("Failed to push assistant reply:", err.message, err);
         setStatusIndicator("error", "Failed to save assistant reply.");
       } finally {
         showChatInputSpinner(false);
@@ -362,7 +347,7 @@ RULES:
           .sort((a, b) => a.timestamp - b.timestamp)
           .slice(-20);
       } catch (err) {
-        addDebugMessage("Error fetching chatHistory for summary:", err.message, err);
+        window.debugLog("Error fetching chatHistory for summary:", err.message, err);
         return;
       }
 
@@ -394,10 +379,10 @@ RULES:
             summary,
             timestamp: Date.now()
           });
-          addDebugMessage("20-message summary saved to memory.");
+          window.debugLog("20-message summary saved to memory.");
           setStatusIndicator("success", "Chat summarized.");
         } catch (err) {
-          addDebugMessage("Summary generation failed:", err.message, err);
+          window.debugLog("Summary generation failed:", err.message, err);
           setStatusIndicator("error", "Summary failed.");
         }
       }
@@ -405,7 +390,7 @@ RULES:
 
     setStatusIndicator("success", "Message sent!");
   } catch (err) {
-    addDebugMessage("Form submit error:", err.message, err);
+    window.debugLog("Form submit error:", err.message, err);
     setStatusIndicator("error", "Request failed.");
     showChatInputSpinner(false);
   }
