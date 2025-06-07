@@ -36,6 +36,10 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
+import {
+  setBackgroundStatus
+} from "./background.js";
+
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
@@ -58,6 +62,7 @@ onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
     window.setStatusFeedback("loading", "Signing in...");
+    setBackgroundStatus("loading");
     window.debug("Auth: Signing in anonymously...");
     return;
   }
@@ -86,6 +91,7 @@ form.addEventListener("submit", async (e) => {
 
   showChatInputSpinner(true);
   window.setStatusFeedback("loading", "Thinking...");
+  setBackgroundStatus("loading");
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
@@ -94,24 +100,28 @@ form.addEventListener("submit", async (e) => {
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
       window.setStatusFeedback("success", "Command executed");
+      setBackgroundStatus("idle");
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/notes") {
       await listNotes(chatRef);
       window.setStatusFeedback("success", "Notes listed");
+      setBackgroundStatus("idle");
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/reminders") {
       await listReminders(chatRef);
       window.setStatusFeedback("success", "Reminders listed");
+      setBackgroundStatus("idle");
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/events") {
       await listEvents(chatRef);
       window.setStatusFeedback("success", "Events listed");
+      setBackgroundStatus("idle");
       showChatInputSpinner(false);
       return;
     }
@@ -119,6 +129,7 @@ form.addEventListener("submit", async (e) => {
     // Step 1: Save user message
     await saveMessageToChat("user", prompt, uid);
     window.debug("[STEP 1] User message saved.");
+    setBackgroundStatus("awaiting");
 
     // Step 2: Try memory extraction
     window.debug("[STEP 2] Checking for memory...");
@@ -145,6 +156,7 @@ form.addEventListener("submit", async (e) => {
     });
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     window.debug("[GPT INPUT]", full);
+    setBackgroundStatus("thinking");
 
     // Step 4: Get assistant reply
     const assistantReply = await getAssistantReply(full);
@@ -155,8 +167,10 @@ form.addEventListener("submit", async (e) => {
     // Step 5: Summarize if needed
     await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
+    setBackgroundStatus("idle");
   } catch (err) {
     window.setStatusFeedback("error", "Something went wrong");
+    setBackgroundStatus("error");
     window.debug("[ERROR]", err.message || err);
   } finally {
     showChatInputSpinner(false);

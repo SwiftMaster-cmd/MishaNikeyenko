@@ -1,0 +1,69 @@
+/* Base container for animated background */
+#dynamic-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Shared blob styles */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.6;
+  animation: moveBlob 12s ease-in-out infinite;
+  mix-blend-mode: screen;
+  transform: scale(1.2);
+}
+
+/* State-based styles */
+.status-idle .blob {
+  background: linear-gradient(45deg, #7e3af2, #ff00ff, #7e3af2);
+}
+
+.status-loading .blob {
+  background: linear-gradient(60deg, #7e3af2, #ff9100, #7e3af2);
+  animation-duration: 6s;
+}
+
+.status-awaiting .blob {
+  background: linear-gradient(60deg, #7e3af2, #ffb347, #ff00ff);
+  animation-duration: 8s;
+}
+
+.status-thinking .blob {
+  background: linear-gradient(60deg, #9e57ff, #ff00cc, #7e3af2);
+  animation-duration: 5s;
+}
+
+.status-error .blob {
+  background: linear-gradient(60deg, #ff0033, #ff6600, #ff0033);
+  opacity: 0.7;
+  animation: shakeBlob 1s infinite;
+}
+
+/* Animation keyframes */
+@keyframes moveBlob {
+  0% {
+    transform: translate(0, 0) scale(1.2);
+  }
+  50% {
+    transform: translate(20px, -30px) scale(1.4);
+  }
+  100% {
+    transform: translate(0, 0) scale(1.2);
+  }
+}
+
+@keyframes shakeBlob {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-5px, 5px); }
+  50% { transform: translate(5px, -5px); }
+  75% { transform: translate(-5px, -5px); }
+  100% { transform: translate(0, 0); }
+}

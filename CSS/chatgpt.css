@@ -293,28 +293,6 @@ button[type="submit"]:active {
   cursor: pointer;
 }
 
-#blob-bg {
-  position: fixed;
-  width: 100vw;
-  height: 100vh;
-  top: 0;
-  left: 0;
-  overflow: hidden;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.blob {
-  position: absolute;
-  width: 360px;
-  height: 360px;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.6;
-  animation: moveBlobs 40s infinite ease-in-out alternate;
-  mix-blend-mode: screen;
-}
-
 @keyframes moveBlobs {
   0%   { transform: translate(0, 0) scale(1); }
   25%  { transform: translate(20vw, -10vh) scale(1.1); }
