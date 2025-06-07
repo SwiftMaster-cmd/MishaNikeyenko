@@ -41,7 +41,7 @@ let chatRef = null;
 let userHasScrolled = false;
 const debugInfo = [];
 
-/** Debug overlay */
+// -- Debug overlay helpers --
 function addDebugMessage(text) {
   debugInfo.push(`${new Date().toLocaleTimeString()}: ${text}`);
 }
@@ -107,7 +107,7 @@ function showDebugOverlay() {
   overlay.style.display = "block";
 }
 
-/** Scrolling */
+// -- Scrolling helpers --
 log.addEventListener("scroll", () => {
   userHasScrolled = log.scrollTop + log.clientHeight + 100 < log.scrollHeight;
 });
@@ -119,7 +119,7 @@ function scrollToBottom(force = false) {
   }
 }
 
-/** Render messages */
+// -- Render messages --
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -137,7 +137,7 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-/** Auth & initial listeners */
+// -- Init --
 createDebugOverlay();
 if (debugToggle) debugToggle.addEventListener("click", showDebugOverlay);
 
@@ -161,7 +161,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-/** Form submit */
+// -- Form submission --
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = input.value.trim();
@@ -169,7 +169,7 @@ form.addEventListener("submit", async (e) => {
   input.value = "";
   userHasScrolled = false;
 
-  // static commands
+  // handle static commands
   const staticList = ["/time","/date","/uid","/clearchat","/summary","/commands"];
   if (staticList.includes(text)) {
     await handleStaticCommand(text, chatRef, uid);
@@ -179,13 +179,15 @@ form.addEventListener("submit", async (e) => {
   if (text === "/reminders") { await listReminders(chatRef); return; }
   if (text === "/events")    { await listEvents(chatRef);    return; }
 
-  // push user
+  // push user msg
   const ts = Date.now();
   await push(chatRef, { role: "user", content: text, timestamp: ts });
 
-  // async memory + reply
+  // async memory extract & reply
   (async () => {
     const today = new Date().toISOString().slice(0,10);
+
+    // fetch last20
     let last20 = [];
     try {
       const snap = await get(child(ref(db), `chatHistory/${uid}`));
@@ -202,7 +204,7 @@ form.addEventListener("submit", async (e) => {
       addDebugMessage("Fetch history failed: "+err.message);
     }
 
-    // load memory slices
+    // load persisted memory
     const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
       getMemory(uid),
       getDayLog(uid, today),
@@ -214,25 +216,32 @@ form.addEventListener("submit", async (e) => {
 
     // build system prompt
     const sys = buildSystemPrompt({
-      memory, todayLog: dayLog, notes, calendar, reminders, calc, date: today
+      memory,
+      todayLog: dayLog,
+      notes,
+      calendar,
+      reminders,
+      calc,
+      date: today
     });
-    const convo = [{role:"system",content:sys}, ...last20];
+    const convo = [{ role:"system", content:sys }, ...last20];
 
-    // detect & save memory
+    // detect and save memory entries
     const { memoryType, rawPrompt } = detectMemoryType(text);
     if (memoryType) {
       try {
         const memRes = await fetch("/.netlify/functions/chatgpt", {
           method: "POST",
-          headers: {"Content-Type":"application/json"},
+          headers: { "Content-Type":"application/json" },
           body: JSON.stringify({
             model: "gpt-4o",
             temperature: 0.3,
             messages: [
               { role: "system", content: `
-You are a memory extraction engine. ALWAYS return exactly one JSON object...
+You are a memory extraction engine. ALWAYS return exactly one JSON object with keys:
+{ "type": "note"|"reminder"|"calendar"|"log", "content": "...", "date": "optional YYYY-MM-DD" }
 ` },
-              { role: "user", content: memoryType.startsWith("/")?rawPrompt:text }
+              { role: "user", content: memoryType.startsWith("/") ? rawPrompt : text }
             ]
           })
         });
@@ -249,9 +258,9 @@ You are a memory extraction engine. ALWAYS return exactly one JSON object...
           await push(ref(db, path), {
             content: parsed.content,
             timestamp: Date.now(),
-            ...(parsed.date?{date:parsed.date}:{})
+            ...(parsed.date ? { date: parsed.date } : {})
           });
-          addDebugMessage(`Saved ${parsed.type}`);
+          addDebugMessage(`Saved memory type=${parsed.type}`);
         }
       } catch(err) {
         addDebugMessage("Memory save failed: "+err.message);
@@ -263,14 +272,46 @@ You are a memory extraction engine. ALWAYS return exactly one JSON object...
     try {
       const res = await fetch("/.netlify/functions/chatgpt", {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ model: "gpt-4o", temperature: 0.8, messages: convo })
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({ model:"gpt-4o", temperature:0.8, messages: convo })
       });
       const json = await res.json();
       reply = json.choices?.[0]?.message?.content || reply;
     } catch(err) {
       addDebugMessage("GPT error: "+err.message);
     }
-    await push(chatRef, { role: "assistant", content: reply, timestamp: Date.now() });
+    await push(chatRef, { role:"assistant", content:reply, timestamp:Date.now() });
+
+    // 20-message summary
+    try {
+      const snap2 = await get(child(ref(db), `chatHistory/${uid}`));
+      const data2 = snap2.exists() ? snap2.val() : {};
+      const count = Object.keys(data2).length;
+      if (count > 0 && count % 20 === 0) {
+        const conv = Object.values(data2)
+          .map(m => `${m.role==="bot"?"Assistant":"User"}: ${m.content}`)
+          .sort((a,b)=>0) // preserve insertion
+          .slice(-20)
+          .join("\n");
+        const sumRes = await fetch("/.netlify/functions/chatgpt", {
+          method: "POST",
+          headers: { "Content-Type":"application/json" },
+          body: JSON.stringify({
+            model: "gpt-4o",
+            temperature: 0.5,
+            messages: [
+              { role:"system", content:"Summarize this into one paragraph:" },
+              { role:"user", content:conv }
+            ]
+          })
+        });
+        const sumJson = await sumRes.json();
+        const summary = sumJson.choices?.[0]?.message?.content || "[No summary]";
+        await push(ref(db, `memory/${uid}`), { summary, timestamp:Date.now() });
+        addDebugMessage("Saved 20-message summary");
+      }
+    } catch(err) {
+      addDebugMessage("Summary failed: "+err.message);
+    }
   })();
 });
