@@ -16,14 +16,14 @@ const firebaseConfig = {
   authDomain: "mishanikeyenko.firebaseapp.com",
   databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
   projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.firebaseapp.com",
+  storageBucket: "mishanikeyenko.appspot.com",
   messagingSenderId: "1089190937368",
   appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const auth = getAuth(app);
+export const db = getDatabase(app);
+export const auth = getAuth(app);
 
 // ===== Read Helpers =====
 export const getMemory      = (uid) => fetchNode(`memory/${uid}`);
@@ -111,6 +111,13 @@ export async function fetchSelfImprovementSuggestions(uid) {
 export async function recordSuggestionFeedback(uid, suggestion, accepted) {
   return await markSuggestion(uid, suggestion, accepted);
 }
+
+// ===== Make Available on window for Non-Module Use =====
+window.fetchSelfImprovementSuggestions = fetchSelfImprovementSuggestions;
+window.logAssistantUsage = logAssistantUsage;
+window.recordSuggestionFeedback = recordSuggestionFeedback;
+window.db = db;
+window.auth = auth;
 
 // ===== Internal Helpers =====
 async function fetchNode(path) {
