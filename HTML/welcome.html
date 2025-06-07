@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="../CSS/profile.css">
   <link rel="stylesheet" href="../CSS/register.css">
   <link rel="stylesheet" href="../CSS/variables.css">
+    <link rel="stylesheet" href="../CSS/console.css">
 
 </head>
 <body>
@@ -23,7 +24,7 @@
   <!-- HEADER -->
   <header class="header-bar">
     <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
-    <h1 class="header-title">Hello</h1>
+    <h1 class="header-title">NEXUS</h1>
     <button id="profile-toggle-btn" class="profile-toggle-btn"
             aria-haspopup="true" aria-controls="profile-card">
       Profile
@@ -49,28 +50,37 @@
   </aside>
 
   <!-- MAIN DASHBOARD -->
+<!-- Status indicator (can be anywhere in the <body>) -->
+<div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
+  <span id="status-icon" style="font-size:2rem;"></span>
+  <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
+</div>
 
-  <!-- Add‐link form -->
-  <form id="add-link-form" class="collapsed" autocomplete="off">
-    <input id="link-title" type="text" placeholder="Link title" required />
-    <input id="link-url" type="url" placeholder="https://example.com" required />
-    <select id="link-category" required></select>
-    <input id="new-cat-input" class="hidden" placeholder="New category name" />
-    <button class="btn-solid" type="submit">Save</button>
-  </form>
-
-<!-- GPT Chat -->
 <main class="chat-container">
   <div id="chat-log"></div>
-
-  <form id="chat-form">
+  <form id="chat-form" style="display:flex;align-items:center;gap:10px;">
     <input
       id="user-input"
       type="text"
       placeholder="Type your message..."
       required
+      style="flex:1;"
     />
-    <button type="submit">Send</button>
+    <!-- Spinner -->
+    <span id="chat-loading-spinner" style="display:none;">
+      <svg width="20" height="20" viewBox="0 0 50 50">
+        <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
+        <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
+          <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 25 25" to="360 25 25" repeatCount="indefinite"/>
+        </circle>
+      </svg>
+    </span>
+    <!-- Status Icon/Tooltip RIGHT after spinner -->
+    <span id="status-indicator" style="display:flex;align-items:center;gap:4px;min-width:40px;">
+      <span id="status-icon" style="font-size:1.5rem;"></span>
+      <span id="status-tooltip" style="font-size:0.92rem;color:#999;opacity:0.95;display:none;background:rgba(30,30,50,0.93);padding:2px 8px;border-radius:6px;white-space:nowrap;z-index:1;position:absolute;top:calc(100% + 3px);"></span>
+    </span>
+    <button type="submit" style="margin-left:4px;">Send</button>
   </form>
 </main>
 
@@ -83,12 +93,14 @@
   <script type="module" src="../JS/src/firebaseConfig.js"></script>
   <script type="module" src="../JS/src/firebaseHelpers.js"></script>
   <script type="module" src="../JS/src/storageDebug.js"></script>
-
+  <script type="module" src="../JS/src/console.js"></script>
   <script type="module" src="../JS/src/chatUtils.js"></script>
   <script type="module" src="../JS/src/commandHandlers.js"></script>
   <script type="module" src="../JS/src/memoryManager.js"></script>
-  <script type="module" src="../JS/src/chatmemory.js"></script>
-  <script type="module" src="../JS/src/chat.js"></script>
+    <script type="module" src="../JS/src/chat.js"></script>
+
+  
+  
 
   <!-- Controls for Sidebar and Add‐link Form -->
   <script type="module">

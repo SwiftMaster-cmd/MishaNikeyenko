@@ -1,65 +1,179 @@
-// onscreenConsole.js
-(function() {
-  // Insert toggle button
-  if (!document.getElementById('console-toggle-btn')) {
+// 🔹 debugConsole.js – Unified persistent log + floating console + overlay modal
+
+const LOG_STORAGE_KEY = "assistantDebugLog";
+window.autoScrollConsole = true;
+
+// Load saved logs
+function loadPersistedLogs() {
+  try {
+    const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
+    return Array.isArray(logs) ? logs : [];
+  } catch {
+    return [];
+  }
+}
+
+// Save logs
+function saveLogs(logArray) {
+  localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
+}
+
+// Add and show a new log
+window.debugLog = function (...args) {
+  const logs = loadPersistedLogs();
+  const msg = args.map(a => (typeof a === "object" ? JSON.stringify(a, null, 2) : a)).join(" ");
+  const logEntry = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logs.push(logEntry);
+  saveLogs(logs);
+
+  const el = document.getElementById("onscreen-console-messages");
+  if (el) {
+    const line = document.createElement("div");
+    line.className = "debug-line";
+    line.textContent = logEntry;
+    el.appendChild(line);
+    if (window.autoScrollConsole) {
+      el.parentElement.scrollTop = el.parentElement.scrollHeight;
+    }
+  }
+};
+
+// Clear log
+window.clearDebugLog = function () {
+  localStorage.removeItem(LOG_STORAGE_KEY);
+  const el = document.getElementById("onscreen-console-messages");
+  if (el) el.innerHTML = "";
+};
+
+// Export log
+window.exportDebugLog = function () {
+  const logs = loadPersistedLogs();
+  const blob = new Blob([logs.join("\n")], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `assistant-logs-${new Date().toISOString().slice(0, 10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+// Init console + buttons
+(function () {
+  // Add style for click feedback
+  const css = `
+    .debug-line:hover { background: rgba(255,255,255,0.15); }
+    .debug-line.clicked { background: #32cd3277 !important; }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+
+  // Toggle button
+  if (!document.getElementById("console-toggle-btn")) {
     const btn = document.createElement("button");
     btn.id = "console-toggle-btn";
     btn.textContent = "Console";
-    btn.style.cssText = `
-      position:fixed; bottom:18px; left:18px; z-index:99999;
-      padding:7px 16px; background:#222a; color:#ffd600; border-radius:16px;
-      border:none; font:600 13px/1 'Inter',monospace; cursor:pointer; box-shadow:0 1px 6px #0004;
-    `;
     document.body.appendChild(btn);
   }
 
-  // Insert hidden console panel
-  if (!document.getElementById('onscreen-console')) {
+  // Console panel
+  if (!document.getElementById("onscreen-console")) {
     const panel = document.createElement("div");
     panel.id = "onscreen-console";
-    panel.style.cssText = `
-      position:fixed; bottom:60px; left:12px; width:95vw; max-width:560px; max-height:34vh;
-      background:rgba(20,20,30,0.98); color:#fff; 
-      font:13px/1.4 'Menlo', 'Monaco', 'Consolas', monospace;
-      z-index:99999; box-shadow:0 0 30px #0008;
-      overflow-y:auto; padding:12px 14px; border-radius:10px;
-      border:1.5px solid #444; display:none; pointer-events:auto; user-select:text;
-    `;
-    const inner = document.createElement("div");
-    inner.id = "onscreen-console-messages";
-    panel.appendChild(inner);
+
+    const messages = document.createElement("div");
+    messages.id = "onscreen-console-messages";
+    panel.appendChild(messages);
+
+    const controls = document.createElement("div");
+    controls.style.marginTop = "10px";
+
+    // Buttons
+    const clearBtn = document.createElement("button");
+    clearBtn.textContent = "Clear Logs";
+    clearBtn.setAttribute("onclick", "clearDebugLog()");
+    controls.appendChild(clearBtn);
+
+    const exportBtn = document.createElement("button");
+    exportBtn.textContent = "Export Logs";
+    exportBtn.setAttribute("onclick", "exportDebugLog()");
+    controls.appendChild(exportBtn);
+
+    const overlayBtn = document.createElement("button");
+    overlayBtn.textContent = "Full View";
+    overlayBtn.setAttribute("onclick", "showDebugOverlay()");
+    controls.appendChild(overlayBtn);
+
+    const scrollBtn = document.createElement("button");
+    scrollBtn.textContent = "AutoScroll";
+    scrollBtn.onclick = () => {
+      window.autoScrollConsole = !window.autoScrollConsole;
+      scrollBtn.style.opacity = window.autoScrollConsole ? "1" : "0.5";
+    };
+    controls.appendChild(scrollBtn);
+
+    panel.appendChild(controls);
     document.body.appendChild(panel);
   }
 
-  // Console logic
-  window.debugLog = function (...args) {
-    const el = document.getElementById("onscreen-console-messages");
-    if (!el) return;
-    const line = document.createElement("div");
-    line.style.marginBottom = "2px";
-    line.textContent = args.map(a =>
-      (typeof a === "object" ? JSON.stringify(a, null, 2) : a)
-    ).join(" ");
-    el.appendChild(line);
-    el.parentElement.scrollTop = el.parentElement.scrollHeight;
-  };
+  // Toggle open/close
+  const toggleBtn = document.getElementById("console-toggle-btn");
+  const panel = document.getElementById("onscreen-console");
 
-  window.clearDebugLog = function() {
-    const el = document.getElementById("onscreen-console-messages");
-    if (el) el.innerHTML = "";
-  };
+  toggleBtn.addEventListener("click", () => {
+    const isOpen = panel.style.display === "block";
+    panel.style.display = isOpen ? "none" : "block";
 
-  // Show/hide logic
-  const consoleBtn = document.getElementById("console-toggle-btn");
-  const consolePanel = document.getElementById("onscreen-console");
-  if (consoleBtn && consolePanel) {
-    consoleBtn.addEventListener("click", () => {
-      const isVisible = consolePanel.style.display === "block";
-      consolePanel.style.display = isVisible ? "none" : "block";
-      if (!isVisible) {
-        const el = document.getElementById("onscreen-console-messages");
-        el.parentElement.scrollTop = el.parentElement.scrollHeight;
-      }
-    });
-  }
+    if (!isOpen) {
+      const logEl = document.getElementById("onscreen-console-messages");
+      logEl.innerHTML = "";
+      loadPersistedLogs().forEach(log => {
+        const line = document.createElement("div");
+        line.className = "debug-line";
+        line.textContent = log;
+        logEl.appendChild(line);
+      });
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+  });
+
+  // Copy on click
+  document.addEventListener("click", (e) => {
+    if (e.target.classList.contains("debug-line")) {
+      navigator.clipboard.writeText(e.target.textContent);
+      e.target.classList.add("clicked");
+      setTimeout(() => e.target.classList.remove("clicked"), 400);
+    }
+  });
 })();
+
+// Debug Overlay Modal
+window.showDebugOverlay = function () {
+  let overlay = document.getElementById("debug-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "debug-overlay";
+
+    const modal = document.createElement("div");
+    modal.id = "debug-modal";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "close-btn";
+    closeBtn.textContent = "Close";
+    closeBtn.addEventListener("click", () => {
+      overlay.style.display = "none";
+    });
+
+    const content = document.createElement("div");
+    content.id = "debug-content";
+
+    modal.appendChild(closeBtn);
+    modal.appendChild(content);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  }
+
+  const logs = loadPersistedLogs();
+  document.getElementById("debug-content").textContent = logs.join("\n");
+  document.getElementById("debug-overlay").style.display = "flex";
+};
