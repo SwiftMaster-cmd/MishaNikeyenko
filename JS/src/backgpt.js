@@ -90,33 +90,39 @@ export async function extractMemoryFromPrompt(prompt, uid) {
         {
           role: "system",
           content: `
-You are a memory extraction engine. ALWAYS return exactly one JSON object with these keys:
+You are a memory extraction engine. Return ONLY and EXACTLY one valid JSON object, nothing else.
+
 {
   "type":   "note" | "reminder" | "calendar" | "log",
   "content": "string",
   "date":   "optional YYYY-MM-DD"
 }
 
-RULES:
+NO extra text, markdown, or explanation.
+
+Rules:
 1. If text begins with "/note", type="note".
 2. If it begins with "/reminder" or "remind me", type="reminder".
 3. If it mentions a date/time (e.g. "tomorrow", "Friday", "on 2025-06-10"), type="calendar".
 4. If it begins with "/log" or includes "journal", type="log".
 5. Otherwise, type="note" as a last resort.
-6. Populate "date" only when explicitly given.
-7. Return ONLY the JSON block.`
+6. Populate "date" only if given.
+7. Output ONLY a valid JSON object, nothing else.
+`
         },
         { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
       ],
       model: "gpt-4o",
-      temperature: 0.3
+      temperature: 0
     })
   });
 
   const text = await res.text();
+  window.debug("[MEMORY RAW RESPONSE]", text);
+
   const parsed = extractJson(text);
   if (!parsed?.type || !parsed?.content) {
-    window.debug("[ERROR] Memory extraction failed.");
+    window.debug("[ERROR] Memory extraction failed.", { prompt, text, parsed });
     return null;
   }
 
