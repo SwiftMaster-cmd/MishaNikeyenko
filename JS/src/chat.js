@@ -1,4 +1,4 @@
-// 🔹 chat.js – clean UI shell, all logic and feedback handled externally
+// 🔹 chat.js – input and flow control only, all UI/logic in modules
 
 import {
   onValue,
@@ -28,76 +28,32 @@ import {
 } from "./backgpt.js";
 
 import { buildSystemPrompt } from "./memoryManager.js";
+import {
+  renderMessages,
+  showChatInputSpinner,
+  scrollToBottom,
+  updateHeaderWithAssistantReply,
+  initScrollTracking
+} from "./uiShell.js";
 
-// ========== 1. UI Elements ==========
+// ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
-const log = document.getElementById("chat-log");
-const header = document.getElementById("header-title");
-
-// ========== 2. Visuals ==========
-function updateHeaderWithAssistantReply(text) {
-  if (!header) return;
-  header.style.opacity = 0;
-  setTimeout(() => {
-    header.textContent = text;
-    header.style.opacity = 1;
-  }, 150);
-}
-
-function showChatInputSpinner(show = true) {
-  const spinner = document.getElementById("chat-loading-spinner");
-  const inputField = document.getElementById("user-input");
-  if (spinner) spinner.style.display = show ? "inline-block" : "none";
-  if (inputField) inputField.disabled = show;
-}
-
-// ========== 3. State ==========
-let uid = null;
-let chatRef = null;
-let userHasScrolled = false;
-
-// ========== 4. Scroll ==========
-log.addEventListener("scroll", () => {
-  const threshold = 100;
-  userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
-});
-function scrollToBottom(force = false) {
-  if (!userHasScrolled || force) {
-    requestAnimationFrame(() => {
-      log.scrollTop = log.scrollHeight;
-    });
-  }
-}
-
-// ========== 5. Render Chat ==========
-function renderMessages(messages) {
-  log.innerHTML = "";
-  messages
-    .sort((a, b) => a.timestamp - b.timestamp)
-    .forEach((msg) => {
-      const role = msg.role === "bot" ? "assistant" : msg.role;
-      const div = document.createElement("div");
-      div.className = `msg ${
-        role === "user" ? "user-msg" :
-        role === "assistant" ? "bot-msg" :
-        "debug-msg"
-      }`;
-      div.innerHTML = msg.content;
-      log.appendChild(div);
-    });
-  scrollToBottom();
-}
-
-// ========== 6. Debug Toggle ==========
 const debugToggle = document.getElementById("debug-toggle");
+
+// ========== 2. Init ==========
+initScrollTracking();
+
 if (debugToggle) {
   debugToggle.addEventListener("click", () => {
     if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
   });
 }
 
-// ========== 7. Firebase Auth ==========
+// ========== 3. Auth & Chat History ==========
+let uid = null;
+let chatRef = null;
+
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
@@ -121,7 +77,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 8. Chat Submit ==========
+// ========== 4. Submit Handler ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -133,7 +89,7 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    // --- Static commands
+    // Static Commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -160,11 +116,11 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // --- Step 1: Save user message
+    // Step 1: Save user message
     await saveMessageToChat("user", prompt, uid);
     window.debug("[STEP 1] User message saved.");
 
-    // --- Step 2: Memory extraction
+    // Step 2: Try memory extraction
     window.debug("[STEP 2] Checking for memory...");
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
@@ -172,7 +128,7 @@ form.addEventListener("submit", async (e) => {
       window.debug("[MEMORY]", memory);
     }
 
-    // --- Step 3: Build GPT context
+    // Step 3: Build assistant prompt
     window.debug("[STEP 3] Fetching context...");
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
@@ -190,13 +146,13 @@ form.addEventListener("submit", async (e) => {
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     window.debug("[GPT INPUT]", full);
 
-    // --- Step 4: Get assistant reply
+    // Step 4: Get assistant reply
     const assistantReply = await getAssistantReply(full);
     await saveMessageToChat("assistant", assistantReply, uid);
     window.logAssistantReply(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
 
-    // --- Step 5: Check if summary needed
+    // Step 5: Summarize if needed
     await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
   } catch (err) {
