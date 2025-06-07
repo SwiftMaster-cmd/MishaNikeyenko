@@ -58,16 +58,19 @@
 
 <main class="chat-container">
   <div id="chat-log"></div>
-  <form id="chat-form" style="display:flex;align-items:center;gap:10px;">
+
+  <form id="chat-form" style="display: flex; align-items: center; gap: 10px; padding-top: 12px; position: relative;">
+    <!-- Input Field -->
     <input
       id="user-input"
       type="text"
       placeholder="Type your message..."
       required
-      style="flex:1;"
+      style="flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid #2e2e3e; background: #1e1e2e; color: #f8fafd;"
     />
+
     <!-- Spinner -->
-    <span id="chat-loading-spinner" style="display:none;">
+    <span id="chat-loading-spinner" style="display: none;">
       <svg width="20" height="20" viewBox="0 0 50 50">
         <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
         <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
@@ -75,15 +78,35 @@
         </circle>
       </svg>
     </span>
-    <!-- Status Icon/Tooltip RIGHT after spinner -->
-    <span id="status-indicator" style="display:flex;align-items:center;gap:4px;min-width:40px;">
-      <span id="status-icon" style="font-size:1.5rem;"></span>
-      <span id="status-tooltip" style="font-size:0.92rem;color:#999;opacity:0.95;display:none;background:rgba(30,30,50,0.93);padding:2px 8px;border-radius:6px;white-space:nowrap;z-index:1;position:absolute;top:calc(100% + 3px);"></span>
+
+    <!-- Status -->
+    <span id="status-indicator" style="display: flex; align-items: center; gap: 6px; min-width: 40px; position: relative;">
+      <span id="status-icon" style="font-size: 1.5rem;"></span>
+      <span id="status-tooltip"
+        style="
+          position: absolute;
+          top: 125%;
+          left: 0;
+          background: rgba(30,30,50,0.93);
+          color: #ffd600;
+          font-size: 0.9rem;
+          padding: 6px 10px;
+          border-radius: 6px;
+          white-space: nowrap;
+          display: none;
+          opacity: 0.95;
+          z-index: 99;
+          box-shadow: 0 2px 6px #0006;
+        ">
+      </span>
     </span>
-    <button type="submit" style="margin-left:4px;">Send</button>
+
+    <!-- Submit Button -->
+    <button type="submit" style="margin-left: 4px; padding: 8px 14px; border-radius: 10px; background: #7e3af2; color: #fff; border: none; font-weight: 600; cursor: pointer;">
+      Send
+    </button>
   </form>
 </main>
-
 
   <!-- MODULE SCRIPTS -->
   <script type="module" src="../JS/profile.js"></script>
