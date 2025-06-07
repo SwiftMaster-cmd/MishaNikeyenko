@@ -1,7 +1,11 @@
-// 🔹 debugOverlay.js -- Debug overlay + logging
+// 🔹 debugOverlay.js -- Debug overlay + logging (modular, importable)
 
 export const debugInfo = [];
 
+/**
+ * Add a message to the debug log and persistent array.
+ * Optionally, exposes to global `window.debugLog` for dev.
+ */
 export function addDebugMessage(...args) {
   if (typeof window.debugLog === "function") {
     window.debugLog(...args);
@@ -9,8 +13,12 @@ export function addDebugMessage(...args) {
   debugInfo.push(args.join(" "));
 }
 
+/**
+ * Creates the debug overlay and appends it to the DOM (once).
+ * Safe to call multiple times.
+ */
 export function createDebugOverlay() {
-  if (document.getElementById("debug-overlay")) return; // prevent duplicates
+  if (document.getElementById("debug-overlay")) return; // Prevent duplicate overlays
 
   const overlay = document.createElement("div");
   overlay.id = "debug-overlay";
@@ -78,6 +86,9 @@ export function createDebugOverlay() {
   document.body.appendChild(overlay);
 }
 
+/**
+ * Shows the debug overlay and updates its content with current log.
+ */
 export function showDebugOverlay() {
   const overlay = document.getElementById("debug-overlay");
   const contentDiv = document.getElementById("debug-content");
