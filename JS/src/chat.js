@@ -1,3 +1,4 @@
+
 // 🔹 chat.js – input and flow control only, all UI/logic in modules
 
 import {
@@ -36,9 +37,7 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
-import {
-  setBackgroundStatus
-} from "./background.js";
+import { setBackgroundStatus } from "./background.js";
 
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
@@ -69,6 +68,7 @@ onAuthStateChanged(auth, (user) => {
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
   window.debug("Auth Ready → UID:", uid);
+  setBackgroundStatus("idle");
 
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
