@@ -330,3 +330,13 @@ button[type="submit"]:active {
     margin-top: 4px;
   }
 }
+/* iPhone / small phones: console panel only 30% of viewport width */
+@media (max-width: 600px) {
+  #onscreen-console {
+    width: 30vw;
+    max-width: 30vw;
+     left: 1rem;     /* or whatever padding you like */
+    right: auto;
+  }
+}
+
