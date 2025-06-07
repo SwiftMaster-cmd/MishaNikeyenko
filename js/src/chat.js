@@ -1,4 +1,4 @@
-// 🔹 chat.js – dual-mode memory saving + hover-to-view debug/info overlay
+// ðŸ"¹ chat.js â€" dual-mode memory saving + hover-to-view debug/info overlay
 import {
   ref,
   push,
@@ -12,7 +12,7 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-import { db, auth } from "./firebaseconfig.js";
+import { db, auth } from "./firebaseConfig.js";
 import {
   getMemory,
   getDayLog,
@@ -21,14 +21,14 @@ import {
   getReminders,
   getCalcHistory,
   buildSystemPrompt
-} from "./memorymanager.js";
+} from "./memoryManager.js";
 import {
   handleStaticCommand,
   listNotes,
   listReminders,
   listEvents
-} from "./commandhandlers.js";
-import { extractJson, detectMemoryType } from "./chatutils.js";
+} from "./commandHandlers.js";
+import { extractJson, detectMemoryType } from "./chatUtils.js";
 
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
@@ -324,7 +324,7 @@ RULES:
       }
     }
 
-    // e) Get the assistant’s reply from GPT
+    // e) Get the assistantâ€™s reply from GPT
     let assistantReply = "[No reply]";
     try {
       const replyRes = await fetch("/.netlify/functions/chatgpt", {
@@ -338,7 +338,7 @@ RULES:
       addDebugMessage("GPT reply error: " + err.message);
     }
 
-    // f) Push the assistant’s reply into chatHistory
+    // f) Push the assistantâ€™s reply into chatHistory
     await push(chatRef, { role: "assistant", content: assistantReply, timestamp: Date.now() });
   })();
 
