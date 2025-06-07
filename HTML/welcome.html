@@ -49,36 +49,34 @@
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- MAIN DASHBOARD -->
-<!-- Status indicator (can be anywhere in the <body>) -->
-<div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
-  <span id="status-icon" style="font-size:2rem;"></span>
-  <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
-</div>
-
-<main class="chat-root">
-  <div class="split-container">
-    <section class="chat-section">
-      <div id="chat-log"></div>
-      <form id="chat-form" autocomplete="off">
-        <input id="user-input" type="text" placeholder="Type your message..." autocomplete="off" required />
-        <span id="chat-loading-spinner">
-          <!-- Spinner SVG here -->
-        </span>
-        <span id="status-indicator">
-          <span id="status-icon"></span>
-          <span id="status-tooltip"></span>
-        </span>
-        <button type="button" id="debug-toggle" title="Show/Hide Console">Console</button>
-        <button type="submit">Send</button>
-      </form>
-    </section>
-    <aside id="debug-console" class="debug-console hidden">
-      <div id="debug-log-content"></div>
-      <div id="debug-snapshots-content"></div>
-    </aside>
-  </div>
-</main>
+<body>
+  <main class="chat-root">
+    <div class="split-container">
+      <section class="chat-section">
+        <div id="chat-log"></div>
+        <form id="chat-form" autocomplete="off">
+          <input
+            id="user-input"
+            type="text"
+            placeholder="Type your message..."
+            autocomplete="off"
+            required
+          />
+          <span id="chat-loading-spinner">
+            <!-- Spinner SVG here if desired -->
+          </span>
+          <span id="status-indicator">
+            <span id="status-icon"></span>
+            <span id="status-tooltip"></span>
+          </span>
+          <!-- The Console button will be inserted here by onscreenConsole.js -->
+          <button type="submit">Send</button>
+        </form>
+      </section>
+    </div>
+    <!-- Console panel will be auto-inserted by onscreenConsole.js, do not add manually -->
+  </main>
+</body>
 
   <!-- MODULE SCRIPTS -->
   <script type="module" src="../JS/profile.js"></script>

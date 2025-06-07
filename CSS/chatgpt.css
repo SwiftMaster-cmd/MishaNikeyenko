@@ -22,7 +22,7 @@ html, body, .chat-root {
   box-sizing: border-box;
 }
 
-/* Main split container (if using) */
+/* Main split container */
 .split-container {
   display: flex;
   flex-direction: row;
