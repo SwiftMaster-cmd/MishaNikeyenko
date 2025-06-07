@@ -17,6 +17,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 // 🔹 1. Save a message to Firebase
 export async function saveMessageToChat(role, content, uid) {
+  window.debug(`[SUBMIT] ${role.toUpperCase()}: ${content}`);
   const chatRef = ref(db, `chatHistory/${uid}`);
   await push(chatRef, {
     role,
@@ -51,25 +52,35 @@ export async function getAllContext(uid) {
     getReminders(uid),
     getCalcHistory(uid)
   ]);
+  window.debug("[INFO] Context loaded.");
   return { memory, dayLog, notes, calendar, reminders, calc };
 }
 
 // 🔹 4. Generate assistant reply via GPT
 export async function getAssistantReply(fullMessages) {
+  window.debug("[INFO] Sending prompt to GPT...");
+
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages: fullMessages, model: "gpt-4o", temperature: 0.8 })
   });
+
   const data = await res.json();
-  return data.choices?.[0]?.message?.content || "[No reply]";
+  const reply = data.choices?.[0]?.message?.content || "[No reply]";
+
+  window.debug("[REPLY]", reply);
+  return reply;
 }
 
 // 🔹 5. Try to extract memory (note/reminder/calendar/log) from prompt
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
-  if (!memoryType) return null;
+  if (!memoryType) {
+    window.debug("[MEMORY] No memory type detected.");
+    return null;
+  }
 
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
@@ -104,7 +115,10 @@ RULES:
 
   const text = await res.text();
   const parsed = extractJson(text);
-  if (!parsed?.type || !parsed?.content) return null;
+  if (!parsed?.type || !parsed?.content) {
+    window.debug("[ERROR] Memory extraction failed.");
+    return null;
+  }
 
   const path =
     parsed.type === "calendar"
@@ -121,6 +135,7 @@ RULES:
     ...(parsed.date ? { date: parsed.date } : {})
   });
 
+  window.debug(`[MEMORY] Stored ${parsed.type}: ${parsed.content}`);
   return parsed;
 }
 
@@ -153,7 +168,7 @@ export async function summarizeChatIfNeeded(uid) {
       messages: [
         {
           role: "system",
-          content: `You are a concise summarizer. Summarize the following conversation block into one paragraph:`
+          content: "You are a concise summarizer. Summarize the following conversation block into one paragraph:"
         },
         { role: "user", content: convoText }
       ],
@@ -168,4 +183,6 @@ export async function summarizeChatIfNeeded(uid) {
     summary,
     timestamp: Date.now()
   });
+
+  window.debug("[MEMORY] Summary added to memory.");
 }

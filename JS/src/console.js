@@ -2,12 +2,20 @@ const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
 
-// Load logs
+// Load logs from localStorage with strict validation
 function loadPersistedLogs() {
   try {
-    const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
-    return Array.isArray(logs) ? logs : [];
+    const raw = localStorage.getItem(LOG_STORAGE_KEY) || "[]";
+    const logs = JSON.parse(raw);
+    if (!Array.isArray(logs)) throw new Error("Corrupted log format");
+    return logs.filter(log =>
+      log &&
+      typeof log.content === "string" &&
+      typeof log.tag === "string" &&
+      typeof log.timestamp === "string"
+    );
   } catch {
+    localStorage.removeItem(LOG_STORAGE_KEY);
     return [];
   }
 }
@@ -17,16 +25,10 @@ function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
-// Format ISO timestamp for display
-function formatTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString();
-}
-
-// Main logger
+// Add and group logs
 window.debugLog = function (...args) {
   const logs = loadPersistedLogs();
-  const timestamp = new Date().toISOString();
+  const timestamp = new Date().toLocaleString();
   const msgRaw = args.map(a =>
     typeof a === "object" ? JSON.stringify(a, null, 2) : a
   ).join(" ");
@@ -38,7 +40,7 @@ window.debugLog = function (...args) {
   renderLogGroups(loadPersistedLogs());
 };
 
-// Conditional debug
+// Shorthand
 window.debug = (...args) => {
   if (window.DEBUG_MODE) window.debugLog(...args);
 };
@@ -53,7 +55,7 @@ window.clearDebugLog = function () {
 window.exportDebugLog = function () {
   const logs = loadPersistedLogs();
   const blob = new Blob(
-    [logs.map(l => `[${formatTime(l.timestamp)}] ${l.content}`).join("\n")],
+    [logs.map(l => `[${l.timestamp}] ${l.content}`).join("\n")],
     { type: "text/plain" }
   );
   const url = URL.createObjectURL(blob);
@@ -64,7 +66,7 @@ window.exportDebugLog = function () {
   URL.revokeObjectURL(url);
 };
 
-// Status feedback bar
+// Status bar feedback
 window.setStatusFeedback = function (type, msg = "") {
   const bar = document.getElementById("chat-status-bar");
   if (!bar) return;
@@ -72,7 +74,7 @@ window.setStatusFeedback = function (type, msg = "") {
   const styleMap = {
     success: { color: "#1db954", bg: "rgba(29,185,84,0.08)" },
     error: { color: "#d7263d", bg: "rgba(215,38,61,0.08)" },
-    loading: { color: "#ffd600", bg: "rgba(255,214,0,0.08)" },
+    loading: { color: "#ffd600", bg: "rgba(255,214,0,0.08)" }
   };
 
   if (!styleMap[type]) {
@@ -91,14 +93,14 @@ window.setStatusFeedback = function (type, msg = "") {
   }
 };
 
-// Assistant reply shortcut
+// Assistant shortcut
 window.logAssistantReply = function (replyText) {
   const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
   window.debug("[REPLY]", preview);
   window.setStatusFeedback("success", "Assistant responded");
 };
 
-// Fullscreen overlay
+// Show overlay
 window.showDebugOverlay = function () {
   const overlay = document.getElementById("debug-overlay");
   const content = document.getElementById("debug-content");
@@ -106,12 +108,12 @@ window.showDebugOverlay = function () {
 
   const logs = loadPersistedLogs();
   content.textContent = logs.length
-    ? logs.map(log => `[${formatTime(log.timestamp)}] ${log.content}`).join("\n")
+    ? logs.map(log => `[${log.timestamp}] ${log.content}`).join("\n")
     : "No logs available.";
   overlay.style.display = "flex";
 };
 
-// Render grouped logs
+// Render grouped log display
 function renderLogGroups(logs) {
   const container = document.getElementById("onscreen-console-messages");
   if (!container) return;
@@ -126,9 +128,9 @@ function renderLogGroups(logs) {
 
   Object.entries(groups)
     .sort((a, b) => {
-      const aTime = a[1][a[1].length - 1].timestamp;
-      const bTime = b[1][b[1].length - 1].timestamp;
-      return new Date(aTime) - new Date(bTime); // Newest at bottom
+      const aTime = new Date(a[1].at(-1).timestamp);
+      const bTime = new Date(b[1].at(-1).timestamp);
+      return aTime - bTime;
     })
     .forEach(([tag, entries]) => {
       const group = document.createElement("div");
@@ -136,28 +138,22 @@ function renderLogGroups(logs) {
 
       const header = document.createElement("div");
       header.className = "group-header";
-      header.textContent = `[${tag}] (${entries.length}) -- ${formatTime(entries.at(-1).timestamp)}`;
+      header.textContent = `[${tag}] (${entries.length}) -- ${entries.at(-1).timestamp}`;
       group.appendChild(header);
 
       const logList = document.createElement("div");
       logList.className = "log-list";
       logList.style.display = "none";
 
-      let isLoaded = false;
+      entries.forEach(entry => {
+        const line = document.createElement("div");
+        line.className = "debug-line";
+        line.textContent = `[${entry.timestamp}] ${entry.content}`;
+        logList.appendChild(line);
+      });
 
       header.onclick = () => {
-        const visible = logList.style.display === "block";
-        logList.style.display = visible ? "none" : "block";
-
-        if (!isLoaded) {
-          entries.slice().reverse().forEach(entry => {
-            const line = document.createElement("div");
-            line.className = "debug-line";
-            line.textContent = `[${formatTime(entry.timestamp)}] ${entry.content}`;
-            logList.insertBefore(line, logList.firstChild); // expands upward
-          });
-          isLoaded = true;
-        }
+        logList.style.display = logList.style.display === "none" ? "block" : "none";
       };
 
       group.appendChild(logList);
@@ -165,11 +161,33 @@ function renderLogGroups(logs) {
     });
 
   if (window.autoScrollConsole) {
-    container.parentElement.scrollTop = container.parentElement.scrollHeight;
+    setTimeout(() => {
+      container.parentElement.scrollTop = container.parentElement.scrollHeight;
+    }, 50);
   }
 }
 
-// Init on page ready
+// Replay logs for pinning/toggle
+function replayLogsInChunks(logs, chunkSize = 4, delay = 40) {
+  const logEl = document.getElementById("onscreen-console-messages");
+  if (!logEl || logs.length === 0) return;
+
+  logEl.innerHTML = "";
+  let index = 0;
+
+  function processChunk() {
+    const chunk = logs.slice(0, index + chunkSize);
+    renderLogGroups(chunk);
+    index += chunkSize;
+    if (index < logs.length) {
+      setTimeout(processChunk, delay);
+    }
+  }
+
+  processChunk();
+}
+
+// Initialize on page load
 document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("console-toggle-btn");
   const panel = document.getElementById("onscreen-console");
@@ -178,7 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleBtn.addEventListener("click", () => {
       const isVisible = panel.style.display === "block";
       panel.style.display = isVisible ? "none" : "block";
-      if (!isVisible) renderLogGroups(loadPersistedLogs());
+      if (!isVisible) replayLogsInChunks(loadPersistedLogs());
     });
   }
 
@@ -197,11 +215,13 @@ document.addEventListener("DOMContentLoaded", () => {
       margin: 8px 0;
       padding-left: 8px;
     }
-    .log-group.info    { border-color: #999; }
-    .log-group.success { border-color: #1db954; }
-    .log-group.error   { border-color: #d7263d; }
-    .log-group.debug   { border-color: #368bff; }
-    .log-group.reply   { border-color: #ffa500; }
+
+    .log-group.info     { border-color: #888; }
+    .log-group.submit   { border-color: #32cd32; }
+    .log-group.reply    { border-color: #ffa500; }
+    .log-group.feedback { border-color: #ffd700; }
+    .log-group.memory   { border-color: #00ced1; }
+    .log-group.error    { border-color: #d7263d; }
 
     .group-header {
       font-weight: bold;
@@ -213,8 +233,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     .log-list {
       padding-left: 4px;
-      display: flex;
-      flex-direction: column-reverse;
     }
 
     .debug-line {
