@@ -51,10 +51,12 @@ main.chat-container {
   width: 100vw;
   min-width: 100vw;
   height: 100vh;
-  background: transparent;
   margin: 0;
   padding: 0;
   position: relative;
+  background: linear-gradient(145deg, #1e1e2e, #2c2c3c, #1e1e2e);
+  background-size: 400% 400%;
+  animation: backgroundShift 18s ease infinite;
 }
 
 #chat-log {
@@ -316,6 +318,11 @@ body, html, .chat-container, main.chat-container {
   left: 0 !important;
   right: 0 !important;
   box-sizing: border-box !important;
+}
+@keyframes backgroundShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* Responsive */
