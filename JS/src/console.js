@@ -1,129 +1,125 @@
-// 🔹 console.js – onscreen debug console with grouping and memory
+// 🔹 console.js – Grouped Logging, Debounced Rendering, Overlay Support
 
 const LOG_STORAGE_KEY = "assistantDebugLog";
-window.autoScrollConsole = true;
-const consoleContainer = document.getElementById("onscreen-console");
-const consoleMessages = document.getElementById("onscreen-console-messages");
+let logs = loadPersistedLogs();
+let groupedLogs = {};
+let autoScrollConsole = true;
+let _renderTimeout = null;
 
-let groupedLogs = {}; // { type: [msg1, msg2, ...] }
-let logOrder = []; // Maintain display order of types
-
-// Load from localStorage
 function loadPersistedLogs() {
   try {
-    return JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "{}");
+    const stored = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
+    return Array.isArray(stored) ? stored : [];
   } catch {
-    return {};
+    return [];
   }
 }
-function saveLogs(logData) {
-  localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logData));
+
+function saveLogs() {
+  localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
 }
-function clearDebugLog() {
+
+function groupLogs() {
   groupedLogs = {};
-  logOrder = [];
-  saveLogs({});
-  renderGroupedLogs();
-}
-function exportDebugLog() {
-  const fullExport = Object.entries(groupedLogs).flatMap(([type, msgs]) =>
-    msgs.map((msg, i) => `[${type}] #${i + 1} ${msg}`)
-  ).join("\n\n");
-  const blob = new Blob([fullExport], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "debug-log.txt";
-  link.click();
-  URL.revokeObjectURL(url);
-}
-function scrollToLatestLog() {
-  if (window.autoScrollConsole && consoleMessages)
-    consoleMessages.scrollTop = consoleMessages.scrollHeight;
+  logs.forEach(entry => {
+    const { type, text } = entry;
+    if (!groupedLogs[type]) groupedLogs[type] = [];
+    groupedLogs[type].push(text);
+  });
 }
 
-// Render grouped logs
 function renderGroupedLogs() {
-  consoleMessages.innerHTML = "";
-  logOrder.forEach(type => {
-    const group = groupedLogs[type];
-    if (!group.length) return;
+  const container = document.getElementById("onscreen-console-messages");
+  if (!container) return;
+  container.innerHTML = "";
 
-    const container = document.createElement("div");
-    container.className = "debug-line";
+  for (const [type, group] of Object.entries(groupedLogs)) {
+    const logWrapper = document.createElement("div");
+    logWrapper.className = "debug-line";
 
     const badge = document.createElement("span");
     badge.className = "log-badge";
-    badge.textContent = type;
+    badge.textContent = `${type.toUpperCase()} ×${group.length}`;
 
     const content = document.createElement("span");
     content.className = "log-content";
-    content.textContent = group[group.length - 1];
+    content.textContent = group[group.length - 1]; // latest only
 
     const toggle = document.createElement("button");
     toggle.className = "log-toggle";
-    toggle.textContent = `+${group.length - 1}`;
+    toggle.textContent = "Expand";
+    let expanded = false;
+
     toggle.onclick = () => {
-      const expanded = document.createElement("div");
-      expanded.style.marginTop = "6px";
-      expanded.style.fontSize = "0.82rem";
-      expanded.style.whiteSpace = "pre-wrap";
-      expanded.style.opacity = "0.8";
-      expanded.textContent = group.join("\n------\n");
-      container.replaceChild(expanded, content);
-      toggle.remove();
+      expanded = !expanded;
+      toggle.textContent = expanded ? "Collapse" : "Expand";
+      content.textContent = expanded
+        ? group.join("\n------\n")
+        : group[group.length - 1];
     };
 
-    container.appendChild(badge);
-    container.appendChild(content);
-    if (group.length > 1) container.appendChild(toggle);
-
-    consoleMessages.appendChild(container);
-  });
-
-  scrollToLatestLog();
-  saveLogs(groupedLogs);
-}
-
-// Add log
-function addDebugMessage(type, ...args) {
-  const message = args.map(a =>
-    typeof a === "object" ? JSON.stringify(a, null, 2) : a
-  ).join(" ");
-
-  if (!groupedLogs[type]) {
-    groupedLogs[type] = [message];
-    logOrder.push(type);
-  } else {
-    groupedLogs[type].push(message);
+    logWrapper.append(badge, content, toggle);
+    container.appendChild(logWrapper);
   }
 
-  renderGroupedLogs();
+  if (autoScrollConsole) container.scrollTop = container.scrollHeight;
 }
 
-// Overlay modal view
-function showDebugOverlay() {
+function persistAndRender() {
+  saveLogs();
+  groupLogs();
+
+  if (_renderTimeout) clearTimeout(_renderTimeout);
+  _renderTimeout = setTimeout(() => {
+    renderGroupedLogs();
+    _renderTimeout = null;
+  }, 100);
+}
+
+function addDebugMessage(type, text) {
+  if (!text) return;
+  const payload = {
+    type,
+    text: typeof text === "object" ? JSON.stringify(text, null, 2) : String(text),
+    timestamp: Date.now()
+  };
+  logs.push(payload);
+  if (logs.length > 200) logs.shift(); // limit total logs
+  persistAndRender();
+}
+
+window.debug = (...args) => addDebugMessage("debug", args.join(" "));
+window.info = (...args) => addDebugMessage("info", args.join(" "));
+window.feedback = (...args) => addDebugMessage("feedback", args.join(" "));
+window.reply = (...args) => addDebugMessage("reply", args.join(" "));
+
+window.clearDebugLog = () => {
+  logs = [];
+  saveLogs();
+  persistAndRender();
+};
+
+window.exportDebugLog = () => {
+  const blob = new Blob([JSON.stringify(logs, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `assistant-log-${Date.now()}.json`;
+  a.click();
+};
+
+window.showDebugOverlay = () => {
   const overlay = document.getElementById("debug-overlay");
   const content = document.getElementById("debug-content");
-  const full = Object.entries(groupedLogs).flatMap(([type, msgs]) =>
-    msgs.map((m, i) => `[${type}] #${i + 1}\n${m}`)
-  ).join("\n\n----------------------------\n\n");
+  if (!overlay || !content) return;
 
-  content.textContent = full || "No logs yet.";
+  content.textContent = logs.map(log =>
+    `[${new Date(log.timestamp).toLocaleTimeString()}] (${log.type.toUpperCase()}) ${log.text}`
+  ).join("\n\n");
+
   overlay.style.display = "flex";
-}
+};
 
-// Initial
-window.clearDebugLog = clearDebugLog;
-window.exportDebugLog = exportDebugLog;
-window.showDebugOverlay = showDebugOverlay;
-window.debug = (...args) => addDebugMessage("INFO", ...args);
-window.reply = (...args) => addDebugMessage("REPLY", ...args);
-window.feedback = (...args) => addDebugMessage("FEEDBACK", ...args);
-
-// Restore saved logs
-window.addEventListener("DOMContentLoaded", () => {
-  groupedLogs = loadPersistedLogs();
-  logOrder = Object.keys(groupedLogs);
-  renderGroupedLogs();
-});
+// Initial render on load
+groupLogs();
+renderGroupedLogs();
