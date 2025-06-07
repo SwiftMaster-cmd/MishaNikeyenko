@@ -1,3 +1,4 @@
+
 const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
@@ -24,7 +25,7 @@ window.debugLog = function (...args) {
   const msgRaw = args.map(a =>
     typeof a === "object" ? JSON.stringify(a, null, 2) : a
   ).join(" ");
-  const tagMatch = msgRaw.match(/^\[(\w+)]/);
+  const tagMatch = msgRaw.match(/^\[(\w+)\]/);
   const tag = tagMatch ? tagMatch[1].toUpperCase() : "INFO";
 
   logs.push({ tag, timestamp, content: msgRaw });
@@ -105,7 +106,7 @@ window.showDebugOverlay = function () {
   overlay.style.display = "flex";
 };
 
-// Render grouped logs (newest groups last)
+// Render grouped logs lazily
 function renderLogGroups(logs) {
   const container = document.getElementById("onscreen-console-messages");
   if (!container) return;
@@ -122,7 +123,7 @@ function renderLogGroups(logs) {
     .sort((a, b) => {
       const aTime = a[1][a[1].length - 1].timestamp;
       const bTime = b[1][b[1].length - 1].timestamp;
-      return new Date(aTime) - new Date(bTime); // Newest at bottom
+      return new Date(aTime) - new Date(bTime); // newest group at bottom
     })
     .forEach(([tag, entries]) => {
       const group = document.createElement("div");
@@ -137,15 +138,23 @@ function renderLogGroups(logs) {
       logList.className = "log-list";
       logList.style.display = "none";
 
-      entries.forEach(entry => {
-        const line = document.createElement("div");
-        line.className = "debug-line";
-        line.textContent = `[${entry.timestamp}] ${entry.content}`;
-        logList.appendChild(line);
-      });
+      let isLoaded = false;
 
       header.onclick = () => {
-        logList.style.display = logList.style.display === "none" ? "block" : "none";
+        if (logList.style.display === "none") {
+          logList.style.display = "block";
+          if (!isLoaded) {
+            entries.forEach(entry => {
+              const line = document.createElement("div");
+              line.className = "debug-line";
+              line.textContent = `[${entry.timestamp}] ${entry.content}`;
+              logList.appendChild(line);
+            });
+            isLoaded = true;
+          }
+        } else {
+          logList.style.display = "none";
+        }
       };
 
       group.appendChild(logList);
@@ -157,27 +166,6 @@ function renderLogGroups(logs) {
   }
 }
 
-// Replay logs
-function replayLogsInChunks(logs, chunkSize = 4, delay = 50) {
-  const logEl = document.getElementById("onscreen-console-messages");
-  if (!logEl || logs.length === 0) return;
-
-  logEl.innerHTML = "";
-  let index = 0;
-
-  function processChunk() {
-    const chunk = logs.slice(0, index + chunkSize);
-    renderLogGroups(chunk);
-    index += chunkSize;
-
-    if (index < logs.length) {
-      setTimeout(processChunk, delay);
-    }
-  }
-
-  processChunk();
-}
-
 // Init
 document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("console-toggle-btn");
@@ -187,7 +175,7 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleBtn.addEventListener("click", () => {
       const isVisible = panel.style.display === "block";
       panel.style.display = isVisible ? "none" : "block";
-      if (!isVisible) replayLogsInChunks(loadPersistedLogs());
+      if (!isVisible) renderLogGroups(loadPersistedLogs());
     });
   }
 
@@ -199,8 +187,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Inject debug styles
   const style = document.createElement("style");
-  style.textContent = `
+  style.textContent = \`
     .log-group {
       border-left: 4px solid #444;
       margin: 8px 0;
@@ -235,8 +224,6 @@ document.addEventListener("DOMContentLoaded", () => {
     .debug-line.clicked {
       background: #32cd3277 !important;
     }
-  `;
+  \`;
   document.head.appendChild(style);
-
-  renderLogGroups(loadPersistedLogs());
 });
