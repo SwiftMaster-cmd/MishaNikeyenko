@@ -21,6 +21,21 @@
   pointer-events: auto;
   transition: box-shadow 0.13s;
 }
+#chat-status-bar {
+  text-align: center;
+  margin-top: 4px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  opacity: 0;
+  color: #1db954;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(29, 185, 84, 0.08);
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
 
 #onscreen-console-messages {
   min-height: 38px;

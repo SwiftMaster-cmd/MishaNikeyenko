@@ -1,4 +1,4 @@
-// 🔹 chat.js – Clean UI + spinner + debug overlay, all backend logic handled in backgpt.js
+// 🔹 chat.js – UI layer only: input, rendering, status, scroll. Backend lives in backgpt.js
 
 import {
   onValue,
@@ -17,6 +17,7 @@ import {
   listReminders,
   listEvents
 } from "./commandHandlers.js";
+
 import {
   saveMessageToChat,
   fetchLast20Messages,
@@ -25,6 +26,7 @@ import {
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
+
 import { buildSystemPrompt } from "./memoryManager.js";
 
 // ========== 1. UI Elements ==========
@@ -32,6 +34,7 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 const header = document.getElementById("header-title");
+const statusBar = document.getElementById("chat-status-bar");
 
 function updateHeaderWithAssistantReply(text) {
   if (!header) return;
@@ -51,42 +54,24 @@ function showChatInputSpinner(show = true) {
 }
 
 function setStatusIndicator(type, msg = "") {
-  const icon = document.getElementById("status-icon");
-  const tip = document.getElementById("status-tooltip");
-  if (!icon || !tip) return;
+  if (!statusBar) return;
 
-  const iconMap = {
-    success: { symbol: "✅", color: "#1db954" },
-    error: { symbol: "❌", color: "#d7263d" },
-    loading: { symbol: "⏳", color: "#ffd600" }
-  };
-  const { symbol = "", color = "" } = iconMap[type] || {};
-
-  icon.textContent = symbol;
-  icon.style.color = color;
-
-  if (msg) {
-    tip.textContent = msg;
-    tip.style.display = "inline";
-    tip.style.opacity = "0.93";
-    tip.style.position = "static";
-    tip.style.background = "none";
-    tip.style.padding = "0";
-    tip.style.marginLeft = "6px";
-    tip.style.color = color !== "#ffd600" ? color : "#ffd600";
-    tip.style.fontWeight = type === "success" ? "600" : "400";
-    tip.style.fontSize = "1.04rem";
-    tip.style.boxShadow = "none";
-  } else {
-    tip.textContent = "";
-    tip.style.display = "none";
+  let color = "", bg = "";
+  switch (type) {
+    case "success": color = "#1db954"; bg = "rgba(29,185,84,0.08)"; break;
+    case "error":   color = "#d7263d"; bg = "rgba(215,38,61,0.08)"; break;
+    case "loading": color = "#ffd600"; bg = "rgba(255,214,0,0.08)"; break;
+    default:        statusBar.style.opacity = 0; return;
   }
 
-  if (type !== "loading" && symbol) {
+  statusBar.textContent = msg;
+  statusBar.style.color = color;
+  statusBar.style.background = bg;
+  statusBar.style.opacity = 1;
+
+  if (type !== "loading") {
     setTimeout(() => {
-      icon.textContent = "";
-      tip.textContent = "";
-      tip.style.display = "none";
+      statusBar.style.opacity = 0;
     }, 1800);
   }
 }
@@ -238,7 +223,7 @@ form.addEventListener("submit", async (e) => {
     // 5. Check if summary is due
     await summarizeChatIfNeeded(uid);
 
-    setStatusIndicator("success", "Sent!");
+    setStatusIndicator("success", "Message sent");
   } catch (err) {
     setStatusIndicator("error", "Something failed");
     window.debugLog("Submit error:", err.message || err);
