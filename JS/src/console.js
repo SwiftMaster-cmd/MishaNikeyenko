@@ -1,144 +1,117 @@
-const LOG_STORAGE_KEY = "assistantDebugLog";
+import { ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { db, auth } from "./firebaseConfig.js";
+import { getNotes, getReminders, getCalendar, getMemory, getDayLog } from "./memoryManager.js";
+
+const LOG_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
 
-// Load logs from localStorage with strict validation
-function loadPersistedLogs() {
+// === Persistence ===
+function loadLogs() {
   try {
-    const raw = localStorage.getItem(LOG_STORAGE_KEY) || "[]";
-    const logs = JSON.parse(raw);
-    if (!Array.isArray(logs)) throw new Error("Corrupted log format");
-    return logs.filter(log =>
-      log &&
-      typeof log.content === "string" &&
-      typeof log.tag === "string" &&
-      typeof log.timestamp === "string"
-    );
+    const raw = localStorage.getItem(LOG_KEY);
+    return Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
   } catch {
-    localStorage.removeItem(LOG_STORAGE_KEY);
     return [];
   }
 }
 
-// Save logs
-function saveLogs(logArray) {
-  localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
+function saveLogs(logs) {
+  localStorage.setItem(LOG_KEY, JSON.stringify(logs));
 }
 
-// Add and group logs
+// === Logging ===
 window.debugLog = function (...args) {
-  const logs = loadPersistedLogs();
-  const timestamp = new Date().toLocaleString();
-  const msgRaw = args.map(a =>
-    typeof a === "object" ? JSON.stringify(a, null, 2) : a
-  ).join(" ");
-  const tagMatch = msgRaw.match(/^\[(\w+)\]/);
-  const tag = tagMatch ? tagMatch[1].toUpperCase() : "INFO";
+  const logs = loadLogs();
+  const msg = args.map(a => typeof a === "object" ? JSON.stringify(a, null, 2) : a).join(" ");
+  const tag = /^\[(\w+)\]/.exec(msg)?.[1]?.toUpperCase() || "INFO";
+  const ts = new Date().toISOString();
 
-  logs.push({ tag, timestamp, content: msgRaw });
+  logs.push({ tag, timestamp: ts, content: msg });
   saveLogs(logs);
-  renderLogGroups(loadPersistedLogs());
+  renderLogGroups([logs.at(-1)]);
 };
 
-// Shorthand
-window.debug = (...args) => {
-  if (window.DEBUG_MODE) window.debugLog(...args);
-};
-
-// Clear logs
-window.clearDebugLog = function () {
-  localStorage.removeItem(LOG_STORAGE_KEY);
+window.clearDebugLog = () => {
+  localStorage.removeItem(LOG_KEY);
   renderLogGroups([]);
 };
 
-// Export logs
-window.exportDebugLog = function () {
-  const logs = loadPersistedLogs();
-  const blob = new Blob(
-    [logs.map(l => `[${l.timestamp}] ${l.content}`).join("\n")],
-    { type: "text/plain" }
-  );
+window.exportDebugLog = () => {
+  const logs = loadLogs();
+  const blob = new Blob([logs.map(l => `[${l.timestamp}] ${l.content}`).join("\n")], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `assistant-logs-${new Date().toISOString().slice(0, 10)}.txt`;
+  const a = Object.assign(document.createElement("a"), {
+    href: url,
+    download: `assistant-log-${new Date().toISOString().slice(0, 10)}.txt`
+  });
   a.click();
   URL.revokeObjectURL(url);
 };
 
-// Status bar feedback
-window.setStatusFeedback = function (type, msg = "") {
+window.setStatusFeedback = (type, msg = "") => {
   const bar = document.getElementById("chat-status-bar");
   if (!bar) return;
 
-  const styleMap = {
-    success: { color: "#1db954", bg: "rgba(29,185,84,0.08)" },
-    error: { color: "#d7263d", bg: "rgba(215,38,61,0.08)" },
-    loading: { color: "#ffd600", bg: "rgba(255,214,0,0.08)" }
+  const styles = {
+    success: { color: "#1db954", bg: "#1db95422" },
+    error: { color: "#d7263d", bg: "#d7263d22" },
+    loading: { color: "#ffd600", bg: "#ffd60022" }
   };
 
-  if (!styleMap[type]) {
+  if (!styles[type]) {
     bar.style.opacity = 0;
     return;
   }
 
   bar.textContent = msg;
-  bar.style.color = styleMap[type].color;
-  bar.style.background = styleMap[type].bg;
+  bar.style.color = styles[type].color;
+  bar.style.background = styles[type].bg;
   bar.style.opacity = 1;
 
-  window.debug(`[FEEDBACK] ${type.toUpperCase()}: ${msg}`);
-  if (type !== "loading") {
-    setTimeout(() => { bar.style.opacity = 0; }, 1800);
-  }
+  if (type !== "loading") setTimeout(() => (bar.style.opacity = 0), 1800);
 };
 
-// Assistant shortcut
-window.logAssistantReply = function (replyText) {
-  const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
-  window.debug("[REPLY]", preview);
+window.logAssistantReply = reply => {
+  const preview = reply.length > 80 ? reply.slice(0, 77) + "..." : reply;
+  window.debugLog("[REPLY]", preview);
   window.setStatusFeedback("success", "Assistant responded");
 };
 
-// Show overlay
-window.showDebugOverlay = function () {
+// === Debug Panel & Overlay ===
+window.showDebugOverlay = () => {
   const overlay = document.getElementById("debug-overlay");
   const content = document.getElementById("debug-content");
+  const logs = loadLogs();
   if (!overlay || !content) return;
-
-  const logs = loadPersistedLogs();
-  content.textContent = logs.length
-    ? logs.map(log => `[${log.timestamp}] ${log.content}`).join("\n")
-    : "No logs available.";
+  content.textContent = logs.length ? logs.map(l => `[${l.timestamp}] ${l.content}`).join("\n") : "No logs yet.";
   overlay.style.display = "flex";
 };
 
-// Render grouped log display
+// === Log Rendering ===
 function renderLogGroups(logs) {
   const container = document.getElementById("onscreen-console-messages");
   if (!container) return;
-  container.innerHTML = "";
 
-  const groups = {};
-  logs.forEach(log => {
-    if (!log || !log.tag || !log.content || !log.timestamp) return;
-    if (!groups[log.tag]) groups[log.tag] = [];
-    groups[log.tag].push(log);
+  const all = logs.length ? [...loadLogs(), ...logs] : loadLogs();
+  const grouped = {};
+  all.forEach(log => {
+    if (!log.tag) return;
+    grouped[log.tag] = grouped[log.tag] || [];
+    grouped[log.tag].push(log);
   });
 
-  Object.entries(groups)
-    .sort((a, b) => {
-      const aTime = new Date(a[1].at(-1).timestamp);
-      const bTime = new Date(b[1].at(-1).timestamp);
-      return aTime - bTime;
-    })
+  container.innerHTML = "";
+
+  Object.entries(grouped)
+    .sort((a, b) => new Date(b[1].at(-1).timestamp) - new Date(a[1].at(-1).timestamp))
     .forEach(([tag, entries]) => {
       const group = document.createElement("div");
       group.className = `log-group ${tag.toLowerCase()}`;
 
       const header = document.createElement("div");
       header.className = "group-header";
-      header.textContent = `[${tag}] (${entries.length}) -- ${entries.at(-1).timestamp}`;
+      header.textContent = `[${tag}] (${entries.length}) -- ${formatTime(entries.at(-1).timestamp)}`;
       group.appendChild(header);
 
       const logList = document.createElement("div");
@@ -148,7 +121,7 @@ function renderLogGroups(logs) {
       entries.forEach(entry => {
         const line = document.createElement("div");
         line.className = "debug-line";
-        line.textContent = `[${entry.timestamp}] ${entry.content}`;
+        line.textContent = `[${formatTime(entry.timestamp)}] ${entry.content}`;
         logList.appendChild(line);
       });
 
@@ -161,93 +134,83 @@ function renderLogGroups(logs) {
     });
 
   if (window.autoScrollConsole) {
-    setTimeout(() => {
-      container.parentElement.scrollTop = container.parentElement.scrollHeight;
-    }, 50);
+    container.scrollTop = container.scrollHeight;
   }
 }
 
-// Replay logs for pinning/toggle
-function replayLogsInChunks(logs, chunkSize = 4, delay = 40) {
-  const logEl = document.getElementById("onscreen-console-messages");
-  if (!logEl || logs.length === 0) return;
-
-  logEl.innerHTML = "";
-  let index = 0;
-
-  function processChunk() {
-    const chunk = logs.slice(0, index + chunkSize);
-    renderLogGroups(chunk);
-    index += chunkSize;
-    if (index < logs.length) {
-      setTimeout(processChunk, delay);
-    }
-  }
-
-  processChunk();
+function formatTime(ts) {
+  const d = new Date(ts);
+  return isNaN(d) ? "Invalid time" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-// Initialize on page load
+// === Summarize Firebase nodes
+window.fetchFirebaseSummaries = async () => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return window.debugLog("[ERROR] No user");
+
+  try {
+    const nodes = {
+      notes: await getNotes(uid),
+      reminders: await getReminders(uid),
+      calendar: await getCalendar(uid),
+      memory: await getMemory(uid),
+      log: await getDayLog(uid, new Date().toISOString().slice(0, 10))
+    };
+
+    const prompt = `
+Summarize each node in 1 short line.
+Respond ONLY in this JSON format:
+{
+  "notes": "...",
+  "reminders": "...",
+  "calendar": "...",
+  "memory": "...",
+  "log": "..."
+}`;
+
+    const res = await fetch("/.netlify/functions/chatgpt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: prompt },
+          { role: "user", content: JSON.stringify(nodes, null, 2) }
+        ],
+        model: "gpt-4o",
+        temperature: 0.3
+      })
+    });
+
+    const raw = await res.text();
+    const parsed = JSON.parse(raw.match(/{[\s\S]+}/)?.[0] || "{}");
+
+    Object.entries(parsed).forEach(([k, v]) =>
+      window.debugLog(`[INFO] ${k.toUpperCase()}: ${v}`)
+    );
+  } catch (err) {
+    window.debugLog("[ERROR] Failed to fetch summaries:", err.message);
+  }
+};
+
+// === Init
 document.addEventListener("DOMContentLoaded", () => {
-  const toggleBtn = document.getElementById("console-toggle-btn");
+  const toggle = document.getElementById("console-toggle-btn");
   const panel = document.getElementById("onscreen-console");
 
-  if (toggleBtn && panel) {
-    toggleBtn.addEventListener("click", () => {
-      const isVisible = panel.style.display === "block";
-      panel.style.display = isVisible ? "none" : "block";
-      if (!isVisible) replayLogsInChunks(loadPersistedLogs());
-    });
+  if (toggle && panel) {
+    toggle.onclick = () => {
+      panel.style.display = panel.style.display === "block" ? "none" : "block";
+      if (panel.style.display === "block") renderLogGroups([]);
+    };
   }
 
   document.addEventListener("click", (e) => {
     if (e.target.classList.contains("debug-line")) {
       navigator.clipboard.writeText(e.target.textContent);
       e.target.classList.add("clicked");
-      setTimeout(() => e.target.classList.remove("clicked"), 400);
+      setTimeout(() => e.target.classList.remove("clicked"), 300);
     }
   });
 
-  const style = document.createElement("style");
-  style.textContent = `
-    .log-group {
-      border-left: 4px solid #444;
-      margin: 8px 0;
-      padding-left: 8px;
-    }
-
-    .log-group.info     { border-color: #888; }
-    .log-group.submit   { border-color: #32cd32; }
-    .log-group.reply    { border-color: #ffa500; }
-    .log-group.feedback { border-color: #ffd700; }
-    .log-group.memory   { border-color: #00ced1; }
-    .log-group.error    { border-color: #d7263d; }
-
-    .group-header {
-      font-weight: bold;
-      font-size: 0.85rem;
-      padding: 2px 0;
-      cursor: pointer;
-      color: #aaa;
-    }
-
-    .log-list {
-      padding-left: 4px;
-    }
-
-    .debug-line {
-      font-family: monospace;
-      font-size: 0.75rem;
-      padding: 2px 0;
-      color: #f8fafd;
-      white-space: pre-wrap;
-    }
-
-    .debug-line.clicked {
-      background: #32cd3277 !important;
-    }
-  `;
-  document.head.appendChild(style);
-
-  renderLogGroups(loadPersistedLogs());
+  renderLogGroups([]);
 });
