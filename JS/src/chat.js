@@ -22,11 +22,10 @@ import {
   saveMessageToChat,
   fetchLast20Messages,
   getAllContext,
+  extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
 
-import { getAssistantReply } from "./openaiProxy.js"; // renamed for clarity
-import { buildSystemPrompt } from "./memoryManager.js";
 import {
   renderMessages,
   showChatInputSpinner,
@@ -37,12 +36,12 @@ import {
 
 import { addTokens, setTokenModel } from "./tokenTracker.js";
 
-// ========== 1. DOM Elements ==========
+// ========== DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
 
-// ========== 2. Init ==========
+// ========== Init ==========
 initScrollTracking();
 
 if (debugToggle) {
@@ -51,7 +50,7 @@ if (debugToggle) {
   });
 }
 
-// ========== 3. Auth & Chat History ==========
+// ========== Auth ==========
 let uid = null;
 let chatRef = null;
 
@@ -78,7 +77,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 4. Submit Handler ==========
+// ========== Submit Handler ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -90,7 +89,7 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    // Static Commands
+    // Check for static commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -117,11 +116,11 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // Step 1: Save user message
+    // STEP 1: Save user message
     await saveMessageToChat("user", prompt, uid);
     window.debug("[STEP 1] User message saved.");
 
-    // Step 2: Try memory extraction
+    // STEP 2: Extract memory
     window.debug("[STEP 2] Checking for memory...");
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
@@ -129,13 +128,14 @@ form.addEventListener("submit", async (e) => {
       window.debug("[MEMORY]", memory);
     }
 
-    // Step 3: Build assistant prompt
+    // STEP 3: Build prompt
     window.debug("[STEP 3] Fetching context...");
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
     ]);
-    const sysPrompt = buildSystemPrompt({
+
+    const systemPrompt = buildSystemPrompt({
       memory: context.memory,
       todayLog: context.dayLog,
       notes: context.notes,
@@ -144,23 +144,29 @@ form.addEventListener("submit", async (e) => {
       calc: context.calc,
       date: new Date().toISOString().slice(0, 10)
     });
-    const full = [{ role: "system", content: sysPrompt }, ...last20];
-    window.debug("[GPT INPUT]", full);
 
-    // Step 4: Get assistant reply from API proxy
-    const result = await getAssistantReply(full); // returns { reply, tokens, model }
-    const { reply, tokens, model } = result;
+    const fullPrompt = [{ role: "system", content: systemPrompt }, ...last20];
+    window.debug("[GPT INPUT]", fullPrompt);
 
-    // Save and display
+    // STEP 4: Send to OpenAI via backend
+    const res = await fetch("/.netlify/functions/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: fullPrompt, model: "gpt-4o" })
+    });
+
+    const { reply, tokens, model, error } = await res.json();
+
+    if (error || !reply) throw new Error(error || "No reply from assistant");
+
     await saveMessageToChat("assistant", reply, uid);
     window.logAssistantReply(reply);
     updateHeaderWithAssistantReply(reply);
 
-    // Track usage
     if (tokens) addTokens(tokens);
     if (model) setTokenModel(model);
 
-    // Step 5: Summarize if needed
+    // STEP 5: Optional summarization
     await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
   } catch (err) {
