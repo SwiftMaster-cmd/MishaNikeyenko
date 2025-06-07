@@ -1,19 +1,33 @@
-// chat.js – Modern, robust, async, modular
+// 🔹 chat.js – input and flow control only, all UI/logic in modules
 
-import { onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  onValue,
+  ref
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import { db, auth } from "./firebaseConfig.js";
+import {
+  handleStaticCommand,
+  listNotes,
+  listReminders,
+  listEvents
+} from "./commandHandlers.js";
+
 import {
   saveMessageToChat,
   fetchLast20Messages,
   getAllContext,
   getAssistantReply,
+  extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
 
-import { appendNoteToFirebase } from "./notes.js";
-
+import { buildSystemPrompt } from "./memoryManager.js";
 import {
   renderMessages,
   showChatInputSpinner,
@@ -22,123 +36,129 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
+// ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
+const debugToggle = document.getElementById("debug-toggle");
 
+// ========== 2. Init ==========
+initScrollTracking();
+
+if (debugToggle) {
+  debugToggle.addEventListener("click", () => {
+    if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
+  });
+}
+
+// ========== 3. Auth & Chat History ==========
 let uid = null;
 let chatRef = null;
-let chatListener = null;
 
-// Helpers
-function isNoteCommand(msg) {
-  return /^\/?note\b/i.test(msg) || /^save a note\b/i.test(msg);
-}
-function extractNoteContent(msg) {
-  let trimmed = msg.replace(/^\/?note\b[:\-]?\s*/i, "")
-                   .replace(/^save a note\b[:\-]?\s*/i, "")
-                   .trim();
-  return trimmed;
-}
-
-// ========== 1. Auth/init ==========
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    uid = user.uid;
-    window.debug(`[AUTH] UID: ${uid}`);
-    chatRef = ref(db, `chatHistory/${uid}`);
-
-    // Subscribe to chat changes only after uid is set
-    if (chatListener) chatListener(); // Remove old if exists
-    chatListener = onValue(chatRef, handleChatUpdate);
-
-    await loadInitialMessages();
-    initScrollTracking();
-  } else {
-    await signInAnonymously(auth);
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    signInAnonymously(auth);
+    window.setStatusFeedback("loading", "Signing in...");
+    window.debug("Auth: Signing in anonymously...");
+    return;
   }
+  uid = user.uid;
+  chatRef = ref(db, `chatHistory/${uid}`);
+  window.debug("Auth Ready → UID:", uid);
+
+  onValue(chatRef, (snapshot) => {
+    const data = snapshot.val() || {};
+    const messages = Object.entries(data).map(([id, msg]) => ({
+      id,
+      role: msg.role === "bot" ? "assistant" : msg.role,
+      content: msg.content,
+      timestamp: msg.timestamp || 0
+    }));
+    renderMessages(messages.slice(-20));
+  });
 });
 
-// ========== 2. Load and render last 20 messages ==========
-async function loadInitialMessages() {
-  if (!uid) return; // Wait for uid
-  showChatInputSpinner(true);
-  try {
-    const messages = await fetchLast20Messages(uid);
-    renderMessages(messages);
-    scrollToBottom();
-  } catch (e) {
-    window.debug(`[ERROR] Failed to load messages: ${e.message}`);
-  }
-  showChatInputSpinner(false);
-}
-
-// ========== 3. Handle live chat updates ==========
-async function handleChatUpdate() {
-  if (!uid) return;
-  try {
-    const messages = await fetchLast20Messages(uid);
-    renderMessages(messages);
-    scrollToBottom();
-  } catch (e) {
-    window.debug(`[ERROR] Live update failed: ${e.message}`);
-  }
-}
-
-// ========== 4. Main chat submit logic ==========
-form.addEventListener('submit', async (e) => {
+// ========== 4. Submit Handler ==========
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (!uid) return;
+  const prompt = input.value.trim();
+  if (!prompt || !uid) return;
+  input.value = "";
 
-  const inputValue = input.value.trim();
-  if (!inputValue) return;
-
-  // Note command: save note immediately
-  if (isNoteCommand(inputValue)) {
-    const noteContent = extractNoteContent(inputValue);
-    if (noteContent.length > 0) {
-      try {
-        await appendNoteToFirebase(uid, noteContent);
-        await saveMessageToChat('user', inputValue, uid);
-        await saveMessageToChat('assistant', `Note saved: "${noteContent}"`, uid);
-        // Messages will auto-update via Firebase listener
-        input.value = '';
-        scrollToBottom();
-        return;
-      } catch (err) {
-        window.debug(`[ERROR] Saving note: ${err.message}`);
-        return;
-      }
-    }
-  }
-
-  // Normal user message
   showChatInputSpinner(true);
-  await saveMessageToChat('user', inputValue, uid);
-  // Optimistic UI: show user message + spinner
-  renderMessages([
-    ...(await fetchLast20Messages(uid)),
-    { role: 'user', content: inputValue },
-    { role: 'assistant', content: '...' }
-  ]);
-  input.value = '';
-  scrollToBottom();
+  window.setStatusFeedback("loading", "Thinking...");
+  window.debug("[SUBMIT]", { uid, prompt });
 
-  // Assistant reply
-  let contextArr, assistantReply = "";
   try {
-    contextArr = await getAllContext(uid);
-    contextArr.push({ role: "user", content: inputValue, timestamp: Date.now() });
-    assistantReply = await getAssistantReply(contextArr, uid);
-    await saveMessageToChat('assistant', assistantReply, uid);
-  } catch (e) {
-    assistantReply = "Error: Assistant unavailable.";
-    window.debug(`[ERROR] Assistant: ${e.message}`);
-    await saveMessageToChat('assistant', assistantReply, uid);
+    // Static Commands
+    const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
+    if (quick.includes(prompt)) {
+      await handleStaticCommand(prompt, chatRef, uid);
+      window.setStatusFeedback("success", "Command executed");
+      showChatInputSpinner(false);
+      return;
+    }
+    if (prompt === "/notes") {
+      await listNotes(chatRef);
+      window.setStatusFeedback("success", "Notes listed");
+      showChatInputSpinner(false);
+      return;
+    }
+    if (prompt === "/reminders") {
+      await listReminders(chatRef);
+      window.setStatusFeedback("success", "Reminders listed");
+      showChatInputSpinner(false);
+      return;
+    }
+    if (prompt === "/events") {
+      await listEvents(chatRef);
+      window.setStatusFeedback("success", "Events listed");
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // Step 1: Save user message
+    await saveMessageToChat("user", prompt, uid);
+    window.debug("[STEP 1] User message saved.");
+
+    // Step 2: Try memory extraction
+    window.debug("[STEP 2] Checking for memory...");
+    const memory = await extractMemoryFromPrompt(prompt, uid);
+    if (memory) {
+      window.setStatusFeedback("success", `Memory saved (${memory.type})`);
+      window.debug("[MEMORY]", memory);
+    }
+
+    // Step 3: Build assistant prompt
+    window.debug("[STEP 3] Fetching context...");
+    const [last20, context] = await Promise.all([
+      fetchLast20Messages(uid),
+      getAllContext(uid)
+    ]);
+    const sysPrompt = buildSystemPrompt({
+      memory: context.memory,
+      todayLog: context.dayLog,
+      notes: context.notes,
+      calendar: context.calendar,
+      reminders: context.reminders,
+      calc: context.calc,
+      date: new Date().toISOString().slice(0, 10)
+    });
+    const full = [{ role: "system", content: sysPrompt }, ...last20];
+    window.debug("[GPT INPUT]", full);
+
+    // Step 4: Get assistant reply
+    const assistantReply = await getAssistantReply(full);
+    await saveMessageToChat("assistant", assistantReply, uid);
+    window.logAssistantReply(assistantReply);
+    updateHeaderWithAssistantReply(assistantReply);
+
+    // Step 5: Summarize if needed
+    await summarizeChatIfNeeded(uid);
+    window.setStatusFeedback("success", "Message sent");
+  } catch (err) {
+    window.setStatusFeedback("error", "Something went wrong");
+    window.debug("[ERROR]", err.message || err);
+  } finally {
+    showChatInputSpinner(false);
   }
-  showChatInputSpinner(false);
-  scrollToBottom();
-
-  summarizeChatIfNeeded(uid);
-});
-
-window.debug(`[READY] chat.js loaded`);
+}); 
