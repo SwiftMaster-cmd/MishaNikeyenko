@@ -41,6 +41,12 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
 
+// Sanity check
+if (!form || !input) {
+  console.error("Form or input element not found");
+  throw new Error("chat.js aborted: missing DOM elements");
+}
+
 // ========== 2. Init ==========
 initScrollTracking();
 
@@ -61,6 +67,7 @@ onAuthStateChanged(auth, (user) => {
     window.debug("Auth: Signing in anonymously...");
     return;
   }
+
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
   window.debug("Auth Ready → UID:", uid);
@@ -75,7 +82,18 @@ onAuthStateChanged(auth, (user) => {
     }));
     renderMessages(messages.slice(-20));
   });
+
+  // ✅ Remove loading screen once everything is ready
+  document.getElementById("initial-loader")?.remove();
 });
+
+// 🕒 Fallback: If auth never completes
+setTimeout(() => {
+  if (!uid) {
+    const loader = document.getElementById("initial-loader");
+    if (loader) loader.textContent = "⚠️ Still loading... Check your connection or Firebase config.";
+  }
+}, 6000);
 
 // ========== 4. Submit Handler ==========
 form.addEventListener("submit", async (e) => {
@@ -89,7 +107,6 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    // Static Commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -161,4 +178,4 @@ form.addEventListener("submit", async (e) => {
   } finally {
     showChatInputSpinner(false);
   }
-}); 
+});
