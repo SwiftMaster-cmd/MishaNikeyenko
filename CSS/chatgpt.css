@@ -150,21 +150,19 @@ main.chat-container {
   padding: 0;
 }
 
-/* Chat form */
+/* Replace your #chat-form block (or add this after it) */
 #chat-form {
+  width: 100vw;
+  max-width: 100vw;   /* kill the old 700px cap */
+  margin: 0;          /* ensure no auto‐centering */
+  padding: 1rem;      /* adjust as you like */
+  border-top: 1.5px solid var(--clr-border);
+  background: var(--clr-card);
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  width: 100%;
-  max-width: 700px;
-  padding: 1rem;
-  margin: 0 auto;
-  border-top: 1.5px solid var(--clr-border);
-  background: var(--clr-card);
-  box-shadow: 0 4px 24px -8px #23243c33;
   box-sizing: border-box;
 }
-
 /* Input */
 #user-input {
   flex: 1 1 auto;
