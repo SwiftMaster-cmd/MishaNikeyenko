@@ -1,4 +1,3 @@
-
 const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
@@ -106,7 +105,7 @@ window.showDebugOverlay = function () {
   overlay.style.display = "flex";
 };
 
-// Render grouped logs lazily
+// Render grouped logs (lazy load entries)
 function renderLogGroups(logs) {
   const container = document.getElementById("onscreen-console-messages");
   if (!container) return;
@@ -123,7 +122,7 @@ function renderLogGroups(logs) {
     .sort((a, b) => {
       const aTime = a[1][a[1].length - 1].timestamp;
       const bTime = b[1][b[1].length - 1].timestamp;
-      return new Date(aTime) - new Date(bTime); // newest group at bottom
+      return new Date(aTime) - new Date(bTime); // Newest at bottom
     })
     .forEach(([tag, entries]) => {
       const group = document.createElement("div");
@@ -141,19 +140,16 @@ function renderLogGroups(logs) {
       let isLoaded = false;
 
       header.onclick = () => {
-        if (logList.style.display === "none") {
-          logList.style.display = "block";
-          if (!isLoaded) {
-            entries.forEach(entry => {
-              const line = document.createElement("div");
-              line.className = "debug-line";
-              line.textContent = `[${entry.timestamp}] ${entry.content}`;
-              logList.appendChild(line);
-            });
-            isLoaded = true;
-          }
-        } else {
-          logList.style.display = "none";
+        const visible = logList.style.display === "block";
+        logList.style.display = visible ? "none" : "block";
+        if (!isLoaded) {
+          entries.forEach(entry => {
+            const line = document.createElement("div");
+            line.className = "debug-line";
+            line.textContent = `[${entry.timestamp}] ${entry.content}`;
+            logList.appendChild(line);
+          });
+          isLoaded = true;
         }
       };
 
@@ -166,7 +162,7 @@ function renderLogGroups(logs) {
   }
 }
 
-// Init
+// Init on page ready
 document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("console-toggle-btn");
   const panel = document.getElementById("onscreen-console");
@@ -189,7 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Inject debug styles
   const style = document.createElement("style");
-  style.textContent = \`
+  style.textContent = `
     .log-group {
       border-left: 4px solid #444;
       margin: 8px 0;
@@ -224,6 +220,8 @@ document.addEventListener("DOMContentLoaded", () => {
     .debug-line.clicked {
       background: #32cd3277 !important;
     }
-  \`;
+  `;
   document.head.appendChild(style);
+
+  renderLogGroups(loadPersistedLogs());
 });
