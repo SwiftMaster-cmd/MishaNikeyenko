@@ -2,7 +2,7 @@ const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
 
-// 🔹 Load logs
+// 🔹 Load logs from storage
 function loadPersistedLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
@@ -17,7 +17,7 @@ function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
-// 🔹 Main logger
+// 🔹 Main logger with tags and truncation
 window.debugLog = function (...args) {
   const logs = loadPersistedLogs();
   const timestamp = new Date().toLocaleTimeString();
@@ -133,18 +133,25 @@ window.logAssistantReply = function (replyText) {
   window.setStatusFeedback("success", "Assistant responded");
 };
 
-// 🔹 Fullscreen overlay viewer
+// 🔹 Fullscreen overlay with fallback message
 window.showDebugOverlay = function () {
-  const overlay = document.getElementById("debug-overlay");
-  const content = document.getElementById("debug-content");
+  let overlay = document.getElementById("debug-overlay");
+  let content = document.getElementById("debug-content");
+
   if (!overlay || !content) return;
 
   const logs = loadPersistedLogs();
-  content.textContent = logs.join("\n");
+
+  if (!logs.length) {
+    content.textContent = "No logs available.";
+  } else {
+    content.textContent = logs.join("\n");
+  }
+
   overlay.style.display = "flex";
 };
 
-// 🔹 Chunked log loader (fix for UI lag)
+// 🔹 Chunked loading to prevent lag
 function replayLogsInChunks(logs, chunkSize = 4, delay = 50) {
   const logEl = document.getElementById("onscreen-console-messages");
   if (!logEl || logs.length === 0) return;
@@ -168,7 +175,7 @@ function replayLogsInChunks(logs, chunkSize = 4, delay = 50) {
   processChunk();
 }
 
-// 🔹 Setup on load
+// 🔹 Init on DOM ready
 document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("console-toggle-btn");
   const panel = document.getElementById("onscreen-console");
@@ -180,7 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!isVisible) {
         const logs = loadPersistedLogs();
-        replayLogsInChunks(logs); // now uses smoother incremental load
+        replayLogsInChunks(logs);
       }
     });
   }
@@ -193,6 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Inject styling (in case not already in your CSS)
   const style = document.createElement("style");
   style.textContent = `
     .debug-line {
