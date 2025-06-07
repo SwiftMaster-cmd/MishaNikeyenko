@@ -189,6 +189,22 @@ main.chat-container {
   display: block;
   opacity: 1;
 }
+#console-toggle-btn {
+  padding: 0.75rem 1.2rem;
+  background: var(--clr-bot);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  min-width: 80px;
+}
+
+#console-toggle-btn:hover,
+#console-toggle-btn:focus {
+  background: #2a3355;
+}
 
 /* Hide spinner when not loading (handled by JS) */
 #chat-loading-spinner[style*="display: none"] {
