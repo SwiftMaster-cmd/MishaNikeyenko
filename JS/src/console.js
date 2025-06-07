@@ -24,7 +24,7 @@ window.debugLog = function (...args) {
   const msgRaw = args.map(a =>
     typeof a === "object" ? JSON.stringify(a, null, 2) : a
   ).join(" ");
-  const tagMatch = msgRaw.match(/^\[(\w+)\]/);
+  const tagMatch = msgRaw.match(/^\[(\w+)]/);
   const tag = tagMatch ? tagMatch[1].toUpperCase() : "INFO";
 
   logs.push({ tag, timestamp, content: msgRaw });
@@ -105,7 +105,7 @@ window.showDebugOverlay = function () {
   overlay.style.display = "flex";
 };
 
-// Render grouped logs
+// Render grouped logs (newest groups last)
 function renderLogGroups(logs) {
   const container = document.getElementById("onscreen-console-messages");
   if (!container) return;
@@ -122,7 +122,7 @@ function renderLogGroups(logs) {
     .sort((a, b) => {
       const aTime = a[1][a[1].length - 1].timestamp;
       const bTime = b[1][b[1].length - 1].timestamp;
-      return new Date(aTime) - new Date(bTime);
+      return new Date(aTime) - new Date(bTime); // Newest at bottom
     })
     .forEach(([tag, entries]) => {
       const group = document.createElement("div");
@@ -157,7 +157,7 @@ function renderLogGroups(logs) {
   }
 }
 
-// Replay logs without relogging (fixes [undefined] bug)
+// Replay logs
 function replayLogsInChunks(logs, chunkSize = 4, delay = 50) {
   const logEl = document.getElementById("onscreen-console-messages");
   if (!logEl || logs.length === 0) return;
@@ -178,7 +178,7 @@ function replayLogsInChunks(logs, chunkSize = 4, delay = 50) {
   processChunk();
 }
 
-// Init on page ready
+// Init
 document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("console-toggle-btn");
   const panel = document.getElementById("onscreen-console");
@@ -199,7 +199,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Inject debug styles
   const style = document.createElement("style");
   style.textContent = `
     .log-group {
