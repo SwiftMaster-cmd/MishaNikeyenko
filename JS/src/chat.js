@@ -45,15 +45,15 @@ const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
 const micButton = document.getElementById("mic-button");
 
-// ========== 2. Scroll + Debug Init ==========
 initScrollTracking();
+
 if (debugToggle) {
   debugToggle.addEventListener("click", () => {
     if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
   });
 }
 
-// ========== 3. Voice Input ==========
+// ========== 2. Voice Input (auto-submit) ==========
 if ("webkitSpeechRecognition" in window && micButton) {
   const recognition = new webkitSpeechRecognition();
   recognition.continuous = false;
@@ -69,18 +69,14 @@ if ("webkitSpeechRecognition" in window && micButton) {
     const transcript = event.results[0][0].transcript;
     input.value = transcript;
     micButton.textContent = "🎤";
+    form.dispatchEvent(new Event("submit"));
   };
 
-  recognition.onerror = () => {
-    micButton.textContent = "🎤";
-  };
-
-  recognition.onend = () => {
-    micButton.textContent = "🎤";
-  };
+  recognition.onerror = () => { micButton.textContent = "🎤"; };
+  recognition.onend = () => { micButton.textContent = "🎤"; };
 }
 
-// ========== 4. Auth ==========
+// ========== 3. Auth ==========
 let uid = null;
 let chatRef = null;
 
@@ -107,7 +103,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 5. Submit Handler ==========
+// ========== 4. Submit Handler ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -119,7 +115,6 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    // Static Command Shortcuts
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -130,15 +125,12 @@ form.addEventListener("submit", async (e) => {
     if (prompt === "/reminders") return listReminders(chatRef);
     if (prompt === "/events") return listEvents(chatRef);
 
-    // Save user message
     await saveMessageToChat("user", prompt, uid);
     const memory = await extractMemoryFromPrompt(prompt, uid);
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
     ]);
-
-    // Build assistant prompt
     const sysPrompt = buildSystemPrompt({
       memory: context.memory,
       todayLog: context.dayLog,
@@ -159,10 +151,14 @@ form.addEventListener("submit", async (e) => {
     if ("speechSynthesis" in window) {
       const utter = new SpeechSynthesisUtterance(assistantReply);
       utter.lang = "en-US";
+      utter.rate = 1;
+      utter.pitch = 1;
+      utter.volume = 1;
+      speechSynthesis.cancel(); // stop prior speech if still speaking
       speechSynthesis.speak(utter);
     }
 
-    // 🧠 Auto-List Rendering
+    // Auto-render any list formats
     try {
       if (assistantReply.startsWith("[LIST]")) {
         const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());

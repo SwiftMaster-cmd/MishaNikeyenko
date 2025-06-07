@@ -1,50 +1,56 @@
-// voice.js – handles speech-to-text and text-to-speech
+// 🔹 voice.js – Handles both voice input and output
 
-// 🔹 Text-to-Speech (assistant replies)
-export function speak(text) {
-  if (!window.speechSynthesis) return;
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'en-US';
-  utterance.pitch = 1;
-  utterance.rate = 1;
-  utterance.volume = 1;
+let recognition;
+let isRecognizing = false;
 
-  // Choose a consistent voice if available
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v => v.name.includes("Google") || v.lang === 'en-US');
-  if (preferred) utterance.voice = preferred;
+// ========== 1. Voice Input ==========
+export function initVoiceInput(inputFieldId, micButtonId) {
+  const inputField = document.getElementById(inputFieldId);
+  const micButton = document.getElementById(micButtonId);
 
-  window.speechSynthesis.speak(utterance);
+  if (!('webkitSpeechRecognition' in window) || !inputField || !micButton) return;
+
+  recognition = new webkitSpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = "en-US";
+
+  micButton.addEventListener("click", () => {
+    if (isRecognizing) {
+      recognition.stop();
+      return;
+    }
+    recognition.start();
+  });
+
+  recognition.onstart = () => {
+    isRecognizing = true;
+    micButton.textContent = "🎤 Listening...";
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    inputField.value = transcript;
+  };
+
+  recognition.onerror = () => {
+    micButton.textContent = "🎤";
+  };
+
+  recognition.onend = () => {
+    isRecognizing = false;
+    micButton.textContent = "🎤";
+  };
 }
 
-// 🔹 Speech-to-Text (user input)
-export function startListening() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    alert("Speech recognition not supported in this browser.");
-    return;
-  }
+// ========== 2. Voice Output ==========
+export function speakText(text) {
+  if (!('speechSynthesis' in window)) return;
 
-  const recognition = new SpeechRecognition();
-  recognition.lang = 'en-US';
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-
-  recognition.onresult = function (event) {
-    const transcript = event.results[0][0].transcript;
-    const input = document.getElementById("user-input");
-    input.value = transcript;
-    input.focus();
-    input.form.requestSubmit(); // auto-submit
-  };
-
-  recognition.onerror = function (event) {
-    console.error("Speech recognition error:", event.error);
-  };
-
-  recognition.onend = function () {
-    console.log("Speech recognition ended");
-  };
-
-  recognition.start();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "en-US";
+  utter.pitch = 1;
+  utter.rate = 1;
+  speechSynthesis.cancel(); // clear queue
+  speechSynthesis.speak(utter);
 }
