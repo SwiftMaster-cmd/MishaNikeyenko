@@ -3,13 +3,80 @@ import {
   ref,
   get,
   child,
-  set
+  set,
+  push
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { appendNode } from "./firebaseHelpers.js";
 
 // Handles static commands ("/time", "/date", "/uid", etc.)
 export async function handleStaticCommand(cmd, chatRef, uid) {
   const today = new Date().toISOString().slice(0, 10);
+
+  // Handle /note [content]
+  if (cmd.startsWith("/note")) {
+    const noteContent = cmd.replace("/note", "").trim();
+    if (!noteContent) {
+      return appendNode(chatRef, {
+        role: "assistant",
+        content: "Please provide the note content.",
+        timestamp: Date.now()
+      });
+    }
+    // Save note to Firebase
+    await appendNode(`notes/${uid}/${today}`, {
+      content: noteContent,
+      timestamp: Date.now()
+    });
+    return appendNode(chatRef, {
+      role: "assistant",
+      content: `📝 Note saved: ${noteContent}`,
+      timestamp: Date.now()
+    });
+  }
+
+  // Handle /reminder [content]
+  if (cmd.startsWith("/reminder")) {
+    const remContent = cmd.replace("/reminder", "").trim();
+    if (!remContent) {
+      return appendNode(chatRef, {
+        role: "assistant",
+        content: "Please provide the reminder content.",
+        timestamp: Date.now()
+      });
+    }
+    // Save reminder to Firebase
+    await appendNode(`reminders/${uid}`, {
+      content: remContent,
+      timestamp: Date.now()
+    });
+    return appendNode(chatRef, {
+      role: "assistant",
+      content: `⏰ Reminder saved: ${remContent}`,
+      timestamp: Date.now()
+    });
+  }
+
+  // Handle /calendar [content]
+  if (cmd.startsWith("/calendar")) {
+    const calContent = cmd.replace("/calendar", "").trim();
+    if (!calContent) {
+      return appendNode(chatRef, {
+        role: "assistant",
+        content: "Please provide the event details.",
+        timestamp: Date.now()
+      });
+    }
+    // Save event to Firebase
+    await appendNode(`calendarEvents/${uid}`, {
+      content: calContent,
+      timestamp: Date.now()
+    });
+    return appendNode(chatRef, {
+      role: "assistant",
+      content: `📅 Calendar event saved: ${calContent}`,
+      timestamp: Date.now()
+    });
+  }
 
   switch (cmd) {
     case "/time": {
