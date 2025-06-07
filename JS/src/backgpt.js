@@ -59,16 +59,13 @@ export async function getAllContext(uid) {
 // 🔹 4. Generate assistant reply via GPT
 export async function getAssistantReply(fullMessages) {
   window.debug("[INFO] Sending prompt to GPT...");
-
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages: fullMessages, model: "gpt-4o", temperature: 0.8 })
   });
-
   const data = await res.json();
   const reply = data.choices?.[0]?.message?.content || "[No reply]";
-
   window.debug("[REPLY]", reply);
   return reply;
 }
@@ -82,14 +79,11 @@ export async function extractMemoryFromPrompt(prompt, uid) {
     return null;
   }
 
-  const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: [
-        {
-          role: "system",
-          content: `
+  const query = memoryType.startsWith("/") ? rawPrompt : prompt;
+  const messages = [
+    {
+      role: "system",
+      content: `
 You are a memory extraction engine. ALWAYS return exactly one JSON object with these keys:
 {
   "type":   "note" | "reminder" | "calendar" | "log",
@@ -105,38 +99,47 @@ RULES:
 5. Otherwise, type="note" as a last resort.
 6. Populate "date" only when explicitly given.
 7. Return ONLY the JSON block.`
-        },
-        { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
-      ],
-      model: "gpt-4o",
-      temperature: 0.3
-    })
-  });
+    },
+    { role: "user", content: query }
+  ];
 
-  const text = await res.text();
-  const parsed = extractJson(text);
-  if (!parsed?.type || !parsed?.content) {
-    window.debug("[ERROR] Memory extraction failed.");
+  try {
+    const res = await fetch("/.netlify/functions/chatgpt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, model: "gpt-4o", temperature: 0.3 })
+    });
+
+    const text = await res.text();
+    window.debug("[RAW GPT Memory Output]", text);
+
+    const parsed = extractJson(text);
+    if (!parsed?.type || !parsed?.content) {
+      window.debug("[ERROR] Invalid memory JSON", parsed);
+      return null;
+    }
+
+    const path =
+      parsed.type === "calendar"
+        ? `calendarEvents/${uid}`
+        : parsed.type === "reminder"
+        ? `reminders/${uid}`
+        : parsed.type === "log"
+        ? `dayLog/${uid}/${today}`
+        : `notes/${uid}/${today}`;
+
+    await push(ref(db, path), {
+      content: parsed.content,
+      timestamp: Date.now(),
+      ...(parsed.date ? { date: parsed.date } : {})
+    });
+
+    window.debug(`[MEMORY] Stored ${parsed.type}: ${parsed.content}`);
+    return parsed;
+  } catch (err) {
+    window.debug("[MEMORY ERROR]", err.message || err);
     return null;
   }
-
-  const path =
-    parsed.type === "calendar"
-      ? `calendarEvents/${uid}`
-      : parsed.type === "reminder"
-      ? `reminders/${uid}`
-      : parsed.type === "log"
-      ? `dayLog/${uid}/${today}`
-      : `notes/${uid}/${today}`;
-
-  await push(ref(db, path), {
-    content: parsed.content,
-    timestamp: Date.now(),
-    ...(parsed.date ? { date: parsed.date } : {})
-  });
-
-  window.debug(`[MEMORY] Stored ${parsed.type}: ${parsed.content}`);
-  return parsed;
 }
 
 // 🔹 6. Run summary if message count % 20 === 0
@@ -161,28 +164,32 @@ export async function summarizeChatIfNeeded(uid) {
     .map(m => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
     .join("\n");
 
-  const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: [
-        {
-          role: "system",
-          content: "You are a concise summarizer. Summarize the following conversation block into one paragraph:"
-        },
-        { role: "user", content: convoText }
-      ],
-      model: "gpt-4o",
-      temperature: 0.5
-    })
-  });
+  try {
+    const res = await fetch("/.netlify/functions/chatgpt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content: "You are a concise summarizer. Summarize the following conversation block into one paragraph:"
+          },
+          { role: "user", content: convoText }
+        ],
+        model: "gpt-4o",
+        temperature: 0.5
+      })
+    });
 
-  const dataJson = await res.json();
-  const summary = dataJson.choices?.[0]?.message?.content || "[No summary]";
-  await push(ref(db, `memory/${uid}`), {
-    summary,
-    timestamp: Date.now()
-  });
+    const dataJson = await res.json();
+    const summary = dataJson.choices?.[0]?.message?.content || "[No summary]";
+    await push(ref(db, `memory/${uid}`), {
+      summary,
+      timestamp: Date.now()
+    });
 
-  window.debug("[MEMORY] Summary added to memory.");
+    window.debug("[MEMORY] Summary added to memory.");
+  } catch (err) {
+    window.debug("[SUMMARY ERROR]", err.message || err);
+  }
 }
