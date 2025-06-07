@@ -35,6 +35,7 @@ import {
 } from "./uiShell.js";
 
 import { addTokens, setTokenModel } from "./tokenTracker.js";
+import { buildSystemPrompt } from "./memoryManager.js";
 
 // ========== DOM Elements ==========
 const form = document.getElementById("chat-form");
@@ -89,7 +90,7 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    // Check for static commands
+    // Static Commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -116,11 +117,11 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // STEP 1: Save user message
+    // Step 1: Save user message
     await saveMessageToChat("user", prompt, uid);
     window.debug("[STEP 1] User message saved.");
 
-    // STEP 2: Extract memory
+    // Step 2: Try memory extraction
     window.debug("[STEP 2] Checking for memory...");
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
@@ -128,7 +129,7 @@ form.addEventListener("submit", async (e) => {
       window.debug("[MEMORY]", memory);
     }
 
-    // STEP 3: Build prompt
+    // Step 3: Build assistant prompt
     window.debug("[STEP 3] Fetching context...");
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
@@ -148,25 +149,27 @@ form.addEventListener("submit", async (e) => {
     const fullPrompt = [{ role: "system", content: systemPrompt }, ...last20];
     window.debug("[GPT INPUT]", fullPrompt);
 
-    // STEP 4: Send to OpenAI via backend
+    // Step 4: Send to OpenAI via backend
     const res = await fetch("/.netlify/functions/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: fullPrompt, model: "gpt-4o" })
     });
 
-    const { reply, tokens, model, error } = await res.json();
+    const data = await res.json();
 
-    if (error || !reply) throw new Error(error || "No reply from assistant");
+    if (!res.ok || !data.reply) {
+      throw new Error(data.error || "No reply from assistant");
+    }
 
-    await saveMessageToChat("assistant", reply, uid);
-    window.logAssistantReply(reply);
-    updateHeaderWithAssistantReply(reply);
+    await saveMessageToChat("assistant", data.reply, uid);
+    window.logAssistantReply(data.reply);
+    updateHeaderWithAssistantReply(data.reply);
 
-    if (tokens) addTokens(tokens);
-    if (model) setTokenModel(model);
+    if (data.tokens) addTokens(data.tokens);
+    if (data.model) setTokenModel(data.model);
 
-    // STEP 5: Optional summarization
+    // Step 5: Summarize if needed
     await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
   } catch (err) {
