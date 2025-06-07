@@ -1,4 +1,4 @@
-// ðŸ"¹ memoryManager.js â€" Firebase read/write helpers + system prompt builder
+// 🔹 memoryManager.js -- Firebase helpers + system prompt builder
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase,
@@ -6,7 +6,6 @@ import {
   get,
   set
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
@@ -20,35 +19,46 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const auth = getAuth(app);
 
-// ðŸ"¹ Read Helpers
-export const getMemory      = (uid) => fetchNode(`memory/${uid}`);
+// ------ Read Helpers ------
+export const getMemory      = uid => fetchNode(`memory/${uid}`);
 export const getDayLog      = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
-export const getNotes       = (uid) => fetchNode(`notes/${uid}`);
-export const getCalendar    = (uid) => fetchNode(`calendarEvents/${uid}`);
-export const getReminders   = (uid) => fetchNode(`reminders/${uid}`);
-export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
+export const getNotes       = uid => fetchNode(`notes/${uid}`);
+export const getCalendar    = uid => fetchNode(`calendarEvents/${uid}`);
+export const getReminders   = uid => fetchNode(`reminders/${uid}`);
+export const getCalcHistory = uid => fetchNode(`calcHistory/${uid}`);
 
-// ðŸ"¹ Write Helper for Day Log
+// ------ Write Helper for Day Log ------
 export async function updateDayLog(uid, dateStr, newLog) {
   const path = `dayLog/${uid}/${dateStr}`;
-  const existingSnap = await get(ref(db, path));
-  const existing = existingSnap.exists() ? existingSnap.val() : {};
+  const snap = await get(ref(db, path));
+  const existing = snap.exists() ? snap.val() : {};
 
   const merged = {
     highlights: mergeArrays(existing.highlights, newLog.highlights),
-    mood: newLog.mood ?? existing.mood ?? "",
-    notes: mergeArrays(existing.notes, newLog.notes),
-    questions: mergeArrays(existing.questions, newLog.questions)
+    mood:       newLog.mood ?? existing.mood ?? "",
+    notes:      mergeArrays(existing.notes, newLog.notes),
+    questions:  mergeArrays(existing.questions, newLog.questions)
   };
 
   await set(ref(db, path), merged);
   return merged;
 }
 
-// ðŸ"¹ Prompt Builder
-export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
+// ------ Prompt Builder ------
+export function buildSystemPrompt({
+  memory,
+  todayLog,
+  notes,
+  calendar,
+  reminders,
+  calc,
+  date
+}) {
+  // log payload sizes
+  const payload = JSON.stringify({ memory, todayLog, notes, calendar, reminders, calc });
+  console.log(`SYS PROMPT data size: ${payload.length} bytes`);
+
   return `
 You are Nexus, a second brain for Bossman.
 Date: ${date}
@@ -75,7 +85,7 @@ Instructions for Nexus:
 - Respond directly and only to exactly what Bossman asks.
 - Do NOT suggest next actions unless Bossman explicitly asks.
 - Do NOT ask if the user wants to chat more.
-- Do NOT append ANY extra closing sentence or salutation (e.g. "If there's anything else you'd like to do, let me know.").
+- Do NOT append ANY extra closing sentence or salutation.
 - End your response immediately after providing the answer; no trailing remarks.
 - Stay brief, accurate, and task-focused.
 - Reflect Bossman's intent; prioritize clarity over filler.
@@ -83,17 +93,26 @@ Instructions for Nexus:
 `;
 }
 
-// ðŸ"¹ Internal Helpers
+// ------ Internal Helpers ------
 
 async function fetchNode(path) {
-  const snap = await get(ref(db, path));
-  return snap.exists() ? snap.val() : {};
+  try {
+    const snap = await get(ref(db, path));
+    return snap.exists() ? snap.val() : {};
+  } catch (err) {
+    console.error(`fetchNode("${path}") failed:`, err);
+    throw err;
+  }
 }
 
-function mergeArrays(arr1 = [], arr2 = []) {
-  if (!Array.isArray(arr1)) arr1 = [];
-  if (!Array.isArray(arr2)) arr2 = [];
-  return Array.from(new Set([...arr1, ...arr2]));
+function mergeArrays(a = [], b = []) {
+  if (!Array.isArray(a)) a = [];
+  if (!Array.isArray(b)) b = [];
+  return Array.from(new Set([...a, ...b]));
+}
+
+function escapeBackticks(str) {
+  return String(str).replace(/`/g, "\\`");
 }
 
 function formatBlock(obj = {}) {
@@ -101,48 +120,48 @@ function formatBlock(obj = {}) {
     return "None.";
   }
 
+  // Detect two-level structure (e.g. { dateKey: { id1: {...}, id2: {...} } })
   const isTwoLevel = Object.values(obj).every(
-    (v) =>
-      v &&
-      typeof v === "object" &&
-      Object.values(v).every(
-        (child) =>
-          child &&
-          typeof child === "object" &&
-          ("content" in child || "amount" in child || "value" in child)
-      )
+    v => v && typeof v === "object" &&
+         Object.values(v).every(c => c && typeof c === "object" &&
+           ("content" in c || "amount" in c || "value" in c))
   );
 
   if (isTwoLevel) {
     return Object.entries(obj)
-      .map(([outerKey, innerObj]) => {
-        const items = Object.values(innerObj).map((entry) => {
+      .map(([outer, inner]) => {
+        const items = Object.values(inner).map(entry => {
+          let text;
           if ("content" in entry) {
             if ("date" in entry) {
-              return `${entry.date}: ${entry.content}`;
+              text = `${entry.date}: ${entry.content}`;
+            } else if ("timestamp" in entry) {
+              text = `${new Date(entry.timestamp).toLocaleString()}: ${entry.content}`;
+            } else {
+              text = entry.content;
             }
-            if ("timestamp" in entry) {
-              const t = new Date(entry.timestamp).toLocaleString();
-              return `${t}: ${entry.content}`;
-            }
-            return entry.content;
+          } else {
+            text = JSON.stringify(entry);
           }
-          return JSON.stringify(entry);
+          return escapeBackticks(text);
         });
-        return `${outerKey}: ${items.join("; ")}`;
+        return `${outer}: ${items.join("; ")}`;
       })
       .join("\n");
   }
 
+  // Flat object or arrays
   return Object.entries(obj)
     .map(([k, v]) => {
+      let repr;
       if (Array.isArray(v)) {
-        return `${k}: [${v.join(", ")}]`;
+        repr = `[${v.map(escapeBackticks).join(", ")}]`;
+      } else if (typeof v === "object") {
+        repr = escapeBackticks(JSON.stringify(v));
+      } else {
+        repr = escapeBackticks(v);
       }
-      if (typeof v === "object") {
-        return `${k}: ${JSON.stringify(v)}`;
-      }
-      return `${k}: ${v}`;
+      return `${k}: ${repr}`;
     })
     .join("\n");
 }
