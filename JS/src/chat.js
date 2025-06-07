@@ -1,4 +1,4 @@
-// 🔹 chat.js – input and flow control only, all UI/logic in modules
+// 🔹 chat.js – Input and flow control only, all UI/logic in modules
 
 import {
   onValue,
@@ -35,7 +35,7 @@ import {
 } from "./uiShell.js";
 
 import { addTokens, setTokenModel } from "./tokenTracker.js";
-import { buildSystemPrompt } from "./memoryManager.js";
+import { buildSystemPrompt } from "./memoryManager.js"; // ✅ Confirm case-sensitive match
 
 // ========== DOM Elements ==========
 const form = document.getElementById("chat-form");
@@ -121,8 +121,7 @@ form.addEventListener("submit", async (e) => {
     await saveMessageToChat("user", prompt, uid);
     window.debug("[STEP 1] User message saved.");
 
-    // Step 2: Try memory extraction
-    window.debug("[STEP 2] Checking for memory...");
+    // Step 2: Extract memory
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
       window.setStatusFeedback("success", `Memory saved (${memory.type})`);
@@ -130,7 +129,6 @@ form.addEventListener("submit", async (e) => {
     }
 
     // Step 3: Build assistant prompt
-    window.debug("[STEP 3] Fetching context...");
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
@@ -147,13 +145,17 @@ form.addEventListener("submit", async (e) => {
     });
 
     const fullPrompt = [{ role: "system", content: systemPrompt }, ...last20];
-    window.debug("[GPT INPUT]", fullPrompt);
 
-    // Step 4: Send to OpenAI via backend
+    // Step 4: Sanitize messages
+    const sanitized = fullPrompt.filter(
+      m => m && typeof m.content === "string" && typeof m.role === "string"
+    );
+
+    // Step 5: Send to backend
     const res = await fetch("/.netlify/functions/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: fullPrompt, model: "gpt-4o" })
+      body: JSON.stringify({ messages: sanitized, model: "gpt-4o" })
     });
 
     const data = await res.json();
@@ -169,7 +171,6 @@ form.addEventListener("submit", async (e) => {
     if (data.tokens) addTokens(data.tokens);
     if (data.model) setTokenModel(data.model);
 
-    // Step 5: Summarize if needed
     await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
   } catch (err) {
