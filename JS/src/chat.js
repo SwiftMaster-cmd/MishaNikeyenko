@@ -65,7 +65,7 @@ function showChatInputSpinner(show = true) {
   if (inputField) inputField.disabled = show;
 }
 
-function setStatusIndicator(type, msg = "") {
+function setStatusIndicator(type, tooltip = "") {
   const icon = document.getElementById("status-icon");
   const tip = document.getElementById("status-tooltip");
   if (!icon || !tip) return;
@@ -78,29 +78,16 @@ function setStatusIndicator(type, msg = "") {
   }
   icon.textContent = html;
   icon.style.color = color;
-
-  // Show message inline, not as a tooltip
-  if (msg) {
-    tip.textContent = msg;
+  if (tooltip) {
+    tip.textContent = tooltip;
     tip.style.display = "inline";
-    tip.style.opacity = "0.93";
-    tip.style.position = "static";
-    tip.style.background = "none";
-    tip.style.padding = "0";
-    tip.style.marginLeft = "6px";
-    tip.style.color = color !== "#ffd600" ? color : "#ffd600";
-    tip.style.fontWeight = (type === "success") ? "600" : "400";
-    tip.style.fontSize = "1.04rem";
-    tip.style.boxShadow = "none";
   } else {
-    tip.textContent = "";
     tip.style.display = "none";
   }
   // Fade out automatically (except loading)
   if (type !== "loading" && html) {
     setTimeout(() => {
       icon.textContent = "";
-      tip.textContent = "";
       tip.style.display = "none";
     }, 1800);
   }
