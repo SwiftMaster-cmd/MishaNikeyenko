@@ -33,7 +33,7 @@ main.chat-container {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
+  align-items: stretch;
   width: 100vw;
   height: 100vh;
   min-width: 100vw;
@@ -44,12 +44,13 @@ main.chat-container {
   z-index: 1;
 }
 
+/* Full-width chat log */
 #chat-log {
   flex: 1 1 auto;
-  width: 100%;
+  width: 100vw;
   min-width: 0;
-  max-width: 700px;
-  margin: 0 auto;
+  max-width: 100vw;
+  margin: 0;
   overflow-y: auto;
   padding: var(--padding);
   scroll-behavior: smooth;
@@ -61,9 +62,9 @@ main.chat-container {
   box-sizing: border-box;
 }
 
-/* Message bubbles */
+/* Message bubbles take nearly full width minus padding */
 .msg {
-  max-width: 75%;
+  max-width: calc(100vw - 3.5rem);
   padding: 0.8rem 1.1rem;
   border-radius: var(--radius);
   word-break: break-word;
@@ -98,6 +99,7 @@ main.chat-container {
   padding: 0;
 }
 
+/* Full-width input form */
 #chat-form {
   display: flex;
   align-items: center;
@@ -105,17 +107,20 @@ main.chat-container {
   padding: 1rem;
   border-top: 1px solid var(--clr-border);
   background: var(--clr-card);
-  width: 100%;
-  max-width: 700px;
+  width: 100vw;
+  min-width: 100vw;
+  max-width: 100vw;
   box-sizing: border-box;
   position: relative;
-  margin: 0 auto;
+  margin: 0;
 }
 
+/* Full-width text field */
 #user-input {
   flex: 1 1 auto;
   min-width: 0;
   max-width: 100vw;
+  width: 100vw;
   padding: 0.75rem 1rem;
   font-size: 1rem;
   border-radius: 12px;
@@ -174,7 +179,6 @@ button[type="submit"]:active {
   background: #474d8c;
 }
 
-/* Spinner */
 #chat-loading-spinner {
   width: 24px;
   height: 24px;
@@ -194,7 +198,6 @@ button[type="submit"]:active {
   height: 22px;
 }
 
-/* Status bar */
 #status-indicator {
   display: flex;
   align-items: center;
@@ -246,7 +249,6 @@ button[type="submit"]:active {
   margin: 0;
 }
 
-/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -265,21 +267,24 @@ body, html, .chat-container, main.chat-container {
 @media (max-width: 600px) {
   #chat-log {
     max-width: 100vw;
+    width: 100vw;
     font-size: 0.98rem;
     padding: 0.8rem 0.1rem;
   }
-  .msg { max-width: 94vw; font-size: 0.98rem; }
+  .msg { max-width: 98vw; font-size: 0.98rem; }
   #chat-form {
     flex-direction: column;
     align-items: stretch;
     gap: 0.5rem;
     max-width: 100vw;
+    width: 100vw;
     padding: 0.8rem 0.2rem;
   }
   #user-input {
     margin-right: 0;
     min-width: 0;
-    width: 100%;
+    width: 100vw;
+    max-width: 100vw;
   }
   button[type="submit"], #console-toggle-btn {
     width: 100%;
