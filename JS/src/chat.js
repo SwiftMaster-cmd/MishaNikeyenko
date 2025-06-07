@@ -1,4 +1,4 @@
-// 🔹 chat.js – input and flow control only, all UI/logic in modules + multi-format auto-list rendering
+// 🔹 chat.js – input, flow control, voice input/output, auto-list rendering
 
 import {
   onValue,
@@ -43,8 +43,8 @@ window.renderInfoList = renderInfoList;
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
+const micButton = document.getElementById("mic-button");
 
-// ========== 2. Init ==========
 initScrollTracking();
 
 if (debugToggle) {
@@ -53,7 +53,34 @@ if (debugToggle) {
   });
 }
 
-// ========== 3. Auth & Chat History ==========
+// ========== 2. Voice Input ==========
+if ('webkitSpeechRecognition' in window) {
+  const recognition = new webkitSpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = "en-US";
+
+  micButton?.addEventListener("click", () => {
+    recognition.start();
+    micButton.textContent = "🎤 Listening...";
+  });
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    input.value = transcript;
+    micButton.textContent = "🎤";
+  };
+
+  recognition.onerror = () => {
+    micButton.textContent = "🎤";
+  };
+
+  recognition.onend = () => {
+    micButton.textContent = "🎤";
+  };
+}
+
+// ========== 3. Auth ==========
 let uid = null;
 let chatRef = null;
 
@@ -92,47 +119,18 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    // Static Commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
-      window.setStatusFeedback("success", "Command executed");
       showChatInputSpinner(false);
       return;
     }
-    if (prompt === "/notes") {
-      await listNotes(chatRef);
-      window.setStatusFeedback("success", "Notes listed");
-      showChatInputSpinner(false);
-      return;
-    }
-    if (prompt === "/reminders") {
-      await listReminders(chatRef);
-      window.setStatusFeedback("success", "Reminders listed");
-      showChatInputSpinner(false);
-      return;
-    }
-    if (prompt === "/events") {
-      await listEvents(chatRef);
-      window.setStatusFeedback("success", "Events listed");
-      showChatInputSpinner(false);
-      return;
-    }
+    if (prompt === "/notes") return listNotes(chatRef);
+    if (prompt === "/reminders") return listReminders(chatRef);
+    if (prompt === "/events") return listEvents(chatRef);
 
-    // Step 1: Save user message
     await saveMessageToChat("user", prompt, uid);
-    window.debug("[STEP 1] User message saved.");
-
-    // Step 2: Try memory extraction
-    window.debug("[STEP 2] Checking for memory...");
     const memory = await extractMemoryFromPrompt(prompt, uid);
-    if (memory) {
-      window.setStatusFeedback("success", `Memory saved (${memory.type})`);
-      window.debug("[MEMORY]", memory);
-    }
-
-    // Step 3: Build assistant prompt
-    window.debug("[STEP 3] Fetching context...");
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
@@ -147,101 +145,66 @@ form.addEventListener("submit", async (e) => {
       date: new Date().toISOString().slice(0, 10)
     });
     const full = [{ role: "system", content: sysPrompt }, ...last20];
-    window.debug("[GPT INPUT]", full);
-
-    // Step 4: Get assistant reply
     const assistantReply = await getAssistantReply(full);
+
     await saveMessageToChat("assistant", assistantReply, uid);
     window.logAssistantReply(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
 
-    // --- AUTO-LIST RENDERING (multi-format, multi-list, fallback support) ---
+    // 🔊 Voice Output
+    if ('speechSynthesis' in window) {
+      const utter = new SpeechSynthesisUtterance(assistantReply);
+      utter.lang = "en-US";
+      speechSynthesis.speak(utter);
+    }
+
+    // List Renderer (see original for format types)
     try {
-      // [LIST]{...} JSON object (ideal, 100% accurate)
       if (assistantReply.startsWith("[LIST]")) {
         const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());
-        window.renderInfoList({
-          containerId: "main",
-          ...payload
-        });
-        showChatInputSpinner(false);
+        window.renderInfoList({ containerId: "main", ...payload });
         return;
       }
 
-      // **Section:** - item - item ... (all inline, bold section headers)
       const cardPattern = /\*\*(.+?):\*\*((?:\s*-\s*[^*]+)+)/g;
       let match;
-      let foundInlineList = false;
+      let foundInline = false;
       while ((match = cardPattern.exec(assistantReply)) !== null) {
         const title = match[1].trim();
-        const itemsRaw = match[2]
-          .split(/\s*-\s*/)
-          .map(s => s.trim())
-          .filter(Boolean);
-        const items = itemsRaw.map(item => ({ label: "", desc: item }));
-        window.renderInfoList({
-          containerId: "main",
-          title,
-          icon: "",
-          items
-        });
-        foundInlineList = true;
+        const items = match[2].split(/\s*-\s*/).filter(Boolean).map(d => ({ label: "", desc: d.trim() }));
+        window.renderInfoList({ containerId: "main", title, items });
+        foundInline = true;
       }
-      if (foundInlineList) {
-        showChatInputSpinner(false);
-        return;
-      }
+      if (foundInline) return;
 
-      // Multiple markdown lists: Section:\n- item\n- item\n...
       const listSections = assistantReply.split(/\n(?=[A-Za-z ]+:\n)/g);
-      let anyListRendered = false;
       for (const section of listSections) {
         const match = section.match(/^([A-Za-z ]+):\s*\n((?:[-•].+\n?)+)/im);
         if (match) {
-          const title = match[1].trim() || "List";
-          const rawItems = match[2]
-            .split('\n')
-            .filter(Boolean)
-            .map(line => {
-              const m = line.match(/[-•]\s*(.+)/);
-              return {
-                label: "",
-                desc: m?.[1] || line.replace(/^[-•]\s*/, "")
-              };
-            });
-          window.renderInfoList({
-            containerId: "main",
-            title,
-            icon: "",
-            items: rawItems
-          });
-          anyListRendered = true;
+          const title = match[1].trim();
+          const items = match[2].split('\n').filter(Boolean).map(line => ({
+            label: "",
+            desc: line.replace(/^[-•]\s*/, "")
+          }));
+          window.renderInfoList({ containerId: "main", title, items });
         }
       }
-      if (anyListRendered) {
-        showChatInputSpinner(false);
-        return;
-      }
 
-      // Direct JSON object with .items[] (fallback for structured LLM output)
       if (assistantReply.trim().startsWith("{") && assistantReply.trim().endsWith("}")) {
         const payload = JSON.parse(assistantReply);
-        if (payload.items && Array.isArray(payload.items)) {
+        if (payload.items) {
           window.renderInfoList({
             containerId: "main",
             title: payload.title || "List",
             icon: payload.icon || "",
             items: payload.items
           });
-          showChatInputSpinner(false);
-          return;
         }
       }
     } catch (e) {
       window.debug("[List Render Error]", e);
     }
 
-    // Step 5: Summarize if needed
     await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
   } catch (err) {
