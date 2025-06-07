@@ -1,7 +1,7 @@
 
 :root {
-  --clr-bg: #161026;
-  --clr-card: #1e1e2e;
+  --clr-bg: linear-gradient(135deg, #161026, #1e1e2e);
+  --clr-card: rgba(30, 30, 48, 0.85);
   --clr-border: #2e2e3e;
   --clr-text: #f8fafd;
   --clr-muted: #a1a6b9;
@@ -25,8 +25,17 @@ html, body {
   min-width: 100vw;
   font-family: 'Inter', sans-serif;
   background: var(--clr-bg);
+  background-attachment: fixed;
+  background-size: 400% 400%;
+  animation: animatedGradient 12s ease infinite;
   color: var(--clr-text);
   overflow: hidden;
+}
+
+@keyframes animatedGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 body {
@@ -42,7 +51,7 @@ main.chat-container {
   width: 100vw;
   min-width: 100vw;
   height: 100vh;
-  background: var(--clr-card);
+  background: transparent;
   margin: 0;
   padding: 0;
   position: relative;
@@ -113,7 +122,7 @@ main.chat-container {
 
 /* Input */
 #user-input {
-  flex: 1 1 100%;
+  flex-grow: 1;
   min-width: 0;
   padding: 0.75rem 1rem;
   font-size: 1rem;
