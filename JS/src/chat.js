@@ -1,4 +1,4 @@
-// 🔹 chat.js – input, flow, voice v2v, list rendering
+// 🔹 chat.js – input, flow control, voice input/output, auto-list rendering
 
 import {
   onValue,
@@ -17,6 +17,7 @@ import {
   listReminders,
   listEvents
 } from "./commandHandlers.js";
+
 import {
   saveMessageToChat,
   fetchLast20Messages,
@@ -25,6 +26,7 @@ import {
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
+
 import { buildSystemPrompt } from "./memoryManager.js";
 import {
   renderMessages,
@@ -33,23 +35,19 @@ import {
   updateHeaderWithAssistantReply,
   initScrollTracking
 } from "./uiShell.js";
+
 import { renderInfoList } from "./lists.js";
-import { speakText, initVoiceInput } from "./voice.js";
+import { startVoiceRecognition, speakText } from "./voice.js";
 
 window.renderInfoList = renderInfoList;
 
-// ========== DOM Elements ==========
+// ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
-initScrollTracking();
+const micButton = document.getElementById("mic-button");
 
-// ========== Voice Input ==========
-initVoiceInput({
-  micButtonId: "mic-button",
-  inputFieldId: "user-input",
-  submitOnResult: true
-});
+initScrollTracking();
 
 if (debugToggle) {
   debugToggle.addEventListener("click", () => {
@@ -57,7 +55,15 @@ if (debugToggle) {
   });
 }
 
-// ========== Auth ==========
+if (micButton) {
+  micButton.addEventListener("click", () => {
+    startVoiceRecognition((transcript) => {
+      input.value = transcript;
+    });
+  });
+}
+
+// ========== 2. Auth ==========
 let uid = null;
 let chatRef = null;
 
@@ -84,7 +90,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== Submit Handler ==========
+// ========== 3. Submit Handler ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -108,12 +114,10 @@ form.addEventListener("submit", async (e) => {
 
     await saveMessageToChat("user", prompt, uid);
     const memory = await extractMemoryFromPrompt(prompt, uid);
-
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
     ]);
-
     const sysPrompt = buildSystemPrompt({
       memory: context.memory,
       todayLog: context.dayLog,
@@ -133,7 +137,7 @@ form.addEventListener("submit", async (e) => {
     // 🔊 Voice Output
     speakText(assistantReply);
 
-    // 🎯 List rendering logic
+    // 🔹 List Renderer
     try {
       if (assistantReply.startsWith("[LIST]")) {
         const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());
