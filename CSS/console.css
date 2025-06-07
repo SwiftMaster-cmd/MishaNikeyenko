@@ -26,11 +26,23 @@
   min-height: 38px;
   max-height: 22vh;
   overflow-y: auto;
-  word-break: break-all;
+  word-break: break-word;
   padding-bottom: 6px;
 }
 
-/* Console controls */
+#onscreen-console-messages .debug-line {
+  margin-bottom: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+#onscreen-console-messages .debug-line:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Console Controls */
 #onscreen-console button {
   margin-right: 8px;
   padding: 3px 15px;
@@ -56,6 +68,14 @@
 #onscreen-console button[onclick*="exportDebugLog"] {
   background: #ffd600;
   color: #36324a;
+}
+#onscreen-console button[onclick*="showDebugOverlay"] {
+  background: #2e89ff;
+  color: #fff;
+}
+#onscreen-console button[onclick*="autoScrollConsole"] {
+  background: #333;
+  color: #eee;
 }
 
 /* Floating Toggle Button (bottom left) */
@@ -90,12 +110,14 @@
   background: rgba(12, 10, 25, 0.92);
   z-index: 100000;
   backdrop-filter: blur(6px) saturate(1.12);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  padding: 24px;
 }
 
 #debug-modal {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
   background: rgba(30, 32, 48, 0.97);
   color: #f3f4fa;
   padding: 2.3rem 2.3rem 2.1rem 2.3rem;
@@ -106,6 +128,7 @@
   overflow-y: auto;
   border: 1.5px solid #454056;
   font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  position: relative;
 }
 
 #debug-content {
@@ -142,7 +165,7 @@
   color: #2e2e3e;
 }
 
-/* Make sure console never pushes over chat on mobile */
+/* Responsive mobile scaling */
 @media (max-width: 600px) {
   #onscreen-console {
     width: 99vw;
