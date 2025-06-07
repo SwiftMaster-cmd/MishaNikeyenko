@@ -1,250 +1,190 @@
-:root {
-  --clr-bg: #161026;
-  --clr-card: #1e1e2e;
-  --clr-border: #2e2e3e;
-  --clr-text: #f8fafd;
-  --clr-muted: #a1a6b9;
-  --clr-user: #7e3af2;
-  --clr-bot: #363c66;
-  --radius: 18px;
-  --padding: 1rem;
-}
 
-*,
-*::before,
-*::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html, body {
-  height: 100%;
-  width: 100vw;
-  min-width: 100vw;
-  font-family: 'Inter', sans-serif;
-  background: var(--clr-bg);
-  color: var(--clr-text);
-  overflow: hidden;
-}
-
-body {
-  width: 100vw;
-  min-width: 100vw;
-}
-
-main.chat-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: stretch;
-  align-items: stretch;
-  width: 100vw;
-  min-width: 100vw;
-  height: 100vh;
-  background: var(--clr-card);
-  margin: 0;
-  padding: 0;
-  position: relative;
-}
-
-#chat-log {
-  flex: 1 1 auto;
-  width: 100%;
-  min-width: 0;
+/* ========== Persistent Onscreen Console ========== */
+#onscreen-console {
+  position: fixed;
+  bottom: 64px;
+  left: 16px;
+  width: 96vw;
+  max-width: 520px;
+  max-height: 35vh;
+  background: rgba(30, 32, 48, 0.96);
+  backdrop-filter: blur(12px) saturate(1.2);
+  color: #e5e7ef;
+  font: 14px/1.5 'Menlo', 'Monaco', 'Consolas', monospace;
+  z-index: 99999;
+  box-shadow: 0 2px 18px #0008, 0 0 0 1.5px #47425b;
   overflow-y: auto;
-  padding: var(--padding);
-  scroll-behavior: smooth;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  -webkit-overflow-scrolling: touch;
-  background: transparent;
-}
-
-.msg {
-  max-width: 75%;
-  padding: 0.8rem 1rem;
-  border-radius: var(--radius);
-  word-wrap: break-word;
-  line-height: 1.5;
-  background: #2c2c3c;
-  animation: fadeIn 0.2s ease-in-out;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  will-change: opacity, transform;
-}
-
-.user-msg {
-  align-self: flex-end;
-  background: var(--clr-user);
-  color: white;
-}
-
-.bot-msg, .assistant-msg {
-  align-self: flex-start;
-  background: var(--clr-bot);
-  color: white;
-}
-
-.debug-msg {
-  color: #ffde59;
-  font-style: italic;
-  opacity: 0.7;
-  background: none;
-  align-self: center;
-  border: none;
-  box-shadow: none;
-}
-
-/* ========== Chat input, spinner, and status indicator ========== */
-#chat-form {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  padding: 1rem;
-  border-top: 1px solid var(--clr-border);
-  background: var(--clr-card);
-  box-sizing: border-box;
-  position: relative;
-}
-
-#user-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0.75rem 1rem;
-  font-size: 1rem;
+  padding: 14px 18px 8px 18px;
   border-radius: 12px;
-  border: 1px solid var(--clr-border);
-  background: #2c2c3c;
-  color: var(--clr-text);
+  border: 1.5px solid #36324a;
+  display: none;
+  user-select: text;
+  pointer-events: auto;
+  transition: box-shadow 0.13s;
+}
+
+#onscreen-console-messages {
+  min-height: 38px;
+  max-height: 22vh;
+  overflow-y: auto;
+  word-break: break-word;
+  padding-bottom: 6px;
+}
+
+#onscreen-console-messages .debug-line {
+  margin-bottom: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+#onscreen-console-messages .debug-line:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Console Controls */
+#onscreen-console button {
+  margin-right: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: none;
   outline: none;
-  transition: border 0.2s;
+  cursor: pointer;
+  margin-top: 7px;
+  transition: background 0.18s, color 0.18s;
+  box-shadow: 0 1px 4px #0002;
 }
 
-#user-input:disabled {
-  opacity: 0.7;
-  background: #242232;
-  cursor: not-allowed;
+#onscreen-console button:last-child {
+  margin-right: 0;
 }
 
-#chat-loading-spinner {
-  width: 24px;
-  height: 24px;
-  align-items: center;
-  justify-content: center;
-  margin-left: 2px;
-  display: none;
+#onscreen-console button[onclick*="clearDebugLog"] {
+  background: #d7263d;
+  color: #fff;
+}
+#onscreen-console button[onclick*="exportDebugLog"] {
+  background: #ffd600;
+  color: #36324a;
+}
+#onscreen-console button[onclick*="showDebugOverlay"] {
+  background: #2e89ff;
+  color: #fff;
+}
+#onscreen-console button[onclick*="autoScrollConsole"] {
+  background: #333;
+  color: #eee;
 }
 
-#chat-loading-spinner.active {
-  display: flex !important;
-}
-
-#chat-loading-spinner svg {
-  display: block;
-  width: 22px;
-  height: 22px;
-}
-
-#status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 38px;
-  height: 28px;
-  position: relative;
-  margin-left: 0.1rem;
-}
-
-#status-icon {
-  font-size: 1.3rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 24px;
-  min-width: 22px;
-}
-
-#status-tooltip {
-  font-size: 0.92rem;
-  color: var(--clr-muted);
-  opacity: 0.93;
-  display: none;
-  background: rgba(30,30,50,0.93);
-  padding: 2px 10px;
-  border-radius: 7px;
-  white-space: nowrap;
-  position: absolute;
-  left: 32px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 2;
-  pointer-events: none;
-  transition: opacity 0.16s;
-  box-shadow: 0 2px 8px #0006;
-}
-
-/* Tooltip on hover */
-#status-indicator:hover #status-tooltip {
-  display: block;
-  opacity: 1;
-}
-
-/* Hide spinner when inactive */
-#chat-loading-spinner[style*="display: none"] {
-  width: 0;
-  height: 0;
-  padding: 0;
-  margin: 0;
-}
-
-/* ========== Submit Button ========== */
-button[type="submit"] {
+/* Console Toggle Button (inside form) */
+#console-toggle-btn {
   padding: 0.75rem 1.2rem;
-  background: var(--clr-user);
+  background: #363c66;
   color: white;
   border: none;
   border-radius: 12px;
   font-weight: 600;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: background 0.2s;
-  min-width: 80px;
+  transition: background 0.2s, color 0.2s;
 }
 
-button[type="submit"]:hover,
-button[type="submit"]:active {
-  background: #5b2ee5;
+#console-toggle-btn:hover,
+#console-toggle-btn:focus {
+  background: #4b4e84;
+  color: #ffd600;
 }
 
-/* ========== Animations ========== */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* Debug Overlay (fullscreen modal) */
+#debug-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(12, 10, 25, 0.92);
+  z-index: 100000;
+  backdrop-filter: blur(6px) saturate(1.12);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  padding: 24px;
 }
 
-/* ========== Reset Shifts ========== */
-body, html, .chat-container, main.chat-container {
-  margin: 0 !important;
-  padding: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  box-sizing: border-box !important;
+#debug-modal {
+  background: rgba(30, 32, 48, 0.97);
+  color: #f3f4fa;
+  padding: 2.3rem 2.3rem 2.1rem 2.3rem;
+  border-radius: 18px;
+  box-shadow: 0 10px 44px #000b, 0 0 0 2px #7e3af2;
+  max-width: 92vw;
+  max-height: 82vh;
+  overflow-y: auto;
+  border: 1.5px solid #454056;
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  position: relative;
 }
 
-/* ========== Responsive Tweaks ========== */
+#debug-content {
+  margin-top: 2.8rem;
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.42;
+  color: #ffd600;
+  opacity: 0.97;
+  max-height: 54vh;
+  overflow-y: auto;
+}
+
+#debug-modal .close-btn {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  background: #2e2e3e;
+  color: #ffd600;
+  border: none;
+  padding: 6px 15px;
+  cursor: pointer;
+  border-radius: 7px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  box-shadow: 0 2px 10px #0004;
+  transition: background 0.18s, color 0.18s;
+}
+
+#debug-modal .close-btn:hover {
+  background: #ffd600;
+  color: #2e2e3e;
+}
+
+/* Mobile Tweaks */
 @media (max-width: 600px) {
-  .msg { max-width: 94vw; font-size: 0.98rem; }
-  #chat-form {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: stretch;
+  #onscreen-console {
+    width: 99vw;
+    left: 0.5vw;
+    max-width: 99vw;
+    font-size: 12.5px;
+    padding: 8px 7px 5px 10px;
+    border-radius: 9px;
   }
-  #status-indicator {
-    margin-left: 0;
-    align-self: flex-end;
-    margin-top: 0.2rem;
-    min-width: 38px;
+
+  #debug-modal {
+    max-width: 98vw;
+    padding: 1.2rem 0.6rem 1.2rem 0.7rem;
+    border-radius: 12px;
+    font-size: 0.98rem;
+  }
+
+  #debug-content {
+    font-size: 0.92rem;
+  }
+
+  #console-toggle-btn {
+    padding: 7px 10px;
+    font-size: 13px;
+    border-radius: 11px;
   }
 }
