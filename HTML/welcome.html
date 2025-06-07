@@ -65,12 +65,16 @@
   <!-- Chat Log -->
   <div id="chat-log"></div>
 
+  <!-- Info Cards Output (used by renderInfoList) -->
+  <div id="main"></div>
+
   <!-- Chat Form -->
   <form id="chat-form">
     <!-- Console Toggle Button -->
-    <button id="console-toggle-btn" type="button" class="inline-btn">Console</button>
+    <button id="debug-toggle" type="button" class="inline-btn" aria-label="Toggle console">Console</button>
 
-    <button id="mic-button" type="button" class="inline-btn">🎤</button>
+    <!-- Mic Button -->
+    <button id="mic-button" type="button" class="inline-btn" aria-label="Start voice input">🎤</button>
 
     <!-- Input Field -->
     <input
