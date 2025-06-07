@@ -1,16 +1,17 @@
-/* Base container for animated background */
+
+/* 🔹 Dynamic Chat Background Layer */
 #dynamic-background {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: -1;
+  z-index: -10;
   overflow: hidden;
   pointer-events: none;
 }
 
-/* Shared blob styles */
+/* 🔹 Blob Base Style */
 .blob {
   position: absolute;
   border-radius: 50%;
@@ -21,43 +22,33 @@
   transform: scale(1.2);
 }
 
-/* State-based styles */
+/* 🔹 State-based Styles */
 .status-idle .blob {
-  background: linear-gradient(45deg, #7e3af2, #ff00ff, #7e3af2);
+  background: radial-gradient(circle, #7e3af2, #3b1d6b);
 }
-
 .status-loading .blob {
-  background: linear-gradient(60deg, #7e3af2, #ff9100, #7e3af2);
+  background: radial-gradient(circle, #ff9100, #7e3af2);
   animation-duration: 6s;
 }
-
 .status-awaiting .blob {
-  background: linear-gradient(60deg, #7e3af2, #ffb347, #ff00ff);
+  background: radial-gradient(circle, #f87531, #ff00ff);
   animation-duration: 8s;
 }
-
 .status-thinking .blob {
-  background: linear-gradient(60deg, #9e57ff, #ff00cc, #7e3af2);
+  background: radial-gradient(circle, #9e57ff, #ff00cc);
   animation-duration: 5s;
 }
-
 .status-error .blob {
-  background: linear-gradient(60deg, #ff0033, #ff6600, #ff0033);
+  background: radial-gradient(circle, #ff0033, #ff6600);
   opacity: 0.7;
   animation: shakeBlob 1s infinite;
 }
 
-/* Animation keyframes */
+/* 🔹 Motion Animations */
 @keyframes moveBlob {
-  0% {
-    transform: translate(0, 0) scale(1.2);
-  }
-  50% {
-    transform: translate(20px, -30px) scale(1.4);
-  }
-  100% {
-    transform: translate(0, 0) scale(1.2);
-  }
+  0%   { transform: translate(0, 0) scale(1.2); }
+  50%  { transform: translate(30px, -20px) scale(1.4); }
+  100% { transform: translate(0, 0) scale(1.2); }
 }
 
 @keyframes shakeBlob {
@@ -66,4 +57,10 @@
   50% { transform: translate(5px, -5px); }
   75% { transform: translate(-5px, -5px); }
   100% { transform: translate(0, 0); }
+}
+
+/* 🔹 Ensure UI appears above background */
+body, main, .chat-container {
+  position: relative;
+  z-index: 0;
 }
