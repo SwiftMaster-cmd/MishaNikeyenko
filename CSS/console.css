@@ -172,31 +172,29 @@
   color: #eee;
 }
 
-/* Floating Console Toggle */
 #console-toggle-btn {
   position: fixed;
-  bottom: 18px;
-  left: 20px;
+  bottom: 14px;
+  left: 10px;
   z-index: 100009;
-  padding: 11px 30px 11px 24px;
+  padding: 7px 16px 7px 14px;
   background: linear-gradient(90deg, var(--clr-accent), var(--clr-accent-dark));
   color: #fff;
-  border-radius: 16px;
+  border-radius: 11px;
   border: none;
-  font: 700 15px/1 var(--font-main), monospace;
+  font: 700 13px/1 var(--font-main), monospace;
   cursor: pointer;
-  box-shadow: 0 3px 14px #7e3af255, 0 0 0 2.5px var(--clr-border-light);
-  letter-spacing: 0.03em;
-  transition: background 0.18s, color 0.18s, transform 0.16s, box-shadow 0.18s;
+  box-shadow: 0 2px 9px #7e3af244, 0 0 0 1.5px var(--clr-border-light);
+  letter-spacing: 0.025em;
+  transition: background 0.18s, color 0.18s, transform 0.13s, box-shadow 0.18s;
 }
 #console-toggle-btn:hover,
 #console-toggle-btn:focus {
   background: linear-gradient(90deg, #6939ba 70%, #9159fa 100%);
   color: #ffd600;
-  box-shadow: 0 8px 32px #7e3af299, 0 0 0 2.5px var(--clr-highlight);
+  box-shadow: 0 5px 18px #7e3af244, 0 0 0 1.5px var(--clr-highlight);
   transform: scale(1.03);
 }
-
 /* Debug Overlay */
 #debug-overlay {
   position: fixed;
