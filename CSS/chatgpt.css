@@ -44,9 +44,7 @@ main.chat-container {
   margin: 0;
   padding: 0;
   position: relative;
-  background: linear-gradient(145deg, #1e1e2e, #2c2c3c, #1e1e2e);
-  background-size: 400% 400%;
-  animation: backgroundShift 18s ease infinite;
+  background: transparent;
 }
 
 #chat-log {
