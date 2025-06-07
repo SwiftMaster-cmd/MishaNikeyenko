@@ -1,9 +1,8 @@
-// 🔹 debugConsole.js – Central log system + UI feedback + overlay
 const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
 
-// 🔹 Load logs from localStorage
+// 🔹 Load logs
 function loadPersistedLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
@@ -18,7 +17,7 @@ function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
-// 🔹 Main logging function with tag badges + truncation
+// 🔹 Main logger
 window.debugLog = function (...args) {
   const logs = loadPersistedLogs();
   const timestamp = new Date().toLocaleTimeString();
@@ -102,7 +101,7 @@ window.exportDebugLog = function () {
   URL.revokeObjectURL(url);
 };
 
-// 🔹 Status bar logic
+// 🔹 Status bar feedback
 window.setStatusFeedback = function (type, msg = "") {
   const bar = document.getElementById("chat-status-bar");
   if (!bar) return;
@@ -123,20 +122,18 @@ window.setStatusFeedback = function (type, msg = "") {
   window.debug(`[FEEDBACK] ${type.toUpperCase()}: ${msg}`);
 
   if (type !== "loading") {
-    setTimeout(() => {
-      bar.style.opacity = 0;
-    }, 1800);
+    setTimeout(() => { bar.style.opacity = 0; }, 1800);
   }
 };
 
-// 🔹 Assistant response summary
+// 🔹 Assistant reply summary
 window.logAssistantReply = function (replyText) {
   const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
   window.debug("[REPLY]", preview);
   window.setStatusFeedback("success", "Assistant responded");
 };
 
-// 🔹 Debug overlay viewer
+// 🔹 Fullscreen overlay viewer
 window.showDebugOverlay = function () {
   const overlay = document.getElementById("debug-overlay");
   const content = document.getElementById("debug-content");
@@ -147,7 +144,31 @@ window.showDebugOverlay = function () {
   overlay.style.display = "flex";
 };
 
-// 🔹 Load logic on DOM ready
+// 🔹 Chunked log loader (fix for UI lag)
+function replayLogsInChunks(logs, chunkSize = 4, delay = 50) {
+  const logEl = document.getElementById("onscreen-console-messages");
+  if (!logEl || logs.length === 0) return;
+
+  logEl.innerHTML = "";
+  let index = 0;
+
+  function processChunk() {
+    const slice = logs.slice(index, index + chunkSize);
+    slice.forEach(log => {
+      const content = log.slice(log.indexOf("]") + 2);
+      window.debugLog(content);
+    });
+
+    index += chunkSize;
+    if (index < logs.length) {
+      setTimeout(processChunk, delay);
+    }
+  }
+
+  processChunk();
+}
+
+// 🔹 Setup on load
 document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("console-toggle-btn");
   const panel = document.getElementById("onscreen-console");
@@ -158,20 +179,12 @@ document.addEventListener("DOMContentLoaded", () => {
       panel.style.display = isVisible ? "none" : "block";
 
       if (!isVisible) {
-        const logEl = document.getElementById("onscreen-console-messages");
-        if (logEl) {
-          logEl.innerHTML = "";
-          const logs = loadPersistedLogs();
-          logs.forEach(log => {
-            const content = log.slice(log.indexOf("]") + 2);
-            window.debugLog(content);
-          });
-        }
+        const logs = loadPersistedLogs();
+        replayLogsInChunks(logs); // now uses smoother incremental load
       }
     });
   }
 
-  // Copy-on-click
   document.addEventListener("click", (e) => {
     if (e.target.classList.contains("debug-line")) {
       navigator.clipboard.writeText(e.target.textContent);
@@ -180,7 +193,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Inline style injection
   const style = document.createElement("style");
   style.textContent = `
     .debug-line {
