@@ -1,4 +1,5 @@
-// 🔹 chat.js – dual-mode memory saving + hover-to-view debug/info overlay
+// 🔹 chat.js – modern feedback: chat spinner + top-right indicator + persistent console
+
 import {
   ref,
   push,
@@ -30,25 +31,83 @@ import {
 } from "./commandHandlers.js";
 import { extractJson, detectMemoryType } from "./chatUtils.js";
 
+// ========== 1. UI Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-// Store debug messages in this array instead of appending to chat
-const debugInfo = [];
+// ADD THIS to your HTML near your input field for spinner:
+/*
+<span id="chat-loading-spinner" style="display:none;margin-left:10px;vertical-align:middle;">
+  <svg width="20" height="20" viewBox="0 0 50 50">
+    <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
+    <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
+      <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 25 25" to="360 25 25" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+</span>
+*/
 
+// ADD THIS once to your HTML, in the body (top right corner):
+/*
+<div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
+  <span id="status-icon" style="font-size:2rem;"></span>
+  <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
+</div>
+*/
+
+// ========== 2. Visual Feedback Utilities ==========
+
+function showChatInputSpinner(show = true) {
+  const spinner = document.getElementById("chat-loading-spinner");
+  const inputField = document.getElementById("user-input");
+  if (spinner) spinner.style.display = show ? "inline-block" : "none";
+  if (inputField) inputField.disabled = show;
+}
+
+function setStatusIndicator(type, tooltip = "") {
+  const icon = document.getElementById("status-icon");
+  const tip = document.getElementById("status-tooltip");
+  if (!icon || !tip) return;
+  let html = "", color = "";
+  switch(type) {
+    case "success": html = "✅"; color="#1db954"; break;
+    case "error":   html = "❌"; color="#d7263d"; break;
+    case "loading": html = "⏳"; color="#ffd600"; break;
+    default:        html = ""; color=""; break;
+  }
+  icon.textContent = html;
+  icon.style.color = color;
+  if (tooltip) {
+    tip.textContent = tooltip;
+    tip.style.display = "inline";
+  } else {
+    tip.style.display = "none";
+  }
+  // Fade out automatically (except loading)
+  if (type !== "loading" && html) {
+    setTimeout(() => {
+      icon.textContent = "";
+      tip.style.display = "none";
+    }, 1800);
+  }
+}
+
+// ========== 3. Debug Logging (persistent to onscreen console) ==========
+const debugInfo = [];
+function addDebugMessage(...args) {
+  if (typeof window.debugLog === "function") {
+    window.debugLog(...args);
+  }
+  debugInfo.push(args.join(" "));
+}
+
+// ========== 4. State ==========
 let uid = null;
 let chatRef = null;
 let userHasScrolled = false;
 
-// Push into debugInfo array; not appended to chat  
-function addDebugMessage(text) {
-  debugInfo.push(text);
-}
-
-/**
- * Create the debug overlay element (hidden by default).
- */
+// ========== 5. Debug Overlay ==========
 function createDebugOverlay() {
   const overlay = document.createElement("div");
   overlay.id = "debug-overlay";
@@ -115,8 +174,6 @@ function createDebugOverlay() {
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 }
-
-/** Populate and show the debug overlay */
 function showDebugOverlay() {
   const overlay = document.getElementById("debug-overlay");
   const contentDiv = document.getElementById("debug-content");
@@ -125,7 +182,7 @@ function showDebugOverlay() {
   overlay.style.display = "block";
 }
 
-/** Scroll log to bottom unless user manually scrolled up */
+// ========== 6. Scroll Logic ==========
 log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
@@ -138,7 +195,7 @@ function scrollToBottom(force = false) {
   }
 }
 
-/** Render the last 20 messages (no info icon on assistant bubbles) */
+// ========== 7. Render Messages ==========
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -154,27 +211,27 @@ function renderMessages(messages) {
       div.innerHTML = msg.content;
       log.appendChild(div);
     });
-
   scrollToBottom();
 }
 
-// Initial debug overlay creation
+// ========== 8. Debug Button Integration ==========
 createDebugOverlay();
-
-// Add Debug button listener
 const debugToggle = document.getElementById("debug-toggle");
 if (debugToggle) {
   debugToggle.addEventListener("click", showDebugOverlay);
 }
 
+// ========== 9. Firebase Auth/Chat Initialization ==========
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
     addDebugMessage("Auth: Signed in anonymously.");
+    setStatusIndicator("loading", "Signing in...");
     return;
   }
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
+  addDebugMessage("Auth: UID is", uid);
 
   // Listen to chatHistory changes and re-render last 20
   onValue(chatRef, (snapshot) => {
@@ -192,90 +249,117 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
+// ========== 10. Main Submit Logic ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
   if (!prompt || !chatRef || !uid) return;
   input.value = "";
 
-  // Handle static & listing commands first
-  const staticCommands = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
-  if (staticCommands.includes(prompt)) {
-    await handleStaticCommand(prompt, chatRef, uid);
-    return;
-  }
-  if (prompt === "/notes") {
-    await listNotes(chatRef);
-    return;
-  }
-  if (prompt === "/reminders") {
-    await listReminders(chatRef);
-    return;
-  }
-  if (prompt === "/events") {
-    await listEvents(chatRef);
-    return;
-  }
+  setStatusIndicator("loading", "Processing...");
+  showChatInputSpinner(true);
+  addDebugMessage("User submitted:", prompt);
 
-  // 1) Push user message
-  const now = Date.now();
-  await push(chatRef, { role: "user", content: prompt, timestamp: now });
-
-  // 2) In parallel: assistant reply + memory write
-  (async () => {
-    const today = new Date().toISOString().slice(0, 10);
-
-    // a) Fetch last 20 messages for context
-    let last20 = [];
-    try {
-      const snap = await get(child(ref(db), `chatHistory/${uid}`));
-      const data = snap.exists() ? snap.val() : {};
-      const allMsgs = Object.entries(data).map(([id, msg]) => ({
-        role: msg.role === "bot" ? "assistant" : msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp || 0
-      }));
-      last20 = allMsgs
-        .sort((a, b) => a.timestamp - b.timestamp)
-        .slice(-20);
-    } catch (err) {
-      addDebugMessage("Error fetching last 20 for reply: " + err.message);
+  try {
+    // --- Command/Listing Shortcuts ---
+    const staticCommands = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
+    if (staticCommands.includes(prompt)) {
+      await handleStaticCommand(prompt, chatRef, uid);
+      setStatusIndicator("success", "Command executed!");
+      addDebugMessage("Static command handled:", prompt);
+      showChatInputSpinner(false);
+      return;
+    }
+    if (prompt === "/notes") {
+      await listNotes(chatRef);
+      setStatusIndicator("success", "Listed notes.");
+      addDebugMessage("Listed notes.");
+      showChatInputSpinner(false);
+      return;
+    }
+    if (prompt === "/reminders") {
+      await listReminders(chatRef);
+      setStatusIndicator("success", "Listed reminders.");
+      addDebugMessage("Listed reminders.");
+      showChatInputSpinner(false);
+      return;
+    }
+    if (prompt === "/events") {
+      await listEvents(chatRef);
+      setStatusIndicator("success", "Listed events.");
+      addDebugMessage("Listed events.");
+      showChatInputSpinner(false);
+      return;
     }
 
-    // b) Fetch memory/context
-    const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
-      getMemory(uid),
-      getDayLog(uid, today),
-      getNotes(uid),
-      getCalendar(uid),
-      getReminders(uid),
-      getCalcHistory(uid)
-    ]);
+    // 1) Push user message
+    const now = Date.now();
+    await push(chatRef, { role: "user", content: prompt, timestamp: now });
+    addDebugMessage("User message pushed:", prompt);
 
-    // c) Build system prompt + conversation for assistant
-    const sysPrompt = buildSystemPrompt({
-      memory,
-      todayLog: dayLog,
-      notes,
-      calendar,
-      reminders,
-      calc,
-      date: today
-    });
-    const full = [{ role: "system", content: sysPrompt }, ...last20];
+    // 2) In parallel: assistant reply + memory write
+    (async () => {
+      const today = new Date().toISOString().slice(0, 10);
 
-    // d) Detect "memory" commands and write to appropriate nodes
-    const { memoryType, rawPrompt } = detectMemoryType(prompt);
-    if (memoryType) {
+      // a) Fetch last 20 messages for context
+      let last20 = [];
       try {
-        const parsed = await fetch("/.netlify/functions/chatgpt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: [
-              {
-                role: "system",
-                content: `
+        const snap = await get(child(ref(db), `chatHistory/${uid}`));
+        const data = snap.exists() ? snap.val() : {};
+        const allMsgs = Object.entries(data).map(([id, msg]) => ({
+          role: msg.role === "bot" ? "assistant" : msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp || 0
+        }));
+        last20 = allMsgs
+          .sort((a, b) => a.timestamp - b.timestamp)
+          .slice(-20);
+        addDebugMessage("Fetched last 20 messages for context.");
+      } catch (err) {
+        addDebugMessage("Error fetching last 20 for reply:", err.message, err);
+      }
+
+      // b) Fetch memory/context
+      let memory = {}, dayLog = {}, notes = {}, calendar = {}, reminders = {}, calc = {};
+      try {
+        [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
+          getMemory(uid),
+          getDayLog(uid, today),
+          getNotes(uid),
+          getCalendar(uid),
+          getReminders(uid),
+          getCalcHistory(uid)
+        ]);
+        addDebugMessage("Fetched memory/context.");
+      } catch (err) {
+        addDebugMessage("Memory/context fetch error:", err.message, err);
+      }
+
+      // c) Build system prompt + conversation for assistant
+      const sysPrompt = buildSystemPrompt({
+        memory,
+        todayLog: dayLog,
+        notes,
+        calendar,
+        reminders,
+        calc,
+        date: today
+      });
+      const full = [{ role: "system", content: sysPrompt }, ...last20];
+
+      // d) Detect "memory" commands and write to appropriate nodes
+      const { memoryType, rawPrompt } = detectMemoryType(prompt);
+      if (memoryType) {
+        try {
+          setStatusIndicator("loading", "Extracting memory...");
+          const parsed = await fetch("/.netlify/functions/chatgpt", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: [
+                {
+                  role: "system",
+                  content: `
 You are a memory extraction engine. ALWAYS return exactly one JSON object with these keys:
 {
   "type":   "note" | "reminder" | "calendar" | "log",
@@ -291,109 +375,136 @@ RULES:
 5. Otherwise, type="note" as a last resort.
 6. Populate "date" only when explicitly given.
 7. Return ONLY the JSON block.`
-              },
-              { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
-            ],
-            model: "gpt-4o",
-            temperature: 0.3
-          })
-        });
-        const text = await parsed.text();
-        const parsedJSON = JSON.parse(text);
-        const extracted = extractJson(parsedJSON.choices?.[0]?.message?.content || "");
-        if (extracted?.type && extracted?.content) {
-          const path =
-            extracted.type === "calendar"
-              ? `calendarEvents/${uid}`
-              : extracted.type === "reminder"
-              ? `reminders/${uid}`
-              : extracted.type === "log"
-              ? `dayLog/${uid}/${today}`
-              : `notes/${uid}/${today}`;
-          await push(ref(db, path), {
-            content: extracted.content,
-            timestamp: Date.now(),
-            ...(extracted.date ? { date: extracted.date } : {})
+                },
+                { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
+              ],
+              model: "gpt-4o",
+              temperature: 0.3
+            })
           });
-          addDebugMessage(`Memory saved: type=${extracted.type}, content="${extracted.content}"`);
-        } else {
-          addDebugMessage("Incomplete memory structure returned");
+          const text = await parsed.text();
+          addDebugMessage("Memory extraction response raw:", text);
+          const parsedJSON = JSON.parse(text);
+          const extracted = extractJson(parsedJSON.choices?.[0]?.message?.content || "");
+          if (extracted?.type && extracted?.content) {
+            const path =
+              extracted.type === "calendar"
+                ? `calendarEvents/${uid}`
+                : extracted.type === "reminder"
+                ? `reminders/${uid}`
+                : extracted.type === "log"
+                ? `dayLog/${uid}/${today}`
+                : `notes/${uid}/${today}`;
+            await push(ref(db, path), {
+              content: extracted.content,
+              timestamp: Date.now(),
+              ...(extracted.date ? { date: extracted.date } : {})
+            });
+            addDebugMessage(`Memory saved: type=${extracted.type}, content="${extracted.content}"`);
+            setStatusIndicator("success", `Memory saved (${extracted.type})!`);
+          } else {
+            addDebugMessage("Incomplete memory structure returned");
+            setStatusIndicator("error", "Could not save memory.");
+          }
+        } catch (err) {
+          addDebugMessage("Memory parse/write failed:", err.message, err);
+          setStatusIndicator("error", "Memory extraction failed.");
         }
-      } catch (err) {
-        addDebugMessage("Memory parse/write failed: " + err.message);
       }
-    }
 
-    // e) Get the assistant’s reply from GPT
-    let assistantReply = "[No reply]";
-    try {
-      const replyRes = await fetch("/.netlify/functions/chatgpt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: full, model: "gpt-4o", temperature: 0.8 })
-      });
-      const replyData = await replyRes.json();
-      assistantReply = replyData.choices?.[0]?.message?.content || assistantReply;
-    } catch (err) {
-      addDebugMessage("GPT reply error: " + err.message);
-    }
-
-    // f) Push the assistant’s reply into chatHistory
-    await push(chatRef, { role: "assistant", content: assistantReply, timestamp: Date.now() });
-  })();
-
-  // 3) In parallel: if total messages is a multiple of 20, summarize and save to memory
-  (async () => {
-    let allCount = 0;
-    let last20ForSummary = [];
-    try {
-      const snap = await get(child(ref(db), `chatHistory/${uid}`));
-      const data = snap.exists() ? snap.val() : {};
-      allCount = Object.keys(data).length;
-      const allMessages = Object.entries(data).map(([id, msg]) => ({
-        role: msg.role === "bot" ? "assistant" : msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp || 0
-      }));
-      last20ForSummary = allMessages
-        .sort((a, b) => a.timestamp - b.timestamp)
-        .slice(-20);
-    } catch (err) {
-      addDebugMessage("Error fetching chatHistory for summary: " + err.message);
-      return;
-    }
-
-    if (allCount > 0 && allCount % 20 === 0) {
-      const convoText = last20ForSummary
-        .map(m => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
-        .join("\n");
-
+      // e) Get the assistant’s reply from GPT
+      let assistantReply = "[No reply]";
       try {
-        const summaryRes = await fetch("/.netlify/functions/chatgpt", {
+        setStatusIndicator("loading", "Assistant replying...");
+        const replyRes = await fetch("/.netlify/functions/chatgpt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: [
-              {
-                role: "system",
-                content: `You are a concise summarizer. Summarize the following conversation block into one paragraph:`
-              },
-              { role: "user", content: convoText }
-            ],
-            model: "gpt-4o",
-            temperature: 0.5
-          })
+          body: JSON.stringify({ messages: full, model: "gpt-4o", temperature: 0.8 })
         });
-        const summaryJson = await summaryRes.json();
-        const summary = summaryJson.choices?.[0]?.message?.content || "[No summary]";
-        await push(ref(db, `memory/${uid}`), {
-          summary,
-          timestamp: Date.now()
-        });
-        addDebugMessage("20-message summary saved to memory");
+        const replyData = await replyRes.json();
+        assistantReply = replyData.choices?.[0]?.message?.content || assistantReply;
+        addDebugMessage("Assistant reply received:", assistantReply);
+        setStatusIndicator("success", "Assistant replied!");
       } catch (err) {
-        addDebugMessage("Summary generation failed: " + err.message);
+        addDebugMessage("GPT reply error:", err.message, err);
+        assistantReply = "[Assistant error: " + err.message + "]";
+        setStatusIndicator("error", "Failed to get assistant reply.");
       }
-    }
-  })();
+
+      // f) Push the assistant’s reply into chatHistory
+      try {
+        await push(chatRef, { role: "assistant", content: assistantReply, timestamp: Date.now() });
+        addDebugMessage("Assistant reply pushed.");
+      } catch (err) {
+        addDebugMessage("Failed to push assistant reply:", err.message, err);
+        setStatusIndicator("error", "Failed to save assistant reply.");
+      } finally {
+        showChatInputSpinner(false);
+      }
+    })();
+
+    // 3) In parallel: if total messages is a multiple of 20, summarize and save to memory
+    (async () => {
+      let allCount = 0;
+      let last20ForSummary = [];
+      try {
+        const snap = await get(child(ref(db), `chatHistory/${uid}`));
+        const data = snap.exists() ? snap.val() : {};
+        allCount = Object.keys(data).length;
+        const allMessages = Object.entries(data).map(([id, msg]) => ({
+          role: msg.role === "bot" ? "assistant" : msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp || 0
+        }));
+        last20ForSummary = allMessages
+          .sort((a, b) => a.timestamp - b.timestamp)
+          .slice(-20);
+      } catch (err) {
+        addDebugMessage("Error fetching chatHistory for summary:", err.message, err);
+        return;
+      }
+
+      if (allCount > 0 && allCount % 20 === 0) {
+        const convoText = last20ForSummary
+          .map(m => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
+          .join("\n");
+
+        try {
+          setStatusIndicator("loading", "Summarizing...");
+          const summaryRes = await fetch("/.netlify/functions/chatgpt", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: [
+                {
+                  role: "system",
+                  content: `You are a concise summarizer. Summarize the following conversation block into one paragraph:`
+                },
+                { role: "user", content: convoText }
+              ],
+              model: "gpt-4o",
+              temperature: 0.5
+            })
+          });
+          const summaryJson = await summaryRes.json();
+          const summary = summaryJson.choices?.[0]?.message?.content || "[No summary]";
+          await push(ref(db, `memory/${uid}`), {
+            summary,
+            timestamp: Date.now()
+          });
+          addDebugMessage("20-message summary saved to memory.");
+          setStatusIndicator("success", "Chat summarized.");
+        } catch (err) {
+          addDebugMessage("Summary generation failed:", err.message, err);
+          setStatusIndicator("error", "Summary failed.");
+        }
+      }
+    })();
+
+    setStatusIndicator("success", "Message sent!");
+  } catch (err) {
+    addDebugMessage("Form submit error:", err.message, err);
+    setStatusIndicator("error", "Request failed.");
+    showChatInputSpinner(false);
+  }
 });
