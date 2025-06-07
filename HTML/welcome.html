@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Console</title>
 
-  <!-- Existing Styles -->
+  <!-- CSS Stylesheets -->
   <link rel="stylesheet" href="../CSS/calculator.css">
   <link rel="stylesheet" href="../CSS/calendar.css">
   <link rel="stylesheet" href="../CSS/chatgpt.css">
@@ -16,131 +16,95 @@
   <link rel="stylesheet" href="../CSS/profile.css">
   <link rel="stylesheet" href="../CSS/register.css">
   <link rel="stylesheet" href="../CSS/variables.css">
-    <link rel="stylesheet" href="../CSS/console.css">
-        <link rel="stylesheet" href="../CSS/background.css">
-
+  <link rel="stylesheet" href="../CSS/console.css">
+  <link rel="stylesheet" href="../CSS/background.css">
 </head>
-<body>
-  <!-- 🔮 Animated Blob Background -->
 
-  <!-- HEADER
-  <!-- HEADER -->
+<body>
+  <!-- 🔄 Initial Loading -->
+  <div id="initial-loader" style="position: fixed; top: 0; left: 0; width: 100%; background: #1e2030; color: #fff; text-align: center; padding: 10px; z-index: 100000;">
+    Loading assistant...
+  </div>
+
+  <!-- 🔹 Header -->
   <header class="header-bar">
     <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
-
-<div id="chat-status-bar"></div>
-    <button id="profile-toggle-btn" class="profile-toggle-btn"
-            aria-haspopup="true" aria-controls="profile-card">
+    <div id="chat-status-bar"></div>
+    <button id="profile-toggle-btn" class="profile-toggle-btn" aria-haspopup="true" aria-controls="profile-card">
       Profile
     </button>
   </header>
 
-  <!-- SIDEBAR -->
+  <!-- 🔹 Sidebar -->
   <nav id="side-nav" class="side-nav" aria-hidden="true">
     <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
     <div id="links-list" class="sidebar-links"></div>
-    <a href="welcome.html"    class="nav-item">Dashboard</a>
-    <a href="notes.html"      class="nav-item">Notes</a>
-    <a href="es-module.html"  class="nav-item">ES-Module</a>
+    <a href="welcome.html" class="nav-item">Dashboard</a>
+    <a href="notes.html" class="nav-item">Notes</a>
+    <a href="es-module.html" class="nav-item">ES-Module</a>
     <a href="calculator.html" class="nav-item active">Calculator</a>
-    <a href="calendar.html"   class="nav-item active">Calendar</a>
+    <a href="calendar.html" class="nav-item active">Calendar</a>
   </nav>
 
-  <!-- PROFILE CARD -->
+  <!-- 🔹 Profile Card -->
   <aside id="profile-card" class="profile-card" aria-hidden="true">
     <div id="user-info"></div>
     <div id="config-status"></div>
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- MAIN DASHBOARD -->
-<!-- Status indicator (can be anywhere in the <body>) -->
-<div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
-  <span id="status-icon" style="font-size:2rem;"></span>
-  <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
-</div>
-
-<main class="chat-container">
-  <!-- Chat Log -->
-  <div id="chat-log"></div>
-
-  <!-- Chat Form -->
-  <form id="chat-form">
-    <!-- Console Toggle Button -->
-    <button id="console-toggle-btn" type="button" class="inline-btn">Console</button>
-
-    <!-- Input Field -->
-    <input
-      id="user-input"
-      type="text"
-      placeholder="Type your message..."
-      required
-      class="chat-input"
-    />
-
-    <!-- Spinner -->
-    <span id="chat-loading-spinner" class="spinner">
-      <svg width="20" height="20" viewBox="0 0 50 50">
-        <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
-        <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
-          <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 25 25" to="360 25 25" repeatCount="indefinite"/>
-        </circle>
-      </svg>
-    </span>
-
-    <!-- Status Indicator -->
-    <span id="status-indicator" class="status-indicator">
-      <span id="status-icon"></span>
-      <span id="status-tooltip" class="tooltip"></span>
-    </span>
-
-    <!-- Submit Button -->
-    <button type="submit" class="send-btn">Send</button>
-  </form>
-
-  <!-- Chat Status Feedback -->
-  <div id="chat-status-bar"></div>
-
-  <!-- Onscreen Console -->
-  <div id="onscreen-console">
-    <div id="onscreen-console-messages"></div>
-    <div style="margin-top: 10px;">
-      <button onclick="window.clearDebugLog()">Clear Logs</button>
-      <button onclick="window.exportDebugLog()">Export Logs</button>
-      <button onclick="window.showDebugOverlay()">Full View</button>
-      <button onclick="window.autoScrollConsole = !window.autoScrollConsole; this.style.opacity = window.autoScrollConsole ? '1' : '0.5';">AutoScroll</button>
-    </div>
+  <!-- 🔹 Top-Right Status Indicator -->
+  <div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
+    <span id="status-icon" style="font-size:2rem;"></span>
+    <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
   </div>
 
-  <!-- Debug Overlay -->
-  <div id="debug-overlay">
-    <div id="debug-modal">
-      <button class="close-btn" onclick="document.getElementById('debug-overlay').style.display='none'">Close</button>
-      <div id="debug-content"></div>
+  <!-- 🔹 Main Container -->
+  <main class="chat-container">
+    <div id="chat-log"></div>
+
+    <form id="chat-form">
+      <button id="console-toggle-btn" type="button" class="inline-btn">Console</button>
+      <input id="user-input" type="text" placeholder="Type your message..." required class="chat-input" />
+
+      <span id="chat-loading-spinner" class="spinner">
+        <svg width="20" height="20" viewBox="0 0 50 50">
+          <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
+          <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
+            <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 25 25" to="360 25 25" repeatCount="indefinite"/>
+          </circle>
+        </svg>
+      </span>
+
+      <span id="status-indicator" class="status-indicator">
+        <span id="status-icon"></span>
+        <span id="status-tooltip" class="tooltip"></span>
+      </span>
+
+      <button type="submit" class="send-btn">Send</button>
+    </form>
+
+    <div id="chat-status-bar"></div>
+
+    <div id="onscreen-console">
+      <div id="onscreen-console-messages"></div>
+      <div style="margin-top: 10px;">
+        <button onclick="window.clearDebugLog()">Clear Logs</button>
+        <button onclick="window.exportDebugLog()">Export Logs</button>
+        <button onclick="window.showDebugOverlay()">Full View</button>
+        <button onclick="window.autoScrollConsole = !window.autoScrollConsole; this.style.opacity = window.autoScrollConsole ? '1' : '0.5';">AutoScroll</button>
+      </div>
     </div>
-  </div>
-</main>
-  <!-- MODULE SCRIPTS -->
-  <script type="module" src="../JS/profile.js"></script>
-  <script type="module" src="../JS/links.js"></script>
 
-  <!-- Firebase & Chat Modules -->
-  <script type="module" src="../JS/src/firebaseConfig.js"></script>
-  <script type="module" src="../JS/src/firebaseHelpers.js"></script>
-  <script type="module" src="../JS/src/storageDebug.js"></script>
-  <script type="module" src="../JS/src/console.js"></script>
-  <script type="module" src="../JS/src/chatUtils.js"></script>
-  <script type="module" src="../JS/src/commandHandlers.js"></script>
-  <script type="module" src="../JS/src/memoryManager.js"></script>
-      <script type="module" src="../JS/src/backgpt.js"></script>
-            <script type="module" src="../JS/src/uiShell.js"></script>
-    <script type="module" src="../JS/src/chat.js"></script>
-        <script type="module" src="../JS/src/background.js"></script>
+    <div id="debug-overlay">
+      <div id="debug-modal">
+        <button class="close-btn" onclick="document.getElementById('debug-overlay').style.display='none'">Close</button>
+        <div id="debug-content"></div>
+      </div>
+    </div>
+  </main>
 
-  
-  
-
-  <!-- Controls for Sidebar and Add‐link Form -->
+  <!-- 🔹 Sidebar & Form Logic -->
   <script type="module">
     document.addEventListener('DOMContentLoaded', () => {
       const sidebar = document.getElementById('side-nav');
@@ -158,6 +122,45 @@
         addBtn.classList.toggle('active', !collapsed);
         if (!collapsed) document.getElementById('link-title').focus();
       };
+    });
+  </script>
+
+  <!-- 🔹 Sequential Script Loader -->
+  <script>
+    const scriptList = [
+      "../JS/profile.js",
+      "../JS/links.js",
+      "../JS/src/firebaseConfig.js",
+      "../JS/src/firebaseHelpers.js",
+      "../JS/src/storageDebug.js",
+      "../JS/src/console.js",
+      "../JS/src/chatUtils.js",
+      "../JS/src/commandHandlers.js",
+      "../JS/src/memoryManager.js",
+      "../JS/src/backgpt.js",
+      "../JS/src/uiShell.js",
+      "../JS/src/chat.js",
+      "../JS/src/background.js"
+    ];
+
+    function loadScriptsSequentially(scripts, index = 0) {
+      if (index >= scripts.length) {
+        document.getElementById("initial-loader").style.display = "none";
+        return;
+      }
+      const script = document.createElement("script");
+      script.type = "module";
+      script.src = scripts[index];
+      script.onload = () => loadScriptsSequentially(scripts, index + 1);
+      script.onerror = () => {
+        console.error("Failed to load:", scripts[index]);
+        loadScriptsSequentially(scripts, index + 1);
+      };
+      document.body.appendChild(script);
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      loadScriptsSequentially(scriptList);
     });
   </script>
 </body>
