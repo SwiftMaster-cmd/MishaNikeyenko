@@ -1,8 +1,9 @@
-// 🔹 debugConsole.js – Unified persistent log + floating console + overlay modal
+// 🔹 debugConsole.js – Central log system + UI feedback + overlay
 const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
+window.DEBUG_MODE = true;
 
-// 🔹 Load logs
+// 🔹 Load logs from localStorage
 function loadPersistedLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
@@ -17,11 +18,12 @@ function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
-// 🔹 Add + display log line
+// 🔹 Primary logger
 window.debugLog = function (...args) {
   const logs = loadPersistedLogs();
   const msg = args.map(a => (typeof a === "object" ? JSON.stringify(a, null, 2) : a)).join(" ");
-  const logEntry = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  const timestamp = new Date().toLocaleTimeString();
+  const logEntry = `[${timestamp}] ${msg}`;
   logs.push(logEntry);
   saveLogs(logs);
 
@@ -35,6 +37,11 @@ window.debugLog = function (...args) {
       el.parentElement.scrollTop = el.parentElement.scrollHeight;
     }
   }
+};
+
+// 🔹 Conditional logger (based on DEBUG_MODE)
+window.debug = function (...args) {
+  if (window.DEBUG_MODE) window.debugLog(...args);
 };
 
 // 🔹 Clear logs
@@ -56,25 +63,44 @@ window.exportDebugLog = function () {
   URL.revokeObjectURL(url);
 };
 
-// 🔹 Log assistant reply + update centered feedback bar
-window.logAssistantReply = function (replyText) {
-  const statusBar = document.getElementById("chat-status-bar");
-  if (!statusBar) return;
+// 🔹 Status feedback bar logic
+window.setStatusFeedback = function (type, msg = "") {
+  const bar = document.getElementById("chat-status-bar");
+  if (!bar) {
+    console.warn("⚠️ chat-status-bar not found.");
+    return;
+  }
 
-  const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
-  window.debugLog("🧠 Assistant responded:", preview);
+  let color = "", bg = "";
+  switch (type) {
+    case "success": color = "#1db954"; bg = "rgba(29,185,84,0.08)"; break;
+    case "error":   color = "#d7263d"; bg = "rgba(215,38,61,0.08)"; break;
+    case "loading": color = "#ffd600"; bg = "rgba(255,214,0,0.08)"; break;
+    default:        bar.style.opacity = 0; return;
+  }
 
-  statusBar.textContent = "Assistant responded";
-  statusBar.style.color = "#1db954";
-  statusBar.style.background = "rgba(29,185,84,0.08)";
-  statusBar.style.opacity = 1;
+  bar.textContent = msg;
+  bar.style.color = color;
+  bar.style.background = bg;
+  bar.style.opacity = 1;
 
-  setTimeout(() => {
-    statusBar.style.opacity = 0;
-  }, 2000);
+  window.debug(`[FEEDBACK] ${type.toUpperCase()}: ${msg}`);
+
+  if (type !== "loading") {
+    setTimeout(() => {
+      bar.style.opacity = 0;
+    }, 1800);
+  }
 };
 
-// 🔹 Console UI init
+// 🔹 Assistant reply logger
+window.logAssistantReply = function (replyText) {
+  const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
+  window.debug("[REPLY]", preview);
+  window.setStatusFeedback("success", "Assistant responded");
+};
+
+// 🔹 Console UI Setup
 (function () {
   const style = document.createElement("style");
   style.textContent = `
@@ -150,7 +176,6 @@ window.logAssistantReply = function (replyText) {
     }
   });
 
-  // Click-to-copy logs
   document.addEventListener("click", (e) => {
     if (e.target.classList.contains("debug-line")) {
       navigator.clipboard.writeText(e.target.textContent);

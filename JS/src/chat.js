@@ -1,4 +1,4 @@
-// 🔹 chat.js – UI layer only: input, rendering, status, scroll. Backend lives in backgpt.js
+// 🔹 chat.js – clean UI shell, all logic and feedback handled externally
 
 import {
   onValue,
@@ -34,8 +34,8 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 const header = document.getElementById("header-title");
-const statusBar = document.getElementById("chat-status-bar");
 
+// ========== 2. Visuals ==========
 function updateHeaderWithAssistantReply(text) {
   if (!header) return;
   header.style.opacity = 0;
@@ -45,7 +45,6 @@ function updateHeaderWithAssistantReply(text) {
   }, 150);
 }
 
-// ========== 2. Spinner + Status ==========
 function showChatInputSpinner(show = true) {
   const spinner = document.getElementById("chat-loading-spinner");
   const inputField = document.getElementById("user-input");
@@ -53,40 +52,16 @@ function showChatInputSpinner(show = true) {
   if (inputField) inputField.disabled = show;
 }
 
-function setStatusIndicator(type, msg = "") {
-  if (!statusBar) return;
-
-  let color = "", bg = "";
-  switch (type) {
-    case "success": color = "#1db954"; bg = "rgba(29,185,84,0.08)"; break;
-    case "error":   color = "#d7263d"; bg = "rgba(215,38,61,0.08)"; break;
-    case "loading": color = "#ffd600"; bg = "rgba(255,214,0,0.08)"; break;
-    default:        statusBar.style.opacity = 0; return;
-  }
-
-  statusBar.textContent = msg;
-  statusBar.style.color = color;
-  statusBar.style.background = bg;
-  statusBar.style.opacity = 1;
-
-  if (type !== "loading") {
-    setTimeout(() => {
-      statusBar.style.opacity = 0;
-    }, 1800);
-  }
-}
-
 // ========== 3. State ==========
 let uid = null;
 let chatRef = null;
 let userHasScrolled = false;
 
-// ========== 4. Scroll Logic ==========
+// ========== 4. Scroll ==========
 log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
 });
-
 function scrollToBottom(force = false) {
   if (!userHasScrolled || force) {
     requestAnimationFrame(() => {
@@ -95,7 +70,7 @@ function scrollToBottom(force = false) {
   }
 }
 
-// ========== 5. Render Messages ==========
+// ========== 5. Render Chat ==========
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -126,13 +101,13 @@ if (debugToggle) {
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
-    window.debugLog("Auth: Signed in anonymously.");
-    setStatusIndicator("loading", "Signing in...");
+    window.setStatusFeedback("loading", "Signing in...");
+    window.debug("Auth: Signing in anonymously...");
     return;
   }
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
-  window.debugLog("Auth UID:", uid);
+  window.debug("Auth Ready → UID:", uid);
 
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
@@ -146,7 +121,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 8. Submit Handler ==========
+// ========== 8. Chat Submit ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -154,54 +129,55 @@ form.addEventListener("submit", async (e) => {
   input.value = "";
 
   showChatInputSpinner(true);
-  setStatusIndicator("loading", "Thinking...");
-  window.debugLog("Prompt:", prompt);
+  window.setStatusFeedback("loading", "Thinking...");
+  window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    // Handle quick commands
-    if (["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"].includes(prompt)) {
+    // --- Static commands
+    const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
+    if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
-      setStatusIndicator("success", "Command done");
+      window.setStatusFeedback("success", "Command executed");
       showChatInputSpinner(false);
       return;
     }
-
     if (prompt === "/notes") {
       await listNotes(chatRef);
-      setStatusIndicator("success", "Notes listed");
+      window.setStatusFeedback("success", "Notes listed");
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/reminders") {
       await listReminders(chatRef);
-      setStatusIndicator("success", "Reminders listed");
+      window.setStatusFeedback("success", "Reminders listed");
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/events") {
       await listEvents(chatRef);
-      setStatusIndicator("success", "Events listed");
+      window.setStatusFeedback("success", "Events listed");
       showChatInputSpinner(false);
       return;
     }
 
-    // 1. Push user message
+    // --- Step 1: Save user message
     await saveMessageToChat("user", prompt, uid);
-    window.debugLog("Message saved.");
+    window.debug("[STEP 1] User message saved.");
 
-    // 2. Attempt memory extraction
+    // --- Step 2: Memory extraction
+    window.debug("[STEP 2] Checking for memory...");
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
-      setStatusIndicator("success", `Memory saved (${memory.type})`);
-      window.debugLog("Memory extracted:", memory);
+      window.setStatusFeedback("success", `Memory saved (${memory.type})`);
+      window.debug("[MEMORY]", memory);
     }
 
-    // 3. Build assistant prompt context
+    // --- Step 3: Build GPT context
+    window.debug("[STEP 3] Fetching context...");
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
     ]);
-
     const sysPrompt = buildSystemPrompt({
       memory: context.memory,
       todayLog: context.dayLog,
@@ -211,22 +187,21 @@ form.addEventListener("submit", async (e) => {
       calc: context.calc,
       date: new Date().toISOString().slice(0, 10)
     });
-
     const full = [{ role: "system", content: sysPrompt }, ...last20];
+    window.debug("[GPT INPUT]", full);
 
-    // 4. Get assistant reply
+    // --- Step 4: Get assistant reply
     const assistantReply = await getAssistantReply(full);
     await saveMessageToChat("assistant", assistantReply, uid);
     window.logAssistantReply(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
 
-    // 5. Check if summary is due
+    // --- Step 5: Check if summary needed
     await summarizeChatIfNeeded(uid);
-
-    setStatusIndicator("success", "Message sent");
+    window.setStatusFeedback("success", "Message sent");
   } catch (err) {
-    setStatusIndicator("error", "Something failed");
-    window.debugLog("Submit error:", err.message || err);
+    window.setStatusFeedback("error", "Something went wrong");
+    window.debug("[ERROR]", err.message || err);
   } finally {
     showChatInputSpinner(false);
   }
