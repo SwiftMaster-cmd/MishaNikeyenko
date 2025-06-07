@@ -1,4 +1,4 @@
-// 🔹 chat.js – dual-mode memory saving + hover-to-view debug/info overlay + visual feedback
+// 🔹 chat.js – modern feedback: chat spinner + top-right indicator + persistent console
 
 import {
   ref,
@@ -31,42 +31,69 @@ import {
 } from "./commandHandlers.js";
 import { extractJson, detectMemoryType } from "./chatUtils.js";
 
-// --- VISUAL FEEDBACK UTILS ---
-function showLoading(msg = "Processing...") {
-  let loading = document.getElementById("loading-overlay");
-  if (!loading) {
-    loading = document.createElement("div");
-    loading.id = "loading-overlay";
-    loading.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000a;z-index:99999;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;";
-    document.body.appendChild(loading);
-  }
-  loading.textContent = msg;
-  loading.style.display = "flex";
-}
-function hideLoading() {
-  const loading = document.getElementById("loading-overlay");
-  if (loading) loading.style.display = "none";
-}
-function showToast(msg, isError = false) {
-  let toast = document.getElementById("toast-banner");
-  if (!toast) {
-    toast = document.createElement("div");
-    toast.id = "toast-banner";
-    toast.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 28px;border-radius:8px;background:#222;color:#fff;z-index:99999;font-size:1.1rem;box-shadow:0 2px 8px #0008;transition:opacity .2s;";
-    document.body.appendChild(toast);
-  }
-  toast.textContent = msg;
-  toast.style.background = isError ? "#d7263d" : "#22793c";
-  toast.style.opacity = "1";
-  setTimeout(() => { toast.style.opacity = "0"; }, 2500);
-}
-
-// --- UI Elements ---
+// ========== 1. UI Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-// --- Persistent Debug ---
+// ADD THIS to your HTML near your input field for spinner:
+/*
+<span id="chat-loading-spinner" style="display:none;margin-left:10px;vertical-align:middle;">
+  <svg width="20" height="20" viewBox="0 0 50 50">
+    <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
+    <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
+      <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 25 25" to="360 25 25" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+</span>
+*/
+
+// ADD THIS once to your HTML, in the body (top right corner):
+/*
+<div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
+  <span id="status-icon" style="font-size:2rem;"></span>
+  <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
+</div>
+*/
+
+// ========== 2. Visual Feedback Utilities ==========
+
+function showChatInputSpinner(show = true) {
+  const spinner = document.getElementById("chat-loading-spinner");
+  const inputField = document.getElementById("user-input");
+  if (spinner) spinner.style.display = show ? "inline-block" : "none";
+  if (inputField) inputField.disabled = show;
+}
+
+function setStatusIndicator(type, tooltip = "") {
+  const icon = document.getElementById("status-icon");
+  const tip = document.getElementById("status-tooltip");
+  if (!icon || !tip) return;
+  let html = "", color = "";
+  switch(type) {
+    case "success": html = "✅"; color="#1db954"; break;
+    case "error":   html = "❌"; color="#d7263d"; break;
+    case "loading": html = "⏳"; color="#ffd600"; break;
+    default:        html = ""; color=""; break;
+  }
+  icon.textContent = html;
+  icon.style.color = color;
+  if (tooltip) {
+    tip.textContent = tooltip;
+    tip.style.display = "inline";
+  } else {
+    tip.style.display = "none";
+  }
+  // Fade out automatically (except loading)
+  if (type !== "loading" && html) {
+    setTimeout(() => {
+      icon.textContent = "";
+      tip.style.display = "none";
+    }, 1800);
+  }
+}
+
+// ========== 3. Debug Logging (persistent to onscreen console) ==========
 const debugInfo = [];
 function addDebugMessage(...args) {
   if (typeof window.debugLog === "function") {
@@ -75,12 +102,12 @@ function addDebugMessage(...args) {
   debugInfo.push(args.join(" "));
 }
 
-// --- State ---
+// ========== 4. State ==========
 let uid = null;
 let chatRef = null;
 let userHasScrolled = false;
 
-// --- Debug Overlay Setup ---
+// ========== 5. Debug Overlay ==========
 function createDebugOverlay() {
   const overlay = document.createElement("div");
   overlay.id = "debug-overlay";
@@ -155,7 +182,7 @@ function showDebugOverlay() {
   overlay.style.display = "block";
 }
 
-// --- Scroll Logic ---
+// ========== 6. Scroll Logic ==========
 log.addEventListener("scroll", () => {
   const threshold = 100;
   userHasScrolled = (log.scrollTop + log.clientHeight + threshold < log.scrollHeight);
@@ -168,7 +195,7 @@ function scrollToBottom(force = false) {
   }
 }
 
-// --- Render Messages ---
+// ========== 7. Render Messages ==========
 function renderMessages(messages) {
   log.innerHTML = "";
   messages
@@ -187,19 +214,19 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
-// --- Debug Button Integration ---
+// ========== 8. Debug Button Integration ==========
 createDebugOverlay();
 const debugToggle = document.getElementById("debug-toggle");
 if (debugToggle) {
   debugToggle.addEventListener("click", showDebugOverlay);
 }
 
-// --- Firebase Auth/Chat Initialization ---
+// ========== 9. Firebase Auth/Chat Initialization ==========
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
     addDebugMessage("Auth: Signed in anonymously.");
-    showToast("Signed in anonymously");
+    setStatusIndicator("loading", "Signing in...");
     return;
   }
   uid = user.uid;
@@ -222,14 +249,15 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// --- Main Submit Logic ---
+// ========== 10. Main Submit Logic ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
   if (!prompt || !chatRef || !uid) return;
   input.value = "";
 
-  showLoading("Processing...");
+  setStatusIndicator("loading", "Processing...");
+  showChatInputSpinner(true);
   addDebugMessage("User submitted:", prompt);
 
   try {
@@ -237,30 +265,30 @@ form.addEventListener("submit", async (e) => {
     const staticCommands = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (staticCommands.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
-      showToast("Command executed!");
+      setStatusIndicator("success", "Command executed!");
       addDebugMessage("Static command handled:", prompt);
-      hideLoading();
+      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/notes") {
       await listNotes(chatRef);
-      showToast("Listed notes.");
+      setStatusIndicator("success", "Listed notes.");
       addDebugMessage("Listed notes.");
-      hideLoading();
+      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/reminders") {
       await listReminders(chatRef);
-      showToast("Listed reminders.");
+      setStatusIndicator("success", "Listed reminders.");
       addDebugMessage("Listed reminders.");
-      hideLoading();
+      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/events") {
       await listEvents(chatRef);
-      showToast("Listed events.");
+      setStatusIndicator("success", "Listed events.");
       addDebugMessage("Listed events.");
-      hideLoading();
+      showChatInputSpinner(false);
       return;
     }
 
@@ -323,7 +351,7 @@ form.addEventListener("submit", async (e) => {
       const { memoryType, rawPrompt } = detectMemoryType(prompt);
       if (memoryType) {
         try {
-          showLoading("Extracting memory...");
+          setStatusIndicator("loading", "Extracting memory...");
           const parsed = await fetch("/.netlify/functions/chatgpt", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -373,23 +401,21 @@ RULES:
               ...(extracted.date ? { date: extracted.date } : {})
             });
             addDebugMessage(`Memory saved: type=${extracted.type}, content="${extracted.content}"`);
-            showToast(`Memory saved (${extracted.type})!`);
+            setStatusIndicator("success", `Memory saved (${extracted.type})!`);
           } else {
             addDebugMessage("Incomplete memory structure returned");
-            showToast("Could not save memory (incomplete structure).", true);
+            setStatusIndicator("error", "Could not save memory.");
           }
         } catch (err) {
           addDebugMessage("Memory parse/write failed:", err.message, err);
-          showToast("Memory extraction failed.", true);
-        } finally {
-          hideLoading();
+          setStatusIndicator("error", "Memory extraction failed.");
         }
       }
 
       // e) Get the assistant’s reply from GPT
       let assistantReply = "[No reply]";
       try {
-        showLoading("Getting assistant reply...");
+        setStatusIndicator("loading", "Assistant replying...");
         const replyRes = await fetch("/.netlify/functions/chatgpt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -398,22 +424,22 @@ RULES:
         const replyData = await replyRes.json();
         assistantReply = replyData.choices?.[0]?.message?.content || assistantReply;
         addDebugMessage("Assistant reply received:", assistantReply);
+        setStatusIndicator("success", "Assistant replied!");
       } catch (err) {
         addDebugMessage("GPT reply error:", err.message, err);
         assistantReply = "[Assistant error: " + err.message + "]";
-        showToast("Failed to get assistant reply.", true);
-      } finally {
-        hideLoading();
+        setStatusIndicator("error", "Failed to get assistant reply.");
       }
 
       // f) Push the assistant’s reply into chatHistory
       try {
         await push(chatRef, { role: "assistant", content: assistantReply, timestamp: Date.now() });
-        showToast("Assistant replied!");
         addDebugMessage("Assistant reply pushed.");
       } catch (err) {
         addDebugMessage("Failed to push assistant reply:", err.message, err);
-        showToast("Failed to save assistant reply.", true);
+        setStatusIndicator("error", "Failed to save assistant reply.");
+      } finally {
+        showChatInputSpinner(false);
       }
     })();
 
@@ -444,7 +470,7 @@ RULES:
           .join("\n");
 
         try {
-          showLoading("Summarizing...");
+          setStatusIndicator("loading", "Summarizing...");
           const summaryRes = await fetch("/.netlify/functions/chatgpt", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -467,20 +493,18 @@ RULES:
             timestamp: Date.now()
           });
           addDebugMessage("20-message summary saved to memory.");
-          showToast("Chat summarized.");
+          setStatusIndicator("success", "Chat summarized.");
         } catch (err) {
           addDebugMessage("Summary generation failed:", err.message, err);
-          showToast("Summary generation failed.", true);
-        } finally {
-          hideLoading();
+          setStatusIndicator("error", "Summary failed.");
         }
       }
     })();
 
-    showToast("Message sent!");
+    setStatusIndicator("success", "Message sent!");
   } catch (err) {
     addDebugMessage("Form submit error:", err.message, err);
-    showToast("Error processing your request.", true);
-    hideLoading();
+    setStatusIndicator("error", "Request failed.");
+    showChatInputSpinner(false);
   }
 });
