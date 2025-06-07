@@ -1,4 +1,4 @@
-// 🔹 chat.js – voice out, full auto-list rendering, modularized UI logic
+// 🔹 chat.js – full voice input/output, auto-list rendering, modular UI
 
 import {
   onValue,
@@ -37,23 +37,38 @@ import {
 } from "./uiShell.js";
 
 import { renderInfoList } from "./lists.js";
-import { speakText } from "./voice.js";
+import {
+  speakText,
+  startVoiceRecognition
+} from "./voice.js";
+
 window.renderInfoList = renderInfoList;
 
-// DOM elements
+// ========== 1. DOM ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
+const micButton = document.getElementById("mic-button");
 const debugToggle = document.getElementById("debug-toggle");
 
-// Init
 initScrollTracking();
 
+// ========== 2. Mic Button ==========
+if (micButton) {
+  micButton.addEventListener("click", () => {
+    startVoiceRecognition((transcript) => {
+      input.value = transcript;
+    });
+  });
+}
+
+// ========== 3. Debug Toggle ==========
 if (debugToggle) {
   debugToggle.addEventListener("click", () => {
     if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
   });
 }
 
+// ========== 4. Firebase Auth ==========
 let uid = null;
 let chatRef = null;
 
@@ -61,7 +76,6 @@ onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
     window.setStatusFeedback("loading", "Signing in...");
-    window.debug("Auth: Signing in anonymously...");
     return;
   }
   uid = user.uid;
@@ -80,6 +94,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
+// ========== 5. Chat Submit Handler ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -91,8 +106,8 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
-    if (quick.includes(prompt)) {
+    const staticCommands = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
+    if (staticCommands.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
       showChatInputSpinner(false);
       return;
@@ -102,11 +117,13 @@ form.addEventListener("submit", async (e) => {
     if (prompt === "/events") return listEvents(chatRef);
 
     await saveMessageToChat("user", prompt, uid);
+
     const memory = await extractMemoryFromPrompt(prompt, uid);
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
     ]);
+
     const sysPrompt = buildSystemPrompt({
       memory: context.memory,
       todayLog: context.dayLog,
@@ -116,61 +133,76 @@ form.addEventListener("submit", async (e) => {
       calc: context.calc,
       date: new Date().toISOString().slice(0, 10)
     });
+
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     const assistantReply = await getAssistantReply(full);
 
     await saveMessageToChat("assistant", assistantReply, uid);
-    window.logAssistantReply(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
+    window.logAssistantReply(assistantReply);
     speakText(assistantReply);
 
-    // Auto list render
+    // ========== 6. Auto List Rendering ==========
     try {
+      // Format: [LIST] { ... }
       if (assistantReply.startsWith("[LIST]")) {
-        const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());
+        const jsonStart = assistantReply.indexOf("{");
+        const payload = JSON.parse(assistantReply.slice(jsonStart));
         window.renderInfoList({ containerId: "main", ...payload });
+        showChatInputSpinner(false);
         return;
       }
 
+      // Format: **Section:** - Item - Item
       const cardPattern = /\*\*(.+?):\*\*((?:\s*-\s*[^*]+)+)/g;
-      let match;
       let foundInline = false;
+      let match;
       while ((match = cardPattern.exec(assistantReply)) !== null) {
         const title = match[1].trim();
-        const items = match[2].split(/\s*-\s*/).filter(Boolean).map(d => ({ label: "", desc: d.trim() }));
+        const items = match[2]
+          .split(/\s*-\s*/)
+          .filter(Boolean)
+          .map(text => ({ label: "", desc: text }));
         window.renderInfoList({ containerId: "main", title, items });
         foundInline = true;
       }
-      if (foundInline) return;
+      if (foundInline) {
+        showChatInputSpinner(false);
+        return;
+      }
 
-      const listSections = assistantReply.split(/\n(?=[A-Za-z ]+:\n)/g);
-      for (const section of listSections) {
-        const match = section.match(/^([A-Za-z ]+):\s*\n((?:[-•].+\n?)+)/im);
-        if (match) {
-          const title = match[1].trim();
-          const items = match[2].split('\n').filter(Boolean).map(line => ({
+      // Format: Title:\n- item\n- item
+      const sectionPattern = /^(.*?):\s*\n((?:[-•]\s?.+\n?)+)/gm;
+      let sectionMatch;
+      while ((sectionMatch = sectionPattern.exec(assistantReply)) !== null) {
+        const title = sectionMatch[1].trim();
+        const items = sectionMatch[2]
+          .split("\n")
+          .filter(Boolean)
+          .map(line => ({
             label: "",
             desc: line.replace(/^[-•]\s*/, "")
           }));
-          window.renderInfoList({ containerId: "main", title, items });
-        }
+        window.renderInfoList({ containerId: "main", title, items });
       }
 
-      if (assistantReply.trim().startsWith("{") && assistantReply.trim().endsWith("}")) {
-        const payload = JSON.parse(assistantReply);
-        if (payload.items) {
+      // Format: JSON object with .items[]
+      if (assistantReply.trim().startsWith("{")) {
+        const parsed = JSON.parse(assistantReply);
+        if (parsed.items && Array.isArray(parsed.items)) {
           window.renderInfoList({
             containerId: "main",
-            title: payload.title || "List",
-            icon: payload.icon || "",
-            items: payload.items
+            title: parsed.title || "List",
+            icon: parsed.icon || "",
+            items: parsed.items
           });
         }
       }
-    } catch (e) {
-      window.debug("[List Render Error]", e);
+    } catch (err) {
+      window.debug("[List Render Error]", err);
     }
 
+    // ========== 7. Optional Summary ==========
     await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
   } catch (err) {
