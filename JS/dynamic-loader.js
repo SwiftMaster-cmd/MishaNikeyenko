@@ -1,167 +1,108 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import {
-  getDatabase, ref, set, remove, get, onValue, serverTimestamp
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-import {
-  getAuth, onAuthStateChanged
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+const debugInfo = [];
+const lastNodeData = {};  // NEW: keeps the last snapshot per label
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
-  authDomain: "mishanikeyenko.firebaseapp.com",
-  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
-  projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.firebasestorage.app",
-  messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d",
-  measurementId: "G-L6CC27129C"
-};
+export function addDebugMessage(...args) {
+  if (typeof window.debugLog === "function") window.debugLog(...args);
+  debugInfo.push(args.join(" "));
+  // Optionally trim debugInfo for performance:
+  // if (debugInfo.length > 200) debugInfo.shift();
+}
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const auth = getAuth(app);
+// New function to set and show node snapshot for a label
+export function setDebugNodeData(label, data) {
+  lastNodeData[label] = data;
+}
 
-const loadButton = document.getElementById('load-module');
-const saveButton = document.getElementById('save-script');
-const pasteArea = document.getElementById('js-paster');
-const nameInput = document.getElementById('js-name');
-const outputDiv = document.getElementById('js-output');
-const savedList = document.getElementById('saved-list');
-
-let userUID = null;
-
-// Wait for auth
-onAuthStateChanged(auth, user => {
-  if (!user) {
-    console.warn('[Loader] Not signed in');
-    return;
-  }
-
-  userUID = user.uid;
-  console.info('[Loader] Authenticated as', userUID);
-  renderSavedScripts();
-});
-
-// ▶️ Load ES module from textarea
-loadButton.addEventListener('click', async () => {
-  const code = pasteArea.value.trim();
-  outputDiv.innerHTML = '';
-
-  if (!code) {
-    alert('Paste a valid ES module first.');
-    return;
-  }
-
-  try {
-    const blob = new Blob([code], { type: 'text/javascript' });
-    const url = URL.createObjectURL(blob);
-    const mod = await import(url);
-    URL.revokeObjectURL(url);
-
-    const knownExports = ['showModuleDemo', 'init', 'run', 'default'];
-    let ran = false;
-
-    for (const name of knownExports) {
-      const fn = mod[name];
-      if (typeof fn === 'function') {
-        const result = await fn();
-        if (typeof result === 'string') {
-          const msg = document.createElement('p');
-          msg.textContent = result;
-          msg.style.marginTop = '1rem';
-          outputDiv.appendChild(msg);
-        }
-        ran = true;
-        break;
-      }
-    }
-
-    if (!ran) {
-      outputDiv.textContent = '✅ Module loaded, but no known export function found.';
-    }
-  } catch (err) {
-    console.error('[dynamic-loader] error:', err);
-    outputDiv.textContent = '❌ Error loading module: ' + err.message;
-  }
-});
-
-// 💾 Save script per-user
-saveButton.addEventListener('click', async () => {
-  if (!userUID) {
-    alert('You must be signed in to save scripts.');
-    return;
-  }
-
-  const name = nameInput.value.trim();
-  const code = pasteArea.value.trim();
-
-  if (!name || !code) {
-    alert('Please enter both a name and some code.');
-    return;
-  }
-
-  const refPath = ref(db, `jsModules/${userUID}/${name}`);
-
-  await set(refPath, {
-    name,
-    code,
-    ts: serverTimestamp()
+// Overlay modal setup
+export function createDebugOverlay() {
+  if (document.getElementById("debug-overlay")) return; // Only once
+  const overlay = document.createElement("div");
+  overlay.id = "debug-overlay";
+  Object.assign(overlay.style, {
+    display: "none",
+    position: "fixed",
+    top: "0", left: "0", width: "100vw", height: "100vh",
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    zIndex: 9999
   });
 
-  nameInput.value = '';
-  pasteArea.value = '';
-  outputDiv.innerHTML = '';
+  const modal = document.createElement("div");
+  modal.id = "debug-modal";
+  Object.assign(modal.style, {
+    position: "absolute", top: "50%", left: "50%",
+    transform: "translate(-50%, -50%)",
+    backgroundColor: "var(--clr-card)",
+    color: "var(--clr-text)",
+    padding: "1rem 1.5rem", borderRadius: "12px",
+    boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+    maxWidth: "80vw", maxHeight: "80vh",
+    overflowY: "auto", border: "1px solid var(--clr-border)"
+  });
 
-  const msg = document.createElement('p');
-  msg.textContent = `✅ Saved: "${name}"`;
-  msg.style.marginTop = '1rem';
-  outputDiv.appendChild(msg);
-});
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "close-btn";
+  closeBtn.textContent = "Close";
+  Object.assign(closeBtn.style, {
+    position: "absolute", top: "8px", right: "8px",
+    background: "var(--clr-border)", color: "var(--clr-text)",
+    border: "none", padding: "4px 8px", cursor: "pointer",
+    borderRadius: "4px", fontSize: "0.9rem"
+  });
+  closeBtn.addEventListener("click", () => { overlay.style.display = "none"; });
 
-// 🧾 List saved scripts
-function renderSavedScripts() {
-  if (!userUID) return;
-  const userScriptsRef = ref(db, `jsModules/${userUID}`);
+  const contentDiv = document.createElement("div");
+  contentDiv.id = "debug-content";
+  Object.assign(contentDiv.style, {
+    marginTop: "32px", whiteSpace: "pre-wrap",
+    fontFamily: "monospace", fontSize: "0.9rem", lineHeight: "1.4"
+  });
 
-  onValue(userScriptsRef, snapshot => {
-    savedList.innerHTML = '';
-    const data = snapshot.val() || {};
+  // NEW: Node snapshot container
+  const snapshotDiv = document.createElement("div");
+  snapshotDiv.id = "debug-snapshots";
+  Object.assign(snapshotDiv.style, {
+    marginTop: "16px",
+    background: "#232336",
+    padding: "10px 16px",
+    borderRadius: "9px",
+    fontFamily: "monospace",
+    fontSize: "0.93rem",
+    color: "#a9f8fd",
+    maxHeight: "240px",
+    overflowY: "auto"
+  });
 
-    for (const [name, obj] of Object.entries(data)) {
-      const item = document.createElement('div');
-      item.className = 'input-row';
-      item.innerHTML = `
-        <strong>${name}</strong>
-        <div class="script-actions">
-          <button class="btn-outline" data-action="run" data-name="${name}">▶️</button>
-          <button class="btn-outline" data-action="edit" data-name="${name}">✏️</button>
-          <button class="btn-outline" data-action="delete" data-name="${name}">🗑️</button>
-        </div>
-      `;
-      savedList.appendChild(item);
+  modal.appendChild(closeBtn);
+  modal.appendChild(contentDiv);
+  modal.appendChild(snapshotDiv); // Add below log
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
+export function showDebugOverlay() {
+  const overlay = document.getElementById("debug-overlay");
+  const contentDiv = document.getElementById("debug-content");
+  const snapshotDiv = document.getElementById("debug-snapshots");
+  if (!overlay || !contentDiv || !snapshotDiv) return;
+
+  // Debug log
+  contentDiv.textContent = debugInfo.join("\n");
+
+  // Show each last snapshot
+  let out = "";
+  for (const label in lastNodeData) {
+    out += `\n\n${label}:\n` +
+      JSON.stringify(lastNodeData[label], null, 2);
+  }
+  snapshotDiv.textContent = out.trim() || "[No database snapshots yet]";
+  overlay.style.display = "block";
+}
+
+// For keyboard shortcut (optional)
+export function setupDebugShortcut() {
+  window.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "D") {
+      showDebugOverlay();
     }
   });
 }
-
-// 🎮 Script actions
-savedList.addEventListener('click', async (e) => {
-  const btn = e.target;
-  const name = btn.dataset.name;
-  const action = btn.dataset.action;
-  if (!name || !action || !userUID) return;
-
-  const scriptRef = ref(db, `jsModules/${userUID}/${name}`);
-  const snap = await get(scriptRef);
-  const data = snap.val();
-  if (!data) return;
-
-  if (action === 'run') {
-    pasteArea.value = data.code;
-    loadButton.click();
-  } else if (action === 'edit') {
-    nameInput.value = name;
-    pasteArea.value = data.code;
-  } else if (action === 'delete') {
-    await remove(scriptRef);
-  }
-});

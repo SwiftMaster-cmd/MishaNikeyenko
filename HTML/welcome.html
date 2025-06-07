@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="../CSS/profile.css">
   <link rel="stylesheet" href="../CSS/register.css">
   <link rel="stylesheet" href="../CSS/variables.css">
+    <link rel="stylesheet" href="../CSS/console.css">
 
 </head>
 <body>
@@ -23,7 +24,7 @@
   <!-- HEADER -->
   <header class="header-bar">
     <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
-    <h1 class="header-title">Hello</h1>
+    <h1 class="header-title">NEXUS</h1>
     <button id="profile-toggle-btn" class="profile-toggle-btn"
             aria-haspopup="true" aria-controls="profile-card">
       Profile
@@ -48,31 +49,34 @@
     <button id="logout-btn" type="button">Sign Out</button>
   </aside>
 
-  <!-- MAIN DASHBOARD -->
-
-  <!-- Add‐link form -->
-  <form id="add-link-form" class="collapsed" autocomplete="off">
-    <input id="link-title" type="text" placeholder="Link title" required />
-    <input id="link-url" type="url" placeholder="https://example.com" required />
-    <select id="link-category" required></select>
-    <input id="new-cat-input" class="hidden" placeholder="New category name" />
-    <button class="btn-solid" type="submit">Save</button>
-  </form>
-
-<!-- GPT Chat -->
-<main class="chat-container">
-  <div id="chat-log"></div>
-
-  <form id="chat-form">
-    <input
-      id="user-input"
-      type="text"
-      placeholder="Type your message..."
-      required
-    />
-    <button type="submit">Send</button>
-  </form>
-</main>
+<body>
+ <main class="chat-root">
+    <div class="split-container">
+      <section class="chat-section">
+        <div id="chat-log"></div>
+        <form id="chat-form" autocomplete="off">
+          <input
+            id="user-input"
+            type="text"
+            placeholder="Type your message..."
+            autocomplete="off"
+            required
+          />
+          <span id="chat-loading-spinner">
+            <!-- Spinner SVG can be added here if desired -->
+          </span>
+          <span id="status-indicator">
+            <span id="status-icon"></span>
+            <span id="status-tooltip"></span>
+          </span>
+          <!-- Console toggle button is auto-inserted by onscreenConsole.js -->
+          <button type="submit">Send</button>
+        </form>
+      </section>
+    </div>
+    <!-- The console panel <aside> is auto-inserted by onscreenConsole.js -->
+  </main>
+  
 
 
   <!-- MODULE SCRIPTS -->
@@ -83,12 +87,15 @@
   <script type="module" src="../JS/src/firebaseConfig.js"></script>
   <script type="module" src="../JS/src/firebaseHelpers.js"></script>
   <script type="module" src="../JS/src/storageDebug.js"></script>
-
+  <script type="module" src="../JS/src/console.js"></script>
   <script type="module" src="../JS/src/chatUtils.js"></script>
   <script type="module" src="../JS/src/commandHandlers.js"></script>
   <script type="module" src="../JS/src/memoryManager.js"></script>
-  <script type="module" src="../JS/src/chatmemory.js"></script>
-  <script type="module" src="../JS/src/chat.js"></script>
+    <script type="module" src="../JS/src/chat.js"></script>
+        <script type="module" src="../JS/src/onscreenConsole.js.js"></script>
+
+  
+  
 
   <!-- Controls for Sidebar and Add‐link Form -->
   <script type="module">

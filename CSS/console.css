@@ -1,0 +1,107 @@
+/* onscreenConsole.css -- ONLY for the persistent console panel */
+#onscreen-console.osc-panel {
+  position: fixed;
+  top: 0; right: 0;
+  height: 100vh;
+  width: 350px;
+  max-width: 95vw;
+  background: rgba(22, 16, 38, 0.99);
+  border-left: 2px solid #292948;
+  box-shadow: -4px 0 18px #0008;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.18s, right 0.18s;
+  font-family: Menlo, Monaco, 'Consolas', monospace;
+}
+#onscreen-console.osc-hidden {
+  transform: translateX(102%);
+  pointer-events: none;
+}
+#onscreen-console .osc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px 7px 18px;
+  background: #18182a;
+  color: #ffd600;
+  font-weight: 700;
+  font-size: 1.07em;
+  border-bottom: 1px solid #33334a;
+}
+#onscreen-console .osc-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+#onscreen-console .osc-btn {
+  padding: 3px 12px;
+  border-radius: 6px;
+  background: #252553;
+  color: #ffd600;
+  border: none;
+  font: inherit;
+  font-size: 0.98em;
+  cursor: pointer;
+  margin: 0;
+  transition: background 0.17s;
+}
+#onscreen-console .osc-btn:hover { background: #363c66; color: #fff; }
+#onscreen-console .osc-hide-btn {
+  font-size: 1.26em;
+  background: #2d2333;
+  color: #ffd600;
+  padding: 0 9px;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+#onscreen-console .osc-messages {
+  flex: 1 1 0;
+  overflow-y: auto;
+  padding: 16px 16px 8px 18px;
+  font-size: 0.97em;
+  color: #fff0b3;
+  background: transparent;
+}
+#onscreen-console .osc-log-line {
+  margin-bottom: 2px;
+  white-space: pre-wrap;
+}
+
+/* Responsive: on mobile, panel becomes bottom dock */
+@media (max-width: 900px) {
+  #onscreen-console.osc-panel {
+    top: unset; bottom: 0; right: 0; left: 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: 40vh;
+    max-height: 60vh;
+    border-left: none;
+    border-top: 2px solid #292948;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -2px 18px #0008;
+    font-size: 0.99em;
+    transform: translateY(102%);
+  }
+  #onscreen-console.osc-panel:not(.osc-hidden) {
+    transform: translateY(0);
+  }
+}
+
+#osc-toggle-btn {
+  background: #363c66 !important;
+  color: #ffd600 !important;
+  border: none !important;
+  border-radius: 9px !important;
+  padding: 0.65rem 1.1rem !important;
+  font-size: 1rem !important;
+  cursor: pointer !important;
+  font-family: inherit;
+  font-weight: 600 !important;
+  transition: background 0.18s;
+}
+#osc-toggle-btn.osc-active, #osc-toggle-btn:focus {
+  background: #ffd600 !important;
+  color: #18182a !important;
+}
