@@ -1,17 +1,7 @@
-// 🔹 chat.js – Command pre-processing + GPT chat + persistent Firebase notes
+// chat.js – Pure flow control, async, modular, non-blocking UX
 
-import {
-  onValue,
-  ref,
-  push,
-  get,
-  child
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import {
-  getAuth,
-  signInAnonymously,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import { db, auth } from "./firebaseConfig.js";
 import {
@@ -19,9 +9,12 @@ import {
   fetchLast20Messages,
   getAllContext,
   getAssistantReply,
-  extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
+
+import {
+  appendNoteToFirebase
+} from "./notes.js";
 
 import {
   renderMessages,
@@ -31,114 +24,118 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
-// ---- Core state ----
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
+const log = document.getElementById("chat-log");
+
 let uid = null;
 
-// ----- Note Command Logic -----
-function isNoteCommand(str) {
-  const patterns = [
-    /^save a note[-: ]?/i,
-    /^\/note\b/i,
-    /^remember\b/i,
-    /\badd (a )?note\b/i
-  ];
-  return patterns.some((pat) => pat.test(str.trim()));
+// Helper: Parse note commands
+function isNoteCommand(msg) {
+  return /^\/?note\b/i.test(msg) || /^save a note\b/i.test(msg);
 }
-function extractNoteContent(str) {
-  // Remove command phrases and return the rest
-  return str
-    .replace(/^save a note[-: ]?/i, '')
-    .replace(/^\/note\b/i, '')
-    .replace(/^remember\b/i, '')
-    .replace(/\badd (a )?note\b/i, '')
-    .trim();
-}
-function appendNoteToFirebase(uid, note) {
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const notesRef = ref(db, `notes/${uid}/${todayKey}`);
-  push(notesRef, {
-    content: note,
-    timestamp: Date.now()
-  });
+function extractNoteContent(msg) {
+  let trimmed = msg.replace(/^\/?note\b[:\-]?\s*/i, "")
+                   .replace(/^save a note\b[:\-]?\s*/i, "")
+                   .trim();
+  return trimmed;
 }
 
-// ---- Auth and initial load ----
-function startChat() {
-  fetchLast20Messages(uid).then(messages => {
-    renderMessages(messages);
-    scrollToBottom();
-  });
-  initScrollTracking();
-}
-
-onAuthStateChanged(auth, (user) => {
+// ========== 1. Auth/init ==========
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     uid = user.uid;
-    startChat();
+    window.debug(`[AUTH] UID: ${uid}`);
+    loadInitialMessages();
+    initScrollTracking();
   } else {
-    signInAnonymously(auth);
+    await signInAnonymously(auth);
   }
 });
 
-// ---- Main chat submit logic ----
+// ========== 2. Load and render last 20 messages ==========
+async function loadInitialMessages() {
+  showChatInputSpinner(true);
+  try {
+    const messages = await fetchLast20Messages(uid);
+    renderMessages(messages);
+    scrollToBottom();
+  } catch (e) {
+    window.debug(`[ERROR] Failed to load messages: ${e.message}`);
+  }
+  showChatInputSpinner(false);
+}
+
+// ========== 3. Main chat submit logic ==========
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const inputValue = input.value.trim();
   if (!inputValue) return;
 
-  // Check for note command first!
+  // Handle note command immediately
   if (isNoteCommand(inputValue)) {
     const noteContent = extractNoteContent(inputValue);
     if (noteContent.length > 0) {
-      appendNoteToFirebase(uid, noteContent);
-      // Save as chat too, for full chat context:
-      await saveMessageToChat('user', inputValue, uid);
-      await saveMessageToChat('assistant', `Note saved: "${noteContent}"`, uid);
-      renderMessages([
-        { role: 'user', content: inputValue },
-        { role: 'assistant', content: `Note saved: "${noteContent}"` }
-      ]);
-      input.value = '';
-      scrollToBottom();
-      return; // Don't forward to GPT
+      try {
+        await appendNoteToFirebase(uid, noteContent);
+        await saveMessageToChat('user', inputValue, uid);
+        await saveMessageToChat('assistant', `Note saved: "${noteContent}"`, uid);
+        renderMessages([
+          ...await fetchLast20Messages(uid),
+          { role: 'assistant', content: `Note saved: "${noteContent}"` }
+        ]);
+        input.value = '';
+        scrollToBottom();
+        return;
+      } catch (err) {
+        window.debug(`[ERROR] Saving note: ${err.message}`);
+        return;
+      }
     }
   }
 
-  // ---- Normal GPT chat flow ----
+  // User message: save and render instantly
   showChatInputSpinner(true);
   await saveMessageToChat('user', inputValue, uid);
-
-  // Load context for GPT
-  const contextArr = await getAllContext(uid);
-
-  // Add user message
-  contextArr.push({
-    role: "user",
-    content: inputValue,
-    timestamp: Date.now()
-  });
-
-  // Get GPT reply
-  let assistantReply = '';
-  try {
-    assistantReply = await getAssistantReply(contextArr, uid);
-    await saveMessageToChat('assistant', assistantReply, uid);
-  } catch (e) {
-    assistantReply = "Error: Could not connect to assistant.";
-    await saveMessageToChat('assistant', assistantReply, uid);
-  }
-
-  // Render in UI
   renderMessages([
+    ...await fetchLast20Messages(uid),
     { role: 'user', content: inputValue },
-    { role: 'assistant', content: assistantReply }
+    { role: 'assistant', content: '...' }
   ]);
   input.value = '';
+  scrollToBottom();
+
+  // Fetch context in parallel, get GPT reply, update
+  let contextArr, assistantReply = "";
+  try {
+    const t0 = Date.now();
+    contextArr = await getAllContext(uid); // Batch all context
+    contextArr.push({ role: "user", content: inputValue, timestamp: Date.now() });
+    window.debug(`[CONTEXT] Loaded in ${Date.now()-t0}ms`);
+    const t1 = Date.now();
+    assistantReply = await getAssistantReply(contextArr, uid);
+    window.debug(`[GPT] Reply received in ${Date.now()-t1}ms`);
+    await saveMessageToChat('assistant', assistantReply, uid);
+  } catch (e) {
+    assistantReply = "Error: Assistant unavailable.";
+    window.debug(`[ERROR] Assistant: ${e.message}`);
+    await saveMessageToChat('assistant', assistantReply, uid);
+  }
+  renderMessages([
+    ...await fetchLast20Messages(uid),
+    { role: 'assistant', content: assistantReply }
+  ]);
   showChatInputSpinner(false);
   scrollToBottom();
 
-  // Optionally summarize chat or handle memory extraction
   summarizeChatIfNeeded(uid);
 });
+
+// ========== 4. Live update when Firebase chatHistory changes ==========
+onValue(ref(db, `chatHistory/${uid}`), async () => {
+  const messages = await fetchLast20Messages(uid);
+  renderMessages(messages);
+  scrollToBottom();
+});
+
+window.debug(`[READY] chat.js loaded`);
