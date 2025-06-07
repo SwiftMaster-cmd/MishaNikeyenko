@@ -1,5 +1,4 @@
-// 🔹 memoryManager.js – Context, DB helpers, and Self-Evolution Link
-
+// ðŸ"¹ memoryManager.js â€" Firebase read/write helpers + system prompt builder
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase,
@@ -8,24 +7,22 @@ import {
   set
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { logUsage, getSelfImprovementSuggestions, markSuggestion } from "./selfEvolve.js";
 
-// ===== Firebase Init =====
 const firebaseConfig = {
   apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
   authDomain: "mishanikeyenko.firebaseapp.com",
   databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
   projectId: "mishanikeyenko",
-  storageBucket: "mishanikeyenko.appspot.com",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
   messagingSenderId: "1089190937368",
   appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getDatabase(app);
-export const auth = getAuth(app);
+const db = getDatabase(app);
+const auth = getAuth(app);
 
-// ===== Read Helpers =====
+// ðŸ"¹ Read Helpers
 export const getMemory      = (uid) => fetchNode(`memory/${uid}`);
 export const getDayLog      = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
 export const getNotes       = (uid) => fetchNode(`notes/${uid}`);
@@ -33,7 +30,7 @@ export const getCalendar    = (uid) => fetchNode(`calendarEvents/${uid}`);
 export const getReminders   = (uid) => fetchNode(`reminders/${uid}`);
 export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
 
-// ===== Write Helpers =====
+// ðŸ"¹ Write Helper for Day Log
 export async function updateDayLog(uid, dateStr, newLog) {
   const path = `dayLog/${uid}/${dateStr}`;
   const existingSnap = await get(ref(db, path));
@@ -50,7 +47,7 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// ===== System Prompt Builder =====
+// ðŸ"¹ Prompt Builder
 export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
   return `
 You are Nexus, a second brain for Bossman.
@@ -83,43 +80,11 @@ Instructions for Nexus:
 - Stay brief, accurate, and task-focused.
 - Reflect Bossman's intent; prioritize clarity over filler.
 - Include only relevant info; omit small talk.
-Instructions for Nexus:
-- When Bossman says "save a note", "/note", "remember", or provides a statement to be saved as a note, IMMEDIATELY save the content as a note in Firebase (under notes/{uid}/{date}) using appendNode, confirm to user, and do not say you can't update memory.
-- Respond directly and only to Bossman's request. Never refuse to update notes or reminders.
-- All other instructions as previously listed.
 `;
 }
 
-// ===== Self-Evolve Integration =====
+// ðŸ"¹ Internal Helpers
 
-// Log any user/system action for progression tracking
-export async function logAssistantUsage(uid, payload) {
-  // Payload: { type, command, success, detail }
-  try {
-    await logUsage(uid, payload);
-  } catch (e) {
-    // Silent fail for now
-  }
-}
-
-// Expose suggestion fetcher (for /evolve command or dashboard)
-export async function fetchSelfImprovementSuggestions(uid) {
-  return await getSelfImprovementSuggestions(uid);
-}
-
-// Accept/reject a suggestion for memory
-export async function recordSuggestionFeedback(uid, suggestion, accepted) {
-  return await markSuggestion(uid, suggestion, accepted);
-}
-
-// ===== Make Available on window for Non-Module Use =====
-window.fetchSelfImprovementSuggestions = fetchSelfImprovementSuggestions;
-window.logAssistantUsage = logAssistantUsage;
-window.recordSuggestionFeedback = recordSuggestionFeedback;
-window.db = db;
-window.auth = auth;
-
-// ===== Internal Helpers =====
 async function fetchNode(path) {
   const snap = await get(ref(db, path));
   return snap.exists() ? snap.val() : {};
