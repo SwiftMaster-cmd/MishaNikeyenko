@@ -1,73 +1,76 @@
-// 🔹 voice.js – Voice input (speech-to-text) & output (text-to-speech)
+// 🔹 voice.js – handles voice input (speech to text) and voice output (text to speech)
 
-let recognition;
-let isRecognizing = false;
+let recognition = null;
 
-export function initVoiceInput(micButton, inputField) {
+// 🔊 Speak assistant reply aloud
+export function speakText(text) {
+  if (!window.speechSynthesis) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "en-US";
+  utter.pitch = 1;
+  utter.rate = 1;
+  utter.volume = 1;
+  utter.onstart = () => {
+    window.debug("Voice: Speaking started");
+  };
+  utter.onend = () => {
+    window.debug("Voice: Speaking ended");
+  };
+  speechSynthesis.speak(utter);
+}
+
+// 🎤 Start voice input from mic
+export function startVoiceRecognition(callback) {
   if (!('webkitSpeechRecognition' in window)) {
-    console.warn("Speech recognition not supported in this browser.");
-    micButton.style.display = "none";
+    alert("Speech Recognition not supported on this browser.");
     return;
   }
+
+  if (recognition) recognition.stop(); // stop any ongoing recognition
 
   recognition = new webkitSpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.lang = "en-US";
 
-  micButton.addEventListener("click", () => {
-    if (isRecognizing) {
-      recognition.stop();
-      micButton.textContent = "🎤";
-      isRecognizing = false;
-    } else {
-      recognition.start();
-      micButton.textContent = "🛑 Stop";
-      isRecognizing = true;
-    }
-  });
-
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript.trim();
-    inputField.value = transcript;
-    micButton.textContent = "🎤";
-    isRecognizing = false;
+  recognition.onstart = () => {
+    window.debug("Voice: Listening...");
+    const micBtn = document.getElementById("mic-button");
+    if (micBtn) micBtn.textContent = "🎙️ Listening...";
   };
 
-  recognition.onerror = (e) => {
-    console.error("Speech recognition error:", e);
-    micButton.textContent = "🎤";
-    isRecognizing = false;
+  recognition.onerror = (event) => {
+    window.debug("Voice Error:", event.error);
+    const micBtn = document.getElementById("mic-button");
+    if (micBtn) micBtn.textContent = "🎤";
   };
 
   recognition.onend = () => {
-    micButton.textContent = "🎤";
-    isRecognizing = false;
+    const micBtn = document.getElementById("mic-button");
+    if (micBtn) micBtn.textContent = "🎤";
+    window.debug("Voice: Listening stopped");
   };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    const micBtn = document.getElementById("mic-button");
+    if (micBtn) micBtn.textContent = "🎤";
+    window.debug("Voice: Heard →", transcript);
+    if (typeof callback === "function") callback(transcript);
+  };
+
+  recognition.start();
 }
 
-export function speakText(text, lang = "en-US", pitch = 1, rate = 1, volume = 1) {
-  if (!('speechSynthesis' in window)) {
-    console.warn("Speech synthesis not supported in this browser.");
-    return;
-  }
-
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = lang;
-  utter.pitch = pitch;
-  utter.rate = rate;
-  utter.volume = volume;
-
-  // Ensure voices are loaded (especially important on iOS)
-  const voicesLoaded = () =>
-    new Promise((resolve) => {
-      const voices = speechSynthesis.getVoices();
-      if (voices.length) return resolve();
-      speechSynthesis.onvoiceschanged = () => resolve();
+// 🔘 Bind button once DOM is ready
+window.addEventListener("DOMContentLoaded", () => {
+  const micBtn = document.getElementById("mic-button");
+  const input = document.getElementById("user-input");
+  if (micBtn && input) {
+    micBtn.addEventListener("click", () => {
+      startVoiceRecognition((text) => {
+        input.value = text;
+      });
     });
-
-  voicesLoaded().then(() => {
-    speechSynthesis.cancel(); // clear any existing
-    speechSynthesis.speak(utter);
-  });
-}
+  }
+});

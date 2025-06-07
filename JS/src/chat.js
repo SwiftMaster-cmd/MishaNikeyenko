@@ -1,4 +1,4 @@
-// 🔹 chat.js – input, flow control, voice input/output, auto-list rendering
+// 🔹 chat.js – voice out, full auto-list rendering, modularized UI logic
 
 import {
   onValue,
@@ -37,19 +37,15 @@ import {
 } from "./uiShell.js";
 
 import { renderInfoList } from "./lists.js";
-import {
-  startVoiceRecognition,
-  speakText
-} from "./voice.js";
-
+import { speakText } from "./voice.js";
 window.renderInfoList = renderInfoList;
 
-// ========== 1. DOM ==========
+// DOM elements
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
-const micButton = document.getElementById("mic-button");
 
+// Init
 initScrollTracking();
 
 if (debugToggle) {
@@ -58,13 +54,6 @@ if (debugToggle) {
   });
 }
 
-if (micButton) {
-  micButton.addEventListener("click", () => startVoiceRecognition((transcript) => {
-    input.value = transcript;
-  }));
-}
-
-// ========== 2. Auth ==========
 let uid = null;
 let chatRef = null;
 
@@ -72,6 +61,7 @@ onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth);
     window.setStatusFeedback("loading", "Signing in...");
+    window.debug("Auth: Signing in anonymously...");
     return;
   }
   uid = user.uid;
@@ -90,7 +80,6 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 3. Submit ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -102,7 +91,6 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    // Commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -134,16 +122,13 @@ form.addEventListener("submit", async (e) => {
     await saveMessageToChat("assistant", assistantReply, uid);
     window.logAssistantReply(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
-
-    // Voice Output
     speakText(assistantReply);
 
-    // Smart list rendering
+    // Auto list render
     try {
       if (assistantReply.startsWith("[LIST]")) {
         const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());
         window.renderInfoList({ containerId: "main", ...payload });
-        showChatInputSpinner(false);
         return;
       }
 
@@ -156,10 +141,7 @@ form.addEventListener("submit", async (e) => {
         window.renderInfoList({ containerId: "main", title, items });
         foundInline = true;
       }
-      if (foundInline) {
-        showChatInputSpinner(false);
-        return;
-      }
+      if (foundInline) return;
 
       const listSections = assistantReply.split(/\n(?=[A-Za-z ]+:\n)/g);
       for (const section of listSections) {
