@@ -9,11 +9,10 @@ exports.handler = async (event) => {
       temperature = 0.7
     } = JSON.parse(event.body || "{}");
 
-    // Ensure there's at least some content
     if ((!messages || !Array.isArray(messages) || messages.length === 0) && !prompt) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Missing input: messages or prompt required" })
+        body: JSON.stringify({ error: "Missing input (messages or prompt)" })
       };
     }
 
@@ -25,25 +24,13 @@ exports.handler = async (event) => {
       };
     }
 
-    // Sanitize messages (remove bad items)
-    const validMessages = Array.isArray(messages)
-      ? messages.filter(m =>
-          m &&
-          typeof m === "object" &&
-          typeof m.role === "string" &&
-          typeof m.content === "string"
-        )
-      : [];
-
     const payload = {
       model,
-      messages: validMessages.length > 0
-        ? validMessages
+      messages: messages?.length > 0
+        ? messages
         : [{ role: "user", content: prompt }],
       temperature
     };
-
-    console.log("Sending payload to OpenAI:", JSON.stringify(payload, null, 2));
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -57,7 +44,6 @@ exports.handler = async (event) => {
     const data = await response.json();
 
     if (data.error) {
-      console.error("OpenAI error:", data.error);
       return {
         statusCode: 500,
         body: JSON.stringify({ error: data.error.message })
@@ -65,19 +51,12 @@ exports.handler = async (event) => {
     }
 
     const reply = data.choices?.[0]?.message?.content || "";
-    const tokens = data.usage?.total_tokens || 0;
-    const modelUsed = data.model || model;
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        reply,
-        tokens,
-        model: modelUsed
-      })
+      body: JSON.stringify({ reply })
     };
   } catch (err) {
-    console.error("Function error:", err.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message })

@@ -1,4 +1,4 @@
-// 🔹 chat.js – Input and flow control only, all UI/logic in modules
+// 🔹 chat.js – input and flow control only
 
 import {
   onValue,
@@ -20,10 +20,7 @@ import {
 
 import {
   saveMessageToChat,
-  fetchLast20Messages,
-  getAllContext,
-  extractMemoryFromPrompt,
-  summarizeChatIfNeeded
+  fetchLast20Messages
 } from "./backgpt.js";
 
 import {
@@ -33,9 +30,6 @@ import {
   updateHeaderWithAssistantReply,
   initScrollTracking
 } from "./uiShell.js";
-
-import { addTokens, setTokenModel } from "./tokenTracker.js";
-import { buildSystemPrompt } from "./memoryManager.js"; // ✅ Confirm case-sensitive match
 
 // ========== DOM Elements ==========
 const form = document.getElementById("chat-form");
@@ -90,7 +84,7 @@ form.addEventListener("submit", async (e) => {
   window.debug("[SUBMIT]", { uid, prompt });
 
   try {
-    // Static Commands
+    // Commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -117,61 +111,24 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // Step 1: Save user message
+    // Step 1: Save user input
     await saveMessageToChat("user", prompt, uid);
     window.debug("[STEP 1] User message saved.");
 
-    // Step 2: Extract memory
-    const memory = await extractMemoryFromPrompt(prompt, uid);
-    if (memory) {
-      window.setStatusFeedback("success", `Memory saved (${memory.type})`);
-      window.debug("[MEMORY]", memory);
-    }
-
-    // Step 3: Build assistant prompt
-    const [last20, context] = await Promise.all([
-      fetchLast20Messages(uid),
-      getAllContext(uid)
-    ]);
-
-    const systemPrompt = buildSystemPrompt({
-      memory: context.memory,
-      todayLog: context.dayLog,
-      notes: context.notes,
-      calendar: context.calendar,
-      reminders: context.reminders,
-      calc: context.calc,
-      date: new Date().toISOString().slice(0, 10)
-    });
-
-    const fullPrompt = [{ role: "system", content: systemPrompt }, ...last20];
-
-    // Step 4: Sanitize messages
-    const sanitized = fullPrompt.filter(
-      m => m && typeof m.content === "string" && typeof m.role === "string"
-    );
-
-    // Step 5: Send to backend
+    // Step 2: Send to backend
     const res = await fetch("/.netlify/functions/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: sanitized, model: "gpt-4o" })
+      body: JSON.stringify({ prompt }) // fallback mode only
     });
 
     const data = await res.json();
+    if (!res.ok || !data.reply) throw new Error(data.error || "No reply received");
 
-    if (!res.ok || !data.reply) {
-      throw new Error(data.error || "No reply from assistant");
-    }
-
+    // Step 3: Save and show assistant reply
     await saveMessageToChat("assistant", data.reply, uid);
     window.logAssistantReply(data.reply);
     updateHeaderWithAssistantReply(data.reply);
-
-    if (data.tokens) addTokens(data.tokens);
-    if (data.model) setTokenModel(data.model);
-
-    await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
   } catch (err) {
     window.setStatusFeedback("error", "Something went wrong");
