@@ -55,32 +55,28 @@
   <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
 </div>
 
-<main class="chat-container">
-  <div id="chat-log"></div>
-  <form id="chat-form" autocomplete="off">
-    <input
-      id="user-input"
-      type="text"
-      placeholder="Type your message..."
-      autocomplete="off"
-      required
-    />
-    <!-- Inline spinner: only visible when loading -->
-    <span id="chat-loading-spinner">
-      <svg width="20" height="20" viewBox="0 0 50 50">
-        <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
-        <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
-          <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 25 25" to="360 25 25" repeatCount="indefinite"/>
-        </circle>
-      </svg>
-    </span>
-    <!-- Inline status indicator/message -->
-    <span id="status-indicator">
-      <span id="status-icon"></span>
-      <span id="status-tooltip"></span>
-    </span>
-    <button type="submit">Send</button>
-  </form>
+<main class="chat-root">
+  <div class="split-container">
+    <section class="chat-section">
+      <div id="chat-log"></div>
+      <form id="chat-form" autocomplete="off">
+        <input id="user-input" type="text" placeholder="Type your message..." autocomplete="off" required />
+        <span id="chat-loading-spinner">
+          <!-- Spinner SVG here -->
+        </span>
+        <span id="status-indicator">
+          <span id="status-icon"></span>
+          <span id="status-tooltip"></span>
+        </span>
+        <button type="button" id="debug-toggle" title="Show/Hide Console">Console</button>
+        <button type="submit">Send</button>
+      </form>
+    </section>
+    <aside id="debug-console" class="debug-console hidden">
+      <div id="debug-log-content"></div>
+      <div id="debug-snapshots-content"></div>
+    </aside>
+  </div>
 </main>
 
   <!-- MODULE SCRIPTS -->
