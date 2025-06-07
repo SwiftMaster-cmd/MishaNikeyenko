@@ -1,108 +1,127 @@
-const debugInfo = [];
-const lastNodeData = {};  // NEW: keeps the last snapshot per label
+// onscreenConsole.js – Single source of debug truth, persistent, docked panel
 
-export function addDebugMessage(...args) {
-  if (typeof window.debugLog === "function") window.debugLog(...args);
-  debugInfo.push(args.join(" "));
-  // Optionally trim debugInfo for performance:
-  // if (debugInfo.length > 200) debugInfo.shift();
-}
+const LOG_STORAGE_KEY = "assistantDebugLog";
 
-// New function to set and show node snapshot for a label
-export function setDebugNodeData(label, data) {
-  lastNodeData[label] = data;
-}
-
-// Overlay modal setup
-export function createDebugOverlay() {
-  if (document.getElementById("debug-overlay")) return; // Only once
-  const overlay = document.createElement("div");
-  overlay.id = "debug-overlay";
-  Object.assign(overlay.style, {
-    display: "none",
-    position: "fixed",
-    top: "0", left: "0", width: "100vw", height: "100vh",
-    backgroundColor: "rgba(0, 0, 0, 0.85)",
-    zIndex: 9999
-  });
-
-  const modal = document.createElement("div");
-  modal.id = "debug-modal";
-  Object.assign(modal.style, {
-    position: "absolute", top: "50%", left: "50%",
-    transform: "translate(-50%, -50%)",
-    backgroundColor: "var(--clr-card)",
-    color: "var(--clr-text)",
-    padding: "1rem 1.5rem", borderRadius: "12px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
-    maxWidth: "80vw", maxHeight: "80vh",
-    overflowY: "auto", border: "1px solid var(--clr-border)"
-  });
-
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "close-btn";
-  closeBtn.textContent = "Close";
-  Object.assign(closeBtn.style, {
-    position: "absolute", top: "8px", right: "8px",
-    background: "var(--clr-border)", color: "var(--clr-text)",
-    border: "none", padding: "4px 8px", cursor: "pointer",
-    borderRadius: "4px", fontSize: "0.9rem"
-  });
-  closeBtn.addEventListener("click", () => { overlay.style.display = "none"; });
-
-  const contentDiv = document.createElement("div");
-  contentDiv.id = "debug-content";
-  Object.assign(contentDiv.style, {
-    marginTop: "32px", whiteSpace: "pre-wrap",
-    fontFamily: "monospace", fontSize: "0.9rem", lineHeight: "1.4"
-  });
-
-  // NEW: Node snapshot container
-  const snapshotDiv = document.createElement("div");
-  snapshotDiv.id = "debug-snapshots";
-  Object.assign(snapshotDiv.style, {
-    marginTop: "16px",
-    background: "#232336",
-    padding: "10px 16px",
-    borderRadius: "9px",
-    fontFamily: "monospace",
-    fontSize: "0.93rem",
-    color: "#a9f8fd",
-    maxHeight: "240px",
-    overflowY: "auto"
-  });
-
-  modal.appendChild(closeBtn);
-  modal.appendChild(contentDiv);
-  modal.appendChild(snapshotDiv); // Add below log
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-}
-
-export function showDebugOverlay() {
-  const overlay = document.getElementById("debug-overlay");
-  const contentDiv = document.getElementById("debug-content");
-  const snapshotDiv = document.getElementById("debug-snapshots");
-  if (!overlay || !contentDiv || !snapshotDiv) return;
-
-  // Debug log
-  contentDiv.textContent = debugInfo.join("\n");
-
-  // Show each last snapshot
-  let out = "";
-  for (const label in lastNodeData) {
-    out += `\n\n${label}:\n` +
-      JSON.stringify(lastNodeData[label], null, 2);
+// Load logs from localStorage
+function loadPersistedLogs() {
+  try {
+    const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
+    return Array.isArray(logs) ? logs : [];
+  } catch {
+    return [];
   }
-  snapshotDiv.textContent = out.trim() || "[No database snapshots yet]";
-  overlay.style.display = "block";
 }
 
-// For keyboard shortcut (optional)
-export function setupDebugShortcut() {
-  window.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "D") {
-      showDebugOverlay();
-    }
-  });
+// Save logs to localStorage
+function saveLogs(logArray) {
+  localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
+
+// Add and persist a new log line
+window.debugLog = function (...args) {
+  const el = document.getElementById("onscreen-console-messages");
+  const logs = loadPersistedLogs();
+  const msg = args.map(a =>
+    (typeof a === "object" ? JSON.stringify(a, null, 2) : a)
+  ).join(" ");
+  const logEntry = `[${new Date().toLocaleString()}] ${msg}`;
+  logs.push(logEntry);
+  saveLogs(logs);
+
+  if (el) {
+    const line = document.createElement("div");
+    line.className = "osc-log-line";
+    line.textContent = logEntry;
+    el.appendChild(line);
+    el.parentElement.scrollTop = el.parentElement.scrollHeight;
+  }
+};
+
+// Clear logs visually and in localStorage
+window.clearDebugLog = function() {
+  localStorage.removeItem(LOG_STORAGE_KEY);
+  const el = document.getElementById("onscreen-console-messages");
+  if (el) el.innerHTML = "";
+};
+
+// Export logs as text file
+window.exportDebugLog = function() {
+  const logs = loadPersistedLogs();
+  const blob = new Blob([logs.join("\n")], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `assistant-logs-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+// Insert console panel and toggle button
+(function() {
+  // Only once!
+  if (!document.getElementById('onscreen-console')) {
+    const panel = document.createElement("aside");
+    panel.id = "onscreen-console";
+    panel.className = "osc-panel osc-hidden";
+    panel.innerHTML = `
+      <div class="osc-header">
+        <span>Console</span>
+        <div class="osc-controls">
+          <button class="osc-btn" onclick="window.clearDebugLog()">Clear</button>
+          <button class="osc-btn" onclick="window.exportDebugLog()">Export</button>
+          <button class="osc-btn osc-hide-btn" title="Hide Console">&times;</button>
+        </div>
+      </div>
+      <div id="onscreen-console-messages" class="osc-messages"></div>
+    `;
+    document.body.appendChild(panel);
+
+    // Hide button logic
+    panel.querySelector('.osc-hide-btn').onclick = () => {
+      panel.classList.add('osc-hidden');
+      const btn = document.getElementById("osc-toggle-btn");
+      if (btn) btn.classList.remove('osc-active');
+    };
+  }
+
+  // Insert side toggle button inline with chat bar (preferred) or bottom left fallback
+  if (!document.getElementById('osc-toggle-btn')) {
+    // Try to put next to input bar
+    let chatForm = document.getElementById('chat-form');
+    let btn = document.createElement("button");
+    btn.id = "osc-toggle-btn";
+    btn.type = "button";
+    btn.className = "osc-btn";
+    btn.textContent = "Console";
+    btn.title = "Toggle Console";
+    btn.style.marginLeft = "0.25rem";
+    btn.style.fontWeight = "600";
+
+    btn.onclick = () => {
+      const panel = document.getElementById('onscreen-console');
+      if (!panel) return;
+      const open = panel.classList.toggle('osc-hidden') === false;
+      btn.classList.toggle('osc-active', open);
+      // Scroll to bottom on open
+      if (!panel.classList.contains('osc-hidden')) {
+        setTimeout(() => {
+          const el = document.getElementById("onscreen-console-messages");
+          if (el) el.parentElement.scrollTop = el.parentElement.scrollHeight;
+        }, 40);
+      }
+    };
+    if (chatForm && chatForm.lastElementChild) {
+      chatForm.insertBefore(btn, chatForm.lastElementChild);
+    } else {
+      // Fallback: add to bottom left of screen if no chat-form found
+      btn.style.position = "fixed";
+      btn.style.bottom = "18px";
+      btn.style.left = "18px";
+      btn.style.zIndex = "99999";
+      document.body.appendChild(btn);
+    }
+  }
+
+  // Load existing logs
+  function showLogs() {
+    const el = document.getElementById("onscreen-console-messages
