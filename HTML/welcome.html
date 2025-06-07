@@ -101,16 +101,25 @@
   <!-- Chat Status Feedback -->
   <div id="chat-status-bar"></div>
 
-  <!-- Onscreen Console -->
-  <div id="onscreen-console">
-    <div id="onscreen-console-messages"></div>
-    <div style="margin-top: 10px;">
-      <button onclick="window.clearDebugLog()">Clear Logs</button>
-      <button onclick="window.exportDebugLog()">Export Logs</button>
-      <button onclick="window.showDebugOverlay()">Full View</button>
-      <button onclick="window.autoScrollConsole = !window.autoScrollConsole; this.style.opacity = window.autoScrollConsole ? '1' : '0.5';">AutoScroll</button>
-    </div>
+<!-- Onscreen Console -->
+<div id="onscreen-console">
+  <div id="onscreen-console-messages"></div>
+
+  <div style="margin-top: 10px;">
+    <button onclick="window.clearDebugLog()">Clear Logs</button>
+    <button onclick="window.exportDebugLog()">Export Logs</button>
+    <button onclick="window.showDebugOverlay()">Full View</button>
+    <button onclick="window.autoScrollConsole = !window.autoScrollConsole; this.style.opacity = window.autoScrollConsole ? '1' : '0.5';">AutoScroll</button>
   </div>
+
+  <!-- 🔢 Token Stats Section -->
+  <div id="token-stats" style="margin-top: 10px; padding-top: 6px; border-top: 1px solid #333; font-size: 0.75rem; color: #aaa;"></div>
+
+  <!-- Optional: Reset Button -->
+  <button onclick="clearTokenStats()" style="margin-top: 4px; font-size: 0.7rem; background: none; color: #aaa; border: 1px solid #444; padding: 2px 6px; cursor: pointer;">
+    Reset Token Stats
+  </button>
+</div>
 
   <!-- Debug Overlay -->
   <div id="debug-overlay">
@@ -136,6 +145,7 @@
             <script type="module" src="../JS/src/uiShell.js"></script>
     <script type="module" src="../JS/src/chat.js"></script>
         <script type="module" src="../JS/src/background.js"></script>
+                <script type="module" src="../JS/src/tokenTracker.js"></script>
 
   
   

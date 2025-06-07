@@ -2,7 +2,12 @@ const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   try {
-    const { messages, prompt, model = "gpt-4o", temperature = 0.7 } = JSON.parse(event.body || "{}");
+    const {
+      messages,
+      prompt,
+      model = "gpt-4o",
+      temperature = 0.7
+    } = JSON.parse(event.body || "{}");
 
     if (!messages && !prompt) {
       return {
@@ -45,9 +50,17 @@ exports.handler = async (event) => {
       };
     }
 
+    const reply = data.choices?.[0]?.message?.content || "";
+    const tokens = data.usage?.total_tokens || 0;
+    const modelUsed = data.model;
+
     return {
       statusCode: 200,
-      body: JSON.stringify(data)
+      body: JSON.stringify({
+        reply,
+        tokens,
+        model: modelUsed
+      })
     };
   } catch (err) {
     return {

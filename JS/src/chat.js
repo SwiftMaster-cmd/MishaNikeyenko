@@ -22,11 +22,10 @@ import {
   saveMessageToChat,
   fetchLast20Messages,
   getAllContext,
-  getAssistantReply,
-  extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
 
+import { getAssistantReply } from "./openaiProxy.js"; // renamed for clarity
 import { buildSystemPrompt } from "./memoryManager.js";
 import {
   renderMessages,
@@ -35,6 +34,8 @@ import {
   updateHeaderWithAssistantReply,
   initScrollTracking
 } from "./uiShell.js";
+
+import { addTokens, setTokenModel } from "./tokenTracker.js";
 
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
@@ -146,11 +147,18 @@ form.addEventListener("submit", async (e) => {
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     window.debug("[GPT INPUT]", full);
 
-    // Step 4: Get assistant reply
-    const assistantReply = await getAssistantReply(full);
-    await saveMessageToChat("assistant", assistantReply, uid);
-    window.logAssistantReply(assistantReply);
-    updateHeaderWithAssistantReply(assistantReply);
+    // Step 4: Get assistant reply from API proxy
+    const result = await getAssistantReply(full); // returns { reply, tokens, model }
+    const { reply, tokens, model } = result;
+
+    // Save and display
+    await saveMessageToChat("assistant", reply, uid);
+    window.logAssistantReply(reply);
+    updateHeaderWithAssistantReply(reply);
+
+    // Track usage
+    if (tokens) addTokens(tokens);
+    if (model) setTokenModel(model);
 
     // Step 5: Summarize if needed
     await summarizeChatIfNeeded(uid);
@@ -161,4 +169,4 @@ form.addEventListener("submit", async (e) => {
   } finally {
     showChatInputSpinner(false);
   }
-}); 
+});
