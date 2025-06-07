@@ -32,7 +32,7 @@ window.debugLog = function (...args) {
   renderLogGroups(loadPersistedLogs());
 };
 
-// Conditional log
+// Conditional debug
 window.debug = (...args) => {
   if (window.DEBUG_MODE) window.debugLog(...args);
 };
@@ -58,10 +58,11 @@ window.exportDebugLog = function () {
   URL.revokeObjectURL(url);
 };
 
-// Status bar feedback
+// Status feedback bar
 window.setStatusFeedback = function (type, msg = "") {
   const bar = document.getElementById("chat-status-bar");
   if (!bar) return;
+
   const styleMap = {
     success: { color: "#1db954", bg: "rgba(29,185,84,0.08)" },
     error: { color: "#d7263d", bg: "rgba(215,38,61,0.08)" },
@@ -84,7 +85,7 @@ window.setStatusFeedback = function (type, msg = "") {
   }
 };
 
-// Assistant reply summary
+// Assistant reply shortcut
 window.logAssistantReply = function (replyText) {
   const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
   window.debug("[REPLY]", preview);
@@ -98,12 +99,13 @@ window.showDebugOverlay = function () {
   if (!overlay || !content) return;
 
   const logs = loadPersistedLogs();
-  content.textContent = logs.length ? logs.map(log =>
-    `[${log.timestamp}] ${log.content}`).join("\n") : "No logs available.";
+  content.textContent = logs.length
+    ? logs.map(log => `[${log.timestamp}] ${log.content}`).join("\n")
+    : "No logs available.";
   overlay.style.display = "flex";
 };
 
-// Group and render logs
+// Render grouped logs
 function renderLogGroups(logs) {
   const container = document.getElementById("onscreen-console-messages");
   if (!container) return;
@@ -111,6 +113,7 @@ function renderLogGroups(logs) {
 
   const groups = {};
   logs.forEach(log => {
+    if (!log || !log.tag || !log.content || !log.timestamp) return;
     if (!groups[log.tag]) groups[log.tag] = [];
     groups[log.tag].push(log);
   });
@@ -154,7 +157,28 @@ function renderLogGroups(logs) {
   }
 }
 
-// DOM ready
+// Replay logs without relogging (fixes [undefined] bug)
+function replayLogsInChunks(logs, chunkSize = 4, delay = 50) {
+  const logEl = document.getElementById("onscreen-console-messages");
+  if (!logEl || logs.length === 0) return;
+
+  logEl.innerHTML = "";
+  let index = 0;
+
+  function processChunk() {
+    const chunk = logs.slice(0, index + chunkSize);
+    renderLogGroups(chunk);
+    index += chunkSize;
+
+    if (index < logs.length) {
+      setTimeout(processChunk, delay);
+    }
+  }
+
+  processChunk();
+}
+
+// Init on page ready
 document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("console-toggle-btn");
   const panel = document.getElementById("onscreen-console");
@@ -163,7 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleBtn.addEventListener("click", () => {
       const isVisible = panel.style.display === "block";
       panel.style.display = isVisible ? "none" : "block";
-      if (!isVisible) renderLogGroups(loadPersistedLogs());
+      if (!isVisible) replayLogsInChunks(loadPersistedLogs());
     });
   }
 
@@ -175,6 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Inject debug styles
   const style = document.createElement("style");
   style.textContent = `
     .log-group {
