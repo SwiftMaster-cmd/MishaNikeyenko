@@ -17,10 +17,16 @@ function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
+// Format ISO timestamp for display
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString();
+}
+
 // Main logger
 window.debugLog = function (...args) {
   const logs = loadPersistedLogs();
-  const timestamp = new Date().toLocaleTimeString();
+  const timestamp = new Date().toISOString();
   const msgRaw = args.map(a =>
     typeof a === "object" ? JSON.stringify(a, null, 2) : a
   ).join(" ");
@@ -47,7 +53,7 @@ window.clearDebugLog = function () {
 window.exportDebugLog = function () {
   const logs = loadPersistedLogs();
   const blob = new Blob(
-    [logs.map(l => `[${l.timestamp}] ${l.content}`).join("\n")],
+    [logs.map(l => `[${formatTime(l.timestamp)}] ${l.content}`).join("\n")],
     { type: "text/plain" }
   );
   const url = URL.createObjectURL(blob);
@@ -100,12 +106,12 @@ window.showDebugOverlay = function () {
 
   const logs = loadPersistedLogs();
   content.textContent = logs.length
-    ? logs.map(log => `[${log.timestamp}] ${log.content}`).join("\n")
+    ? logs.map(log => `[${formatTime(log.timestamp)}] ${log.content}`).join("\n")
     : "No logs available.";
   overlay.style.display = "flex";
 };
 
-// Render grouped logs (lazy load entries)
+// Render grouped logs
 function renderLogGroups(logs) {
   const container = document.getElementById("onscreen-console-messages");
   if (!container) return;
@@ -130,7 +136,7 @@ function renderLogGroups(logs) {
 
       const header = document.createElement("div");
       header.className = "group-header";
-      header.textContent = `[${tag}] (${entries.length}) -- ${entries.at(-1).timestamp}`;
+      header.textContent = `[${tag}] (${entries.length}) -- ${formatTime(entries.at(-1).timestamp)}`;
       group.appendChild(header);
 
       const logList = document.createElement("div");
@@ -142,12 +148,13 @@ function renderLogGroups(logs) {
       header.onclick = () => {
         const visible = logList.style.display === "block";
         logList.style.display = visible ? "none" : "block";
+
         if (!isLoaded) {
-          entries.forEach(entry => {
+          entries.slice().reverse().forEach(entry => {
             const line = document.createElement("div");
             line.className = "debug-line";
-            line.textContent = `[${entry.timestamp}] ${entry.content}`;
-            logList.appendChild(line);
+            line.textContent = `[${formatTime(entry.timestamp)}] ${entry.content}`;
+            logList.insertBefore(line, logList.firstChild); // expands upward
           });
           isLoaded = true;
         }
@@ -183,7 +190,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Inject debug styles
   const style = document.createElement("style");
   style.textContent = `
     .log-group {
@@ -207,6 +213,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     .log-list {
       padding-left: 4px;
+      display: flex;
+      flex-direction: column-reverse;
     }
 
     .debug-line {
