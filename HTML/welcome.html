@@ -50,7 +50,7 @@
   </aside>
 
 <body>
-  <main class="chat-root">
+ <main class="chat-root">
     <div class="split-container">
       <section class="chat-section">
         <div id="chat-log"></div>
@@ -63,20 +63,21 @@
             required
           />
           <span id="chat-loading-spinner">
-            <!-- Spinner SVG here if desired -->
+            <!-- Spinner SVG can be added here if desired -->
           </span>
           <span id="status-indicator">
             <span id="status-icon"></span>
             <span id="status-tooltip"></span>
           </span>
-          <!-- The Console button will be inserted here by onscreenConsole.js -->
+          <!-- Console toggle button is auto-inserted by onscreenConsole.js -->
           <button type="submit">Send</button>
         </form>
       </section>
     </div>
-    <!-- Console panel will be auto-inserted by onscreenConsole.js, do not add manually -->
+    <!-- The console panel <aside> is auto-inserted by onscreenConsole.js -->
   </main>
-</body>
+  
+
 
   <!-- MODULE SCRIPTS -->
   <script type="module" src="../JS/profile.js"></script>
