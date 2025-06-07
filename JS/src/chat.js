@@ -36,26 +36,6 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const log = document.getElementById("chat-log");
 
-// ADD THIS to your HTML near your input field for spinner:
-/*
-<span id="chat-loading-spinner" style="display:none;margin-left:10px;vertical-align:middle;">
-  <svg width="20" height="20" viewBox="0 0 50 50">
-    <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
-    <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
-      <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 25 25" to="360 25 25" repeatCount="indefinite"/>
-    </circle>
-  </svg>
-</span>
-*/
-
-// ADD THIS once to your HTML, in the body (top right corner):
-/*
-<div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
-  <span id="status-icon" style="font-size:2rem;"></span>
-  <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
-</div>
-*/
-
 // ========== 2. Visual Feedback Utilities ==========
 
 function showChatInputSpinner(show = true) {
@@ -507,4 +487,4 @@ RULES:
     setStatusIndicator("error", "Request failed.");
     showChatInputSpinner(false);
   }
-}); can i have all the debug and overlay code in a seperate file 
+});
