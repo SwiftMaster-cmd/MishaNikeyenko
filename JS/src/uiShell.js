@@ -1,4 +1,4 @@
-// 🔹 uiShell.js – Handles header animation, spinner, message rendering, scroll logic
+// 🔹 uiShell.js – Enhanced UI: header animation, spinner, scroll, and animated message rendering
 
 let userHasScrolled = false;
 
@@ -6,6 +6,7 @@ let userHasScrolled = false;
 export function updateHeaderWithAssistantReply(text) {
   const header = document.getElementById("header-title");
   if (!header) return;
+  header.style.transition = "opacity 0.3s ease";
   header.style.opacity = 0;
   setTimeout(() => {
     header.textContent = text;
@@ -36,19 +37,21 @@ export function scrollToBottom(force = false) {
   if (!log) return;
   if (!userHasScrolled || force) {
     requestAnimationFrame(() => {
-      log.scrollTop = log.scrollHeight;
+      log.scrollTo({ top: log.scrollHeight, behavior: "smooth" });
     });
   }
 }
 
-// ========== 4. Render messages ==========
+// ========== 4. Render messages w/ animation ==========
 export function renderMessages(messages) {
   const log = document.getElementById("chat-log");
   if (!log) return;
+
   log.innerHTML = "";
+
   messages
     .sort((a, b) => a.timestamp - b.timestamp)
-    .forEach((msg) => {
+    .forEach((msg, index) => {
       const role = msg.role === "bot" ? "assistant" : msg.role;
       const div = document.createElement("div");
       div.className = `msg ${
@@ -57,7 +60,15 @@ export function renderMessages(messages) {
         "debug-msg"
       }`;
       div.innerHTML = msg.content;
+      div.style.opacity = 0;
+      div.style.transform = "translateY(10px)";
+      div.style.transition = `opacity 0.4s ease ${index * 20}ms, transform 0.4s ease ${index * 20}ms`;
       log.appendChild(div);
+      requestAnimationFrame(() => {
+        div.style.opacity = 1;
+        div.style.transform = "translateY(0)";
+      });
     });
+
   scrollToBottom();
 }
