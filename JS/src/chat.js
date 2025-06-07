@@ -1,4 +1,4 @@
-// 🔹 chat.js – input and flow control only, all UI/logic in modules
+// 🔹 chat.js – input and flow control only, all UI/logic in modules + auto-list rendering
 
 import {
   onValue,
@@ -35,6 +35,10 @@ import {
   updateHeaderWithAssistantReply,
   initScrollTracking
 } from "./uiShell.js";
+
+// Import list renderer (ensure it's globally exposed as window.renderInfoList in your HTML or import here)
+import { renderInfoList } from "./lists.js";
+window.renderInfoList = renderInfoList;
 
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
@@ -152,6 +156,59 @@ form.addEventListener("submit", async (e) => {
     window.logAssistantReply(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
 
+    // --- AUTO-LIST RENDERING (detect and render pretty lists) ---
+    try {
+      // Pattern 1: [LIST]{...}
+      if (assistantReply.startsWith("[LIST]")) {
+        const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());
+        window.renderInfoList({
+          containerId: "main",
+          ...payload
+        });
+        showChatInputSpinner(false);
+        return;
+      }
+      // Pattern 2: Markdown-style list (fallback)
+      const match = assistantReply.match(/^(\w+ List|Notes|Reminders|Events):\s*\n((?:[-•].+\n?)+)/im);
+      if (match) {
+        const title = match[1] || "List";
+        const rawItems = match[2]
+          .split('\n')
+          .filter(Boolean)
+          .map(line => {
+            const m = line.match(/[-•]\s*(\[([^\]]+)\])?\s*(.+)/);
+            return {
+              label: m?.[2] || "",
+              desc: m?.[3] || line.replace(/^[-•]\s*/, "")
+            };
+          });
+        window.renderInfoList({
+          containerId: "main",
+          title,
+          icon: "",
+          items: rawItems
+        });
+        showChatInputSpinner(false);
+        return;
+      }
+      // Pattern 3: Direct JSON
+      if (assistantReply.trim().startsWith("{") && assistantReply.trim().endsWith("}")) {
+        const payload = JSON.parse(assistantReply);
+        if (payload.items && Array.isArray(payload.items)) {
+          window.renderInfoList({
+            containerId: "main",
+            title: payload.title || "List",
+            icon: payload.icon || "",
+            items: payload.items
+          });
+          showChatInputSpinner(false);
+          return;
+        }
+      }
+    } catch (e) {
+      window.debug("[List Render Error]", e);
+    }
+
     // Step 5: Summarize if needed
     await summarizeChatIfNeeded(uid);
     window.setStatusFeedback("success", "Message sent");
@@ -161,4 +218,4 @@ form.addEventListener("submit", async (e) => {
   } finally {
     showChatInputSpinner(false);
   }
-}); 
+});
