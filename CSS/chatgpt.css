@@ -33,19 +33,7 @@ body {
   min-width: 100vw;
 }
 
-main.chat-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: stretch;
-  align-items: stretch;
-  width: 100vw;
-  min-width: 100vw;
-  height: 100vh;
-  margin: 0;
-  padding: 0;
-  position: relative;
-  background: transparent;
-}
+
 
 #chat-log {
   flex: 1 1 auto;

@@ -1,0 +1,16 @@
+main.chat-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;   /* Vertically center content */
+  align-items: center;       /* Horizontally center content */
+  width: 100vw;
+  height: 100vh;
+  min-width: 100vw;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  background: transparent;
+  overflow: hidden;          /* Prevent scrollbars from accidental overflow */
+  z-index: 1;                /* Ensures it's above the animated blobs */
+}
