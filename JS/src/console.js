@@ -1,9 +1,8 @@
 // 🔹 debugConsole.js – Unified persistent log + floating console + overlay modal
-
 const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 
-// Load saved logs
+// 🔹 Load logs
 function loadPersistedLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
@@ -13,12 +12,12 @@ function loadPersistedLogs() {
   }
 }
 
-// Save logs
+// 🔹 Save logs
 function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
-// Add and show a new log
+// 🔹 Add + display log line
 window.debugLog = function (...args) {
   const logs = loadPersistedLogs();
   const msg = args.map(a => (typeof a === "object" ? JSON.stringify(a, null, 2) : a)).join(" ");
@@ -38,14 +37,14 @@ window.debugLog = function (...args) {
   }
 };
 
-// Clear log
+// 🔹 Clear logs
 window.clearDebugLog = function () {
   localStorage.removeItem(LOG_STORAGE_KEY);
   const el = document.getElementById("onscreen-console-messages");
   if (el) el.innerHTML = "";
 };
 
-// Export log
+// 🔹 Export logs
 window.exportDebugLog = function () {
   const logs = loadPersistedLogs();
   const blob = new Blob([logs.join("\n")], { type: "text/plain" });
@@ -57,18 +56,31 @@ window.exportDebugLog = function () {
   URL.revokeObjectURL(url);
 };
 
-// Init console + buttons
+// 🔹 Assistant reply logger (silent to UI)
+window.logAssistantReply = function (replyText) {
+  const icon = document.getElementById("status-icon");
+  const tip = document.getElementById("status-tooltip");
+
+  if (icon) icon.textContent = "";
+  if (tip) {
+    tip.textContent = "";
+    tip.style.display = "none";
+  }
+
+  const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
+  window.debugLog("🧠 Assistant responded:", preview);
+};
+
+// 🔹 Console UI init
 (function () {
-  // Add style for click feedback
-  const css = `
-    .debug-line:hover { background: rgba(255,255,255,0.15); }
+  const style = document.createElement("style");
+  style.textContent = `
+    .debug-line:hover { background: rgba(255,255,255,0.15); cursor: pointer; }
     .debug-line.clicked { background: #32cd3277 !important; }
   `;
-  const style = document.createElement("style");
-  style.textContent = css;
   document.head.appendChild(style);
 
-  // Toggle button
+  // Toggle Button
   if (!document.getElementById("console-toggle-btn")) {
     const btn = document.createElement("button");
     btn.id = "console-toggle-btn";
@@ -76,7 +88,7 @@ window.exportDebugLog = function () {
     document.body.appendChild(btn);
   }
 
-  // Console panel
+  // Main Console Panel
   if (!document.getElementById("onscreen-console")) {
     const panel = document.createElement("div");
     panel.id = "onscreen-console";
@@ -88,20 +100,19 @@ window.exportDebugLog = function () {
     const controls = document.createElement("div");
     controls.style.marginTop = "10px";
 
-    // Buttons
     const clearBtn = document.createElement("button");
     clearBtn.textContent = "Clear Logs";
-    clearBtn.setAttribute("onclick", "clearDebugLog()");
+    clearBtn.onclick = window.clearDebugLog;
     controls.appendChild(clearBtn);
 
     const exportBtn = document.createElement("button");
     exportBtn.textContent = "Export Logs";
-    exportBtn.setAttribute("onclick", "exportDebugLog()");
+    exportBtn.onclick = window.exportDebugLog;
     controls.appendChild(exportBtn);
 
     const overlayBtn = document.createElement("button");
     overlayBtn.textContent = "Full View";
-    overlayBtn.setAttribute("onclick", "showDebugOverlay()");
+    overlayBtn.onclick = window.showDebugOverlay;
     controls.appendChild(overlayBtn);
 
     const scrollBtn = document.createElement("button");
@@ -116,7 +127,6 @@ window.exportDebugLog = function () {
     document.body.appendChild(panel);
   }
 
-  // Toggle open/close
   const toggleBtn = document.getElementById("console-toggle-btn");
   const panel = document.getElementById("onscreen-console");
 
@@ -137,7 +147,7 @@ window.exportDebugLog = function () {
     }
   });
 
-  // Copy on click
+  // Click-to-copy logs
   document.addEventListener("click", (e) => {
     if (e.target.classList.contains("debug-line")) {
       navigator.clipboard.writeText(e.target.textContent);
@@ -147,7 +157,7 @@ window.exportDebugLog = function () {
   });
 })();
 
-// Debug Overlay Modal
+// 🔹 Fullscreen Debug Overlay
 window.showDebugOverlay = function () {
   let overlay = document.getElementById("debug-overlay");
   if (!overlay) {
@@ -160,9 +170,7 @@ window.showDebugOverlay = function () {
     const closeBtn = document.createElement("button");
     closeBtn.className = "close-btn";
     closeBtn.textContent = "Close";
-    closeBtn.addEventListener("click", () => {
-      overlay.style.display = "none";
-    });
+    closeBtn.onclick = () => overlay.style.display = "none";
 
     const content = document.createElement("div");
     content.id = "debug-content";
