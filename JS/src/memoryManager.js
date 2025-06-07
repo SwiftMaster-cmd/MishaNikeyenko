@@ -1,4 +1,5 @@
-// ðŸ"¹ memoryManager.js â€" Firebase read/write helpers + system prompt builder
+// memoryManager.js – Firebase read/write helpers + system prompt builder
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getDatabase,
@@ -22,7 +23,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// ðŸ"¹ Read Helpers
+// 🔹 Read Helpers
 export const getMemory      = (uid) => fetchNode(`memory/${uid}`);
 export const getDayLog      = (uid, dateStr) => fetchNode(`dayLog/${uid}/${dateStr}`);
 export const getNotes       = (uid) => fetchNode(`notes/${uid}`);
@@ -30,7 +31,7 @@ export const getCalendar    = (uid) => fetchNode(`calendarEvents/${uid}`);
 export const getReminders   = (uid) => fetchNode(`reminders/${uid}`);
 export const getCalcHistory = (uid) => fetchNode(`calcHistory/${uid}`);
 
-// ðŸ"¹ Write Helper for Day Log
+// 🔹 Write Helper for Day Log
 export async function updateDayLog(uid, dateStr, newLog) {
   const path = `dayLog/${uid}/${dateStr}`;
   const existingSnap = await get(ref(db, path));
@@ -47,8 +48,16 @@ export async function updateDayLog(uid, dateStr, newLog) {
   return merged;
 }
 
-// ðŸ"¹ Prompt Builder
-export function buildSystemPrompt({ memory, todayLog, notes, calendar, reminders, calc, date }) {
+// 🔹 Prompt Builder
+export function buildSystemPrompt({
+  memory = {},
+  todayLog = {},
+  notes = {},
+  calendar = {},
+  reminders = {},
+  calc = {},
+  date = new Date().toISOString().slice(0, 10)
+}) {
   return `
 You are Nexus, a second brain for Bossman.
 Date: ${date}
@@ -83,8 +92,7 @@ Instructions for Nexus:
 `;
 }
 
-// ðŸ"¹ Internal Helpers
-
+// 🔹 Internal Helpers
 async function fetchNode(path) {
   const snap = await get(ref(db, path));
   return snap.exists() ? snap.val() : {};
@@ -97,9 +105,7 @@ function mergeArrays(arr1 = [], arr2 = []) {
 }
 
 function formatBlock(obj = {}) {
-  if (!obj || Object.keys(obj).length === 0) {
-    return "None.";
-  }
+  if (!obj || Object.keys(obj).length === 0) return "None.";
 
   const isTwoLevel = Object.values(obj).every(
     (v) =>

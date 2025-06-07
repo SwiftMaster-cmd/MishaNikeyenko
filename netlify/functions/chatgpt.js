@@ -2,9 +2,14 @@ const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   try {
-    const { messages, prompt, model = "gpt-4o", temperature = 0.7 } = JSON.parse(event.body || "{}");
+    const {
+      messages,
+      prompt,
+      model = "gpt-4o",
+      temperature = 0.7
+    } = JSON.parse(event.body || "{}");
 
-    if (!messages && !prompt) {
+    if ((!messages || !Array.isArray(messages) || messages.length === 0) && !prompt) {
       return {
         statusCode: 400,
         body: JSON.stringify({ error: "Missing input (messages or prompt)" })
@@ -19,13 +24,13 @@ exports.handler = async (event) => {
       };
     }
 
-    const payload = messages
-      ? { model, messages, temperature }
-      : {
-          model,
-          messages: [{ role: "user", content: prompt }],
-          temperature
-        };
+    const payload = {
+      model,
+      messages: messages?.length > 0
+        ? messages
+        : [{ role: "user", content: prompt }],
+      temperature
+    };
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -45,9 +50,11 @@ exports.handler = async (event) => {
       };
     }
 
+    const reply = data.choices?.[0]?.message?.content || "";
+
     return {
       statusCode: 200,
-      body: JSON.stringify(data)
+      body: JSON.stringify({ reply })
     };
   } catch (err) {
     return {
