@@ -1,4 +1,4 @@
-// 🔹 chat.js – input, flow control, voice input/output, auto-list rendering
+// 🔹 chat.js – input, flow, voice v2v, list rendering
 
 import {
   onValue,
@@ -17,7 +17,6 @@ import {
   listReminders,
   listEvents
 } from "./commandHandlers.js";
-
 import {
   saveMessageToChat,
   fetchLast20Messages,
@@ -26,7 +25,6 @@ import {
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
-
 import { buildSystemPrompt } from "./memoryManager.js";
 import {
   renderMessages,
@@ -35,17 +33,23 @@ import {
   updateHeaderWithAssistantReply,
   initScrollTracking
 } from "./uiShell.js";
-
 import { renderInfoList } from "./lists.js";
+import { speakText, initVoiceInput } from "./voice.js";
+
 window.renderInfoList = renderInfoList;
 
-// ========== 1. DOM Elements ==========
+// ========== DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
-const micButton = document.getElementById("mic-button");
-
 initScrollTracking();
+
+// ========== Voice Input ==========
+initVoiceInput({
+  micButtonId: "mic-button",
+  inputFieldId: "user-input",
+  submitOnResult: true
+});
 
 if (debugToggle) {
   debugToggle.addEventListener("click", () => {
@@ -53,30 +57,7 @@ if (debugToggle) {
   });
 }
 
-// ========== 2. Voice Input (auto-submit) ==========
-if ("webkitSpeechRecognition" in window && micButton) {
-  const recognition = new webkitSpeechRecognition();
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  recognition.lang = "en-US";
-
-  micButton.addEventListener("click", () => {
-    recognition.start();
-    micButton.textContent = "🎙️ Listening...";
-  });
-
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    input.value = transcript;
-    micButton.textContent = "🎤";
-    form.dispatchEvent(new Event("submit"));
-  };
-
-  recognition.onerror = () => { micButton.textContent = "🎤"; };
-  recognition.onend = () => { micButton.textContent = "🎤"; };
-}
-
-// ========== 3. Auth ==========
+// ========== Auth ==========
 let uid = null;
 let chatRef = null;
 
@@ -103,7 +84,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 4. Submit Handler ==========
+// ========== Submit Handler ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -127,10 +108,12 @@ form.addEventListener("submit", async (e) => {
 
     await saveMessageToChat("user", prompt, uid);
     const memory = await extractMemoryFromPrompt(prompt, uid);
+
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
     ]);
+
     const sysPrompt = buildSystemPrompt({
       memory: context.memory,
       todayLog: context.dayLog,
@@ -148,17 +131,9 @@ form.addEventListener("submit", async (e) => {
     updateHeaderWithAssistantReply(assistantReply);
 
     // 🔊 Voice Output
-    if ("speechSynthesis" in window) {
-      const utter = new SpeechSynthesisUtterance(assistantReply);
-      utter.lang = "en-US";
-      utter.rate = 1;
-      utter.pitch = 1;
-      utter.volume = 1;
-      speechSynthesis.cancel(); // stop prior speech if still speaking
-      speechSynthesis.speak(utter);
-    }
+    speakText(assistantReply);
 
-    // Auto-render any list formats
+    // 🎯 List rendering logic
     try {
       if (assistantReply.startsWith("[LIST]")) {
         const payload = JSON.parse(assistantReply.replace("[LIST]", "").trim());
