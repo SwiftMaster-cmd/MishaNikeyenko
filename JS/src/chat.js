@@ -1,4 +1,4 @@
-// 🔹 chat.js – Clean UI + spinner + debug overlay, all logic in backgpt.js
+// 🔹 chat.js – Clean UI + spinner + debug overlay, all backend logic handled in backgpt.js
 
 import {
   onValue,
@@ -17,7 +17,6 @@ import {
   listReminders,
   listEvents
 } from "./commandHandlers.js";
-
 import {
   saveMessageToChat,
   fetchLast20Messages,
@@ -26,6 +25,7 @@ import {
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
+import { buildSystemPrompt } from "./memoryManager.js";
 
 // ========== 1. UI Elements ==========
 const form = document.getElementById("chat-form");
