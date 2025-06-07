@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Console</title>
+
+  <!-- Existing Styles -->
+  <link rel="stylesheet" href="../CSS/calculator.css">
+  <link rel="stylesheet" href="../CSS/calendar.css">
+  <link rel="stylesheet" href="../CSS/chatgpt.css">
+  <link rel="stylesheet" href="../CSS/index.css">
+  <link rel="stylesheet" href="../CSS/jsloader.css">
+  <link rel="stylesheet" href="../CSS/links.css">
+  <link rel="stylesheet" href="../CSS/notes.css">
+  <link rel="stylesheet" href="../CSS/profile.css">
+  <link rel="stylesheet" href="../CSS/register.css">
+  <link rel="stylesheet" href="../CSS/variables.css">
+
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header-bar">
+    <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
+    <h1 class="header-title">Hello</h1>
+    <button id="profile-toggle-btn" class="profile-toggle-btn"
+            aria-haspopup="true" aria-controls="profile-card">
+      Profile
+    </button>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav id="side-nav" class="side-nav" aria-hidden="true">
+    <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
+    <div id="links-list" class="sidebar-links"></div>
+    <a href="welcome.html"    class="nav-item">Dashboard</a>
+    <a href="notes.html"      class="nav-item">Notes</a>
+    <a href="es-module.html"  class="nav-item">ES-Module</a>
+    <a href="calculator.html" class="nav-item active">Calculator</a>
+    <a href="calendar.html"   class="nav-item active">Calendar</a>
+  </nav>
+
+  <!-- PROFILE CARD -->
+  <aside id="profile-card" class="profile-card" aria-hidden="true">
+    <div id="user-info"></div>
+    <div id="config-status"></div>
+    <button id="logout-btn" type="button">Sign Out</button>
+  </aside>
+
+  <!-- MAIN DASHBOARD -->
+
+  <!-- Add‐link form -->
+  <form id="add-link-form" class="collapsed" autocomplete="off">
+    <input id="link-title" type="text" placeholder="Link title" required />
+    <input id="link-url" type="url" placeholder="https://example.com" required />
+    <select id="link-category" required></select>
+    <input id="new-cat-input" class="hidden" placeholder="New category name" />
+    <button class="btn-solid" type="submit">Save</button>
+  </form>
+
+<!-- GPT Chat -->
+<main class="chat-container">
+  <div id="chat-log"></div>
+
+  <form id="chat-form">
+    <input
+      id="user-input"
+      type="text"
+      placeholder="Type your message..."
+      required
+    />
+    <button type="submit">Send</button>
+  </form>
+</main>
+
+
+  <!-- MODULE SCRIPTS -->
+  <script type="module" src="../JS/profile.js"></script>
+  <script type="module" src="../JS/links.js"></script>
+
+  <!-- Firebase & Chat Modules -->
+  <script type="module" src="../JS/src/firebaseConfig.js"></script>
+  <script type="module" src="../JS/src/firebaseHelpers.js"></script>
+  <script type="module" src="../JS/src/storageDebug.js"></script>
+
+  <script type="module" src="../JS/src/chatUtils.js"></script>
+  <script type="module" src="../JS/src/commandHandlers.js"></script>
+  <script type="module" src="../JS/src/memoryManager.js"></script>
+  <script type="module" src="../JS/src/chatmemory.js"></script>
+  <script type="module" src="../JS/src/chat.js"></script>
+
+  <!-- Controls for Sidebar and Add‐link Form -->
+  <script type="module">
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebar = document.getElementById('side-nav');
+      const burger  = document.getElementById('menu-toggle');
+      const addBtn  = document.getElementById('toggle-form-btn');
+      const form    = document.getElementById('add-link-form');
+
+      burger.onclick = () => {
+        const open = sidebar.classList.toggle('open');
+        document.body.classList.toggle('sidebar-open', open);
+      };
+
+      addBtn.onclick = () => {
+        const collapsed = form.classList.toggle('collapsed');
+        addBtn.classList.toggle('active', !collapsed);
+        if (!collapsed) document.getElementById('link-title').focus();
+      };
+    });
+  </script>
+</body>
+</html>
