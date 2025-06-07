@@ -1,5 +1,124 @@
+:root {
+  --clr-bg: #161026;
+  --clr-card: #1e1e2e;
+  --clr-border: #2e2e3e;
+  --clr-text: #f8fafd;
+  --clr-muted: #a1a6b9;
+  --clr-user: #7e3af2;
+  --clr-bot: #363c66;
+  --radius: 18px;
+  --padding: 1rem;
+}
 
-/* Persistent Onscreen Console (bottom left, floating) */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100vw;
+  min-width: 100vw;
+  font-family: 'Inter', sans-serif;
+  background: var(--clr-bg);
+  color: var(--clr-text);
+  overflow: hidden;
+}
+
+body {
+  width: 100vw;
+  min-width: 100vw;
+}
+
+main.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 12px;
+}
+
+#chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+#chat-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  position: relative;
+}
+
+#user-input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--clr-border);
+  background: var(--clr-card);
+  color: var(--clr-text);
+}
+
+#chat-loading-spinner {
+  display: none;
+}
+
+#status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 40px;
+  position: relative;
+}
+
+#status-tooltip {
+  position: absolute;
+  top: 125%;
+  left: 0;
+  background: rgba(30, 30, 50, 0.93);
+  color: #ffd600;
+  font-size: 0.9rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  display: none;
+  opacity: 0.95;
+  z-index: 99;
+  box-shadow: 0 2px 6px #0006;
+}
+
+#console-toggle-btn {
+  padding: 8px 14px;
+  background: #2e89ff;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background 0.2s;
+}
+
+#console-toggle-btn:hover {
+  background: #1c74e9;
+}
+
+button[type="submit"] {
+  margin-left: 4px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #7e3af2;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Console Window */
 #onscreen-console {
   position: fixed;
   bottom: 64px;
@@ -22,6 +141,7 @@
   pointer-events: auto;
   transition: box-shadow 0.13s;
 }
+
 #chat-status-bar {
   text-align: center;
   margin-top: 4px;
@@ -58,7 +178,6 @@
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Console Controls */
 #onscreen-console button {
   margin-right: 8px;
   padding: 3px 15px;
@@ -72,11 +191,9 @@
   transition: background 0.18s, color 0.18s;
   box-shadow: 0 1px 4px #0002;
 }
-
 #onscreen-console button:last-child {
   margin-right: 0;
 }
-
 #onscreen-console button[onclick*="clearDebugLog"] {
   background: #d7263d;
   color: #fff;
@@ -92,30 +209,6 @@
 #onscreen-console button[onclick*="autoScrollConsole"] {
   background: #333;
   color: #eee;
-}
-
-/* Floating Toggle Button (bottom left) */
-#console-toggle-btn {
-  position: fixed;
-  bottom: 16px;
-  left: 20px;
-  z-index: 99999;
-  padding: 8px 22px;
-  background: rgba(126, 58, 242, 0.89);
-  color: #fff;
-  border-radius: 16px;
-  border: none;
-  font: 600 14px/1 'Inter', monospace;
-  cursor: pointer;
-  box-shadow: 0 2px 14px #0006;
-  letter-spacing: 0.02em;
-  transition: background 0.18s, color 0.18s;
-}
-
-#console-toggle-btn:hover,
-#console-toggle-btn:focus {
-  background: #7e3af2;
-  color: #ffd600;
 }
 
 /* Debug Overlay (fullscreen modal) */
@@ -159,7 +252,6 @@
   overflow-y: auto;
 }
 
-/* Overlay Close Button */
 #debug-modal .close-btn {
   position: absolute;
   top: 14px;
@@ -181,7 +273,7 @@
   color: #2e2e3e;
 }
 
-/* Responsive mobile scaling */
+/* Responsive scaling */
 @media (max-width: 600px) {
   #onscreen-console {
     width: 99vw;
@@ -201,9 +293,8 @@
     font-size: 0.92rem;
   }
   #console-toggle-btn {
-    left: 8px;
-    padding: 7px 10px;
+    padding: 6px 12px;
     font-size: 13px;
-    border-radius: 11px;
+    border-radius: 10px;
   }
 }
