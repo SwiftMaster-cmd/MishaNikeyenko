@@ -1,5 +1,3 @@
-
-/* Root Variables */
 :root {
   --clr-console-bg: rgba(30, 32, 48, 0.96);
   --clr-accent: #7e3af2;
@@ -11,7 +9,7 @@
   --font-console: 'Menlo', 'Monaco', 'Consolas', monospace;
 }
 
-/* Onscreen Console */
+/* 🔹 Onscreen Console Container */
 #onscreen-console {
   position: fixed;
   bottom: 64px;
@@ -38,7 +36,7 @@
   transform: scale(1.01);
 }
 
-/* Chat Status Bar */
+/* 🔹 Chat Status Bar */
 #chat-status-bar {
   text-align: center;
   margin-top: 4px;
@@ -55,7 +53,7 @@
   transition: opacity 0.3s ease, background 0.3s ease;
 }
 
-/* Console Messages */
+/* 🔹 Message Lines */
 #onscreen-console-messages {
   min-height: 38px;
   max-height: 22vh;
@@ -63,20 +61,60 @@
   word-break: break-word;
   padding-bottom: 6px;
 }
-#onscreen-console-messages .debug-line {
-  margin-bottom: 4px;
+.debug-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
   padding: 5px 10px;
+  margin-bottom: 4px;
   border-radius: 6px;
+  font-family: var(--font-console);
   background: rgba(255, 255, 255, 0.05);
   transition: background 0.2s ease, transform 0.15s ease;
   cursor: pointer;
 }
-#onscreen-console-messages .debug-line:hover {
+.debug-line:hover {
   background: var(--clr-btn-hover);
   transform: translateX(3px);
 }
+.debug-line.clicked {
+  background: #32cd3277 !important;
+}
 
-/* Console Buttons */
+/* 🔹 Badge for log type (INFO, DEBUG, etc.) */
+.log-badge {
+  font-weight: 700;
+  font-size: 0.75rem;
+  margin-right: 8px;
+  min-width: 60px;
+  text-align: left;
+  display: inline-block;
+  opacity: 0.85;
+}
+
+/* 🔹 Log text */
+.log-content {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 🔹 Expand/Collapse toggle */
+.log-toggle {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 0.75rem;
+  margin-left: 10px;
+  cursor: pointer;
+  font-family: var(--font-console);
+  transition: color 0.2s;
+}
+.log-toggle:hover {
+  color: #fff;
+}
+
+/* 🔹 Console Buttons */
 #onscreen-console button {
   margin-right: 8px;
   padding: 3px 15px;
@@ -113,7 +151,7 @@
   color: #eee;
 }
 
-/* Floating Toggle Button */
+/* 🔹 Floating Console Toggle */
 #console-toggle-btn {
   position: fixed;
   bottom: 16px;
@@ -136,11 +174,12 @@
   transform: scale(1.02);
 }
 
-/* Debug Overlay */
+/* 🔹 Debug Overlay */
 #debug-overlay {
   display: none;
   position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
   background: var(--clr-overlay-bg);
   z-index: 100000;
   backdrop-filter: blur(6px) saturate(1.12);
@@ -150,7 +189,6 @@
   flex-direction: column;
   padding: 24px;
 }
-
 #debug-modal {
   background: rgba(30, 32, 48, 0.97);
   color: #f3f4fa;
@@ -174,8 +212,6 @@
   max-height: 54vh;
   overflow-y: auto;
 }
-
-/* Modal Close Button */
 #debug-modal .close-btn {
   position: absolute;
   top: 14px;
@@ -196,7 +232,7 @@
   color: #2e2e3e;
 }
 
-/* Mobile Responsive */
+/* 🔹 Mobile Responsive */
 @media (max-width: 600px) {
   #onscreen-console {
     width: 99vw;
@@ -221,43 +257,4 @@
     font-size: 13px;
     border-radius: 11px;
   }
-}
-/* 🔹 Badge for log type (INFO, DEBUG, etc.) */
-.log-badge {
-  font-weight: 700;
-  font-size: 0.75rem;
-  margin-right: 8px;
-  min-width: 60px;
-  text-align: left;
-  display: inline-block;
-  opacity: 0.85;
-}
-
-/* 🔹 Content of each log */
-.log-content {
-  flex: 1;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* 🔹 Expand/Collapse toggle for long logs */
-.log-toggle {
-  background: none;
-  border: none;
-  color: #aaa;
-  font-size: 0.75rem;
-  margin-left: 10px;
-  cursor: pointer;
-  font-family: var(--font-console);
-  transition: color 0.2s;
-}
-.log-toggle:hover {
-  color: #fff;
-}
-
-/* 🔹 Refined layout for log lines with flex alignment */
-.debug-line {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
 }

@@ -18,12 +18,13 @@ function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
-// 🔹 Primary logger with tag parsing + expandable UI
+// 🔹 Main logging function with tag badges + truncation
 window.debugLog = function (...args) {
   const logs = loadPersistedLogs();
   const timestamp = new Date().toLocaleTimeString();
   const msgRaw = args.map(a =>
-    (typeof a === "object" ? JSON.stringify(a, null, 2) : a)).join(" ");
+    typeof a === "object" ? JSON.stringify(a, null, 2) : a
+  ).join(" ");
 
   const tagMatch = msgRaw.match(/^\[(\w+)\]/);
   const tag = tagMatch ? tagMatch[1].toUpperCase() : "INFO";
@@ -101,13 +102,10 @@ window.exportDebugLog = function () {
   URL.revokeObjectURL(url);
 };
 
-// 🔹 Status feedback bar logic
+// 🔹 Status bar logic
 window.setStatusFeedback = function (type, msg = "") {
   const bar = document.getElementById("chat-status-bar");
-  if (!bar) {
-    console.warn("⚠️ chat-status-bar not found.");
-    return;
-  }
+  if (!bar) return;
 
   let color = "", bg = "";
   switch (type) {
@@ -131,23 +129,67 @@ window.setStatusFeedback = function (type, msg = "") {
   }
 };
 
-// 🔹 Assistant reply logger
+// 🔹 Assistant response summary
 window.logAssistantReply = function (replyText) {
   const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
   window.debug("[REPLY]", preview);
   window.setStatusFeedback("success", "Assistant responded");
 };
 
-// 🔹 Console UI Setup
-(function () {
+// 🔹 Debug overlay viewer
+window.showDebugOverlay = function () {
+  const overlay = document.getElementById("debug-overlay");
+  const content = document.getElementById("debug-content");
+  if (!overlay || !content) return;
+
+  const logs = loadPersistedLogs();
+  content.textContent = logs.join("\n");
+  overlay.style.display = "flex";
+};
+
+// 🔹 Load logic on DOM ready
+document.addEventListener("DOMContentLoaded", () => {
+  const toggleBtn = document.getElementById("console-toggle-btn");
+  const panel = document.getElementById("onscreen-console");
+
+  if (toggleBtn && panel) {
+    toggleBtn.addEventListener("click", () => {
+      const isVisible = panel.style.display === "block";
+      panel.style.display = isVisible ? "none" : "block";
+
+      if (!isVisible) {
+        const logEl = document.getElementById("onscreen-console-messages");
+        if (logEl) {
+          logEl.innerHTML = "";
+          const logs = loadPersistedLogs();
+          logs.forEach(log => {
+            const content = log.slice(log.indexOf("]") + 2);
+            window.debugLog(content);
+          });
+        }
+      }
+    });
+  }
+
+  // Copy-on-click
+  document.addEventListener("click", (e) => {
+    if (e.target.classList.contains("debug-line")) {
+      navigator.clipboard.writeText(e.target.textContent);
+      e.target.classList.add("clicked");
+      setTimeout(() => e.target.classList.remove("clicked"), 400);
+    }
+  });
+
+  // Inline style injection
   const style = document.createElement("style");
   style.textContent = `
     .debug-line {
       display: flex;
       align-items: flex-start;
-      margin: 4px 0;
+      gap: 6px;
       padding: 4px;
       font-family: monospace;
+      margin: 4px 0;
       word-break: break-word;
     }
     .debug-line:hover {
@@ -181,105 +223,4 @@ window.logAssistantReply = function (replyText) {
     }
   `;
   document.head.appendChild(style);
-
-  // Toggle Button
-  if (!document.getElementById("console-toggle-btn")) {
-    const btn = document.createElement("button");
-    btn.id = "console-toggle-btn";
-    btn.textContent = "Console";
-    document.body.appendChild(btn);
-  }
-
-  // Main Console Panel
-  if (!document.getElementById("onscreen-console")) {
-    const panel = document.createElement("div");
-    panel.id = "onscreen-console";
-
-    const messages = document.createElement("div");
-    messages.id = "onscreen-console-messages";
-    panel.appendChild(messages);
-
-    const controls = document.createElement("div");
-    controls.style.marginTop = "10px";
-
-    const clearBtn = document.createElement("button");
-    clearBtn.textContent = "Clear Logs";
-    clearBtn.onclick = window.clearDebugLog;
-    controls.appendChild(clearBtn);
-
-    const exportBtn = document.createElement("button");
-    exportBtn.textContent = "Export Logs";
-    exportBtn.onclick = window.exportDebugLog;
-    controls.appendChild(exportBtn);
-
-    const overlayBtn = document.createElement("button");
-    overlayBtn.textContent = "Full View";
-    overlayBtn.onclick = window.showDebugOverlay;
-    controls.appendChild(overlayBtn);
-
-    const scrollBtn = document.createElement("button");
-    scrollBtn.textContent = "AutoScroll";
-    scrollBtn.onclick = () => {
-      window.autoScrollConsole = !window.autoScrollConsole;
-      scrollBtn.style.opacity = window.autoScrollConsole ? "1" : "0.5";
-    };
-    controls.appendChild(scrollBtn);
-
-    panel.appendChild(controls);
-    document.body.appendChild(panel);
-  }
-
-  const toggleBtn = document.getElementById("console-toggle-btn");
-  const panel = document.getElementById("onscreen-console");
-
-  toggleBtn.addEventListener("click", () => {
-    const isOpen = panel.style.display === "block";
-    panel.style.display = isOpen ? "none" : "block";
-
-    if (!isOpen) {
-      const logEl = document.getElementById("onscreen-console-messages");
-      logEl.innerHTML = "";
-      loadPersistedLogs().forEach(log => {
-        const fakeArgs = [log.slice(log.indexOf("]") + 2)];
-        window.debugLog(...fakeArgs);
-      });
-    }
-  });
-
-  document.addEventListener("click", (e) => {
-    if (e.target.classList.contains("debug-line")) {
-      navigator.clipboard.writeText(e.target.textContent);
-      e.target.classList.add("clicked");
-      setTimeout(() => e.target.classList.remove("clicked"), 400);
-    }
-  });
-})();
-
-// 🔹 Fullscreen Debug Overlay
-window.showDebugOverlay = function () {
-  let overlay = document.getElementById("debug-overlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.id = "debug-overlay";
-
-    const modal = document.createElement("div");
-    modal.id = "debug-modal";
-
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "close-btn";
-    closeBtn.textContent = "Close";
-    closeBtn.onclick = () => overlay.style.display = "none";
-
-    const content = document.createElement("div");
-    content.id = "debug-content";
-
-    modal.appendChild(closeBtn);
-    modal.appendChild(content);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-  }
-
-  const logs = loadPersistedLogs();
-  document.getElementById("debug-content").textContent = logs.join("\n");
-  document.getElementById("debug-overlay").style.display = "flex";
-};
+});
