@@ -1,8 +1,11 @@
+// 🔹 debugConsole.js – Grouped logging with type bundling + live updates
 const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
 
-// 🔹 Load logs from storage
+const groupedLogs = {}; // { tag: { messages: [], isExpanded: false } }
+
+// 🔹 Load logs from localStorage
 function loadPersistedLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
@@ -17,64 +20,73 @@ function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
-// 🔹 Main logger with tags and truncation
-window.debugLog = function (...args) {
-  const logs = loadPersistedLogs();
-  const timestamp = new Date().toLocaleTimeString();
-  const msgRaw = args.map(a =>
-    typeof a === "object" ? JSON.stringify(a, null, 2) : a
-  ).join(" ");
-
-  const tagMatch = msgRaw.match(/^\[(\w+)\]/);
-  const tag = tagMatch ? tagMatch[1].toUpperCase() : "INFO";
-  const colorMap = {
-    INFO: "#999",
-    SUCCESS: "#1db954",
-    ERROR: "#d7263d",
-    DEBUG: "#368bff",
-    REPLY: "#ffa500"
-  };
-
-  const logEntry = `[${timestamp}] ${msgRaw}`;
-  logs.push(logEntry);
-  saveLogs(logs);
-
+// 🔹 Render grouped logs
+function renderGroupedLogs() {
   const el = document.getElementById("onscreen-console-messages");
-  if (el) {
+  if (!el) return;
+  el.innerHTML = "";
+
+  Object.entries(groupedLogs).forEach(([tag, group]) => {
+    const latestMsg = group.messages[group.messages.length - 1];
+    const count = group.messages.length;
+
     const line = document.createElement("div");
     line.className = "debug-line";
+    line.setAttribute("data-tag", tag);
 
     const badge = document.createElement("span");
     badge.className = "log-badge";
     badge.textContent = tag;
-    badge.style.color = colorMap[tag] || "#ccc";
+
+    const counter = document.createElement("span");
+    counter.textContent = ` (${count})`;
+    counter.style.opacity = 0.6;
+    counter.style.marginRight = "8px";
+    counter.style.fontSize = "0.8rem";
 
     const content = document.createElement("span");
     content.className = "log-content";
-
-    const isLong = msgRaw.length > 120;
-    content.textContent = isLong ? msgRaw.slice(0, 120) + "..." : msgRaw;
+    content.textContent = latestMsg.length > 120 ? latestMsg.slice(0, 120) + "..." : latestMsg;
 
     line.appendChild(badge);
+    line.appendChild(counter);
     line.appendChild(content);
 
-    if (isLong) {
-      const toggle = document.createElement("button");
-      toggle.textContent = "Show More";
-      toggle.className = "log-toggle";
-      toggle.onclick = () => {
-        const expanded = toggle.textContent === "Show Less";
-        content.textContent = expanded ? msgRaw.slice(0, 120) + "..." : msgRaw;
-        toggle.textContent = expanded ? "Show More" : "Show Less";
-      };
-      line.appendChild(toggle);
-    }
+    line.onclick = () => {
+      group.isExpanded = !group.isExpanded;
+      if (group.isExpanded) {
+        content.innerHTML = group.messages.map(m => `<div>• ${m}</div>`).join("");
+      } else {
+        content.textContent = latestMsg.length > 120 ? latestMsg.slice(0, 120) + "..." : latestMsg;
+      }
+    };
 
     el.appendChild(line);
-    if (window.autoScrollConsole) {
-      el.parentElement.scrollTop = el.parentElement.scrollHeight;
-    }
+  });
+
+  if (window.autoScrollConsole) {
+    el.parentElement.scrollTop = el.parentElement.scrollHeight;
   }
+}
+
+// 🔹 Main debugLog method
+window.debugLog = function (...args) {
+  const timestamp = new Date().toLocaleTimeString();
+  const raw = args.map(a => (typeof a === "object" ? JSON.stringify(a, null, 2) : a)).join(" ");
+  const tagMatch = raw.match(/^\[(\w+)\]/);
+  const tag = tagMatch ? tagMatch[1].toUpperCase() : "INFO";
+  const msg = `[${timestamp}] ${raw}`;
+
+  const logs = loadPersistedLogs();
+  logs.push(msg);
+  saveLogs(logs);
+
+  if (!groupedLogs[tag]) {
+    groupedLogs[tag] = { messages: [], isExpanded: false };
+  }
+  groupedLogs[tag].messages.push(msg);
+
+  renderGroupedLogs();
 };
 
 // 🔹 Conditional logger
@@ -85,8 +97,8 @@ window.debug = function (...args) {
 // 🔹 Clear logs
 window.clearDebugLog = function () {
   localStorage.removeItem(LOG_STORAGE_KEY);
-  const el = document.getElementById("onscreen-console-messages");
-  if (el) el.innerHTML = "";
+  Object.keys(groupedLogs).forEach(k => delete groupedLogs[k]);
+  renderGroupedLogs();
 };
 
 // 🔹 Export logs
@@ -109,9 +121,9 @@ window.setStatusFeedback = function (type, msg = "") {
   let color = "", bg = "";
   switch (type) {
     case "success": color = "#1db954"; bg = "rgba(29,185,84,0.08)"; break;
-    case "error":   color = "#d7263d"; bg = "rgba(215,38,61,0.08)"; break;
+    case "error": color = "#d7263d"; bg = "rgba(215,38,61,0.08)"; break;
     case "loading": color = "#ffd600"; bg = "rgba(255,214,0,0.08)"; break;
-    default:        bar.style.opacity = 0; return;
+    default: bar.style.opacity = 0; return;
   }
 
   bar.textContent = msg;
@@ -120,127 +132,87 @@ window.setStatusFeedback = function (type, msg = "") {
   bar.style.opacity = 1;
 
   window.debug(`[FEEDBACK] ${type.toUpperCase()}: ${msg}`);
-
   if (type !== "loading") {
-    setTimeout(() => { bar.style.opacity = 0; }, 1800);
+    setTimeout(() => (bar.style.opacity = 0), 1800);
   }
 };
 
-// 🔹 Assistant reply summary
+// 🔹 Assistant reply logger
 window.logAssistantReply = function (replyText) {
   const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
   window.debug("[REPLY]", preview);
   window.setStatusFeedback("success", "Assistant responded");
 };
 
-// 🔹 Fullscreen overlay with fallback message
-window.showDebugOverlay = function () {
-  let overlay = document.getElementById("debug-overlay");
-  let content = document.getElementById("debug-content");
+// 🔹 Onscreen Console UI init
+(function () {
+  const toggleBtn = document.createElement("button");
+  toggleBtn.id = "console-toggle-btn";
+  toggleBtn.textContent = "Console";
+  document.body.appendChild(toggleBtn);
 
-  if (!overlay || !content) return;
+  const panel = document.createElement("div");
+  panel.id = "onscreen-console";
 
-  const logs = loadPersistedLogs();
+  const messages = document.createElement("div");
+  messages.id = "onscreen-console-messages";
+  panel.appendChild(messages);
 
-  if (!logs.length) {
-    content.textContent = "No logs available.";
-  } else {
-    content.textContent = logs.join("\n");
-  }
+  const controls = document.createElement("div");
+  controls.style.marginTop = "10px";
 
-  overlay.style.display = "flex";
-};
-
-// 🔹 Chunked loading to prevent lag
-function replayLogsInChunks(logs, chunkSize = 4, delay = 50) {
-  const logEl = document.getElementById("onscreen-console-messages");
-  if (!logEl || logs.length === 0) return;
-
-  logEl.innerHTML = "";
-  let index = 0;
-
-  function processChunk() {
-    const slice = logs.slice(index, index + chunkSize);
-    slice.forEach(log => {
-      const content = log.slice(log.indexOf("]") + 2);
-      window.debugLog(content);
-    });
-
-    index += chunkSize;
-    if (index < logs.length) {
-      setTimeout(processChunk, delay);
-    }
-  }
-
-  processChunk();
-}
-
-// 🔹 Init on DOM ready
-document.addEventListener("DOMContentLoaded", () => {
-  const toggleBtn = document.getElementById("console-toggle-btn");
-  const panel = document.getElementById("onscreen-console");
-
-  if (toggleBtn && panel) {
-    toggleBtn.addEventListener("click", () => {
-      const isVisible = panel.style.display === "block";
-      panel.style.display = isVisible ? "none" : "block";
-
-      if (!isVisible) {
-        const logs = loadPersistedLogs();
-        replayLogsInChunks(logs);
-      }
-    });
-  }
-
-  document.addEventListener("click", (e) => {
-    if (e.target.classList.contains("debug-line")) {
-      navigator.clipboard.writeText(e.target.textContent);
-      e.target.classList.add("clicked");
-      setTimeout(() => e.target.classList.remove("clicked"), 400);
-    }
+  ["clear", "export", "overlay"].forEach(action => {
+    const btn = document.createElement("button");
+    btn.textContent = action[0].toUpperCase() + action.slice(1);
+    if (action === "clear") btn.onclick = window.clearDebugLog;
+    if (action === "export") btn.onclick = window.exportDebugLog;
+    if (action === "overlay") btn.onclick = window.showDebugOverlay;
+    controls.appendChild(btn);
   });
 
-  // Inject styling (in case not already in your CSS)
-  const style = document.createElement("style");
-  style.textContent = `
-    .debug-line {
-      display: flex;
-      align-items: flex-start;
-      gap: 6px;
-      padding: 4px;
-      font-family: monospace;
-      margin: 4px 0;
-      word-break: break-word;
-    }
-    .debug-line:hover {
-      background: rgba(255,255,255,0.08);
-      cursor: pointer;
-    }
-    .debug-line.clicked {
-      background: #32cd3277 !important;
-    }
-    .log-badge {
-      font-weight: bold;
-      margin-right: 6px;
-      font-size: 0.8rem;
-      min-width: 60px;
-      text-align: left;
-    }
-    .log-content {
-      flex: 1;
-      white-space: pre-wrap;
-    }
-    .log-toggle {
-      background: none;
-      border: none;
-      color: #aaa;
-      font-size: 0.75rem;
-      margin-left: 8px;
-      cursor: pointer;
-    }
-    .log-toggle:hover {
-      color: #fff;
-    }
-  `;
-  document.head.appendChild(style);
-});
+  const scrollBtn = document.createElement("button");
+  scrollBtn.textContent = "AutoScroll";
+  scrollBtn.onclick = () => {
+    window.autoScrollConsole = !window.autoScrollConsole;
+    scrollBtn.style.opacity = window.autoScrollConsole ? "1" : "0.5";
+  };
+  controls.appendChild(scrollBtn);
+
+  panel.appendChild(controls);
+  document.body.appendChild(panel);
+
+  toggleBtn.onclick = () => {
+    const isOpen = panel.style.display === "block";
+    panel.style.display = isOpen ? "none" : "block";
+    if (!isOpen) renderGroupedLogs();
+  };
+})();
+
+// 🔹 Fullscreen Debug Overlay
+window.showDebugOverlay = function () {
+  let overlay = document.getElementById("debug-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "debug-overlay";
+
+    const modal = document.createElement("div");
+    modal.id = "debug-modal";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "close-btn";
+    closeBtn.textContent = "Close";
+    closeBtn.onclick = () => (overlay.style.display = "none");
+
+    const content = document.createElement("div");
+    content.id = "debug-content";
+
+    modal.appendChild(closeBtn);
+    modal.appendChild(content);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  }
+
+  const logs = loadPersistedLogs();
+  document.getElementById("debug-content").textContent = logs.join("\n");
+  overlay.style.display = "flex";
+};
