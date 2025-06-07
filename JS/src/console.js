@@ -18,12 +18,24 @@ function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
-// 🔹 Primary logger
+// 🔹 Primary logger with tag parsing + expandable UI
 window.debugLog = function (...args) {
   const logs = loadPersistedLogs();
-  const msg = args.map(a => (typeof a === "object" ? JSON.stringify(a, null, 2) : a)).join(" ");
   const timestamp = new Date().toLocaleTimeString();
-  const logEntry = `[${timestamp}] ${msg}`;
+  const msgRaw = args.map(a =>
+    (typeof a === "object" ? JSON.stringify(a, null, 2) : a)).join(" ");
+
+  const tagMatch = msgRaw.match(/^\[(\w+)\]/);
+  const tag = tagMatch ? tagMatch[1].toUpperCase() : "INFO";
+  const colorMap = {
+    INFO: "#999",
+    SUCCESS: "#1db954",
+    ERROR: "#d7263d",
+    DEBUG: "#368bff",
+    REPLY: "#ffa500"
+  };
+
+  const logEntry = `[${timestamp}] ${msgRaw}`;
   logs.push(logEntry);
   saveLogs(logs);
 
@@ -31,7 +43,33 @@ window.debugLog = function (...args) {
   if (el) {
     const line = document.createElement("div");
     line.className = "debug-line";
-    line.textContent = logEntry;
+
+    const badge = document.createElement("span");
+    badge.className = "log-badge";
+    badge.textContent = tag;
+    badge.style.color = colorMap[tag] || "#ccc";
+
+    const content = document.createElement("span");
+    content.className = "log-content";
+
+    const isLong = msgRaw.length > 120;
+    content.textContent = isLong ? msgRaw.slice(0, 120) + "..." : msgRaw;
+
+    line.appendChild(badge);
+    line.appendChild(content);
+
+    if (isLong) {
+      const toggle = document.createElement("button");
+      toggle.textContent = "Show More";
+      toggle.className = "log-toggle";
+      toggle.onclick = () => {
+        const expanded = toggle.textContent === "Show Less";
+        content.textContent = expanded ? msgRaw.slice(0, 120) + "..." : msgRaw;
+        toggle.textContent = expanded ? "Show More" : "Show Less";
+      };
+      line.appendChild(toggle);
+    }
+
     el.appendChild(line);
     if (window.autoScrollConsole) {
       el.parentElement.scrollTop = el.parentElement.scrollHeight;
@@ -39,7 +77,7 @@ window.debugLog = function (...args) {
   }
 };
 
-// 🔹 Conditional logger (based on DEBUG_MODE)
+// 🔹 Conditional logger
 window.debug = function (...args) {
   if (window.DEBUG_MODE) window.debugLog(...args);
 };
@@ -104,8 +142,43 @@ window.logAssistantReply = function (replyText) {
 (function () {
   const style = document.createElement("style");
   style.textContent = `
-    .debug-line:hover { background: rgba(255,255,255,0.15); cursor: pointer; }
-    .debug-line.clicked { background: #32cd3277 !important; }
+    .debug-line {
+      display: flex;
+      align-items: flex-start;
+      margin: 4px 0;
+      padding: 4px;
+      font-family: monospace;
+      word-break: break-word;
+    }
+    .debug-line:hover {
+      background: rgba(255,255,255,0.08);
+      cursor: pointer;
+    }
+    .debug-line.clicked {
+      background: #32cd3277 !important;
+    }
+    .log-badge {
+      font-weight: bold;
+      margin-right: 6px;
+      font-size: 0.8rem;
+      min-width: 60px;
+      text-align: left;
+    }
+    .log-content {
+      flex: 1;
+      white-space: pre-wrap;
+    }
+    .log-toggle {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 0.75rem;
+      margin-left: 8px;
+      cursor: pointer;
+    }
+    .log-toggle:hover {
+      color: #fff;
+    }
   `;
   document.head.appendChild(style);
 
@@ -167,12 +240,9 @@ window.logAssistantReply = function (replyText) {
       const logEl = document.getElementById("onscreen-console-messages");
       logEl.innerHTML = "";
       loadPersistedLogs().forEach(log => {
-        const line = document.createElement("div");
-        line.className = "debug-line";
-        line.textContent = log;
-        logEl.appendChild(line);
+        const fakeArgs = [log.slice(log.indexOf("]") + 2)];
+        window.debugLog(...fakeArgs);
       });
-      logEl.scrollTop = logEl.scrollHeight;
     }
   });
 
