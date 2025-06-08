@@ -27,13 +27,22 @@ Now, generate a working module for this request:
     ]
   });
 
-  // Strip all code fences, stray backticks, etc
+  // Debug: Log raw output to catch prompt or LLM issues
+  console.log("LLM RAW OUTPUT:", result);
+
+  // Strip code fences/markdown only, not real code
   let code = result
-    .replace(/```[\s\S]*?```/g, '') // Remove ```fenced blocks```
-    .replace(/```/g, '')            // Remove any single ```
-    .replace(/'''/g, '')            // Remove any '''
+    .replace(/```[\s\S]*?```/g, '') // Remove fenced code blocks
+    .replace(/```/g, '')            // Remove stray ```
+    .replace(/'''/g, '')            // Remove stray '''
     .replace(/^`+|`+$/gm, '')       // Remove stray backticks at line start/end
-    .replace(/^\s+|\s+$/g, '');     // Trim extra whitespace
+    .trim();
+
+  // Handle empty output
+  if (!code) {
+    code = 'export default function() { document.getElementById("js-output").innerHTML = "⚠️ No code was generated." }';
+    console.error("LLM returned empty code.");
+  }
 
   return {
     taskId: task.id,
