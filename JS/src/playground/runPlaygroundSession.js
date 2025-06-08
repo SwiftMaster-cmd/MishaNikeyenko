@@ -55,13 +55,11 @@ const lessons = await loadJSON("JS/src/playground/codeLessons.json");
   logs.push(runData);
   activeTask.done = true;
 
-  // 4. Save everything
-  await Promise.all([
-    saveJSON("playground/codeLessons.json", lessons),
-    saveJSON("playground/pipelineLogs.json", logs),
-    saveJSON("playground/playgroundTasks.json", tasks)
-  ]);
-
+await Promise.all([
+  saveJSON("JS/src/playground/codeLessons.json", lessons),
+  saveJSON("JS/src/playground/pipelineLogs.json", logs),
+  saveJSON("JS/src/playground/playgroundTasks.json", tasks)
+]);
   log("💾 Session saved", "success");
   return runData;
 }
