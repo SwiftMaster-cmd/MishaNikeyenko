@@ -4,6 +4,7 @@ import { loadJSON, saveJSON } from "./fileHelpers.js";
 import writeCodeModule from "./writeCodeModule.js";
 import reviewCodeModule from "./reviewCodeModule.js";
 
+// Simple logger for the UI
 const log = (msg, type = "info") => {
   const logBox = document.getElementById("console-log");
   if (!logBox) return;
@@ -15,12 +16,16 @@ const log = (msg, type = "info") => {
   logBox.scrollTop = logBox.scrollHeight;
 };
 
-export default async function runPlaygroundSession() {
+/**
+ * Run the playground session for one or more tasks.
+ * If tasksOverride is provided, it is used instead of loading from file.
+ */
+export default async function runPlaygroundSession(tasksOverride = null) {
   log("🔁 Session started");
 
-  // Use correct path from html/ to JSON
+  // Load data/config
   const config  = await loadJSON("../JS/src/playground/sessionConfig.json");
-  const tasks   = await loadJSON("../JS/src/playground/playgroundTasks.json");
+  const tasks   = tasksOverride || await loadJSON("../JS/src/playground/playgroundTasks.json");
   const logs    = await loadJSON("../JS/src/playground/pipelineLogs.json");
   const lessons = await loadJSON("../JS/src/playground/codeLessons.json");
 
@@ -29,7 +34,8 @@ export default async function runPlaygroundSession() {
     throw new Error("No tasks loaded.");
   }
 
-  const activeTask = tasks.find(t => !t.done);
+  // Always just run the *first* active task for this interactive use
+  const activeTask = tasks.find(t => !t.done) || tasks[0];
   if (!activeTask) {
     log("✅ All tasks completed.", "success");
     return { message: "All tasks completed", tasksRun: tasks.length };
@@ -37,15 +43,15 @@ export default async function runPlaygroundSession() {
 
   log(`🧠 Running task: "${activeTask.title}"`);
 
-  // 1. Write code
+  // 1. Write code for the active task
   const draftCode = await writeCodeModule(activeTask);
   log("📄 Code written");
 
-  // 2. Review and improve
+  // 2. Review and improve the code
   const reviewNotes = await reviewCodeModule(draftCode);
   log("🔍 Review completed");
 
-  // 3. Save to log
+  // 3. Save run data and update task status (only for normal tasks, not user-typed)
   const runData = {
     taskId: activeTask.id,
     title: activeTask.title,
@@ -56,11 +62,15 @@ export default async function runPlaygroundSession() {
   logs.push(runData);
   activeTask.done = true;
 
-  await Promise.all([
-    saveJSON("../JS/src/playground/codeLessons.json", lessons),
-    saveJSON("../JS/src/playground/pipelineLogs.json", logs),
-    saveJSON("../JS/src/playground/playgroundTasks.json", tasks)
-  ]);
-  log("💾 Session saved", "success");
+  // If using override, don't persist to file (you can skip this block)
+  if (!tasksOverride) {
+    await Promise.all([
+      saveJSON("../JS/src/playground/codeLessons.json", lessons),
+      saveJSON("../JS/src/playground/pipelineLogs.json", logs),
+      saveJSON("../JS/src/playground/playgroundTasks.json", tasks)
+    ]);
+    log("💾 Session saved", "success");
+  }
+
   return runData;
 }
