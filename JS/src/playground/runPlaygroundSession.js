@@ -1,54 +1,67 @@
-// runPlaygroundSession.js
+// 🔁 runPlaygroundSession.js – Core runner for Playground tasks
 
-import { writeCodeModule } from './writeCodeModule.js';
-import { reviewCodeModule } from './reviewCodeModule.js';
-import playgroundTasks from './playgroundTasks.json' assert { type: "json" };
-import sessionConfig from './sessionConfig.json' assert { type: "json" };
+import { loadJSON, saveJSON } from "./fileHelpers.js";
+import runCodeTask from "./writeCodeModule.js";
+import reviewCodeTask from "./reviewCodeModule.js";
 
-// Optional: file write logic (if you're using Node or fs-based system)
-// Commented out for browser use only
-
-// import fs from 'fs';
+const log = (msg, type = "info") => {
+  const logBox = document.getElementById("console-log");
+  if (!logBox) return;
+  const line = document.createElement("div");
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  if (type === "error") line.style.color = "#f55";
+  if (type === "success") line.style.color = "#5f5";
+  logBox.appendChild(line);
+  logBox.scrollTop = logBox.scrollHeight;
+};
 
 export default async function runPlaygroundSession() {
-  try {
-    // 1. Pick random task
-    const task = playgroundTasks[Math.floor(Math.random() * playgroundTasks.length)];
-    console.log("📌 Task:", task);
+  log("🔁 Session started");
 
-    // 2. Generate code
-    const codeOutput = await writeCodeModule(task);
-    console.log("🧠 Code Output:\n", codeOutput.code);
+  const config = await loadJSON("playground/sessionConfig.json");
+  const tasks = await loadJSON("playground/playgroundTasks.json");
+  const logs = await loadJSON("playground/pipelineLogs.json");
+  const lessons = await loadJSON("playground/codeLessons.json");
 
-    // 3. Review it
-    const review = await reviewCodeModule(codeOutput);
-    console.log("🧪 Review Score:", review.score);
-    console.log("✅ Strengths:", review.strengths);
-    console.log("⚠️ Weaknesses:", review.weaknesses);
-
-    // 4. Bundle log for return
-    const sessionLog = {
-      taskId: task.id,
-      description: task.description,
-      language: codeOutput.language,
-      code: codeOutput.code,
-      review: {
-        score: review.score,
-        strengths: review.strengths,
-        weaknesses: review.weaknesses,
-        suggestions: review.suggestions
-      },
-      timestamp: new Date().toISOString()
-    };
-
-    // Optional save (uncomment if using Node)
-    // const logs = JSON.parse(fs.readFileSync("./playground/pipelineLogs.json"));
-    // logs.push(sessionLog);
-    // fs.writeFileSync("./playground/pipelineLogs.json", JSON.stringify(logs, null, 2));
-
-    return sessionLog;
-  } catch (err) {
-    console.error("❌ runPlaygroundSession error:", err);
-    return { error: true, message: err.message };
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    log("⚠️ No tasks found.", "error");
+    throw new Error("No tasks loaded.");
   }
+
+  const activeTask = tasks.find(t => !t.done);
+  if (!activeTask) {
+    log("✅ All tasks completed.", "success");
+    return { message: "All tasks completed", tasksRun: tasks.length };
+  }
+
+  log(`🧠 Running task: "${activeTask.title}"`);
+
+  // 1. Write code
+  const draftCode = await runCodeTask(activeTask, lessons, config);
+  log("📄 Code written");
+
+  // 2. Review and improve
+  const reviewNotes = await reviewCodeTask(activeTask, draftCode, lessons, config);
+  log("🔍 Review completed");
+
+  // 3. Save to log
+  const runData = {
+    taskId: activeTask.id,
+    title: activeTask.title,
+    timestamp: Date.now(),
+    draftCode,
+    reviewNotes
+  };
+  logs.push(runData);
+  activeTask.done = true;
+
+  // 4. Save everything
+  await Promise.all([
+    saveJSON("playground/codeLessons.json", lessons),
+    saveJSON("playground/pipelineLogs.json", logs),
+    saveJSON("playground/playgroundTasks.json", tasks)
+  ]);
+
+  log("💾 Session saved", "success");
+  return runData;
 }
