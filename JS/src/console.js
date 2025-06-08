@@ -1,11 +1,8 @@
-// console.js – Modern Debug Console for Nexus Assistant
-
 const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
 
-// --------- Helpers ---------
-
+// Load logs
 function loadPersistedLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
@@ -15,17 +12,18 @@ function loadPersistedLogs() {
   }
 }
 
+// Save logs
 function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
 
+// Format ISO timestamp for display
 function formatTime(iso) {
   const d = new Date(iso);
   return d.toLocaleTimeString();
 }
 
-// --------- Debug Log Core ---------
-
+// Main logger
 window.debugLog = function (...args) {
   const logs = loadPersistedLogs();
   const timestamp = new Date().toISOString();
@@ -40,15 +38,18 @@ window.debugLog = function (...args) {
   renderLogGroups(loadPersistedLogs());
 };
 
+// Conditional debug
 window.debug = (...args) => {
   if (window.DEBUG_MODE) window.debugLog(...args);
 };
 
+// Clear logs
 window.clearDebugLog = function () {
   localStorage.removeItem(LOG_STORAGE_KEY);
   renderLogGroups([]);
 };
 
+// Export logs
 window.exportDebugLog = function () {
   const logs = loadPersistedLogs();
   const blob = new Blob(
@@ -63,8 +64,7 @@ window.exportDebugLog = function () {
   URL.revokeObjectURL(url);
 };
 
-// --------- Status Feedback ---------
-
+// Status feedback bar
 window.setStatusFeedback = function (type, msg = "") {
   const bar = document.getElementById("chat-status-bar");
   if (!bar) return;
@@ -72,7 +72,7 @@ window.setStatusFeedback = function (type, msg = "") {
   const styleMap = {
     success: { color: "#1db954", bg: "rgba(29,185,84,0.08)" },
     error: { color: "#d7263d", bg: "rgba(215,38,61,0.08)" },
-    loading: { color: "#ffd600", bg: "rgba(255,214,0,0.08)" }
+    loading: { color: "#ffd600", bg: "rgba(255,214,0,0.08)" },
   };
 
   if (!styleMap[type]) {
@@ -91,12 +91,14 @@ window.setStatusFeedback = function (type, msg = "") {
   }
 };
 
+// Assistant reply shortcut
 window.logAssistantReply = function (replyText) {
   const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
   window.debug("[REPLY]", preview);
   window.setStatusFeedback("success", "Assistant responded");
 };
 
+// Fullscreen overlay
 window.showDebugOverlay = function () {
   const overlay = document.getElementById("debug-overlay");
   const content = document.getElementById("debug-content");
@@ -109,8 +111,7 @@ window.showDebugOverlay = function () {
   overlay.style.display = "flex";
 };
 
-// --------- Render Grouped Logs ---------
-
+// Render grouped logs
 function renderLogGroups(logs) {
   const container = document.getElementById("onscreen-console-messages");
   if (!container) return;
@@ -168,14 +169,10 @@ function renderLogGroups(logs) {
   }
 }
 
-// --------- DOM Ready Init ---------
-
-function initConsoleBindings() {
+// Init on page ready
+document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("console-toggle-btn");
   const panel = document.getElementById("onscreen-console");
-
-  if (!toggleBtn) console.error("[console.js] No #console-toggle-btn found!");
-  if (!panel) console.error("[console.js] No #onscreen-console found!");
 
   if (toggleBtn && panel) {
     toggleBtn.addEventListener("click", () => {
@@ -186,65 +183,53 @@ function initConsoleBindings() {
   }
 
   document.addEventListener("click", (e) => {
-    if (e.target.classList && e.target.classList.contains("debug-line")) {
+    if (e.target.classList.contains("debug-line")) {
       navigator.clipboard.writeText(e.target.textContent);
       e.target.classList.add("clicked");
       setTimeout(() => e.target.classList.remove("clicked"), 400);
     }
   });
 
-  // Inject minimal styles if not present
-  if (!document.getElementById("console-style")) {
-    const style = document.createElement("style");
-    style.id = "console-style";
-    style.textContent = `
-      .log-group {
-        border-left: 4px solid #444;
-        margin: 8px 0;
-        padding-left: 8px;
-      }
-      .log-group.info    { border-color: #999; }
-      .log-group.success { border-color: #1db954; }
-      .log-group.error   { border-color: #d7263d; }
-      .log-group.debug   { border-color: #368bff; }
-      .log-group.reply   { border-color: #ffa500; }
+  const style = document.createElement("style");
+  style.textContent = `
+    .log-group {
+      border-left: 4px solid #444;
+      margin: 8px 0;
+      padding-left: 8px;
+    }
+    .log-group.info    { border-color: #999; }
+    .log-group.success { border-color: #1db954; }
+    .log-group.error   { border-color: #d7263d; }
+    .log-group.debug   { border-color: #368bff; }
+    .log-group.reply   { border-color: #ffa500; }
 
-      .group-header {
-        font-weight: bold;
-        font-size: 0.85rem;
-        padding: 2px 0;
-        cursor: pointer;
-        color: #aaa;
-      }
+    .group-header {
+      font-weight: bold;
+      font-size: 0.85rem;
+      padding: 2px 0;
+      cursor: pointer;
+      color: #aaa;
+    }
 
-      .log-list {
-        padding-left: 4px;
-        display: flex;
-        flex-direction: column-reverse;
-      }
+    .log-list {
+      padding-left: 4px;
+      display: flex;
+      flex-direction: column-reverse;
+    }
 
-      .debug-line {
-        font-family: monospace;
-        font-size: 0.75rem;
-        padding: 2px 0;
-        color: #f8fafd;
-        white-space: pre-wrap;
-      }
+    .debug-line {
+      font-family: monospace;
+      font-size: 0.75rem;
+      padding: 2px 0;
+      color: #f8fafd;
+      white-space: pre-wrap;
+    }
 
-      .debug-line.clicked {
-        background: #32cd3277 !important;
-      }
-    `;
-    document.head.appendChild(style);
-  }
+    .debug-line.clicked {
+      background: #32cd3277 !important;
+    }
+  `;
+  document.head.appendChild(style);
 
-  // Initial load
   renderLogGroups(loadPersistedLogs());
-}
-
-// Always hook after DOMContentLoaded, regardless of module type/load order
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initConsoleBindings);
-} else {
-  initConsoleBindings();
-}
+});
