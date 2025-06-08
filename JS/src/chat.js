@@ -1,4 +1,6 @@
-// 🔹 chat.js – input and flow control only, all UI/logic in modules
+// 🔹 chat.js – input and flow control only, imports shared CSS externally
+
+import "./shared.css";
 
 import {
   onValue,
@@ -38,8 +40,8 @@ import {
 } from "./uiShell.js";
 
 // ========== 1. DOM Elements ==========
-const form = document.getElementById("chat-form");
-const input = document.getElementById("user-input");
+const form = document.querySelector(".chat-form");
+const input = document.querySelector(".chat-input");
 const debugToggle = document.getElementById("debug-toggle");
 
 // ========== 2. Init ==========
