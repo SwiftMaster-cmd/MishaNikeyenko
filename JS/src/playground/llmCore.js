@@ -1,17 +1,10 @@
 // llmCore.js – LLM API wrapper via Netlify function
 
 export async function callLLM({ model = "gpt-4o", messages = [], temperature = 0.7 }) {
-  const payload = {
-    model,
-    messages,
-    temperature
-  };
-
+  const payload = { model, messages, temperature };
   const response = await fetch("/.netlify/functions/chat", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
 
@@ -22,6 +15,5 @@ export async function callLLM({ model = "gpt-4o", messages = [], temperature = 0
   }
 
   const data = await response.json();
-  // OpenAI API: data.choices[0].message.content
   return data?.choices?.[0]?.message?.content?.trim() || "";
 }

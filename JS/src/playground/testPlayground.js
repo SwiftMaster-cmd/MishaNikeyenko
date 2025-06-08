@@ -2,7 +2,6 @@
 
 import runPlaygroundSession from './runPlaygroundSession.js';
 
-// Inject a test button and console area
 const main = document.getElementById('playground-main');
 main.innerHTML = `
   <h2>Playground Session Test</h2>

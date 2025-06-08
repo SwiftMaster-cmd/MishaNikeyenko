@@ -1,9 +1,10 @@
-// playground/writeCodeModule.js
+// writeCodeModule.js
 
-import { sessionConfig } from './sessionConfig.js';
-import { callLLM } from './llmCore.js'; // You must have a callLLM() defined elsewhere
+import { loadJSON } from './fileHelpers.js';
+import { callLLM } from './llmCore.js';
 
-export async function writeCodeModule(task) {
+export default async function writeCodeModule(task) {
+  const sessionConfig = await loadJSON("playground/sessionConfig.json");
   const prompt = `
 Write a ${task.language || "JavaScript"} function or module.
 
@@ -17,7 +18,7 @@ Requirements:
   `;
 
   const result = await callLLM({
-    model: sessionConfig.model,
+    model: sessionConfig.model || "gpt-4o",
     messages: [
       { role: "system", content: "You are a coding assistant. Return only code." },
       { role: "user", content: prompt }

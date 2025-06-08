@@ -1,9 +1,10 @@
-// playground/reviewCodeModule.js
+// reviewCodeModule.js
 
-import { sessionConfig } from './sessionConfig.js';
-import { callLLM } from './llmCore.js'; // You must have a callLLM() defined elsewhere
+import { loadJSON } from './fileHelpers.js';
+import { callLLM } from './llmCore.js';
 
-export async function reviewCodeModule(codeOutput) {
+export default async function reviewCodeModule(codeOutput) {
+  const sessionConfig = await loadJSON("playground/sessionConfig.json");
   const prompt = `
 Review the following ${codeOutput.language} code.
 
@@ -28,7 +29,7 @@ Return your review like this:
 `;
 
   const result = await callLLM({
-    model: sessionConfig.model,
+    model: sessionConfig.model || "gpt-4o",
     messages: [
       { role: "system", content: "You are a code reviewer. Respond with structured feedback only." },
       { role: "user", content: prompt }

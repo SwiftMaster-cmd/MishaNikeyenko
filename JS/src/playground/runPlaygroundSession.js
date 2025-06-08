@@ -1,8 +1,8 @@
-// 🔁 runPlaygroundSession.js – Core runner for Playground tasks
+// runPlaygroundSession.js
 
 import { loadJSON, saveJSON } from "./fileHelpers.js";
-import runCodeTask from "./writeCodeModule.js";
-import reviewCodeTask from "./reviewCodeModule.js";
+import writeCodeModule from "./writeCodeModule.js";
+import reviewCodeModule from "./reviewCodeModule.js";
 
 const log = (msg, type = "info") => {
   const logBox = document.getElementById("console-log");
@@ -37,11 +37,11 @@ export default async function runPlaygroundSession() {
   log(`🧠 Running task: "${activeTask.title}"`);
 
   // 1. Write code
-  const draftCode = await runCodeTask(activeTask, lessons, config);
+  const draftCode = await writeCodeModule(activeTask);
   log("📄 Code written");
 
   // 2. Review and improve
-  const reviewNotes = await reviewCodeTask(activeTask, draftCode, lessons, config);
+  const reviewNotes = await reviewCodeModule(draftCode);
   log("🔍 Review completed");
 
   // 3. Save to log
