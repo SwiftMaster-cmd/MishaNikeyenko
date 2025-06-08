@@ -83,27 +83,35 @@
   <script type="module" src="../JS/src/background.js"></script>
   <script type="module" src="../JS/src/selfEvolve.js"></script>
 
-  <!-- PLAYGROUND MODULE -->
-  <script type="module">
-    import runPlaygroundSession from "../JS/src/playground/runPlaygroundSession.js";
+<script type="module">
+  import runPlaygroundSession from "../JS/src/playground/runPlaygroundSession.js";
 
-    let autoRun = false;
+  console.log("🔁 Loaded Playground Module");
 
-    document.getElementById("start-playground").onclick = async () => {
-      autoRun = true;
-      document.getElementById("playground-output").textContent = "Running...";
+  let autoRun = false;
+
+  document.getElementById("start-playground").onclick = async () => {
+    console.log("▶️ Start button clicked");
+    autoRun = true;
+    const output = document.getElementById("playground-output");
+    output.textContent = "Running...";
+
+    try {
       const result = await runPlaygroundSession();
-      document.getElementById("playground-output").textContent = JSON.stringify(result, null, 2);
+      console.log("✅ Playground Result:", result);
+      output.textContent = JSON.stringify(result, null, 2);
+    } catch (e) {
+      console.error("❌ Error in Playground:", e);
+      output.textContent = "Error: " + e.message;
+    }
+  };
 
-      // Optional auto-run every 15s
-      // if (autoRun) setTimeout(() => document.getElementById("start-playground").click(), 15000);
-    };
-
-    document.getElementById("stop-playground").onclick = () => {
-      autoRun = false;
-      document.getElementById("playground-output").textContent = "Stopped.";
-    };
-  </script>
+  document.getElementById("stop-playground").onclick = () => {
+    console.log("⏹ Stop clicked");
+    autoRun = false;
+    document.getElementById("playground-output").textContent = "Stopped.";
+  };
+</script>
 
   <!-- Sidebar Toggle Logic -->
   <script type="module">
