@@ -1,46 +1,10 @@
-function injectOverlayLayout() {
-  // Only inject once
-  if (document.getElementById("overlay-console-messages")) return;
-  const overlay = document.getElementById("debug-overlay");
-  if (!overlay) return;
-  overlay.style.display = "none";
-  overlay.style.position = "fixed";
-  overlay.style.top = "0";
-  overlay.style.left = "0";
-  overlay.style.width = "100vw";
-  overlay.style.height = "100vh";
-  overlay.style.zIndex = "10000";
-  overlay.style.background = "rgba(22,22,32,0.92)";
-  overlay.style.alignItems = "center";
-  overlay.style.justifyContent = "center";
-  overlay.innerHTML = `
-    <div id="debug-modal"
-      style="background:rgba(28,32,42,0.98);border-radius:20px;box-shadow:0 8px 64px #0007;padding:32px 28px;min-width:380px;max-width:680px;width:90vw;max-height:86vh;display:flex;flex-direction:column;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <div>
-          <button class="console-btn" id="overlay-clear" type="button">Clear Logs</button>
-          <button class="console-btn" id="overlay-export" type="button">Export Logs</button>
-          <button class="console-btn" id="overlay-autoscroll" type="button" style="opacity:1;">AutoScroll</button>
-        </div>
-        <button class="console-btn close-btn" style="font-size:1.3em;padding:4px 12px;">✕</button>
-      </div>
-      <div id="overlay-console-pane">
-        <div id="overlay-console-messages"></div
-
-Here’s your **full, improved `console.js`** with these requirements handled:
-
-- **Overlay fills the viewport** and modal inside is always big, never shrinks below a real console size (min width/height).
-- **Overlay and mini console use the *same button styles* and controls.**
-- **Autoscroll works in both views:** Pauses when scrolled, resumes after inactivity.
-- **All code is modular, robust, and direct.**
-
----
-
-```js
 const LOG_STORAGE_KEY = "assistantDebugLog";
-window.autoScrollConsole = true;
 window.DEBUG_MODE = true;
-let overlayAutoScroll = true;
+
+// Autoscroll state
+let miniAutoscroll = true;
+let miniScrollTimer = null;
+let overlayAutoscroll = true;
 let overlayScrollTimer = null;
 
 // --------- Log Storage ---------
@@ -133,31 +97,36 @@ window.showDebugOverlay = function () {
   overlay.style.display = "flex";
   renderOverlayLogGroups();
 
-  // Setup controls in overlay
   overlay.querySelector(".close-btn")?.addEventListener("click", () => {
     overlay.style.display = "none";
-    overlayAutoScroll = true; // reset for next open
+    overlayAutoscroll = true;
   });
   overlay.querySelector("#overlay-clear")?.addEventListener("click", window.clearDebugLog);
   overlay.querySelector("#overlay-export")?.addEventListener("click", window.exportDebugLog);
   overlay.querySelector("#overlay-autoscroll")?.addEventListener("click", function () {
-    overlayAutoScroll = !overlayAutoScroll;
-    this.style.opacity = overlayAutoScroll ? '1' : '0.5';
-    if (overlayAutoScroll) scrollOverlayToBottom();
+    overlayAutoscroll = !overlayAutoscroll;
+    this.style.opacity = overlayAutoscroll ? '1' : '0.5';
+    if (overlayAutoscroll) scrollOverlayToBottom();
   });
 
-  // Overlay scroll autoScroll logic
+  // Overlay scroll logic (binds to the scrollable pane)
   const logPane = overlay.querySelector("#overlay-console-pane");
   if (logPane) {
     logPane.onscroll = function () {
-      overlayAutoScroll = false;
-      overlay.querySelector("#overlay-autoscroll").style.opacity = '0.5';
-      if (overlayScrollTimer) clearTimeout(overlayScrollTimer);
-      overlayScrollTimer = setTimeout(() => {
-        overlayAutoScroll = true;
+      if (!atBottom(logPane)) {
+        overlayAutoscroll = false;
+        overlay.querySelector("#overlay-autoscroll").style.opacity = '0.5';
+        if (overlayScrollTimer) clearTimeout(overlayScrollTimer);
+        overlayScrollTimer = setTimeout(() => {
+          if (atBottom(logPane)) {
+            overlayAutoscroll = true;
+            overlay.querySelector("#overlay-autoscroll").style.opacity = '1';
+          }
+        }, 3500);
+      } else {
+        overlayAutoscroll = true;
         overlay.querySelector("#overlay-autoscroll").style.opacity = '1';
-        scrollOverlayToBottom();
-      }, 3500);
+      }
     };
     scrollOverlayToBottom();
   }
@@ -180,10 +149,9 @@ function groupedLogHTML(logs) {
     .map(([tag, entries]) => ({ tag, entries }));
 }
 
-function renderLogGroups(logs, container, autoScroll = true) {
+function renderLogGroups(logs, container, useAutoscroll = true) {
   if (!container) return;
   container.innerHTML = "";
-
   groupedLogHTML(logs).forEach(({ tag, entries }) => {
     const group = document.createElement("div");
     group.className = `log-group ${tag.toLowerCase()}`;
@@ -196,7 +164,6 @@ function renderLogGroups(logs, container, autoScroll = true) {
     logList.className = "log-list";
     logList.style.display = "none";
     let isLoaded = false;
-
     header.onclick = () => {
       const visible = logList.style.display === "block";
       logList.style.display = visible ? "none" : "block";
@@ -213,33 +180,38 @@ function renderLogGroups(logs, container, autoScroll = true) {
     group.appendChild(logList);
     container.appendChild(group);
   });
-
-  if (autoScroll && container.parentElement) {
-    container.parentElement.scrollTop = container.parentElement.scrollHeight;
+  // Only scroll to bottom if autoscroll is ON and already at (or very near) bottom.
+  if (useAutoscroll && atBottom(container)) {
+    container.scrollTop = container.scrollHeight;
   }
 }
+
 function renderAllLogGroups() {
-  renderLogGroups(loadPersistedLogs(), document.getElementById("onscreen-console-messages"), window.autoScrollConsole);
+  renderLogGroups(loadPersistedLogs(), document.getElementById("onscreen-console-messages"), miniAutoscroll);
   if (document.getElementById("overlay-console-messages")) {
-    renderLogGroups(loadPersistedLogs(), document.getElementById("overlay-console-messages"), overlayAutoScroll);
+    renderLogGroups(loadPersistedLogs(), document.getElementById("overlay-console-messages"), overlayAutoscroll);
   }
 }
 function renderOverlayLogGroups() {
-  renderLogGroups(loadPersistedLogs(), document.getElementById("overlay-console-messages"), overlayAutoScroll);
+  renderLogGroups(loadPersistedLogs(), document.getElementById("overlay-console-messages"), overlayAutoscroll);
   scrollOverlayToBottom();
 }
 function scrollOverlayToBottom() {
   const overlay = document.getElementById("debug-overlay");
   if (!overlay) return;
-  const container = overlay.querySelector("#overlay-console-messages");
-  if (container && overlayAutoScroll) {
-    container.parentElement.scrollTop = container.parentElement.scrollHeight;
+  const container = overlay.querySelector("#overlay-console-pane");
+  if (container && overlayAutoscroll && atBottom(container)) {
+    container.scrollTop = container.scrollHeight;
   }
+}
+function atBottom(scrollEl) {
+  if (!scrollEl) return true;
+  // Within 12px of bottom is close enough
+  return scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 12;
 }
 
 // --------- DOM Ready Init ---------
 function injectOverlayLayout() {
-  // Only inject once
   if (document.getElementById("overlay-console-messages")) return;
   const overlay = document.getElementById("debug-overlay");
   if (!overlay) return;
@@ -331,25 +303,26 @@ function initConsoleBindings() {
   renderAllLogGroups();
 }
 
-// AutoScroll logic for mini console
+// Mini console scroll logic -- binds to onscreen-console-messages
 function setupMiniConsoleScroll() {
-  const miniPane = document.getElementById("onscreen-console");
   const msgBox = document.getElementById("onscreen-console-messages");
-  let miniScrollTimer = null;
-  if (miniPane && msgBox) {
+  if (msgBox) {
     msgBox.onscroll = function () {
-      window.autoScrollConsole = false;
-      if (miniScrollTimer) clearTimeout(miniScrollTimer);
-      // Button dimming not needed (would only be for overlay)
-      miniScrollTimer = setTimeout(() => {
-        window.autoScrollConsole = true;
-        renderAllLogGroups();
-      }, 3500);
+      if (!atBottom(msgBox)) {
+        miniAutoscroll = false;
+        if (miniScrollTimer) clearTimeout(miniScrollTimer);
+        miniScrollTimer = setTimeout(() => {
+          if (atBottom(msgBox)) {
+            miniAutoscroll = true;
+          }
+        }, 3500);
+      } else {
+        miniAutoscroll = true;
+      }
     };
   }
 }
 
-// Run init
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
     initConsoleBindings();
