@@ -2,171 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Console</title>
-
-  <!-- Existing Styles -->
-  <link rel="stylesheet" href="../CSS/calculator.css">
-  <link rel="stylesheet" href="../CSS/calendar.css">
-  <link rel="stylesheet" href="../CSS/chatgpt.css">
-  <link rel="stylesheet" href="../CSS/index.css">
-  <link rel="stylesheet" href="../CSS/jsloader.css">
-  <link rel="stylesheet" href="../CSS/links.css">
-  <link rel="stylesheet" href="../CSS/notes.css">
-  <link rel="stylesheet" href="../CSS/profile.css">
-  <link rel="stylesheet" href="../CSS/register.css">
-  <link rel="stylesheet" href="../CSS/variables.css">
-  <link rel="stylesheet" href="../CSS/console.css">
-  <link rel="stylesheet" href="../CSS/background.css">
+  <title>Playground Test</title>
 </head>
 <body>
-  <!-- 🔮 Background Layers -->
-  <div class="bg-gradient-layer"></div>
-  <canvas id="bg-canvas"></canvas>
 
-  <!-- HEADER -->
-  <header class="header-bar">
-    <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
-    <div id="chat-status-bar"></div>
-    <button id="profile-toggle-btn" class="profile-toggle-btn" aria-haspopup="true" aria-controls="profile-card">
-      Profile
-    </button>
-  </header>
+<button id="start-playground">Start Playground</button>
+<pre id="playground-output"></pre>
 
-  <!-- SIDEBAR -->
-  <nav id="side-nav" class="side-nav" aria-hidden="true">
-    <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
-    <div id="links-list" class="sidebar-links"></div>
-    <a href="welcome.html" class="nav-item">Dashboard</a>
-    <a href="notes.html" class="nav-item">Notes</a>
-    <a href="es-module.html" class="nav-item">ES-Module</a>
-    <a href="calculator.html" class="nav-item active">Calculator</a>
-    <a href="calendar.html" class="nav-item active">Calendar</a>
-  </nav>
-
-  <!-- PROFILE CARD -->
-  <aside id="profile-card" class="profile-card" aria-hidden="true">
-    <div id="user-info"></div>
-    <div id="config-status"></div>
-    <button id="logout-btn" type="button">Sign Out</button>
-  </aside>
-
-  <!-- MAIN DASHBOARD -->
-  <main>
-    <section style="margin: 2rem;">
-      <h2>🧠 Playground Session</h2>
-      <button id="start-playground">▶️ Start Playground</button>
-      <button id="stop-playground">⏹ Stop</button>
-      <pre id="playground-output" style="margin-top: 1rem; background:#222; padding:1rem; color:#0f0; overflow:auto; max-height:300px;">Waiting...</pre>
-    </section>
-    
-    
-  </main>
-  <section id="playground-console" style="
-  background: #121212;
-  color: #0f0;
-  padding: 1rem;
-  margin: 1rem 0;
-  font-family: monospace;
-  font-size: 0.9rem;
-  max-height: 300px;
-  overflow-y: auto;
-  border-radius: 8px;
-  box-shadow: 0 0 12px #00ff9c30 inset;
-">
-  <div id="console-log">[Console Ready]</div>
-</section>
-
-  <!-- Status Indicator -->
-  <div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
-    <span id="status-icon" style="font-size:2rem;"></span>
-    <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
-  </div>
-
-  <!-- MODULE SCRIPTS -->
-  <script type="module" src="../JS/profile.js"></script>
-  <script type="module" src="../JS/links.js"></script>
-  <script type="module" src="../JS/src/firebaseConfig.js"></script>
-  <script type="module" src="../JS/src/firebaseHelpers.js"></script>
-  <script type="module" src="../JS/src/storageDebug.js"></script>
-  <script type="module" src="../JS/src/console.js"></script>
-  <script type="module" src="../JS/src/chatUtils.js"></script>
-  <script type="module" src="../JS/src/commandHandlers.js"></script>
-  <script type="module" src="../JS/src/memoryManager.js"></script>
-  <script type="module" src="../JS/src/backgpt.js"></script>
-  <script type="module" src="../JS/src/uiShell.js"></script>
-  <script type="module" src="../JS/src/chat.js"></script>
-  <script type="module" src="../JS/src/background.js"></script>
-  <script type="module" src="../JS/src/selfEvolve.js"></script>
+<section id="playground-console" style="background:#111;color:#0f0;padding:1rem;font-family:monospace;"></section>
 
 <script type="module">
-  import runPlaygroundSession from "../JS/src/playground/runPlaygroundSession.js";
+  import runPlaygroundSession from "./runPlaygroundSession.js"; // Adjust path
 
-  // ✅ UI logger
-  function logToConsoleUI(message, type = "info") {
-    const logBox = document.getElementById("console-log");
-    const line = document.createElement("div");
-    line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-    if (type === "error") line.style.color = "#f55";
-    if (type === "success") line.style.color = "#5f5";
-    logBox.appendChild(line);
-    logBox.scrollTop = logBox.scrollHeight;
+  function logToConsoleUI(msg, type = "info") {
+    const box = document.getElementById("playground-console");
+    const div = document.createElement("div");
+    div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    div.style.color = type === "error" ? "#f55" : type === "success" ? "#5f5" : "#0f0";
+    box.appendChild(div);
   }
 
-  // ✅ AutoRun state
-  let autoRun = false;
-
-  // ✅ Start Button
   document.getElementById("start-playground").onclick = async () => {
-    logToConsoleUI("▶️ Start button clicked");
-    autoRun = true;
-
-    const output = document.getElementById("playground-output");
-    output.textContent = "Running...";
-
+    logToConsoleUI("▶️ Start clicked");
+    document.getElementById("playground-output").textContent = "Running...";
     try {
-      logToConsoleUI("⏳ Starting Playground Session...");
       const result = await runPlaygroundSession();
-      logToConsoleUI("✅ Playground finished", "success");
-      output.textContent = JSON.stringify(result, null, 2);
+      logToConsoleUI("✅ Done", "success");
+      document.getElementById("playground-output").textContent = JSON.stringify(result, null, 2);
     } catch (e) {
       logToConsoleUI("❌ Error: " + e.message, "error");
-      output.textContent = "Error: " + e.message;
     }
   };
 
-  // ✅ Stop Button
-  document.getElementById("stop-playground").onclick = () => {
-    autoRun = false;
-    logToConsoleUI("⏹ Stopped by user");
-    document.getElementById("playground-output").textContent = "Stopped.";
-  };
-
-  // Confirm script loaded
-  logToConsoleUI("🧪 Playground module loaded");
+  logToConsoleUI("🧪 Module ready");
 </script>
 
-  <!-- Sidebar Toggle Logic -->
-  <script type="module">
-    document.addEventListener('DOMContentLoaded', () => {
-      const sidebar = document.getElementById('side-nav');
-      const burger  = document.getElementById('menu-toggle');
-      const addBtn  = document.getElementById('toggle-form-btn');
-      const form    = document.getElementById('add-link-form');
-
-      burger.onclick = () => {
-        const open = sidebar.classList.toggle('open');
-        document.body.classList.toggle('sidebar-open', open);
-      };
-
-      if (form && addBtn) {
-        addBtn.onclick = () => {
-          const collapsed = form.classList.toggle('collapsed');
-          addBtn.classList.toggle('active', !collapsed);
-          if (!collapsed) document.getElementById('link-title')?.focus();
-        };
-      }
-    });
-  </script>
 </body>
 </html>
