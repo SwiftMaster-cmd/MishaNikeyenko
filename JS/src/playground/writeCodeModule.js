@@ -2,7 +2,9 @@ import { loadJSON } from './fileHelpers.js';
 import { callLLM } from './llmCore.js';
 
 export default async function writeCodeModule(task) {
-  const sessionConfig = await loadJSON("JS/src/playground/sessionConfig.json"); // <-- REMOVE the 'x'
+  // Correct path for HTML in html/ and JSON in JS/src/playground/
+  const sessionConfig = await loadJSON("../JS/src/playground/sessionConfig.json");
+
   const prompt = `
 Write a ${task.language || "JavaScript"} function or module.
 

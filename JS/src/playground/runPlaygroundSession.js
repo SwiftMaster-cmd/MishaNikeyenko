@@ -18,10 +18,11 @@ const log = (msg, type = "info") => {
 export default async function runPlaygroundSession() {
   log("🔁 Session started");
 
-const config  = await loadJSON("JS/src/playground/sessionConfig.json");
-const tasks   = await loadJSON("JS/src/playground/playgroundTasks.json");
-const logs    = await loadJSON("JS/src/playground/pipelineLogs.json");
-const lessons = await loadJSON("JS/src/playground/codeLessons.json");
+  // Use correct path from html/ to JSON
+  const config  = await loadJSON("../JS/src/playground/sessionConfig.json");
+  const tasks   = await loadJSON("../JS/src/playground/playgroundTasks.json");
+  const logs    = await loadJSON("../JS/src/playground/pipelineLogs.json");
+  const lessons = await loadJSON("../JS/src/playground/codeLessons.json");
 
   if (!Array.isArray(tasks) || tasks.length === 0) {
     log("⚠️ No tasks found.", "error");
@@ -55,11 +56,11 @@ const lessons = await loadJSON("JS/src/playground/codeLessons.json");
   logs.push(runData);
   activeTask.done = true;
 
-await Promise.all([
-  saveJSON("JS/src/playground/codeLessons.json", lessons),
-  saveJSON("JS/src/playground/pipelineLogs.json", logs),
-  saveJSON("JS/src/playground/playgroundTasks.json", tasks)
-]);
+  await Promise.all([
+    saveJSON("../JS/src/playground/codeLessons.json", lessons),
+    saveJSON("../JS/src/playground/pipelineLogs.json", logs),
+    saveJSON("../JS/src/playground/playgroundTasks.json", tasks)
+  ]);
   log("💾 Session saved", "success");
   return runData;
 }

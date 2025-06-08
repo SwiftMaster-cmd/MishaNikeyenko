@@ -1,10 +1,10 @@
-// reviewCodeModule.js
-
 import { loadJSON } from './fileHelpers.js';
 import { callLLM } from './llmCore.js';
 
 export default async function reviewCodeModule(codeOutput) {
-const sessionConfig = await loadJSON("JS/src/playground/sessionConfig.json");
+  // Correct path for HTML in html/ and JSON in JS/src/playground/
+  const sessionConfig = await loadJSON("../JS/src/playground/sessionConfig.json");
+
   const prompt = `
 Review the following ${codeOutput.language} code.
 
