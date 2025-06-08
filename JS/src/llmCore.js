@@ -7,7 +7,7 @@ export async function callLLM({ model = "gpt-4o", messages = [], temperature = 0
     temperature
   };
 
-  const response = await fetch("/.netlify/functions/chatgpt", {
+  const response = await fetch("/.netlify/functions/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -18,9 +18,10 @@ export async function callLLM({ model = "gpt-4o", messages = [], temperature = 0
   if (!response.ok) {
     const error = await response.text();
     console.error("LLM API Error:", error);
-    throw new Error("LLM request failed.");
+    throw new Error("LLM request failed: " + error);
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content?.trim() || "";
+  // OpenAI API: data.choices[0].message.content
+  return data?.choices?.[0]?.message?.content?.trim() || "";
 }
