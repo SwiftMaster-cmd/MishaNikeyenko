@@ -1,10 +1,8 @@
-// writeCodeModule.js
-
 import { loadJSON } from './fileHelpers.js';
 import { callLLM } from './llmCore.js';
 
 export default async function writeCodeModule(task) {
-  const sessionConfig = await loadJSON("playground/sessionConfig.json");
+  const sessionConfig = await loadJSON("JS/src/playground/sessionConfig.json"); // <-- REMOVE the 'x'
   const prompt = `
 Write a ${task.language || "JavaScript"} function or module.
 
