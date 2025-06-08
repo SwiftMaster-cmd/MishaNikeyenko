@@ -8,10 +8,12 @@ export default async function writeCodeModule(task) {
 You are writing JavaScript ES modules for a code loader with these requirements:
 
 - Only export a function: either "export default function()" or "export function run()".
-- Never use classes, objects, or anything else.
-- No comments, no usage examples, no markdown, no code fences.
+- Do NOT use classes, objects, or any other export types.
+- Do NOT include any comments, usage examples, markdown, or code fences.
+- Do NOT create, modify, or append any DOM elements or touch document.body, document.documentElement, or global selectors.
+- All code must execute strictly inside the loader environment and only use JavaScript (no HTML or CSS).
 - The exported function must be immediately callable with no arguments.
-- Output only valid JavaScript ES module code, nothing else.
+- Output only valid JavaScript ES module code and nothing else.
 
 Now, generate a working module for this request:
 "${task.description}"
