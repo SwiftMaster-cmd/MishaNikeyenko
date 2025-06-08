@@ -1,0 +1,12 @@
+[
+  {
+    "id": "proj-1",
+    "name": "Chat UI",
+    "description": "All chat frontend work"
+  },
+  {
+    "id": "proj-2",
+    "name": "Debug Console",
+    "description": "Debug overlay system"
+  }
+]

@@ -1,3 +1,6 @@
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,8 +51,6 @@
     <a href="es-module.html"  class="nav-item">ES-Module</a>
     <a href="calculator.html" class="nav-item active">Calculator</a>
     <a href="calendar.html"   class="nav-item active">Calendar</a>
-    <a href="console.html"   class="nav-item active">Console</a>
-        <a href="playground.html"   class="nav-item active">playground</a>
   </nav>
 
   <!-- PROFILE CARD -->
@@ -66,66 +67,27 @@
   <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
 </div>
 
-<main class="chat-container">
-  <!-- Chat Log -->
-  <div id="chat-log"></div>
-
-  <!-- Chat Form -->
-  <form id="chat-form">
-    <!-- Input Field -->
-    <input
-      id="user-input"
-      type="text"
-      placeholder="Type your message..."
-      required
-      class="chat-input"
-    />
-
-    <!-- Spinner -->
-    <span id="chat-loading-spinner" class="spinner">
-      <svg width="20" height="20" viewBox="0 0 50 50">
-        <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" opacity="0.5"/>
-        <circle cx="25" cy="25" r="20" stroke="#7e3af2" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round">
-          <animateTransform attributeName="transform" type="rotate" dur="1s" from="0 25 25" to="360 25 25" repeatCount="indefinite"/>
-        </circle>
-      </svg>
-    </span>
-
-    <!-- Status Indicator -->
-    <span id="status-indicator" class="status-indicator">
-      <span id="status-icon"></span>
-      <span id="status-tooltip" class="tooltip"></span>
-    </span>
-
-    <!-- Console Toggle & Submit -->
-    <div class="form-actions">
-
-      <button type="submit" class="send-btn">Send</button>
+<main>
+  <!-- Onscreen Console -->
+<div id="onscreen-console" style="display: block;">
+    <div id="onscreen-console-messages"></div>
+    <div style="margin-top: 10px;">
+      <button onclick="window.clearDebugLog()">Clear Logs</button>
+      <button onclick="window.exportDebugLog()">Export Logs</button>
+      <button onclick="window.showDebugOverlay()">Full View</button>
+      <button id="mini-autoscroll-btn" onclick="
+        window.miniAutoscroll = !window.miniAutoscroll;
+        this.style.opacity = window.miniAutoscroll ? '1' : '0.5';
+      ">AutoScroll</button>
     </div>
-  </form>
-
-  <!-- Chat Status Feedback -->
-  <div id="chat-status-bar"></div>
-
-<!-- Onscreen Console -->
-<div id="onscreen-console">
-  <div id="onscreen-console-messages"></div>
-  <div style="margin-top: 10px;">
-    <button onclick="window.clearDebugLog()">Clear Logs</button>
-    <button onclick="window.exportDebugLog()">Export Logs</button>
-    <button onclick="window.showDebugOverlay()">Full View</button>
-    <button onclick="window.autoScrollConsole = !window.autoScrollConsole; this.style.opacity = window.autoScrollConsole ? '1' : '0.5';">AutoScroll</button>
   </div>
-</div>
 
   <!-- Debug Overlay -->
-  <div id="debug-overlay">
-    <div id="debug-modal">
-      <button class="close-btn" onclick="document.getElementById('debug-overlay').style.display='none'">Close</button>
-      <div id="debug-content"></div>
-    </div>
+  <div id="debug-overlay" >
+    <!-- Overlay markup is injected by console.js -->
   </div>
 </main>
+
   <!-- MODULE SCRIPTS -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
@@ -134,12 +96,7 @@
   <script type="module" src="../JS/src/firebaseConfig.js"></script>
   <script type="module" src="../JS/src/firebaseHelpers.js"></script>
   <script type="module" src="../JS/src/storageDebug.js"></script>
-
   <script type="module" src="../JS/src/console.js"></script>
-
-
-
-
   <script type="module" src="../JS/src/chatUtils.js"></script>
   <script type="module" src="../JS/src/commandHandlers.js"></script>
   <script type="module" src="../JS/src/memoryManager.js"></script>

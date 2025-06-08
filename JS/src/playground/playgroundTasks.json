@@ -1,0 +1,29 @@
+[
+  {
+    "projectId": "proj-1",
+    "id": 101,
+    "title": "Add input field",
+    "description": "Add a text input to the chat UI.",
+    "done": false,
+    "favorite": false,
+    "history": []
+  },
+  {
+    "projectId": "proj-1",
+    "id": 102,
+    "title": "Send button",
+    "description": "Add a send button next to the input field.",
+    "done": false,
+    "favorite": false,
+    "history": []
+  },
+  {
+    "projectId": "proj-2",
+    "id": 201,
+    "title": "Console overlay",
+    "description": "Overlay for debug logs.",
+    "done": false,
+    "favorite": true,
+    "history": []
+  }
+]
