@@ -37,6 +37,14 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
+// 🆕 Dynamic repo fetcher
+import {
+  addRepoFile,
+  removeRepoFile,
+  listRepoFiles,
+  fetchAllRepoFiles
+} from "./repoFetcher.js";
+
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
@@ -118,6 +126,55 @@ form.addEventListener("submit", async (e) => {
       showChatInputSpinner(false);
       return;
     }
+
+    // ========== 🆕 Dynamic Repo File Commands ==========
+    // Add a repo file: /addrepo user/repo branch path/to/file.js
+    if (prompt.startsWith("/addrepo ")) {
+      const args = prompt.split(" ");
+      if (args.length < 4) {
+        window.setStatusFeedback?.("error", "Format: /addrepo user/repo branch path/to/file.js");
+        showChatInputSpinner(false);
+        return;
+      }
+      addRepoFile(args[1], args[2], args.slice(3).join(" "));
+      window.setStatusFeedback?.("success", "Repo file added.");
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // Remove by index: /removerepo 0
+    if (prompt.startsWith("/removerepo ")) {
+      const idx = parseInt(prompt.split(" ")[1]);
+      removeRepoFile(idx);
+      window.setStatusFeedback?.("success", "Repo file removed.");
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // List stored links: /listrepo
+    if (prompt === "/listrepo") {
+      const links = listRepoFiles()
+        .map((l, i) => `${i}: ${l.repo}/${l.branch}/${l.path}`)
+        .join("\n") || "No repo files stored.";
+      await saveMessageToChat("assistant", links, uid);
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // Fetch all stored files: /fetchrepo
+    if (prompt === "/fetchrepo") {
+      window.setStatusFeedback?.("loading", "Fetching all repo files...");
+      const fileMap = await fetchAllRepoFiles();
+      let combined = "";
+      for (const [filename, content] of Object.entries(fileMap)) {
+        combined += `// ===== ${filename} =====\n${content}\n\n`;
+      }
+      await saveMessageToChat("user", combined, uid);
+      window.setStatusFeedback?.("success", "Repo files loaded.");
+      showChatInputSpinner(false);
+      return;
+    }
+    // ========== END Dynamic Repo Commands ==========
 
     // Step 1: Save user message
     await saveMessageToChat("user", prompt, uid);
