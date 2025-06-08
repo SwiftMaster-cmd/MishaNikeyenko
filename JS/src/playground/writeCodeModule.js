@@ -5,15 +5,15 @@ export default async function writeCodeModule(task) {
   const sessionConfig = await loadJSON("../JS/src/playground/sessionConfig.json");
 
   const prompt = `
-Write a ${task.language || "JavaScript"} function or module.
+Write a ${task.language || "JavaScript"} function or class as an ES module.
 
 Description:
 ${task.description}
 
 Requirements:
-- The output must start with "export" (e.g. export function or export default)
-- Do NOT include any explanation, comments, or example usages--only code
-- Do NOT use code fences or any markdown formatting. Output only the raw code.
+- The code must use "export default" (e.g. export default function ... or export default class ...)
+- Output ONLY the code, nothing else--no comments, no usage examples, no code fences, no markdown.
+- The exported value must be callable or constructible if appropriate.
 `;
 
   let result = await callLLM({
@@ -24,8 +24,15 @@ Requirements:
     ]
   });
 
-  // Strip code fences or accidental markdown
+  // Remove any possible code fences or markdown labels
   let code = result.replace(/```[\s\S]*?[\r\n]/g, '').trim();
+
+  // If the code does not start with "export default", prepend it automatically (failsafe)
+  if (!/^export\s+default/.test(code)) {
+    // Attempt to auto-wrap the first function/class as export default
+    code = code.replace(/^(function|class)\s+([a-zA-Z0-9_]+)\s*\(/, 'export default $1 $2(')
+               .replace(/^(function|class)\s+([a-zA-Z0-9_]+)/, 'export default $1 $2');
+  }
 
   return {
     taskId: task.id,
