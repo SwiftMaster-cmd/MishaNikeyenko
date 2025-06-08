@@ -93,12 +93,17 @@ window.logAssistantReply = function (replyText) {
 // --------- Overlay: full grouped log UI ---------
 window.showDebugOverlay = function () {
   const overlay = document.getElementById("debug-overlay");
+  const mini = document.getElementById("onscreen-console");
   if (!overlay) return;
+  // Hide mini when overlay opens
+  if (mini) mini.style.display = "none";
   overlay.style.display = "flex";
   renderOverlayLogGroups();
 
   overlay.querySelector(".close-btn")?.addEventListener("click", () => {
     overlay.style.display = "none";
+    // Restore mini if it was previously visible
+    if (mini) mini.style.display = "block";
     overlayAutoscroll = true;
   });
   overlay.querySelector("#overlay-clear")?.addEventListener("click", window.clearDebugLog);
