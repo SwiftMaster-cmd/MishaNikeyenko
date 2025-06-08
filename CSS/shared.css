@@ -1,0 +1,202 @@
+/* Shared CSS variables and global resets */
+
+:root {
+  /* Colors */
+  --clr-bg: linear-gradient(135deg, #161026, #1e1e2e);
+  --clr-card: rgba(30, 30, 48, 0.88);
+  --clr-border: #2e2e3e;
+  --clr-border-light: #454056;
+  --clr-text: #f8fafd;
+  --clr-muted: #a1a6b9;
+  --clr-user: #7e3af2;
+  --clr-bot: #363c66;
+
+  /* Console & overlay colors */
+  --clr-console-bg: rgba(22, 18, 38, 0.95);
+  --clr-accent: #9159fa;
+  --clr-accent-dark: #6939ba;
+  --clr-highlight: #ffd600;
+  --clr-error: #d7263d;
+  --clr-success: #2ae686;
+  --clr-overlay-bg: rgba(14, 11, 25, 0.92);
+  --clr-btn-hover: rgba(255, 255, 255, 0.17);
+
+  /* Spacing & radius */
+  --radius: 18px;
+  --padding: 1rem;
+
+  /* Fonts */
+  --font-main: 'Inter', system-ui, Arial, sans-serif;
+  --font-console: 'JetBrains Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+}
+
+/* Global box-sizing and reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100vw;
+  min-width: 100vw;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-main);
+  background: var(--clr-bg);
+  color: var(--clr-text);
+  overflow: hidden;
+}
+
+/* Utility flex container for column centering */
+.flex-column-center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  width: 100vw;
+  height: 100vh;
+  min-width: 100vw;
+  min-height: 100vh;
+  position: relative;
+  background: transparent;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Scrollable containers */
+.scroll-auto {
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fade-in animation used throughout */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Button base styles */
+.btn {
+  cursor: pointer;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  padding: 0 18px;
+  height: 44px;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+/* Primary button variant */
+.btn-primary {
+  background-color: var(--clr-user);
+  color: white;
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: #5b2ee5;
+  box-shadow: 0 0 8px var(--clr-user);
+}
+
+/* Console toggle button base */
+.btn-console-toggle {
+  background: var(--clr-bot);
+  color: white;
+  margin-left: 0.5rem;
+}
+.btn-console-toggle:focus,
+.btn-console-toggle:active {
+  background: #474d8c;
+}
+
+/* Responsive helpers */
+@media (max-width: 600px) {
+  .responsive-full-width {
+    max-width: 100vw !important;
+    width: 100vw !important;
+  }
+  .responsive-column {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+}
+
+/* Scrollbar styling */
+.scroll-auto::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-auto::-webkit-scrollbar-thumb {
+  background-color: var(--clr-accent);
+  border-radius: 3px;
+}
+
+/* Typography helpers */
+.font-console {
+  font-family: var(--font-console);
+}
+
+/* Utility visibility helpers */
+.hidden {
+  display: none !important;
+}
+.visible {
+  display: block !important;
+}
+
+/* Utility spacing */
+.gap-sm {
+  gap: 0.5rem;
+}
+.gap-md {
+  gap: 1rem;
+}
+
+/* Box shadows commonly used */
+.shadow-light {
+  box-shadow: 0 6px 24px -6px rgba(24,28,39,0.2), 0 2px 12px -2px rgba(126,58,242,0.22);
+}
+.shadow-strong {
+  box-shadow: 0 10px 44px #000c, 0 0 0 2.5px var(--clr-accent);
+}
+
+/* Border radius */
+.radius-lg {
+  border-radius: var(--radius);
+}
+.radius-md {
+  border-radius: 12px;
+}
+
+/* Background colors */
+.bg-card {
+  background: var(--clr-card);
+}
+.bg-console {
+  background: var(--clr-console-bg);
+}
+.bg-accent {
+  background: var(--clr-accent);
+}
+.bg-accent-dark {
+  background: var(--clr-accent-dark);
+}
+.bg-error {
+  background: var(--clr-error);
+}
+.bg-success {
+  background: var(--clr-success);
+}
+.bg-highlight {
+  background: var(--clr-highlight);
+}

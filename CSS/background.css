@@ -1,0 +1,31 @@
+/* style.css */
+
+/* 1) Full-page body layers */
+body, html {
+  height: 100%;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Inter','Segoe UI',Arial,sans-serif;
+  background:
+    /* deep base gradient */
+    linear-gradient(120deg, #222238 0%, #181a26 100%),
+    /* soft radial glows */
+    radial-gradient(ellipse at 80% 15%,rgba(126,58,242,0.18) 0%,transparent 70%),
+    radial-gradient(ellipse at 18% 80%,rgba(64,168,252,0.11) 0%,transparent 75%),
+    /* vignette */
+    radial-gradient(ellipse at 50% 80%,rgba(24,20,40,0.68) 60%,transparent 95%),
+    /* bokeh dots */
+    repeating-radial-gradient(circle at 60% 40%,rgba(255,255,255,0.017) 0,rgba(255,255,255,0.013) 1.3px,transparent 1.3px,transparent 95px);
+  background-blend-mode: overlay, lighten, overlay, normal;
+}
+
+/* 2) Canvas sits immediately above the gradient */
+#bg-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+}
