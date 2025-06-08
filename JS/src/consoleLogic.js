@@ -6,6 +6,7 @@ let miniScrollTimer = null;
 export let overlayAutoscroll = true;
 let overlayScrollTimer = null;
 
+// --- LOG STORAGE ---
 export function loadPersistedLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
@@ -22,7 +23,7 @@ export function formatTime(iso) {
   return d.toLocaleTimeString();
 }
 
-// -- LOGGING API --
+// --- LOGGING API ---
 export function debugLog(...args) {
   const logs = loadPersistedLogs();
   const timestamp = new Date().toISOString();
@@ -57,7 +58,7 @@ export function exportLogs() {
   }, 100);
 }
 
-// -- FULL VIEW (OVERLAY) --
+// --- OVERLAY (FULL VIEW) API ---
 export function showOverlay() {
   const overlay = document.getElementById("debug-overlay");
   const mini = document.getElementById("onscreen-console");
@@ -133,7 +134,6 @@ export function renderLogGroups(logs, container, useAutoscroll = true) {
     group.appendChild(logList);
     container.appendChild(group);
   });
-  // Only scroll to bottom if autoscroll is ON and already at (or very near) bottom.
   if (useAutoscroll && atBottom(container)) {
     container.scrollTop = container.scrollHeight;
   }
@@ -161,11 +161,10 @@ export function scrollOverlayToBottom() {
 }
 export function atBottom(scrollEl) {
   if (!scrollEl) return true;
-  // Within 12px of bottom is close enough
   return scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 12;
 }
 
-// -- Clipboard
+// --- CLIPBOARD FOR LOG LINES ---
 export function setupClipboardCopy() {
   document.addEventListener("click", (e) => {
     if (e.target.classList && e.target.classList.contains("debug-line")) {
@@ -176,7 +175,7 @@ export function setupClipboardCopy() {
   });
 }
 
-// -- Mini console scroll logic --
+// --- MINI CONSOLE SCROLL LOGIC ---
 export function setupMiniConsoleScroll() {
   const msgBox = document.getElementById("onscreen-console-messages");
   if (msgBox) {
