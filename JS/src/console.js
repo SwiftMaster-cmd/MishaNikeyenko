@@ -91,27 +91,24 @@ window.logAssistantReply = function (replyText) {
 window.showDebugOverlay = function () {
   const overlay = document.getElementById("debug-overlay");
   if (!overlay) return;
-
   overlay.style.display = "flex";
   renderOverlayLogGroups();
 
-  // Setup all controls in overlay
-  const closeBtn = overlay.querySelector(".close-btn");
-  if (closeBtn) {
-    closeBtn.onclick = () => {
-      overlay.style.display = "none";
-      overlayAutoScroll = true; // reset for next open
-    };
-  }
+  // Setup controls in overlay
+  overlay.querySelector(".close-btn")?.addEventListener("click", () => {
+    overlay.style.display = "none";
+    overlayAutoScroll = true; // reset for next open
+  });
   overlay.querySelector("#overlay-clear")?.addEventListener("click", window.clearDebugLog);
   overlay.querySelector("#overlay-export")?.addEventListener("click", window.exportDebugLog);
   overlay.querySelector("#overlay-autoscroll")?.addEventListener("click", function () {
     overlayAutoScroll = !overlayAutoScroll;
     this.style.opacity = overlayAutoScroll ? '1' : '0.5';
+    if (overlayAutoScroll) scrollOverlayToBottom();
   });
 
   // Overlay scroll autoScroll logic
-  const logPane = overlay.querySelector("#overlay-console-messages");
+  const logPane = overlay.querySelector("#overlay-console-pane");
   if (logPane) {
     logPane.onscroll = function () {
       overlayAutoScroll = false;
@@ -121,7 +118,7 @@ window.showDebugOverlay = function () {
         overlayAutoScroll = true;
         overlay.querySelector("#overlay-autoscroll").style.opacity = '1';
         scrollOverlayToBottom();
-      }, 3500); // resume after 3.5s of no scroll
+      }, 3500);
     };
     scrollOverlayToBottom();
   }
@@ -135,8 +132,6 @@ function groupedLogHTML(logs) {
     if (!groups[log.tag]) groups[log.tag] = [];
     groups[log.tag].push(log);
   });
-
-  // Return array of {tag, entries}
   return Object.entries(groups)
     .sort((a, b) => {
       const aTime = a[1][a[1].length - 1].timestamp;
@@ -184,8 +179,6 @@ function renderLogGroups(logs, container, autoScroll = true) {
     container.parentElement.scrollTop = container.parentElement.scrollHeight;
   }
 }
-
-// Render both views with fresh logs
 function renderAllLogGroups() {
   renderLogGroups(loadPersistedLogs(), document.getElementById("onscreen-console-messages"), window.autoScrollConsole);
   if (document.getElementById("overlay-console-messages")) {
@@ -196,7 +189,6 @@ function renderOverlayLogGroups() {
   renderLogGroups(loadPersistedLogs(), document.getElementById("overlay-console-messages"), overlayAutoScroll);
   scrollOverlayToBottom();
 }
-
 function scrollOverlayToBottom() {
   const overlay = document.getElementById("debug-overlay");
   if (!overlay) return;
@@ -212,16 +204,28 @@ function injectOverlayLayout() {
   if (document.getElementById("overlay-console-messages")) return;
   const overlay = document.getElementById("debug-overlay");
   if (!overlay) return;
-
+  overlay.style.display = "none";
+  overlay.style.position = "fixed";
+  overlay.style.top = "0";
+  overlay.style.left = "0";
+  overlay.style.width = "100vw";
+  overlay.style.height = "100vh";
+  overlay.style.zIndex = "10000";
+  overlay.style.background = "rgba(22,22,32,0.92)";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
   overlay.innerHTML = `
-    <div id="debug-modal">
-      <button class="close-btn" style="float:right;margin-bottom:8px;">Close</button>
-      <div style="margin-bottom:8px;display:flex;gap:8px;">
-        <button id="overlay-clear" type="button">Clear Logs</button>
-        <button id="overlay-export" type="button">Export Logs</button>
-        <button id="overlay-autoscroll" type="button" style="opacity:1;">AutoScroll</button>
+    <div id="debug-modal"
+      style="background:rgba(28,32,42,0.98);border-radius:20px;box-shadow:0 8px 64px #0007;padding:32px 28px;min-width:420px;min-height:320px;max-width:680px;width:90vw;max-height:86vh;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div>
+          <button class="console-btn" id="overlay-clear" type="button">Clear Logs</button>
+          <button class="console-btn" id="overlay-export" type="button">Export Logs</button>
+          <button class="console-btn" id="overlay-autoscroll" type="button" style="opacity:1;">AutoScroll</button>
+        </div>
+        <button class="console-btn close-btn" style="font-size:1.3em;padding:4px 12px;">✕</button>
       </div>
-      <div id="overlay-console-pane" style="height:55vh;max-height:60vh;overflow:auto;border-radius:10px;background:rgba(24,28,36,0.97);padding:10px;">
+      <div id="overlay-console-pane" style="min-height:280px;height:55vh;max-height:66vh;overflow:auto;border-radius:10px;background:rgba(24,28,36,0.97);padding:10px;">
         <div id="overlay-console-messages"></div>
       </div>
     </div>
@@ -250,6 +254,26 @@ function initConsoleBindings() {
     const style = document.createElement("style");
     style.id = "console-style";
     style.textContent = `
+      .console-btn {
+        background: #23253b;
+        color: #f8fafd;
+        border: none;
+        outline: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        padding: 7px 18px;
+        margin: 0 4px 0 0;
+        box-shadow: 0 1px 4px #0002;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, box-shadow 0.13s;
+      }
+      .console-btn:hover,
+      .console-btn:active {
+        background: #292b48;
+        color: #ffe486;
+        box-shadow: 0 2px 8px #0003;
+      }
       .log-group { border-left: 4px solid #444; margin: 8px 0; padding-left: 8px; }
       .log-group.info    { border-color: #999; }
       .log-group.success { border-color: #1db954; }
@@ -273,15 +297,13 @@ function setupMiniConsoleScroll() {
   const miniPane = document.getElementById("onscreen-console");
   const msgBox = document.getElementById("onscreen-console-messages");
   let miniScrollTimer = null;
-
   if (miniPane && msgBox) {
     msgBox.onscroll = function () {
       window.autoScrollConsole = false;
       if (miniScrollTimer) clearTimeout(miniScrollTimer);
-      document.querySelector("#console-toggle-btn").style.opacity = '0.5';
+      // Button dimming not needed (would only be for overlay)
       miniScrollTimer = setTimeout(() => {
         window.autoScrollConsole = true;
-        document.querySelector("#console-toggle-btn").style.opacity = '1';
         renderAllLogGroups();
       }, 3500);
     };
