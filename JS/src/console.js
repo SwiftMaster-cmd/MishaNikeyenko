@@ -1,3 +1,42 @@
+function injectOverlayLayout() {
+  // Only inject once
+  if (document.getElementById("overlay-console-messages")) return;
+  const overlay = document.getElementById("debug-overlay");
+  if (!overlay) return;
+  overlay.style.display = "none";
+  overlay.style.position = "fixed";
+  overlay.style.top = "0";
+  overlay.style.left = "0";
+  overlay.style.width = "100vw";
+  overlay.style.height = "100vh";
+  overlay.style.zIndex = "10000";
+  overlay.style.background = "rgba(22,22,32,0.92)";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.innerHTML = `
+    <div id="debug-modal"
+      style="background:rgba(28,32,42,0.98);border-radius:20px;box-shadow:0 8px 64px #0007;padding:32px 28px;min-width:380px;max-width:680px;width:90vw;max-height:86vh;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div>
+          <button class="console-btn" id="overlay-clear" type="button">Clear Logs</button>
+          <button class="console-btn" id="overlay-export" type="button">Export Logs</button>
+          <button class="console-btn" id="overlay-autoscroll" type="button" style="opacity:1;">AutoScroll</button>
+        </div>
+        <button class="console-btn close-btn" style="font-size:1.3em;padding:4px 12px;">✕</button>
+      </div>
+      <div id="overlay-console-pane">
+        <div id="overlay-console-messages"></div
+
+Here’s your **full, improved `console.js`** with these requirements handled:
+
+- **Overlay fills the viewport** and modal inside is always big, never shrinks below a real console size (min width/height).
+- **Overlay and mini console use the *same button styles* and controls.**
+- **Autoscroll works in both views:** Pauses when scrolled, resumes after inactivity.
+- **All code is modular, robust, and direct.**
+
+---
+
+```js
 const LOG_STORAGE_KEY = "assistantDebugLog";
 window.autoScrollConsole = true;
 window.DEBUG_MODE = true;

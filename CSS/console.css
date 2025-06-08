@@ -36,7 +36,6 @@
   transition: box-shadow 0.22s, transform 0.22s;
 }
 #onscreen-console:hover {
-  transform: scale(1.015);
   box-shadow: 0 10px 44px #000c, 0 0 0 2.5px var(--clr-accent);
 }
 
@@ -75,7 +74,7 @@
   border-radius: 7px;
   font-family: var(--font-console);
   background: rgba(255,255,255,0.06);
-  transition: background 0.19s, transform 0.15s, box-shadow 0.13s;
+  transition: background 0.19s, box-shadow 0.13s, border 0.13s;
   cursor: pointer;
   position: relative;
   font-size: 1.03em;
@@ -83,7 +82,7 @@
 }
 .debug-line:hover, .debug-line:focus-visible {
   background: var(--clr-btn-hover);
-  transform: translateX(5px) scale(1.025);
+  /* REMOVED grow/translate effect */
   border: 1px solid var(--clr-accent);
   z-index: 1;
 }
@@ -126,7 +125,9 @@
   background: #4442;
 }
 
-#onscreen-console button {
+#onscreen-console button,
+#debug-modal button,
+#debug-modal .console-btn {
   margin-right: 12px;
   padding: 5.5px 18px;
   border-radius: 9px;
@@ -141,35 +142,64 @@
   box-shadow: 0 2px 7px #0003;
   background: #25203c;
   color: #fff;
+  font-family: var(--font-main), monospace;
 }
-#onscreen-console button:hover {
-  transform: scale(1.06);
+#onscreen-console button:hover,
+#debug-modal button:hover,
+#debug-modal .console-btn:hover {
   box-shadow: 0 4px 20px #6939ba55;
   background: var(--clr-btn-hover);
   color: var(--clr-accent);
 }
-#onscreen-console button:last-child {
+#onscreen-console button:last-child,
+#debug-modal button:last-child {
   margin-right: 0;
 }
-#onscreen-console button[onclick*="clearDebugLog"] {
+#onscreen-console button[onclick*="clearDebugLog"],
+#debug-modal button#overlay-clear {
   background: var(--clr-error);
   color: #fff;
 }
-#onscreen-console button[onclick*="clearDebugLog"]:hover {
+#onscreen-console button[onclick*="clearDebugLog"]:hover,
+#debug-modal button#overlay-clear:hover {
   background: #bc1d2f;
   color: #ffd6d6;
 }
-#onscreen-console button[onclick*="exportDebugLog"] {
+#onscreen-console button[onclick*="exportDebugLog"],
+#debug-modal button#overlay-export {
   background: var(--clr-highlight);
   color: #36324a;
 }
-#onscreen-console button[onclick*="showDebugOverlay"] {
+#onscreen-console button[onclick*="showDebugOverlay"],
+#debug-modal button#overlay-show {
   background: #2e89ff;
   color: #fff;
 }
-#onscreen-console button[onclick*="autoScrollConsole"] {
+#onscreen-console button[onclick*="autoScrollConsole"],
+#debug-modal button#overlay-autoscroll {
   background: #363c66;
   color: #eee;
+}
+#debug-modal .console-btn.close-btn {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  background: #2e2e3e;
+  color: var(--clr-highlight);
+  padding: 8px 19px 8px 19px;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 1.09rem;
+  font-weight: 800;
+  box-shadow: 0 3px 12px #0004;
+  letter-spacing: 0.03em;
+  margin: 0;
+  transition: background 0.17s, color 0.15s;
+}
+#debug-modal .console-btn.close-btn:hover,
+#debug-modal .console-btn.close-btn:focus {
+  background: var(--clr-highlight);
+  color: #2e2e3e;
 }
 
 #console-toggle-btn {
@@ -195,6 +225,7 @@
   box-shadow: 0 5px 18px #7e3af244, 0 0 0 1.5px var(--clr-highlight);
   transform: scale(1.03);
 }
+
 /* Debug Overlay */
 #debug-overlay {
   position: fixed;
@@ -234,27 +265,6 @@
   opacity: 0.97;
   overflow-y: auto;
   flex: 1;
-}
-
-#debug-modal .close-btn {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  background: #2e2e3e;
-  color: var(--clr-highlight);
-  border: none;
-  padding: 8px 19px 8px 19px;
-  cursor: pointer;
-  border-radius: 8px;
-  font-size: 1.09rem;
-  font-weight: 800;
-  box-shadow: 0 3px 12px #0004;
-  letter-spacing: 0.03em;
-  transition: background 0.17s, color 0.15s;
-}
-#debug-modal .close-btn:hover, #debug-modal .close-btn:focus {
-  background: var(--clr-highlight);
-  color: #2e2e3e;
 }
 
 /* Responsive */
