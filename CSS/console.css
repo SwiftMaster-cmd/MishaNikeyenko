@@ -247,8 +247,8 @@
   padding: 2.5rem 2.2rem 2.3rem 2.5rem;
   border-radius: 19px;
   box-shadow: 0 16px 54px #000d, 0 0 0 3.5px var(--clr-accent);
-  max-width: 93vw;
-  max-height: 83vh;
+  max-width: 80%;
+  max-height: 60%;
   overflow-y: auto;
   border: 2px solid var(--clr-border);
   font-family: var(--font-console);
