@@ -2,7 +2,6 @@ import { loadJSON } from './fileHelpers.js';
 import { callLLM } from './llmCore.js';
 
 export default async function writeCodeModule(task) {
-  // Load session config (model type, etc)
   const sessionConfig = await loadJSON("../JS/src/playground/sessionConfig.json");
 
   const prompt = `
@@ -12,13 +11,12 @@ Description:
 ${task.description}
 
 Requirements:
-- Write clean, modular code
-- Include helpful comments
-- The output **must** start with "export" (e.g. export function or export default)
-- Do not include any extra explanation outside the code block
+- The output must start with "export" (e.g. export function or export default)
+- Do NOT include any explanation, comments, or example usages--only code
+- Do NOT use code fences or any markdown formatting. Output only the raw code.
 `;
 
-  const result = await callLLM({
+  let result = await callLLM({
     model: sessionConfig.model || "gpt-4o",
     messages: [
       { role: "system", content: "You are a coding assistant. Return only code." },
@@ -26,10 +24,13 @@ Requirements:
     ]
   });
 
+  // Strip code fences or accidental markdown
+  let code = result.replace(/```[\s\S]*?[\r\n]/g, '').trim();
+
   return {
     taskId: task.id,
     description: task.description,
-    code: result,
+    code,
     language: task.language || "JavaScript",
     timestamp: Date.now()
   };
