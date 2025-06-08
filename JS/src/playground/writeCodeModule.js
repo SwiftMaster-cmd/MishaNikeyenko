@@ -4,16 +4,17 @@ import { callLLM } from './llmCore.js';
 export default async function writeCodeModule(task) {
   const sessionConfig = await loadJSON("../JS/src/playground/sessionConfig.json");
 
-  const prompt = `
-You are writing JavaScript ES modules for a code loader with these requirements:
+const prompt = `
+You are writing JavaScript ES modules for a custom loader.
 
-- Only export a function: "export default function()" or "export function run()".
-- The exported function must set the innerHTML of the element with id "js-output" to the result.
-- Do NOT use console.log, alert, or modify any other part of the DOM.
-- Do NOT use document.body, document.documentElement, or any global selectors.
-- Do NOT return anything, only set document.getElementById("js-output").innerHTML = ...;
-- Do NOT include any comments, usage examples, markdown, or code fences.
-- Output only the code.
+- Export only a function: "export default function()" or "export function run()".
+- The function should output results appropriately for the requested task:
+    - If visual or text output is needed, set the innerHTML of the element with id "js-output".
+    - If only a result string is appropriate, return the string.
+    - Otherwise, just perform the requested JS logic.
+- Do NOT use alert, console.log, or modify any part of the DOM except document.getElementById("js-output").
+- Do NOT include comments, usage examples, markdown, or code fences.
+- Output only the JavaScript ES module code, nothing else.
 
 Now, generate a working module for this request:
 "${task.description}"
