@@ -8,16 +8,10 @@ import {
   markBestVersion,
   getBestVersion
 } from './projectManager.js';
+
 import runPlaygroundSession from './runPlaygroundSession.js';
 
-// Utility: Escape HTML for safe output
-function escapeHTML(str) {
-  return String(str).replace(/[&<>'"]/g, s => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'
-  }[s]));
-}
-
-// --- DOM Injection ---
+// --- HTML Injection ---
 const main = document.getElementById('playground-main');
 main.innerHTML = `
   <div id="playground-outer-container"
@@ -47,6 +41,7 @@ main.innerHTML = `
   </div>
 `;
 
+// --- DOM references ---
 const status = document.getElementById('playground-status');
 const form = document.getElementById('playground-form');
 const input = document.getElementById('user-task');
@@ -61,6 +56,12 @@ let projects = [];
 let currentProject = null;
 
 // --- Helpers ---
+function escapeHTML(str) {
+  return String(str).replace(/[&<>'"]/g, s => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'
+  }[s]));
+}
+
 function setStatus(text, color="#77f") {
   status.textContent = text;
   status.style.color = color;
@@ -68,8 +69,7 @@ function setStatus(text, color="#77f") {
 
 function log(text, isError = false) {
   logBox.innerHTML = `[${new Date().toLocaleTimeString()}] ${escapeHTML(text)}<br>` + logBox.innerHTML;
-  if (isError) logBox.style.color = "#e15656";
-  else logBox.style.color = "#aaa";
+  logBox.style.color = isError ? "#e15656" : "#aaa";
 }
 
 function optionHTML(val, label, selected=false) {
@@ -78,89 +78,116 @@ function optionHTML(val, label, selected=false) {
 
 // --- Project UI ---
 async function refreshProjects(selectedId=null) {
-  projects = await listProjects();
-  if (!projects.length) {
-    // Create a default project on first load
-    const def = await createProject({ name: "First Project", language: "JavaScript" });
-    projects = [def];
+  try {
+    projects = await listProjects();
+    if (!projects.length) {
+      // Create a default project on first load
+      const def = await createProject({ name: "First Project", language: "JavaScript" });
+      projects = [def];
+    }
+    projectSelect.innerHTML = projects.map(p => optionHTML(p.id, p.name, selectedId ? p.id === selectedId : false)).join("");
+    if (!selectedId) selectProject(projects[0].id);
+    else selectProject(selectedId);
+  } catch (err) {
+    setStatus("Error loading projects", "#f55");
+    log(err.message, true);
   }
-  projectSelect.innerHTML = projects.map(p => optionHTML(p.id, p.name, selectedId ? p.id === selectedId : false)).join("");
-  if (!selectedId) selectProject(projects[0].id);
 }
 
 async function selectProject(id) {
-  currentProject = await loadProject(id);
-  setStatus(`Loaded: ${currentProject.name}`, "#3dfc8b");
-  log(`Loaded project: ${currentProject.name}`);
-  await showHistory();
+  try {
+    currentProject = await loadProject(id);
+    setStatus(`Loaded: ${currentProject.name}`, "#3dfc8b");
+    log(`Loaded project: ${currentProject.name}`);
+    await showHistory();
+  } catch (err) {
+    setStatus("Error loading project", "#f55");
+    log(err.message, true);
+  }
 }
 
 newProjectBtn.onclick = async () => {
   const name = prompt("Project name?");
   if (!name) return;
-  const proj = await createProject({ name });
-  await refreshProjects(proj.id);
+  try {
+    const proj = await createProject({ name });
+    await refreshProjects(proj.id);
+  } catch (err) {
+    setStatus("Error creating project", "#f55");
+    log(err.message, true);
+  }
 };
 
 deleteProjectBtn.onclick = async () => {
   if (!currentProject) return;
   if (!confirm("Delete this project?")) return;
-  await deleteProject(currentProject.id);
-  await refreshProjects();
+  try {
+    await deleteProject(currentProject.id);
+    await refreshProjects();
+  } catch (err) {
+    setStatus("Error deleting project", "#f55");
+    log(err.message, true);
+  }
 };
 
 projectSelect.onchange = () => selectProject(projectSelect.value);
 
 // --- History UI ---
 async function showHistory() {
-  const history = await listHistory(currentProject.id);
-  if (!history.length) {
-    historyList.innerHTML = `<div style="color:#a9aab8;text-align:center;">No history yet. Run a task to start.</div>`;
-    return;
-  }
-  // Render each history entry
-  historyList.innerHTML = history.map((h, i) => `
-    <div style="margin-bottom:18px;border-radius:12px;border:2px solid ${h.isBest?"#4efd8b":"#26263e"};background:${h.isBest?"#162a1c":"#21212b"};box-shadow:${h.isBest?"0 0 12px #43ff8b44":"none"};padding:14px 14px 6px 16px;position:relative;">
-      <div style="font-size:1.08em;">
-        <b>Prompt:</b> ${escapeHTML(h.prompt)}
+  try {
+    const history = await listHistory(currentProject.id);
+    if (!history.length) {
+      historyList.innerHTML = `<div style="color:#a9aab8;text-align:center;">No history yet. Run a task to start.</div>`;
+      return;
+    }
+    // Render each history entry
+    historyList.innerHTML = history.map((h, i) => `
+      <div style="margin-bottom:18px;border-radius:12px;border:2px solid ${h.isBest?"#4efd8b":"#26263e"};background:${h.isBest?"#162a1c":"#21212b"};box-shadow:${h.isBest?"0 0 12px #43ff8b44":"none"};padding:14px 14px 6px 16px;position:relative;">
+        <div style="font-size:1.08em;">
+          <b>Prompt:</b> ${escapeHTML(h.prompt)}
+        </div>
+        <div style="margin:10px 0 0 0;">
+          <details open>
+            <summary style="font-weight:600;font-size:1.02em;color:#b9ffb9;cursor:pointer;">Code</summary>
+            <pre style="background:#1c202c;padding:10px 10px 10px 12px;border-radius:8px;color:#b9ffb9;font-size:1em;overflow-x:auto;">${escapeHTML(h.code)}</pre>
+          </details>
+          <details>
+            <summary style="font-weight:600;font-size:1.02em;color:#e0c8f8;cursor:pointer;">Review</summary>
+            <pre style="background:#232032;padding:10px 10px 10px 12px;border-radius:8px;color:#e0c8f8;font-size:1em;overflow-x:auto;">${escapeHTML(JSON.stringify(h.review, null, 2))}</pre>
+          </details>
+        </div>
+        <div style="font-size:0.95em;color:#aaa;margin-top:8px;">
+          <b>${h.isBest ? "⭐ Best Version" : ""}</b> 
+          <b>Timestamp:</b> ${new Date(h.timestamp).toLocaleString()}
+        </div>
+        <div style="margin-top:8px;">
+          <button data-idx="${h.id}" class="mark-best-btn" style="padding:3.5px 11px;border-radius:6px;background:${h.isBest?"#26263e":"#36e092"};color:#fff;border:none;font-size:0.99em;margin-right:8px;">Mark Best</button>
+          <button data-idx="${h.id}" class="refine-btn" style="padding:3.5px 11px;border-radius:6px;background:#4951bb;color:#fff;border:none;font-size:0.99em;">Refine</button>
+        </div>
       </div>
-      <div style="margin:10px 0 0 0;">
-        <details open>
-          <summary style="font-weight:600;font-size:1.02em;color:#b9ffb9;cursor:pointer;">Code</summary>
-          <pre style="background:#1c202c;padding:10px 10px 10px 12px;border-radius:8px;color:#b9ffb9;font-size:1em;overflow-x:auto;">${escapeHTML(h.code)}</pre>
-        </details>
-        <details>
-          <summary style="font-weight:600;font-size:1.02em;color:#e0c8f8;cursor:pointer;">Review</summary>
-          <pre style="background:#232032;padding:10px 10px 10px 12px;border-radius:8px;color:#e0c8f8;font-size:1em;overflow-x:auto;">${escapeHTML(JSON.stringify(h.review, null, 2))}</pre>
-        </details>
-      </div>
-      <div style="font-size:0.95em;color:#aaa;margin-top:8px;">
-        <b>${h.isBest ? "⭐ Best Version" : ""}</b> 
-        <b>Timestamp:</b> ${new Date(h.timestamp).toLocaleString()}
-      </div>
-      <div style="margin-top:8px;">
-        <button data-idx="${h.id}" class="mark-best-btn" style="padding:3.5px 11px;border-radius:6px;background:${h.isBest?"#26263e":"#36e092"};color:#fff;border:none;font-size:0.99em;margin-right:8px;">Mark Best</button>
-        <button data-idx="${h.id}" class="refine-btn" style="padding:3.5px 11px;border-radius:6px;background:#4951bb;color:#fff;border:none;font-size:0.99em;">Refine</button>
-      </div>
-    </div>
-  `).join("");
+    `).join("");
 
-  // Wire up Mark Best/Refine buttons
-  historyList.querySelectorAll('.mark-best-btn').forEach(btn => {
-    btn.onclick = async () => {
-      await markBestVersion(currentProject.id, btn.dataset.idx);
-      await showHistory();
-    };
-  });
-  historyList.querySelectorAll('.refine-btn').forEach(btn => {
-    btn.onclick = async () => {
-      const entry = history.find(h => h.id === btn.dataset.idx);
-      if (!entry) return;
-      // Pre-fill input with last prompt + suggestion
-      input.value = entry.prompt + " (Refine based on last review)";
-      form.scrollIntoView({ behavior: "smooth", block: "center" });
-    };
-  });
+    // Wire up Mark Best/Refine buttons
+    historyList.querySelectorAll('.mark-best-btn').forEach(btn => {
+      btn.onclick = async () => {
+        await markBestVersion(currentProject.id, btn.dataset.idx);
+        await showHistory();
+      };
+    });
+    historyList.querySelectorAll('.refine-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const history = await listHistory(currentProject.id);
+        const entry = history.find(h => h.id === btn.dataset.idx);
+        if (!entry) return;
+        // Pre-fill input with last prompt + suggestion
+        input.value = entry.prompt + " (Refine based on last review)";
+        form.scrollIntoView({ behavior: "smooth", block: "center" });
+      };
+    });
+  } catch (err) {
+    setStatus("Error loading history", "#f55");
+    log(err.message, true);
+  }
 }
 
 // --- Run/Submit ---
