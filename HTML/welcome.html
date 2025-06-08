@@ -70,9 +70,6 @@
 
   <!-- Chat Form -->
   <form id="chat-form">
-    <!-- Console Toggle Button -->
-    <button id="console-toggle-btn" type="button" class="inline-btn">Console</button>
-
     <!-- Input Field -->
     <input
       id="user-input"
@@ -98,8 +95,11 @@
       <span id="status-tooltip" class="tooltip"></span>
     </span>
 
-    <!-- Submit Button -->
-    <button type="submit" class="send-btn">Send</button>
+    <!-- Console Toggle & Submit -->
+    <div class="form-actions">
+      <button id="console-toggle-btn" type="button" class="inline-btn">Console</button>
+      <button type="submit" class="send-btn">Send</button>
+    </div>
   </form>
 
   <!-- Chat Status Feedback -->
