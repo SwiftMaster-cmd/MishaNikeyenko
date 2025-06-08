@@ -1,13 +1,14 @@
-// --- LOGIC, STATE, & RENDERING ---
-
 const LOG_STORAGE_KEY = "assistantDebugLog";
-export let miniAutoscroll = true;
+window.DEBUG_MODE = true;
+
+// Autoscroll state
+let miniAutoscroll = true;
 let miniScrollTimer = null;
-export let overlayAutoscroll = true;
+let overlayAutoscroll = true;
 let overlayScrollTimer = null;
 
-// --- LOG STORAGE ---
-export function loadPersistedLogs() {
+// --------- Log Storage ---------
+function loadPersistedLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || "[]");
     return Array.isArray(logs) ? logs : [];
@@ -15,16 +16,16 @@ export function loadPersistedLogs() {
     return [];
   }
 }
-export function saveLogs(logArray) {
+function saveLogs(logArray) {
   localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logArray));
 }
-export function formatTime(iso) {
+function formatTime(iso) {
   const d = new Date(iso);
   return d.toLocaleTimeString();
 }
 
-// --- LOGGING API ---
-export function debugLog(...args) {
+// --------- Logger ---------
+window.debugLog = function (...args) {
   const logs = loadPersistedLogs();
   const timestamp = new Date().toISOString();
   const msgRaw = args.map(a =>
@@ -35,12 +36,15 @@ export function debugLog(...args) {
   logs.push({ tag, timestamp, content: msgRaw });
   saveLogs(logs);
   renderAllLogGroups();
-}
-export function clearLogs() {
+};
+window.debug = (...args) => {
+  if (window.DEBUG_MODE) window.debugLog(...args);
+};
+window.clearDebugLog = function () {
   localStorage.removeItem(LOG_STORAGE_KEY);
   renderAllLogGroups();
-}
-export function exportLogs() {
+};
+window.exportDebugLog = function () {
   const logs = loadPersistedLogs();
   const blob = new Blob(
     [logs.map(l => `[${formatTime(l.timestamp)}] ${l.content}`).join("\n")],
@@ -56,38 +60,85 @@ export function exportLogs() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, 100);
-}
+};
 
-// --- OVERLAY (FULL VIEW) API ---
-export function showOverlay() {
+// --------- Status/Reply/Overlay ---------
+window.setStatusFeedback = function (type, msg = "") {
+  const bar = document.getElementById("chat-status-bar");
+  if (!bar) return;
+  const styleMap = {
+    success: { color: "#1db954", bg: "rgba(29,185,84,0.08)" },
+    error: { color: "#d7263d", bg: "rgba(215,38,61,0.08)" },
+    loading: { color: "#ffd600", bg: "rgba(255,214,0,0.08)" }
+  };
+  if (!styleMap[type]) {
+    bar.style.opacity = 0;
+    return;
+  }
+  bar.textContent = msg;
+  bar.style.color = styleMap[type].color;
+  bar.style.background = styleMap[type].bg;
+  bar.style.opacity = 1;
+  window.debug(`[FEEDBACK] ${type.toUpperCase()}: ${msg}`);
+  if (type !== "loading") {
+    setTimeout(() => { bar.style.opacity = 0; }, 1800);
+  }
+};
+window.logAssistantReply = function (replyText) {
+  const preview = replyText.length > 80 ? replyText.slice(0, 77) + "..." : replyText;
+  window.debug("[REPLY]", preview);
+  window.setStatusFeedback("success", "Assistant responded");
+};
+
+// --------- Overlay: full grouped log UI ---------
+window.showDebugOverlay = function () {
   const overlay = document.getElementById("debug-overlay");
   const mini = document.getElementById("onscreen-console");
   if (!overlay) return;
+  // Hide mini when overlay opens
   if (mini) mini.style.display = "none";
   overlay.style.display = "flex";
-  renderOverlayLogs();
-}
-export function closeOverlay() {
-  const overlay = document.getElementById("debug-overlay");
-  const mini = document.getElementById("onscreen-console");
-  if (overlay) overlay.style.display = "none";
-  if (mini) mini.style.display = "block";
-  overlayAutoscroll = true;
-}
-export function toggleAutoscroll() {
-  miniAutoscroll = !miniAutoscroll;
-  const btn = document.getElementById("console-autoscroll-btn");
-  if (btn) btn.style.opacity = miniAutoscroll ? '1' : '0.5';
-}
-export function toggleOverlayAutoscroll() {
-  overlayAutoscroll = !overlayAutoscroll;
-  const btn = document.getElementById("overlay-autoscroll");
-  if (btn) btn.style.opacity = overlayAutoscroll ? '1' : '0.5';
-  if (overlayAutoscroll) scrollOverlayToBottom();
-}
+  renderOverlayLogGroups();
 
-// --- LOG GROUPING & RENDERING ---
-export function groupedLogHTML(logs) {
+  overlay.querySelector(".close-btn")?.addEventListener("click", () => {
+    overlay.style.display = "none";
+    // Restore mini if it was previously visible
+    if (mini) mini.style.display = "block";
+    overlayAutoscroll = true;
+  });
+  overlay.querySelector("#overlay-clear")?.addEventListener("click", window.clearDebugLog);
+  overlay.querySelector("#overlay-export")?.addEventListener("click", window.exportDebugLog);
+  overlay.querySelector("#overlay-autoscroll")?.addEventListener("click", function () {
+    overlayAutoscroll = !overlayAutoscroll;
+    this.style.opacity = overlayAutoscroll ? '1' : '0.5';
+    if (overlayAutoscroll) scrollOverlayToBottom();
+  });
+
+  // Overlay scroll logic (binds to the scrollable pane)
+  const logPane = overlay.querySelector("#overlay-console-pane");
+  if (logPane) {
+    logPane.onscroll = function () {
+      if (!atBottom(logPane)) {
+        overlayAutoscroll = false;
+        overlay.querySelector("#overlay-autoscroll").style.opacity = '0.5';
+        if (overlayScrollTimer) clearTimeout(overlayScrollTimer);
+        overlayScrollTimer = setTimeout(() => {
+          if (atBottom(logPane)) {
+            overlayAutoscroll = true;
+            overlay.querySelector("#overlay-autoscroll").style.opacity = '1';
+          }
+        }, 3500);
+      } else {
+        overlayAutoscroll = true;
+        overlay.querySelector("#overlay-autoscroll").style.opacity = '1';
+      }
+    };
+    scrollOverlayToBottom();
+  }
+};
+
+// --------- Render Grouped Logs ---------
+function groupedLogHTML(logs) {
   const groups = {};
   logs.forEach(log => {
     if (!log || !log.tag || !log.content || !log.timestamp) return;
@@ -103,7 +154,7 @@ export function groupedLogHTML(logs) {
     .map(([tag, entries]) => ({ tag, entries }));
 }
 
-export function renderLogGroups(logs, container, useAutoscroll = true) {
+function renderLogGroups(logs, container, useAutoscroll = true) {
   if (!container) return;
   container.innerHTML = "";
   groupedLogHTML(logs).forEach(({ tag, entries }) => {
@@ -134,24 +185,23 @@ export function renderLogGroups(logs, container, useAutoscroll = true) {
     group.appendChild(logList);
     container.appendChild(group);
   });
+  // Only scroll to bottom if autoscroll is ON and already at (or very near) bottom.
   if (useAutoscroll && atBottom(container)) {
     container.scrollTop = container.scrollHeight;
   }
 }
-export function renderMiniLogs() {
+
+function renderAllLogGroups() {
   renderLogGroups(loadPersistedLogs(), document.getElementById("onscreen-console-messages"), miniAutoscroll);
+  if (document.getElementById("overlay-console-messages")) {
+    renderLogGroups(loadPersistedLogs(), document.getElementById("overlay-console-messages"), overlayAutoscroll);
+  }
 }
-export function renderOverlayLogs() {
+function renderOverlayLogGroups() {
   renderLogGroups(loadPersistedLogs(), document.getElementById("overlay-console-messages"), overlayAutoscroll);
   scrollOverlayToBottom();
 }
-export function renderAllLogGroups() {
-  renderMiniLogs();
-  if (document.getElementById("overlay-console-messages")) {
-    renderOverlayLogs();
-  }
-}
-export function scrollOverlayToBottom() {
+function scrollOverlayToBottom() {
   const overlay = document.getElementById("debug-overlay");
   if (!overlay) return;
   const container = overlay.querySelector("#overlay-console-pane");
@@ -159,13 +209,55 @@ export function scrollOverlayToBottom() {
     container.scrollTop = container.scrollHeight;
   }
 }
-export function atBottom(scrollEl) {
+function atBottom(scrollEl) {
   if (!scrollEl) return true;
+  // Within 12px of bottom is close enough
   return scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 12;
 }
 
-// --- CLIPBOARD FOR LOG LINES ---
-export function setupClipboardCopy() {
+// --------- DOM Ready Init ---------
+function injectOverlayLayout() {
+  if (document.getElementById("overlay-console-messages")) return;
+  const overlay = document.getElementById("debug-overlay");
+  if (!overlay) return;
+  overlay.style.display = "none";
+  overlay.style.position = "fixed";
+  overlay.style.top = "0";
+  overlay.style.left = "0";
+  overlay.style.width = "100vw";
+  overlay.style.height = "100vh";
+  overlay.style.zIndex = "10000";
+  overlay.style.background = "rgba(22,22,32,0.92)";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.innerHTML = `
+    <div id="debug-modal"
+      style="background:rgba(28,32,42,0.98);border-radius:20px;box-shadow:0 8px 64px #0007;padding:32px 28px;min-width:420px;min-height:320px;max-width:680px;width:90vw;max-height:86vh;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div>
+          <button class="console-btn" id="overlay-clear" type="button">Clear Logs</button>
+          <button class="console-btn" id="overlay-export" type="button">Export Logs</button>
+          <button class="console-btn" id="overlay-autoscroll" type="button" style="opacity:1;">AutoScroll</button>
+        </div>
+        <button class="console-btn close-btn" style="font-size:1.3em;padding:4px 12px;">✕</button>
+      </div>
+      <div id="overlay-console-pane" style="min-height:280px;height:55vh;max-height:66vh;overflow:auto;border-radius:10px;background:rgba(24,28,36,0.97);padding:10px;">
+        <div id="overlay-console-messages"></div>
+      </div>
+    </div>
+  `;
+}
+
+function initConsoleBindings() {
+  const toggleBtn = document.getElementById("console-toggle-btn");
+  const panel = document.getElementById("onscreen-console");
+  if (toggleBtn && panel) {
+    toggleBtn.addEventListener("click", () => {
+      const isVisible = panel.style.display === "block";
+      panel.style.display = isVisible ? "none" : "block";
+      if (!isVisible) renderAllLogGroups();
+    });
+  }
   document.addEventListener("click", (e) => {
     if (e.target.classList && e.target.classList.contains("debug-line")) {
       navigator.clipboard.writeText(e.target.textContent);
@@ -173,10 +265,51 @@ export function setupClipboardCopy() {
       setTimeout(() => e.target.classList.remove("clicked"), 400);
     }
   });
+  // Inject minimal styles if not present
+  if (!document.getElementById("console-style")) {
+    const style = document.createElement("style");
+    style.id = "console-style";
+    style.textContent = `
+      .console-btn {
+        background: #23253b;
+        color: #f8fafd;
+        border: none;
+        outline: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        padding: 7px 18px;
+        margin: 0 4px 0 0;
+        box-shadow: 0 1px 4px #0002;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, box-shadow 0.13s;
+      }
+      .console-btn:hover,
+      .console-btn:active {
+        background: #292b48;
+        color: #ffe486;
+        box-shadow: 0 2px 8px #0003;
+      }
+      .log-group { border-left: 4px solid #444; margin: 8px 0; padding-left: 8px; }
+      .log-group.info    { border-color: #999; }
+      .log-group.success { border-color: #1db954; }
+      .log-group.error   { border-color: #d7263d; }
+      .log-group.debug   { border-color: #368bff; }
+      .log-group.reply   { border-color: #ffa500; }
+      .group-header { font-weight: bold; font-size: 0.85rem; padding: 2px 0; cursor: pointer; color: #aaa; }
+      .log-list { padding-left: 4px; display: flex; flex-direction: column-reverse; }
+      .debug-line { font-family: monospace; font-size: 0.75rem; padding: 2px 0; color: #f8fafd; white-space: pre-wrap; }
+      .debug-line.clicked { background: #32cd3277 !important; }
+      #overlay-console-pane { scrollbar-width: thin; }
+    `;
+    document.head.appendChild(style);
+  }
+  injectOverlayLayout();
+  renderAllLogGroups();
 }
 
-// --- MINI CONSOLE SCROLL LOGIC ---
-export function setupMiniConsoleScroll() {
+// Mini console scroll logic -- binds to onscreen-console-messages
+function setupMiniConsoleScroll() {
   const msgBox = document.getElementById("onscreen-console-messages");
   if (msgBox) {
     msgBox.onscroll = function () {
@@ -193,4 +326,14 @@ export function setupMiniConsoleScroll() {
       }
     };
   }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    initConsoleBindings();
+    setupMiniConsoleScroll();
+  });
+} else {
+  initConsoleBindings();
+  setupMiniConsoleScroll();
 }
