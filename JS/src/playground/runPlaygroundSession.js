@@ -18,10 +18,10 @@ const log = (msg, type = "info") => {
 export default async function runPlaygroundSession() {
   log("🔁 Session started");
 
-  const config = await loadJSON("playground/sessionConfig.json");
-  const tasks = await loadJSON("playground/playgroundTasks.json");
-  const logs = await loadJSON("playground/pipelineLogs.json");
-  const lessons = await loadJSON("playground/codeLessons.json");
+const config  = await loadJSON("JS/src/playground/sessionConfig.json");
+const tasks   = await loadJSON("JS/src/playground/playgroundTasks.json");
+const logs    = await loadJSON("JS/src/playground/pipelineLogs.json");
+const lessons = await loadJSON("JS/src/playground/codeLessons.json");
 
   if (!Array.isArray(tasks) || tasks.length === 0) {
     log("⚠️ No tasks found.", "error");
