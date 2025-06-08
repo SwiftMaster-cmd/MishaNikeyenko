@@ -1,0 +1,17 @@
+{
+  "responseMode": "minimal",
+  "debugMode": true,
+  "groupLogs": true,
+  "maxLogEntries": 200,
+  "memoryWrite": false,
+  "showMemorySummary": true,
+  "messageContextLimit": 20,
+  "outputTarget": "chat",
+  "autoScroll": true,
+  "showTypingIndicator": true,
+  "intentFocus": "planning",
+  "enableCommands": true,
+  "animatedBackground": true,
+  "updateHeaderText": true,
+  "model": "gpt-4o"
+}

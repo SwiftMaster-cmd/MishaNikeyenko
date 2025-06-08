@@ -1,0 +1,7 @@
+[
+  { "id": 1, "type": "utility", "description": "Create a JavaScript function to generate a UUID." },
+  { "id": 2, "type": "frontend", "description": "Build a dark mode toggle button with CSS and JavaScript." },
+  { "id": 3, "type": "animation", "description": "Animate a div to bounce every 3 seconds using CSS." },
+  { "id": 4, "type": "logic", "description": "Implement a debounce function in JavaScript." },
+  { "id": 5, "type": "data", "description": "Parse a JSON string and safely handle errors." }
+]
