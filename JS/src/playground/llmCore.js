@@ -4,7 +4,7 @@ export async function callLLM({ model = "gpt-4o", messages = [], temperature = 0
   const payload = { model, messages, temperature };
 
   // Use correct Netlify endpoint
-  const response = await fetch("/.netlify/functions/chat", {
+  const response = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
