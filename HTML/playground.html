@@ -59,7 +59,23 @@
       <button id="stop-playground">⏹ Stop</button>
       <pre id="playground-output" style="margin-top: 1rem; background:#222; padding:1rem; color:#0f0; overflow:auto; max-height:300px;">Waiting...</pre>
     </section>
+    
+    
   </main>
+  <section id="playground-console" style="
+  background: #121212;
+  color: #0f0;
+  padding: 1rem;
+  margin: 1rem 0;
+  font-family: monospace;
+  font-size: 0.9rem;
+  max-height: 300px;
+  overflow-y: auto;
+  border-radius: 8px;
+  box-shadow: 0 0 12px #00ff9c30 inset;
+">
+  <div id="console-log">[Console Ready]</div>
+</section>
 
   <!-- Status Indicator -->
   <div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
@@ -86,31 +102,48 @@
 <script type="module">
   import runPlaygroundSession from "../JS/src/playground/runPlaygroundSession.js";
 
-  console.log("🔁 Loaded Playground Module");
+  // ✅ UI logger
+  function logToConsoleUI(message, type = "info") {
+    const logBox = document.getElementById("console-log");
+    const line = document.createElement("div");
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    if (type === "error") line.style.color = "#f55";
+    if (type === "success") line.style.color = "#5f5";
+    logBox.appendChild(line);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
 
+  // ✅ AutoRun state
   let autoRun = false;
 
+  // ✅ Start Button
   document.getElementById("start-playground").onclick = async () => {
-    console.log("▶️ Start button clicked");
+    logToConsoleUI("▶️ Start button clicked");
     autoRun = true;
+
     const output = document.getElementById("playground-output");
     output.textContent = "Running...";
 
     try {
+      logToConsoleUI("⏳ Starting Playground Session...");
       const result = await runPlaygroundSession();
-      console.log("✅ Playground Result:", result);
+      logToConsoleUI("✅ Playground finished", "success");
       output.textContent = JSON.stringify(result, null, 2);
     } catch (e) {
-      console.error("❌ Error in Playground:", e);
+      logToConsoleUI("❌ Error: " + e.message, "error");
       output.textContent = "Error: " + e.message;
     }
   };
 
+  // ✅ Stop Button
   document.getElementById("stop-playground").onclick = () => {
-    console.log("⏹ Stop clicked");
     autoRun = false;
+    logToConsoleUI("⏹ Stopped by user");
     document.getElementById("playground-output").textContent = "Stopped.";
   };
+
+  // Confirm script loaded
+  logToConsoleUI("🧪 Playground module loaded");
 </script>
 
   <!-- Sidebar Toggle Logic -->
