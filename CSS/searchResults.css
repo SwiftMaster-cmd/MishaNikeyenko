@@ -1,23 +1,16 @@
 .search-results {
-  background: rgba(56, 63, 93, 0.95);
-  border-radius: 16px;
-  padding: 24px;
-  margin: 1.5rem auto;
-  max-width: 800px;
-  box-shadow: 0 12px 24px rgba(10, 10, 30, 0.4);
-  color: #e0e6ff;
-  font-family: 'Inter', sans-serif;
-  line-height: 1.6;
-  user-select: text;
-  transition: background 0.3s ease;
+  /* Remove background, padding, and shadow for a minimal wrapper */
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
 }
 
 .search-results .results-title {
   font-weight: 700;
-  font-size: 1.6rem;
-  margin-bottom: 1rem;
+  font-size: 1.4rem;
+  margin: 0 0 0.5rem;
   color: #ffd54f;
-  letter-spacing: 0.025em;
   user-select: none;
 }
 
@@ -25,47 +18,28 @@
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 400px;
-  overflow-y: auto;
+  overflow: visible;
 }
 
-/* thin track + thumb with rounded corners */
-.search-results ul::-webkit-scrollbar {
-  width: 8px;
-}
-.search-results ul::-webkit-scrollbar-track {
-  background: transparent;
-}
-.search-results ul::-webkit-scrollbar-thumb {
-  background-color: rgba(91, 95, 157, 0.8);
-  border-radius: 8px;
-}
-
-/* Each result item */
 .search-results li {
-  padding: 18px 20px;
-  margin-bottom: 1rem;
-  border-radius: 12px;
   background: rgba(40, 45, 70, 0.85);
+  padding: 10px 12px;
+  margin-bottom: 0.75rem;
+  border-radius: 10px;
   transition: background 0.2s ease, transform 0.2s ease;
   cursor: pointer;
 }
-.search-results li:hover,
-.search-results li:focus-within {
+.search-results li:hover {
   background: rgba(70, 75, 110, 1);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
-/* Link styling */
 .search-results a {
   color: #82aaff;
   font-weight: 600;
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   text-decoration: none;
-  display: inline-block;
-  margin-bottom: 0.25rem;
-  word-break: break-word;
-  outline-offset: 4px;
+  outline-offset: 3px;
   transition: color 0.2s ease;
 }
 .search-results a:hover,
@@ -75,66 +49,58 @@
   outline: 2px solid #ffea00;
 }
 
-/* Snippet text */
 .search-results .snippet {
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #c0c8ff;
-  white-space: normal;
-  max-height: none;
-  overflow: visible;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
-/* URL below link */
 .search-results .result-url {
   font-size: 0.85rem;
   color: #a3b0ffaa;
   font-style: italic;
-  word-break: break-all;
   margin-top: 0.25rem;
-  user-select: text;
 }
 
-/* Info/FAQ/Discussion boxes */
 .search-results .infobox,
 .search-results .faq,
 .search-results .discussions,
 .search-results .locations {
   background: rgba(56, 63, 93, 0.97);
-  border-radius: 14px;
-  padding: 16px;
-  margin-top: 1.5rem;
-  box-shadow: 0 8px 16px rgba(10, 10, 30, 0.3);
-  color: #d6dbff;
-  max-height: 240px;
+  padding: 6px;
+  margin-top: 0.75rem;
+  border-radius: 10px;
+  max-height: 200px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(91, 95, 157, 0.8) transparent;
 }
+
 .search-results .infobox-title,
 .search-results .faq-title,
 .search-results .discussions-title,
 .search-results .locations-title {
   font-weight: 700;
-  font-size: 1.2rem;
-  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
   color: #ffd54f;
 }
+
 .search-results .infobox-content,
 .search-results .faq-content,
 .search-results .discussions-content,
 .search-results .locations-content {
   white-space: pre-wrap;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
-/* Scrollbar inside these boxes */
 .search-results .infobox::-webkit-scrollbar,
 .search-results .faq::-webkit-scrollbar,
 .search-results .discussions::-webkit-scrollbar,
 .search-results .locations::-webkit-scrollbar {
   width: 6px;
 }
+
 .search-results .infobox::-webkit-scrollbar-thumb,
 .search-results .faq::-webkit-scrollbar-thumb,
 .search-results .discussions::-webkit-scrollbar-thumb,
@@ -143,29 +109,24 @@
   border-radius: 6px;
 }
 
-/* Responsive adjustments */
 @media (max-width: 600px) {
-  .search-results {
-    padding: 16px;
-    margin: 1rem;
-  }
   .search-results .results-title {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
   }
   .search-results li {
-    padding: 14px;
+    padding: 8px 10px;
   }
   .search-results a {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
   }
   .search-results .snippet {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
   .search-results .infobox,
   .search-results .faq,
   .search-results .discussions,
   .search-results .locations {
-    max-height: 180px;
-    padding: 12px;
+    padding: 4px;
+    max-height: 140px;
   }
 }
