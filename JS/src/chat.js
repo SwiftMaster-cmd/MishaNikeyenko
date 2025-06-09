@@ -56,11 +56,7 @@ if (debugToggle) {
 // ========== 3. Auth & Chat History ==========
 let uid = null;
 let chatRef = null;
-
-// Local chat history state, authoritative source for normal chat rendering
 let chatMessages = [];
-
-// Flag: true if a command/search output is currently displayed instead of normal chat
 let isShowingCommandOutput = false;
 
 onAuthStateChanged(auth, (user) => {
@@ -82,10 +78,9 @@ onAuthStateChanged(auth, (user) => {
       role: msg.role === "bot" ? "assistant" : msg.role,
       content: msg.content,
       timestamp: msg.timestamp || 0
-    })).sort((a, b) => a.timestamp - b.timestamp); // Sort by timestamp ascending
+    })).sort((a, b) => a.timestamp - b.timestamp);
 
     if (!isShowingCommandOutput) {
-      // Only render normal chat if not showing command output
       renderMessages(chatMessages.slice(-20));
       scrollToBottom();
     }
@@ -99,10 +94,8 @@ form.addEventListener("submit", async (e) => {
   if (!prompt || !uid) return;
   input.value = "";
 
-  // If previously showing command output, clear it and resume normal chat UI
   if (isShowingCommandOutput) {
     isShowingCommandOutput = false;
-    // Re-render chat history from local state to restore chat UI
     renderMessages(chatMessages.slice(-20));
     scrollToBottom();
   }
@@ -112,7 +105,7 @@ form.addEventListener("submit", async (e) => {
   window.debug?.("[SUBMIT]", { uid, prompt });
 
   try {
-    // Static Commands
+    // Quick static commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -120,6 +113,8 @@ form.addEventListener("submit", async (e) => {
       showChatInputSpinner(false);
       return;
     }
+
+    // List commands
     if (prompt === "/notes") {
       isShowingCommandOutput = true;
       await listNotes(chatRef);
@@ -147,6 +142,18 @@ form.addEventListener("submit", async (e) => {
       showChatInputSpinner(false);
       return;
     }
+
+    // Embedded command support
+    const embeddedMatch = prompt.match(/\/(note|reminder|calendar)\s(.+)/i);
+    if (embeddedMatch) {
+      const [_, type, content] = embeddedMatch;
+      await handleStaticCommand(`/${type.toLowerCase()} ${content.trim()}`, chatRef, uid);
+      window.setStatusFeedback?.("success", `Command executed (${type})`);
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // Web search
     if (prompt.startsWith("/search ")) {
       const query = prompt.slice(8).trim();
       if (!query) {
@@ -159,30 +166,27 @@ form.addEventListener("submit", async (e) => {
       try {
         const data = await webSearchBrave(query, { count: 20 });
         if (!data || !data.results) throw new Error("No results");
-        // Format rich search results for chat display
+
         let formatted = `<div class="search-results">`;
-        formatted += `<div class="results-title">Top Results for "${query}":</div>`;
-        formatted += `<ul>`;
+        formatted += `<div class="results-title">Top Results for "${query}":</div><ul>`;
         for (const r of data.results) {
-          formatted += `<li>`;
-          formatted += `<a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>`;
+          formatted += `<li><a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>`;
           if (r.snippet) formatted += `<div class="snippet">${r.snippet}</div>`;
           formatted += `</li>`;
         }
         formatted += `</ul>`;
 
-        // Optional richer sections
         if (data.infobox) {
           formatted += `<div class="infobox"><strong>Info Box:</strong> ${data.infobox}</div>`;
         }
-        if (data.faq && data.faq.length) {
+        if (data.faq?.length) {
           formatted += `<div class="faq-section"><strong>FAQs:</strong><ul>`;
           for (const faq of data.faq) {
             formatted += `<li><strong>Q:</strong> ${faq.question}<br><strong>A:</strong> ${faq.answer}</li>`;
           }
           formatted += `</ul></div>`;
         }
-        if (data.discussions && data.discussions.length) {
+        if (data.discussions?.length) {
           formatted += `<div class="discussions-section"><strong>Discussions:</strong><ul>`;
           for (const disc of data.discussions) {
             formatted += `<li><a href="${disc.url}" target="_blank" rel="noopener noreferrer">${disc.title}</a></li>`;
@@ -191,15 +195,9 @@ form.addEventListener("submit", async (e) => {
         }
         formatted += `</div>`;
 
-        // Save user's original search prompt
         await saveMessageToChat("user", prompt, uid);
-        window.debug?.("[STEP 1] User message saved.");
-
-        // Save assistant’s formatted search results as one message
         await saveMessageToChat("assistant", formatted, uid);
-        window.debug?.("[STEP 4] Assistant search results saved.");
 
-        // Render only the search results messages
         renderMessages([
           { role: "user", content: prompt, timestamp: Date.now() },
           { role: "assistant", content: formatted, timestamp: Date.now() }
@@ -215,22 +213,16 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // Normal chat flow
-
-    // Step 1: Save user message
+    // === Normal GPT chat flow ===
     await saveMessageToChat("user", prompt, uid);
     window.debug?.("[STEP 1] User message saved.");
 
-    // Step 2: Try memory extraction
-    window.debug?.("[STEP 2] Checking for memory...");
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
       window.setStatusFeedback?.("success", `Memory saved (${memory.type})`);
       window.debug?.("[MEMORY]", memory);
     }
 
-    // Step 3: Build assistant prompt
-    window.debug?.("[STEP 3] Fetching context...");
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
@@ -247,14 +239,12 @@ form.addEventListener("submit", async (e) => {
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     window.debug?.("[GPT INPUT]", full);
 
-    // Step 4: Get assistant reply
     const assistantReply = await getAssistantReply(full);
     await saveMessageToChat("assistant", assistantReply, uid);
     window.logAssistantReply?.(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
-
-    // Step 5: Summarize if needed
     await summarizeChatIfNeeded(uid);
+
     window.setStatusFeedback?.("success", "Message sent");
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
