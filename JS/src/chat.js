@@ -37,7 +37,9 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
-import { webSearchBrave } from "./search.js"; // <-- NEW: Brave Search integration
+
+import { webSearchBrave } from "./search.js";
+import { renderSearchResults } from "./searchResults.js";
 
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
