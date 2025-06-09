@@ -18,20 +18,15 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 // 🔹 1. Save a message to Firebase
 export async function saveMessageToChat(role, content, uid) {
   const chatRef = ref(db, `chatHistory/${uid}`);
-  await push(chatRef, {
-    role,
-    content,
-    timestamp: Date.now()
-  });
+  await push(chatRef, { role, content, timestamp: Date.now() });
 }
 
 // 🔹 2. Get last 20 messages from chatHistory
 export async function fetchLast20Messages(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return [];
-  const data = snap.val();
-  return Object.entries(data)
-    .map(([id, msg]) => ({
+  return Object.entries(snap.val())
+    .map(([_, msg]) => ({
       role: msg.role === "bot" ? "assistant" : msg.role,
       content: msg.content,
       timestamp: msg.timestamp || 0
@@ -59,17 +54,29 @@ export async function getAssistantReply(fullMessages) {
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages: fullMessages, model: "gpt-4o", temperature: 0.8 })
+    body: JSON.stringify({
+      messages: fullMessages,
+      model: "gpt-4o",
+      temperature: 0.8
+    })
   });
   const data = await res.json();
   return data.choices?.[0]?.message?.content || "[No reply]";
 }
 
-// 🔹 5. Try to extract memory (note/reminder/calendar/log) or preferences from prompt
+// 🔹 5. Extract memory from prompt (reminders, preferences, notes, calendar, logs)
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
 
-  // -- Preference capture: "remember I like X", "I dislike Y", "I hate Z", etc.
+  // a) "I need X" or "Remember I need X" → reminder
+  const needMatch = prompt.match(/\b(?:remember(?: to)?\s*)?i need\s+(.+)/i);
+  if (needMatch) {
+    const content = needMatch[1].trim();
+    await push(ref(db, `reminders/${uid}`), { content, timestamp: Date.now() });
+    return { type: "reminder", content };
+  }
+
+  // b) Preferences: like/love/prefer/dislike/hate
   const prefMatch = prompt.match(
     /\b(?:remember(?: that)?\s*)?i\s+(like|love|prefer|dislike|hate)\s+(.+)/i
   );
@@ -77,21 +84,17 @@ export async function extractMemoryFromPrompt(prompt, uid) {
     const verb = prefMatch[1].toLowerCase();
     const value = prefMatch[2].trim();
     const content = `${verb} ${value}`;
-
-    // Save under memory/{uid}/preferences/{verb}s
     await push(ref(db, `memory/${uid}/preferences/${verb}s`), {
       content,
       timestamp: Date.now()
     });
-
     return { type: "preference", key: `${verb}s`, content };
   }
 
-  // -- Existing typed-memory extraction
+  // c) Structured note/reminder/calendar/log via GPT
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
   if (!memoryType) return null;
 
-  // Ask GPT to parse into structured JSON
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -100,20 +103,20 @@ export async function extractMemoryFromPrompt(prompt, uid) {
         {
           role: "system",
           content: `
-You are a memory extraction engine. ALWAYS return exactly one JSON object with keys:
+You are a memory extraction engine. RETURN exactly one JSON object:
 {
-  "type":   "note" | "reminder" | "calendar" | "log",
+  "type": "note" | "reminder" | "calendar" | "log",
   "content": "string",
-  "date":   "optional YYYY-MM-DD"
+  "date": "optional YYYY-MM-DD"
 }
 Rules:
-1. "/note" → type="note"
-2. "/reminder" or "remind me" → type="reminder"
-3. Mentions of date/time → type="calendar"
-4. "/log" or "journal" → type="log"
-5. Otherwise → type="note"
+1. "/note" → note
+2. "/reminder" or "remind me" → reminder
+3. Mentions of date/time → calendar
+4. "/log" or "journal" → log
+5. Otherwise → note
 6. Include "date" only when explicit
-Return ONLY the JSON.`
+Return ONLY the JSON object.`
         },
         { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
       ],
@@ -126,7 +129,6 @@ Return ONLY the JSON.`
   const parsed = extractJson(text);
   if (!parsed?.type || !parsed?.content) return null;
 
-  // Determine path
   let path;
   switch (parsed.type) {
     case "calendar":
@@ -142,57 +144,44 @@ Return ONLY the JSON.`
       path = `notes/${uid}/${today}`;
   }
 
-  // Save the memory entry
   await push(ref(db, path), {
     content: parsed.content,
     timestamp: Date.now(),
     ...(parsed.date ? { date: parsed.date } : {})
   });
-
   return parsed;
 }
 
-// 🔹 6. Run summary if message count % 20 === 0
+// 🔹 6. Run summary every 20 messages
 export async function summarizeChatIfNeeded(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return;
 
-  const data = snap.val();
-  const allMessages = Object.entries(data)
-    .map(([id, msg]) => ({
-      role: msg.role === "bot" ? "assistant" : msg.role,
-      content: msg.content,
-      timestamp: msg.timestamp || 0
+  const all = Object.entries(snap.val())
+    .map(([_, m]) => ({
+      role: m.role === "bot" ? "assistant" : m.role,
+      content: m.content,
+      timestamp: m.timestamp || 0
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
 
-  if (allMessages.length % 20 !== 0) return;
+  if (all.length % 20 !== 0) return;
 
-  const convoText = allMessages
-    .slice(-20)
-    .map(m => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
-    .join("\n");
+  const block = all.slice(-20).map(m => `${m.role}: ${m.content}`).join("\n");
 
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       messages: [
-        {
-          role: "system",
-          content: `You are a concise summarizer. Summarize the following conversation block into one paragraph:`
-        },
-        { role: "user", content: convoText }
+        { role: "system", content: "Summarize this block in one paragraph:" },
+        { role: "user", content: block }
       ],
       model: "gpt-4o",
       temperature: 0.5
     })
   });
-
-  const dataJson = await res.json();
-  const summary = dataJson.choices?.[0]?.message?.content || "[No summary]";
-  await push(ref(db, `memory/${uid}`), {
-    summary,
-    timestamp: Date.now()
-  });
+  const data = await res.json();
+  const summary = data.choices?.[0]?.message?.content || "[No summary]";
+  await push(ref(db, `memory/${uid}`), { summary, timestamp: Date.now() });
 }
