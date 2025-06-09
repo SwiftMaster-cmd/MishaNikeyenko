@@ -2,6 +2,7 @@
 const BRAVE_API_KEY = 'BSAPL_WUWCZ7JdfD5oCeZ1bAYlhc9n5'; // <-- your real Pro key
 
 export async function webSearchBrave(query, opts = {}) {
+  window.debug?.(`[SEARCH] Sending query to Brave: "${query}" with opts: ${JSON.stringify(opts)}`);
   const endpoint = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${opts.count || 5}`;
   let response;
   try {
@@ -12,36 +13,36 @@ export async function webSearchBrave(query, opts = {}) {
       }
     });
   } catch (err) {
-    console.error("Brave Search fetch failed:", err);
+    window.debug?.("[SEARCH ERROR] Brave fetch failed:", err);
     throw new Error('Brave Search network error');
   }
 
   if (!response.ok) {
-    // Show detailed error if available
     let errorMsg = `Brave Search failed [${response.status}]`;
     try {
       const errData = await response.json();
       if (errData && errData.error) errorMsg += `: ${errData.error}`;
     } catch {}
-    console.error(errorMsg);
+    window.debug?.("[SEARCH ERROR]", errorMsg);
     throw new Error(errorMsg);
   }
 
   let data;
   try {
     data = await response.json();
-    console.log("BRAVE RAW DATA:", data); // Debug output
+    window.debug?.("[SEARCH RESPONSE]", data); // logs full raw data
   } catch (err) {
-    console.error("Error parsing Brave Search response:", err);
+    window.debug?.("[SEARCH ERROR] Error parsing response:", err);
     throw new Error('Brave Search parse error');
   }
 
-  // Defensive: handle changes in Brave's API response shape
   const resultsArr = Array.isArray(data.web?.results) ? data.web.results : [];
   const infobox = data.infobox || null;
   const faq = Array.isArray(data.faq) ? data.faq : [];
   const discussions = Array.isArray(data.discussions) ? data.discussions : [];
   const locations = Array.isArray(data.locations) ? data.locations : [];
+
+  window.debug?.(`[SEARCH] Results: ${resultsArr.length}, Infobox: ${!!infobox}, FAQ: ${faq.length}, Discussions: ${discussions.length}, Locations: ${locations.length}`);
 
   return {
     results: resultsArr.map(r => ({
