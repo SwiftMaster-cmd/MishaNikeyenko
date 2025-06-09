@@ -101,7 +101,6 @@ form.addEventListener("submit", async e => {
 
   showChatInputSpinner(true);
   window.setStatusFeedback?.("loading", "Thinking...");
-  window.debug?.("[SUBMIT]", { uid, prompt });
 
   try {
     // 4.1 Static slash commands
@@ -130,44 +129,35 @@ form.addEventListener("submit", async e => {
       return;
     }
     if (prompt === "/console") {
-      if (typeof window.showDebugOverlay === "function")
-        window.showDebugOverlay();
+      window.showDebugOverlay?.();
       showChatInputSpinner(false);
       return;
     }
 
-    // 4.2 Smart note/reminder/calendar intent
-    const intent = prompt.match(
-      /\b(?:\/?(note|notes|reminder|reminders|calendar|event|events))\b|(?:remember|store|write|save|log|make|add|set).*\b(note|notes|reminder|reminders|calendar|event|events)\b/i
-    );
-    if (intent) {
-      let type = (intent[1] || intent[2] || intent[3])?.toLowerCase();
-      if (type) {
-        // normalize plural to singular
-        if (type.endsWith("s")) type = type.replace(/s$/, "");
+    // 4.2 Preference & smart memory intent
+    const memory = await extractMemoryFromPrompt(prompt, uid);
+    if (memory) {
+      await saveMessageToChat("user", prompt, uid);
 
-        const [last20] = await Promise.all([fetchLast20Messages(uid)]);
-        const contextPrompt = [
-          {
-            role: "system",
-            content: `User wants to save a ${type}. Reply with exactly the text to save--no labels, no emojis, no commentary.`
-          },
-          ...last20,
-          { role: "user", content: prompt }
-        ];
-        const raw = (await getAssistantReply(contextPrompt)).trim();
-        const clean = raw.replace(new RegExp(`^\\s*${type}\\s*[:\\-–]*`, "i"), "").trim();
-        if (!clean) {
-          window.setStatusFeedback?.("error", "Nothing to save");
-          showChatInputSpinner(false);
-          return;
-        }
+      if (memory.type === "preference") {
+        await saveMessageToChat(
+          "assistant",
+          `✅ Saved preference: "${memory.content}"`,
+          uid
+        );
+        showChatInputSpinner(false);
+        return;
+      }
 
-        const cmd = `/${type} ${clean}`;
-        await saveMessageToChat("user", prompt, uid);
-        await handleStaticCommand(cmd, chatRef, uid);
-        isShowingCommandOutput = true;
-        scrollToBottom();
+      // for note/reminder/calendar/log, handle via static command
+      if (["note", "reminder", "calendar", "log"].includes(memory.type)) {
+        const cmdPath = {
+          note: `/note ${memory.content}`,
+          reminder: `/reminder ${memory.content}`,
+          calendar: `/calendar ${memory.content}`,
+          log: `/log ${memory.content}`
+        }[memory.type];
+        await handleStaticCommand(cmdPath, chatRef, uid);
         showChatInputSpinner(false);
         return;
       }
@@ -182,13 +172,7 @@ form.addEventListener("submit", async e => {
         return;
       }
       isShowingCommandOutput = true;
-      window.debug?.("[SEARCH] Query:", q);
-      let data;
-      try {
-        data = await webSearchBrave(q, { count: 20 });
-      } catch {
-        data = null;
-      }
+      const data = await webSearchBrave(q, { count: 20 }).catch(() => null);
       if (!data?.results) {
         window.setStatusFeedback?.("error", "Search failed");
         showChatInputSpinner(false);
@@ -216,11 +200,8 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 4.4 Regular GPT conversation
+    // 4.4 Standard GPT conversation
     await saveMessageToChat("user", prompt, uid);
-    const memory = await extractMemoryFromPrompt(prompt, uid);
-    if (memory) window.setStatusFeedback?.("success", `Memory saved (${memory.type})`);
-
     const [last20, ctx] = await Promise.all([
       fetchLast20Messages(uid),
       getAllContext(uid)
@@ -240,10 +221,9 @@ form.addEventListener("submit", async e => {
     await saveMessageToChat("assistant", reply, uid);
     updateHeaderWithAssistantReply(reply);
     await summarizeChatIfNeeded(uid);
-    showChatInputSpinner(false);
-  } catch (e) {
+  } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
-    window.debug?.("[ERROR]", e.message || e);
+  } finally {
     showChatInputSpinner(false);
   }
 });

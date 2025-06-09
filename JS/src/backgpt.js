@@ -69,16 +69,22 @@ export async function getAssistantReply(fullMessages) {
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
 
-  // -- Preference capture: "remember I like X" or "I like X"
-  const prefMatch = prompt.match(/\b(?:remember(?: that)?\s*)?i (?:like|love|prefer) (.+)/i);
+  // -- Preference capture: "remember I like X", "I dislike Y", "I hate Z", etc.
+  const prefMatch = prompt.match(
+    /\b(?:remember(?: that)?\s*)?i\s+(like|love|prefer|dislike|hate)\s+(.+)/i
+  );
   if (prefMatch) {
-    const value = prefMatch[1].trim();
-    // Store under memory/{uid}/preferences/likes
-    await push(ref(db, `memory/${uid}/preferences/likes`), {
-      content: value,
+    const verb = prefMatch[1].toLowerCase();
+    const value = prefMatch[2].trim();
+    const content = `${verb} ${value}`;
+
+    // Save under memory/{uid}/preferences/{verb}s
+    await push(ref(db, `memory/${uid}/preferences/${verb}s`), {
+      content,
       timestamp: Date.now()
     });
-    return { type: "preference", key: "likes", content: value };
+
+    return { type: "preference", key: `${verb}s`, content };
   }
 
   // -- Existing typed-memory extraction
