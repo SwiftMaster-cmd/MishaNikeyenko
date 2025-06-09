@@ -57,6 +57,9 @@ if (debugToggle) {
 let uid = null;
 let chatRef = null;
 
+// Flag to track if a command/search output is currently displayed
+let isShowingCommandOutput = false;
+
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth)
@@ -70,6 +73,10 @@ onAuthStateChanged(auth, (user) => {
   window.debug?.("Auth Ready → UID:", uid);
 
   onValue(chatRef, (snapshot) => {
+    if (isShowingCommandOutput) {
+      // Skip realtime chat re-render while showing command output
+      return;
+    }
     const data = snapshot.val() || {};
     const messages = Object.entries(data).map(([id, msg]) => ({
       id,
@@ -89,6 +96,11 @@ form.addEventListener("submit", async (e) => {
   if (!prompt || !uid) return;
   input.value = "";
 
+  // If previously showing command output, clear it and resume normal chat UI
+  if (isShowingCommandOutput) {
+    isShowingCommandOutput = false;
+  }
+
   showChatInputSpinner(true);
   window.setStatusFeedback?.("loading", "Thinking...");
   window.debug?.("[SUBMIT]", { uid, prompt });
@@ -103,18 +115,21 @@ form.addEventListener("submit", async (e) => {
       return;
     }
     if (prompt === "/notes") {
+      isShowingCommandOutput = true;
       await listNotes(chatRef);
       window.setStatusFeedback?.("success", "Notes listed");
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/reminders") {
+      isShowingCommandOutput = true;
       await listReminders(chatRef);
       window.setStatusFeedback?.("success", "Reminders listed");
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/events") {
+      isShowingCommandOutput = true;
       await listEvents(chatRef);
       window.setStatusFeedback?.("success", "Events listed");
       showChatInputSpinner(false);
@@ -133,6 +148,7 @@ form.addEventListener("submit", async (e) => {
         showChatInputSpinner(false);
         return;
       }
+      isShowingCommandOutput = true;
       window.debug?.("[SEARCH] Query:", query);
       try {
         const data = await webSearchBrave(query, { count: 20 });
@@ -177,7 +193,11 @@ form.addEventListener("submit", async (e) => {
         await saveMessageToChat("assistant", formatted, uid);
         window.debug?.("[STEP 4] Assistant search results saved.");
 
-        renderMessages([{ role: "user", content: prompt, timestamp: Date.now() }, { role: "assistant", content: formatted, timestamp: Date.now() }], true);
+        // Render only the search results messages
+        renderMessages([
+          { role: "user", content: prompt, timestamp: Date.now() },
+          { role: "assistant", content: formatted, timestamp: Date.now() }
+        ], true);
         scrollToBottom();
         window.setStatusFeedback?.("success", "Search results loaded");
       } catch (searchErr) {
