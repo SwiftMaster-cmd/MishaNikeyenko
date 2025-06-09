@@ -164,4 +164,108 @@ form.addEventListener("submit", async e => {
       isShowingCommandOutput = true;
 
       // Fetch raw results
-      const data = await webSearchBrave(term, { uid, count: 5
+      const data = await webSearchBrave(term, { uid, count: 5 });
+
+      // Cache term + results for later
+      lastSearchData.term = term;
+      lastSearchData.results = data.results;
+
+      // Summarize top hits via GPT
+      const summaryPrompt = [
+        { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
+        { role: "user", content: JSON.stringify(data.results, null, 2) }
+      ];
+      const summary = await getAssistantReply(summaryPrompt);
+
+      // Save & render summary + hint
+      await saveMessageToChat("user", prompt, uid);
+      await saveMessageToChat("assistant", summary, uid);
+      await saveMessageToChat("assistant", 'Type `/searchresults` to view full results.', uid);
+
+      renderMessages([
+        { role: "user", content: prompt, timestamp: Date.now() },
+        { role: "assistant", content: summary, timestamp: Date.now() },
+        { role: "assistant", content: 'Type `/searchresults` to view full results.', timestamp: Date.now() }
+      ], true);
+      scrollToBottom();
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 4.4 /searchresults – show cached full list
+    if (prompt === "/searchresults") {
+      isShowingCommandOutput = true;
+
+      if (!lastSearchData.term || lastSearchData.results.length === 0) {
+        await saveMessageToChat("assistant", "❌ No previous search. Use `/search <term>` first.", uid);
+      } else {
+        let html = `<div class="search-results"><div class="results-title">Results for "${lastSearchData.term}"</div><ul>`;
+        for (const r of lastSearchData.results) {
+          html += `<li>
+            <a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>
+            ${r.snippet ? `<div class="snippet">${r.snippet}</div>` : ""}
+            <div class="result-url">${r.url}</div>
+          </li>`;
+        }
+        html += `</ul></div>`;
+        await saveMessageToChat("assistant", html, uid);
+        renderMessages([{ role: "assistant", content: html, timestamp: Date.now() }], true);
+        scrollToBottom();
+      }
+
+      // Reset so normal chat resumes
+      isShowingCommandOutput = false;
+      window.setStatusFeedback?.("success", "Displayed full results");
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 4.5 Standard GPT conversation
+    await saveMessageToChat("user", prompt, uid);
+    const [last20, ctx] = await Promise.all([
+      fetchLast20Messages(uid),
+      getAllContext(uid)
+    ]);
+    const sysPrompt = buildSystemPrompt({
+      memory: ctx.memory,
+      todayLog: ctx.dayLog,
+      notes: ctx.notes,
+      calendar: ctx.calendar,
+      reminders: ctx.reminders,
+      calc: ctx.calc,
+      date: new Date().toISOString().slice(0, 10)
+    });
+    const full = [{ role: "system", content: sysPrompt }, ...last20];
+    const reply = await getAssistantReply(full);
+
+    await saveMessageToChat("assistant", reply, uid);
+    updateHeaderWithAssistantReply(reply);
+    await summarizeChatIfNeeded(uid);
+  } catch (err) {
+    window.setStatusFeedback?.("error", "Something went wrong");
+    window.debug?.("[ERROR]", err.message || err);
+  } finally {
+    showChatInputSpinner(false);
+  }
+});
+
+// ========== 5. /console Keyboard Activation ==========
+let buffer = "";
+document.addEventListener("keydown", e => {
+  if (
+    document.activeElement !== input &&
+    !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
+  ) {
+    if (e.key.length === 1) {
+      buffer += e.key;
+      if (buffer.endsWith("/console")) {
+        window.showDebugOverlay?.();
+        buffer = "";
+      } else if (!"/console".startsWith(buffer)) {
+        buffer = "";
+      }
+    } else if (e.key === "Escape") {
+      buffer = "";
+    }
+  }
+});
