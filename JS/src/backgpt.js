@@ -26,10 +26,10 @@ export async function fetchLast20Messages(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return [];
   return Object.entries(snap.val())
-    .map(([_, msg]) => ({
-      role: msg.role === "bot" ? "assistant" : msg.role,
-      content: msg.content,
-      timestamp: msg.timestamp || 0
+    .map(([_, m]) => ({
+      role: m.role === "bot" ? "assistant" : m.role,
+      content: m.content,
+      timestamp: m.timestamp || 0
     }))
     .sort((a, b) => a.timestamp - b.timestamp)
     .slice(-20);
@@ -54,29 +54,36 @@ export async function getAssistantReply(fullMessages) {
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: fullMessages,
-      model: "gpt-4o",
-      temperature: 0.8
-    })
+    body: JSON.stringify({ messages: fullMessages, model: "gpt-4o", temperature: 0.8 })
   });
   const data = await res.json();
   return data.choices?.[0]?.message?.content || "[No reply]";
 }
 
-// 🔹 5. Extract memory from prompt (reminders, preferences, notes, calendar, logs)
+// 🔹 5. Extract memory from prompt (reminders, calendar, preferences, notes, logs)
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
 
-  // a) "I need X" or "Remember I need X" → reminder
-  const needMatch = prompt.match(/\b(?:remember(?: to)?\s*)?i need\s+(.+)/i);
-  if (needMatch) {
-    const content = needMatch[1].trim();
+  // a) "I need X on DATE" or "Remember I need X on DATE" → calendar event
+  const calMatch = prompt.match(
+    /\b(?:remember(?: to)?\s*)?i need\s+(.+?)\s+on\s+(\d{4}-\d{2}-\d{2})\b/i
+  );
+  if (calMatch) {
+    const content = calMatch[1].trim();
+    const date = calMatch[2];
+    await push(ref(db, `calendarEvents/${uid}`), { content, date, timestamp: Date.now() });
+    return { type: "calendar", content, date };
+  }
+
+  // b) "I need X" or "Remember I need X" → reminder
+  const remMatch = prompt.match(/\b(?:remember(?: to)?\s*)?i need\s+(.+)/i);
+  if (remMatch) {
+    const content = remMatch[1].trim();
     await push(ref(db, `reminders/${uid}`), { content, timestamp: Date.now() });
     return { type: "reminder", content };
   }
 
-  // b) Preferences: like/love/prefer/dislike/hate
+  // c) Preferences: like/love/prefer/dislike/hate
   const prefMatch = prompt.match(
     /\b(?:remember(?: that)?\s*)?i\s+(like|love|prefer|dislike|hate)\s+(.+)/i
   );
@@ -91,7 +98,7 @@ export async function extractMemoryFromPrompt(prompt, uid) {
     return { type: "preference", key: `${verb}s`, content };
   }
 
-  // c) Structured note/reminder/calendar/log via GPT
+  // d) Structured note/reminder/calendar/log via GPT
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
   if (!memoryType) return null;
 
@@ -152,7 +159,7 @@ Return ONLY the JSON object.`
   return parsed;
 }
 
-// 🔹 6. Run summary every 20 messages
+// 🔹 6. Summarize every 20 messages
 export async function summarizeChatIfNeeded(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return;
@@ -168,7 +175,6 @@ export async function summarizeChatIfNeeded(uid) {
   if (all.length % 20 !== 0) return;
 
   const block = all.slice(-20).map(m => `${m.role}: ${m.content}`).join("\n");
-
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
