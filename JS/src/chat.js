@@ -57,7 +57,10 @@ if (debugToggle) {
 let uid = null;
 let chatRef = null;
 
-// Flag to track if a command/search output is currently displayed
+// Local chat history state, authoritative source for normal chat rendering
+let chatMessages = [];
+
+// Flag: true if a command/search output is currently displayed instead of normal chat
 let isShowingCommandOutput = false;
 
 onAuthStateChanged(auth, (user) => {
@@ -73,19 +76,19 @@ onAuthStateChanged(auth, (user) => {
   window.debug?.("Auth Ready → UID:", uid);
 
   onValue(chatRef, (snapshot) => {
-    if (isShowingCommandOutput) {
-      // Skip realtime chat re-render while showing command output
-      return;
-    }
     const data = snapshot.val() || {};
-    const messages = Object.entries(data).map(([id, msg]) => ({
+    chatMessages = Object.entries(data).map(([id, msg]) => ({
       id,
       role: msg.role === "bot" ? "assistant" : msg.role,
       content: msg.content,
       timestamp: msg.timestamp || 0
-    }));
-    renderMessages(messages.slice(-20));
-    scrollToBottom();
+    })).sort((a, b) => a.timestamp - b.timestamp); // Sort by timestamp ascending
+
+    if (!isShowingCommandOutput) {
+      // Only render normal chat if not showing command output
+      renderMessages(chatMessages.slice(-20));
+      scrollToBottom();
+    }
   });
 });
 
@@ -99,6 +102,9 @@ form.addEventListener("submit", async (e) => {
   // If previously showing command output, clear it and resume normal chat UI
   if (isShowingCommandOutput) {
     isShowingCommandOutput = false;
+    // Re-render chat history from local state to restore chat UI
+    renderMessages(chatMessages.slice(-20));
+    scrollToBottom();
   }
 
   showChatInputSpinner(true);
