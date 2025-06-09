@@ -136,34 +136,21 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 4.2 Natural-language memory (preferences, notes, etc.)
+    // 4.2 Memory intents (preference/reminder/calendar/note/log)
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
       await saveMessageToChat("user", prompt, uid);
-
       switch (memory.type) {
         case "preference":
-          await saveMessageToChat(
-            "assistant",
-            `✅ Saved preference: "${memory.content}"`,
-            uid
-          );
+          await saveMessageToChat("assistant", `✅ Saved preference: "${memory.content}"`, uid);
           break;
         case "reminder":
-          await saveMessageToChat(
-            "assistant",
-            `✅ Saved reminder: "${memory.content}"`,
-            uid
-          );
+          await saveMessageToChat("assistant", `✅ Saved reminder: "${memory.content}"`, uid);
           break;
         case "calendar": {
           const when = memory.date ? ` on ${memory.date}` : "";
           const at = memory.time ? ` at ${memory.time}` : "";
-          await saveMessageToChat(
-            "assistant",
-            `✅ Saved event: "${memory.content}"${when}${at}`,
-            uid
-          );
+          await saveMessageToChat("assistant", `✅ Saved event: "${memory.content}"${when}${at}`, uid);
           break;
         }
         case "note":
@@ -173,12 +160,11 @@ form.addEventListener("submit", async e => {
           await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
           break;
       }
-
       showChatInputSpinner(false);
       return;
     }
 
-    // 4.3 /search → Summarize then defer full list to /showresults
+    // 4.3 /search – summarize results, cache full data
     if (prompt.startsWith("/search ")) {
       const q = prompt.slice(8).trim();
       if (!q) {
@@ -186,70 +172,49 @@ form.addEventListener("submit", async e => {
         showChatInputSpinner(false);
         return;
       }
-      window.debug?.("[SEARCH] Query:", q);
+      isShowingCommandOutput = true;
 
-      // Fetch raw data
-      const data = await webSearchBrave(q, { uid, count: opts?.count || 5 });
+      // Fetch raw results
+      const data = await webSearchBrave(q, { uid, count: 5 });
       lastSearchData = data;
 
-      // Summarize via GPT
+      // Summarize top hits via GPT
       const summaryPrompt = [
-        {
-          role: "system",
-          content:
-            "You are a concise summarizer. Summarize the key points from these search results in one paragraph:"
-        },
+        { role: "system", content: "You are a concise summarizer. Summarize these results in one paragraph:" },
         { role: "user", content: JSON.stringify(data.results, null, 2) }
       ];
       const summary = await getAssistantReply(summaryPrompt);
 
-      // Save and render only summary + showresults hint
+      // Save & render summary + hint
       await saveMessageToChat("user", prompt, uid);
       await saveMessageToChat("assistant", summary, uid);
-      await saveMessageToChat(
-        "assistant",
-        "Type `/showresults` to view the full results.",
-        uid
-      );
+      await saveMessageToChat("assistant", 'Type `/searchresults` to view all results.', uid);
 
-      renderMessages(
-        [
-          { role: "user", content: prompt, timestamp: Date.now() },
-          { role: "assistant", content: summary, timestamp: Date.now() },
-          {
-            role: "assistant",
-            content: "Type `/showresults` to view the full results.",
-            timestamp: Date.now()
-          }
-        ],
-        true
-      );
+      renderMessages([
+        { role: "user", content: prompt, timestamp: Date.now() },
+        { role: "assistant", content: summary, timestamp: Date.now() },
+        { role: "assistant", content: 'Type `/searchresults` to view all results.', timestamp: Date.now() }
+      ], true);
       scrollToBottom();
-      window.setStatusFeedback?.("success", "Search summarized");
       showChatInputSpinner(false);
       return;
     }
 
-    // 4.4 /showresults → display cached results
-    if (prompt === "/showresults") {
+    // 4.4 /searchresults – show cached full list
+    if (prompt === "/searchresults") {
+      isShowingCommandOutput = true;
       if (!lastSearchData) {
-        await saveMessageToChat(
-          "assistant",
-          "❌ No cached search results. Run `/search <term>` first.",
-          uid
-        );
+        await saveMessageToChat("assistant", "❌ No previous search. Use `/search <term>` first.", uid);
       } else {
-        // Build HTML from lastSearchData
-        let html = `<div class="search-results"><div class="results-title">Full Results:</div><ul>`;
+        let html = `<div class="search-results"><div class="results-title">Results for "${lastSearchData.query?.original || ''}"</div><ul>`;
         for (const r of lastSearchData.results) {
           html += `<li>
-              <a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>
-              ${r.snippet ? `<div class="snippet">${r.snippet}</div>` : ""}
-              <div class="result-url">${r.url}</div>
-            </li>`;
+            <a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>
+            ${r.snippet ? `<div class="snippet">${r.snippet}</div>` : ""}
+            <div class="result-url">${r.url}</div>
+          </li>`;
         }
         html += `</ul></div>`;
-
         await saveMessageToChat("assistant", html, uid);
         renderMessages([{ role: "assistant", content: html, timestamp: Date.now() }], true);
         scrollToBottom();
@@ -258,7 +223,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 4.5 Normal GPT conversation
+    // 4.5 Standard GPT conversation
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([
       fetchLast20Messages(uid),
