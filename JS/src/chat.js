@@ -105,7 +105,7 @@ form.addEventListener("submit", async (e) => {
   window.debug?.("[SUBMIT]", { uid, prompt });
 
   try {
-    // Static slash commands
+    // Static command triggers
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -145,20 +145,24 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // Smart GPT-triggered note/reminder/calendar intent
+    // 🔍 Smart natural language or slash command intent
     const commandIntentMatch = prompt.match(
-      /\b(?:\/?(note|reminder|calendar))\b|(?:remember|store|write|save|log|make|add|set).*\b(note|reminder|calendar|event)\b/i
+      /\b(?:\/?(note|reminder|calendar))\b|\b(write|save|make|add|set)\b.*\b(note|reminder|calendar|event)\b/i
     );
 
     if (commandIntentMatch) {
-      const type = (commandIntentMatch[1] || commandIntentMatch[2])?.toLowerCase();
+      const type = (
+        commandIntentMatch[1] ||
+        commandIntentMatch[3]
+      )?.toLowerCase();
+
       if (type) {
         const [last20] = await Promise.all([fetchLast20Messages(uid)]);
 
         const contextPrompt = [
           {
             role: "system",
-            content: `The user wants to save a ${type}. Based on context, respond ONLY with the raw content. Do NOT include "Note saved" or any labels, emojis, or extra words. Just the content.`
+            content: `The user wants to save a ${type}. Based on context, respond ONLY with the exact text to store. No extra commentary.`
           },
           ...last20,
           { role: "user", content: prompt }
@@ -166,25 +170,24 @@ form.addEventListener("submit", async (e) => {
 
         const gptResult = await getAssistantReply(contextPrompt);
         const trimmed = gptResult.trim();
-        const cleanContent = trimmed.replace(/^📝\s*Note saved:\s*/i, "").trim();
 
-        if (!cleanContent) {
+        if (!trimmed) {
           window.setStatusFeedback?.("error", "Nothing to save");
           showChatInputSpinner(false);
           return;
         }
 
-        const syntheticCommand = `/${type} ${cleanContent}`;
-        await saveMessageToChat("user", prompt, uid);
-        await handleStaticCommand(syntheticCommand, chatRef, uid);
-        isShowingCommandOutput = true;
-        scrollToBottom();
-        showChatInputSpinner(false);
-        return;
+      const syntheticCommand = `/${type} ${trimmed}`;
+await saveMessageToChat("user", prompt, uid);
+await handleStaticCommand(syntheticCommand, chatRef, uid);
+isShowingCommandOutput = true;
+scrollToBottom();
+showChatInputSpinner(false);
+return;
       }
     }
 
-    // Search
+    // 🔎 Web search
     if (prompt.startsWith("/search ")) {
       const query = prompt.slice(8).trim();
       if (!query) {
@@ -244,7 +247,7 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // Standard assistant reply
+    // 🧠 Normal assistant chat
     await saveMessageToChat("user", prompt, uid);
     window.debug?.("[STEP 1] User message saved.");
 
