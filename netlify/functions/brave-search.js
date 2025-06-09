@@ -1,11 +1,26 @@
 // netlify/functions/brave-search.js
-export default async (req, res) => {
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
+exports.handler = async function(event, context) {
   const BRAVE_API_KEY = process.env.BRAVE_API_KEY || 'BSAPL_WUWCZ7JdfD5oCeZ1bAYlhc9n5'; // env or fallback
-  const { q, count } = req.query || req.body || {};
+
+  // Parse querystring (GET) or body (POST)
+  let q, count;
+  if (event.httpMethod === "GET") {
+    const params = new URLSearchParams(event.queryStringParameters);
+    q = params.get("q");
+    count = params.get("count");
+  } else {
+    const body = JSON.parse(event.body || "{}");
+    q = body.q;
+    count = body.count;
+  }
 
   if (!q) {
-    res.status(400).json({ error: "Missing 'q' parameter" });
-    return;
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "Missing 'q' parameter" })
+    };
   }
 
   const endpoint = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=${count || 5}`;
@@ -20,13 +35,21 @@ export default async (req, res) => {
 
     if (!braveRes.ok) {
       const errorBody = await braveRes.text();
-      res.status(braveRes.status).json({ error: errorBody });
-      return;
+      return {
+        statusCode: braveRes.status,
+        body: JSON.stringify({ error: errorBody })
+      };
     }
 
     const data = await braveRes.json();
-    res.status(200).json(data);
+    return {
+      statusCode: 200,
+      body: JSON.stringify(data)
+    };
   } catch (err) {
-    res.status(500).json({ error: err.message || "Unknown error" });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message || "Unknown error" })
+    };
   }
 };
