@@ -93,21 +93,28 @@ form.addEventListener("submit", async e => {
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
+      if (prompt === "/commands") {
+        // After sending commands message, update UI container
+        renderCommandsList();
+      }
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/notes") {
       await listNotes(chatRef);
+      renderNotesList();
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/reminders") {
       await listReminders(chatRef);
+      renderRemindersList();
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/events") {
       await listEvents(chatRef);
+      renderEventsList();
       showChatInputSpinner(false);
       return;
     }
@@ -230,34 +237,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 /commands – Show formatted commands list
-    if (prompt === "/commands") {
-      const commands = [
-        "/note - Save a note",
-        "/reminder - Set a reminder",
-        "/calendar - Create a calendar event",
-        "/log - Add to day log",
-        "/notes - List notes",
-        "/reminders - List reminders",
-        "/events - List events",
-        "/summary - Summarize logs",
-        "/clearchat - Clear chat history",
-        "/time - Show current time",
-        "/date - Show today's date",
-        "/uid - Show user ID",
-        "/search - Web search and summarize",
-        "/searchresults - Show last search results",
-        "/savesummary - Save last summary",
-        "/learn about - Auto search & save facts",
-        "/pastsearches - List learned topics"
-      ];
-      const listHtml = `<div class="commands-container"><h3>Available Commands</h3><ul>${commands.map(c => `<li>${c}</li>`).join("")}</ul></div>`;
-      await saveMessageToChat("assistant", listHtml, uid);
-      showChatInputSpinner(false);
-      return;
-    }
-
-    // 🔹 Fallback: Standard conversation with auto-detect for lists
+    // 🔹 Fallback: Standard conversation
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -270,21 +250,18 @@ form.addEventListener("submit", async e => {
       date: new Date().toISOString().slice(0, 10)
     });
     const full = [{ role: "system", content: sysPrompt }, ...last20];
-    let reply = await getAssistantReply(full);
-
-    // Detect if reply looks like a list (simple heuristic)
-    const trimmed = reply.trim();
-    if (
-      trimmed.startsWith("- ") || 
-      trimmed.match(/^(\d+\.|\*|\•|\-)\s/m) || 
-      trimmed.toLowerCase().includes("list of") || 
-      trimmed.toLowerCase().includes("here are")
-    ) {
-      reply = `<div class="list-container">${reply}</div>`;
-    }
-
+    const reply = await getAssistantReply(full);
     await saveMessageToChat("assistant", reply, uid);
     updateHeaderWithAssistantReply(reply);
+
+    // If the reply contains command or list keywords, update UI containers:
+    if (reply.match(/\/commands|Available Commands|\/notes|List notes|\/reminders|List reminders|\/events|List events/)) {
+      renderCommandsList();
+      renderNotesList();
+      renderRemindersList();
+      renderEventsList();
+    }
+
     await summarizeChatIfNeeded(uid);
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
@@ -314,3 +291,11 @@ document.addEventListener("keydown", e => {
     }
   }
 });
+
+// ======= UI Update functions to be implemented in uiShell.js =======
+// These must exist for the above calls to work:
+
+// export function renderCommandsList() { ... }
+// export function renderNotesList() { ... }
+// export function renderRemindersList() { ... }
+// export function renderEventsList() { ... }
