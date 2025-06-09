@@ -1,92 +1,120 @@
 // searchResults.js
 
 /**
- * Renders search results into a container element.
- * @param {Array<Object>} results - Array of result objects:
- *    { title, url, snippet, source?, date?, thumbnail? }
- * @param {HTMLElement} container - The element to render into.
+ * Renders search results into a container element, using the "minimal outer container"
+ * and capping the list at 60vh so it never exceeds the viewport height.
+ *
+ * @param {Array<Object>} results
+ *    Each object may have: { title, url, snippet, source?, date?, thumbnail? }
+ * @param {HTMLElement} container
  */
 export function renderSearchResults(results, container) {
-  // Clear existing
+  // Clear container
   container.innerHTML = "";
 
+  // Outer wrapper with minimal styling (CSS handles most, we ensure it's present)
+  const wrapper = document.createElement("div");
+  wrapper.className = "search-results";
+  // inline safety fallback
+  wrapper.style.background = "transparent";
+  wrapper.style.boxShadow = "none";
+  wrapper.style.padding = "4px 0";
+  wrapper.style.margin = "var(--gap) 0";
+
+  // If no results, show message and return
   if (!Array.isArray(results) || results.length === 0) {
-    const noRes = document.createElement("div");
-    noRes.className = "search-result-card";
+    const empty = document.createElement("div");
+    empty.className = "search-result-card";
     const msg = document.createElement("div");
     msg.className = "result-snippet";
     msg.textContent = "No results found.";
-    noRes.appendChild(msg);
-    container.appendChild(noRes);
+    empty.appendChild(msg);
+    wrapper.appendChild(empty);
+    container.appendChild(wrapper);
     return;
   }
+
+  // Create scrollable <ul>
+  const list = document.createElement("ul");
+  list.style.maxHeight = "60vh";
+  list.style.overflowY = "auto";
+  list.setAttribute("role", "list");
 
   const fragment = document.createDocumentFragment();
 
   results.forEach(res => {
-    const card = document.createElement("div");
-    card.className = "search-result-card";
-    card.setAttribute("role", "group");
-    card.setAttribute("tabindex", "0");
+    const li = document.createElement("li");
+    li.className = "search-result-card";
+    li.setAttribute("role", "listitem");
+    li.tabIndex = 0;
 
     // Thumbnail (optional)
     if (res.thumbnail) {
-      const thumbWrap = document.createElement("div");
-      thumbWrap.className = "result-thumbnail";
+      const thumb = document.createElement("div");
+      thumb.className = "result-thumbnail";
       const img = document.createElement("img");
       img.src = res.thumbnail;
-      img.alt = res.title || "Thumbnail";
+      img.alt = res.title || "";
       img.loading = "lazy";
-      thumbWrap.appendChild(img);
-      card.appendChild(thumbWrap);
+      thumb.appendChild(img);
+      li.appendChild(thumb);
     }
 
-    // Content wrapper
+    // Content block
     const content = document.createElement("div");
     content.className = "result-content";
 
     // Title
-    const titleDiv = document.createElement("div");
-    titleDiv.className = "result-title";
-    const link = document.createElement("a");
-    link.href = res.url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = res.title || res.url;
-    link.setAttribute("aria-label", res.title || res.url);
-    titleDiv.appendChild(link);
-    content.appendChild(titleDiv);
+    const titleWrap = document.createElement("div");
+    titleWrap.className = "result-title";
+    const a = document.createElement("a");
+    a.href = res.url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = res.title || res.url;
+    titleWrap.appendChild(a);
+    content.appendChild(titleWrap);
 
-    // Meta (source & date)
+    // Meta (source + date)
     if (res.source || res.date) {
-      const metaDiv = document.createElement("div");
-      metaDiv.className = "result-meta";
+      const meta = document.createElement("div");
+      meta.className = "result-meta";
       if (res.source) {
-        const src = document.createElement("span");
-        src.className = "result-source";
-        src.textContent = res.source;
-        metaDiv.appendChild(src);
+        const sp = document.createElement("span");
+        sp.className = "result-source";
+        sp.textContent = res.source;
+        meta.appendChild(sp);
       }
       if (res.date) {
-        const dt = document.createElement("span");
-        dt.className = "result-date";
-        dt.textContent = res.date;
-        metaDiv.appendChild(dt);
+        const sp = document.createElement("span");
+        sp.className = "result-date";
+        sp.textContent = res.date;
+        meta.appendChild(sp);
       }
-      content.appendChild(metaDiv);
+      content.appendChild(meta);
     }
 
     // Snippet
     if (res.snippet) {
-      const snip = document.createElement("div");
-      snip.className = "result-snippet";
-      snip.textContent = res.snippet;
-      content.appendChild(snip);
+      const sn = document.createElement("div");
+      sn.className = "result-snippet";
+      sn.textContent = res.snippet;
+      content.appendChild(sn);
     }
 
-    card.appendChild(content);
-    fragment.appendChild(card);
+    // URL line
+    if (res.url) {
+      const urlLine = document.createElement("div");
+      urlLine.className = "result-url";
+      urlLine.textContent = res.url;
+      content.appendChild(urlLine);
+    }
+
+    li.appendChild(content);
+    fragment.appendChild(li);
   });
 
-  container.appendChild(fragment);
+  list.appendChild(fragment);
+  wrapper.appendChild(list);
+  container.appendChild(wrapper);
 }
