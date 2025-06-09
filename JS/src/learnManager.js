@@ -1,15 +1,15 @@
-// 🔹 learnManager.js -- Handles topic learning, past searches, and memory writing
-import { ref, set, get, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+// learnManager.js -- Handles topic learning, past searches, and memory writing
+import { ref, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "./firebaseConfig.js";
 import { getAssistantReply } from "./backgpt.js";
 import { webSearchBrave } from "./search.js";
 
-// 🔹 Internal cache
+// Internal cache
 let lastSummary = "";
 let lastTerm = "";
 let searchHistory = [];
 
-// 🔹 Save to memory node
+// Save to memory node
 export async function saveLearnedTopic(uid, topic, summary) {
   const path = `memory/${uid}/learnedTopics/${topic}`;
   const topicRef = ref(db, path);
@@ -19,7 +19,7 @@ export async function saveLearnedTopic(uid, topic, summary) {
   });
 }
 
-// 🔹 Learn about a topic (auto search → summarize → store)
+// Learn about a topic (auto search → summarize → store)
 export async function learnAboutTopic(topic, uid) {
   const data = await webSearchBrave(topic, { uid, count: 5 });
   const summaryPrompt = [
@@ -37,14 +37,23 @@ export async function learnAboutTopic(topic, uid) {
   return summary;
 }
 
-// 🔹 Save last summary manually to memory
+// Save last summary manually to memory
 export async function saveLastSummaryToMemory(uid) {
   if (!lastSummary || !lastTerm) return false;
   await saveLearnedTopic(uid, lastTerm, lastSummary);
   return true;
 }
 
-// 🔹 Get past search history (last 10)
+// Get past search history (last 10)
 export function getPastSearches() {
   return searchHistory.slice(-10).reverse();
+}
+
+// Setters to sync cache from chat.js
+export function setLastSummary(summary) {
+  lastSummary = summary;
+}
+
+export function setLastTerm(term) {
+  lastTerm = term;
 }
