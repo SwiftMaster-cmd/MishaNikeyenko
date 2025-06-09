@@ -37,6 +37,8 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
+import { webSearchBrave } from "./search.js"; // <-- import your search
+
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
@@ -80,23 +82,7 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 4. Search Results UI ==========
-function renderSearchResults(results, container) {
-  if (!container) return;
-  container.innerHTML = "";
-  results.forEach(res => {
-    const card = document.createElement("div");
-    card.className = "search-result-card";
-    card.innerHTML = `
-      <div class="search-result-title"><a href="${res.url}" target="_blank" rel="noopener">${res.title || res.url}</a></div>
-      <div class="search-result-snippet">${res.snippet || ""}</div>
-      <div class="search-result-link"><a href="${res.url}" target="_blank" rel="noopener">${res.url}</a></div>
-    `;
-    container.appendChild(card);
-  });
-}
-
-// ========== 5. Submit Handler ==========
+// ========== 4. Submit Handler ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -108,7 +94,32 @@ form.addEventListener("submit", async (e) => {
   window.debug?.("[SUBMIT]", { uid, prompt });
 
   try {
-    // Quick Static Commands
+    // Save user message FIRST for ALL commands
+    await saveMessageToChat("user", prompt, uid);
+
+    // Search Command
+    if (prompt.startsWith("/search ")) {
+      const query = prompt.replace("/search ", "").trim();
+      window.debug?.("[SEARCH] Query:", query);
+      try {
+        const result = await webSearchBrave(query, { count: 5 });
+        // Build results HTML
+        let html = `<div class="search-results"><b>Top Results for "${query}":</b><ul>`;
+        for (const r of (result.results || [])) {
+          html += `<li><a href="${r.url}" target="_blank">${r.title}</a><br><span style="font-size:0.98em;color:#aaa">${r.snippet}</span></li>`;
+        }
+        html += `</ul></div>`;
+        await saveMessageToChat("assistant", html, uid);
+        window.debug?.("[SEARCH] Results saved");
+      } catch (err) {
+        await saveMessageToChat("assistant", `Search error: ${err.message || err}`, uid);
+        window.debug?.("[SEARCH ERROR]", err);
+      }
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // Static Commands (already saved as user message)
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -141,74 +152,7 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // ====== /search command integration ======
-    if (prompt.startsWith("/search ")) {
-      const query = prompt.replace("/search ", "").trim();
-      window.debug?.("[SEARCH] Query:", query);
-      // Display search results as a message bubble
-      try {
-        // Call your Netlify function
-        const response = await fetch(`/.netlify/functions/brave-search?q=${encodeURIComponent(query)}&count=5`);
-        const data = await response.json();
-        window.debug?.("[SEARCH RAW]", data);
-
-        // Robust results handling:
-        let results = [];
-        if (Array.isArray(data.results)) {
-          results = data.results.map(r => ({
-            title: r.title || "",
-            url: r.url || "",
-            snippet: r.description || r.snippet || ""
-          }));
-        } else if (data.web && Array.isArray(data.web.results)) {
-          results = data.web.results.map(r => ({
-            title: r.title || "",
-            url: r.url || "",
-            snippet: r.description || r.snippet || ""
-          }));
-        } else {
-          throw new Error("No results found in search response.");
-        }
-
-        // Display formatted results in chat (as a bot message)
-        const resultsHtml = results.length
-          ? results.map(res =>
-              `<div class="search-result-card">
-                <div class="search-result-title"><a href="${res.url}" target="_blank" rel="noopener">${res.title || res.url}</a></div>
-                <div class="search-result-snippet">${res.snippet || ""}</div>
-                <div class="search-result-link"><a href="${res.url}" target="_blank" rel="noopener">${res.url}</a></div>
-              </div>`).join("")
-          : `<div>No results found.</div>`;
-
-        // Save to chat log as assistant message
-        await saveMessageToChat("assistant", resultsHtml, uid);
-
-        // Update chat display
-        renderMessages([
-          ...document.querySelectorAll('.msg') // preserve history in view
-        ].map(node => ({
-          content: node.innerHTML,
-          role: node.classList.contains('user-msg') ? 'user' : 'assistant'
-        })).concat([{ content: resultsHtml, role: "assistant" }]));
-        scrollToBottom();
-
-        window.setStatusFeedback?.("success", "Search complete");
-        showChatInputSpinner(false);
-        return;
-      } catch (err) {
-        window.debug?.("[SEARCH ERROR]", err.message || err);
-        await saveMessageToChat("assistant", `Search error: ${err.message || "Unknown error"}`, uid);
-        window.setStatusFeedback?.("error", "Search failed");
-        showChatInputSpinner(false);
-        return;
-      }
-    }
-
-    // Step 1: Save user message
-    await saveMessageToChat("user", prompt, uid);
-    window.debug?.("[STEP 1] User message saved.");
-
-    // Step 2: Try memory extraction
+    // Step 2: Try memory extraction (always after saving user message)
     window.debug?.("[STEP 2] Checking for memory...");
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
@@ -216,7 +160,7 @@ form.addEventListener("submit", async (e) => {
       window.debug?.("[MEMORY]", memory);
     }
 
-    // Step 3: Build assistant prompt
+    // Step 3: Build assistant prompt/context
     window.debug?.("[STEP 3] Fetching context...");
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
@@ -237,6 +181,7 @@ form.addEventListener("submit", async (e) => {
     // Step 4: Get assistant reply
     const assistantReply = await getAssistantReply(full);
     await saveMessageToChat("assistant", assistantReply, uid);
+    window.logAssistantReply?.(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
 
     // Step 5: Summarize if needed
@@ -250,10 +195,11 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
-// ========== 6. /console Keyboard Activation ==========
+// ========== 5. /console Keyboard Activation ==========
 let consoleBuffer = "";
 
 document.addEventListener("keydown", (e) => {
+  // Only listen if chat input is NOT focused and no modifiers are held
   if (
     document.activeElement !== input &&
     !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
