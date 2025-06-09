@@ -1,19 +1,29 @@
+/* ───────────────────────────────────────────────────────────────── */
+/* Outer wrapper: minimal, transparent, just spacing               */
+/* ───────────────────────────────────────────────────────────────── */
 .search-results {
-  /* Minimal wrapper: no background or extra padding */
   background: transparent;
   padding: 4px 0;
-  margin: 0.5rem 0;
+  margin: 0.75rem 0;
   box-shadow: none;
 }
 
+/* ───────────────────────────────────────────────────────────────── */
+/* Section title                                                   */
+/* ───────────────────────────────────────────────────────────────── */
 .search-results .results-title {
   font-weight: 700;
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   margin: 0 0 0.5rem;
   color: #ffd54f;
   user-select: none;
+  border-bottom: 2px solid rgba(255, 213, 79, 0.4);
+  padding-bottom: 0.25rem;
 }
 
+/* ───────────────────────────────────────────────────────────────── */
+/* List container                                                  */
+/* ───────────────────────────────────────────────────────────────── */
 .search-results ul {
   list-style: none;
   padding: 0;
@@ -22,37 +32,60 @@
   overflow-y: auto;
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling for main list */
 .search-results ul::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 .search-results ul::-webkit-scrollbar-thumb {
   background-color: rgba(91, 95, 157, 0.8);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
+/* ───────────────────────────────────────────────────────────────── */
+/* Individual result item                                          */
+/* ───────────────────────────────────────────────────────────────── */
 .search-results li {
-  background: rgba(40, 45, 70, 0.85);
-  padding: 10px 12px;
+  position: relative;
+  background: rgba(40, 45, 70, 0.6);
+  padding: 12px 16px 12px 44px; /* leave space for icon */
   margin-bottom: 0.75rem;
-  border-radius: 10px;
-  transition: background 0.2s ease, transform 0.2s ease;
+  border-radius: 8px;
+  border: 1px solid rgba(91, 95, 157, 0.4);
+  transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
   cursor: pointer;
 }
+
+.search-results li::before {
+  content: "🔗";
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
 .search-results li:hover,
 .search-results li:focus-within {
-  background: rgba(70, 75, 110, 1);
+  background: rgba(40, 45, 70, 0.85);
+  border-color: rgba(255, 213, 79, 0.6);
   transform: translateY(-1px);
 }
 
+/* ───────────────────────────────────────────────────────────────── */
+/* Link title                                                      */
+/* ───────────────────────────────────────────────────────────────── */
 .search-results a {
+  display: inline-block;
   color: #82aaff;
   font-weight: 600;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   text-decoration: none;
   outline-offset: 3px;
   transition: color 0.2s ease;
 }
+
 .search-results a:hover,
 .search-results a:focus {
   color: #ffea00;
@@ -60,52 +93,51 @@
   outline: 2px solid #ffea00;
 }
 
+/* ───────────────────────────────────────────────────────────────── */
+/* Snippet text                                                    */
+/* ───────────────────────────────────────────────────────────────── */
 .search-results .snippet {
+  display: block;
+  margin-top: 0.5rem;
   font-size: 0.95rem;
   color: #c0c8ff;
   line-height: 1.4;
+  max-height: 3.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* ───────────────────────────────────────────────────────────────── */
+/* Optional displayed URL                                           */
+/* ───────────────────────────────────────────────────────────────── */
 .search-results .result-url {
+  display: block;
+  margin-top: 0.5rem;
   font-size: 0.85rem;
   color: #a3b0ffaa;
   font-style: italic;
-  margin-top: 0.25rem;
+  word-break: break-all;
+  user-select: text;
 }
 
+/* ───────────────────────────────────────────────────────────────── */
+/* Info/FAQ/Discussion panels                                       */
+/* ───────────────────────────────────────────────────────────────── */
 .search-results .infobox,
 .search-results .faq,
 .search-results .discussions,
 .search-results .locations {
-  background: rgba(56, 63, 93, 0.97);
-  padding: 6px;
+  background: rgba(40, 45, 70, 0.9);
+  padding: 8px;
   margin-top: 0.75rem;
-  border-radius: 10px;
-  max-height: 200px;
+  border-left: 4px solid #ffd54f;
+  border-radius: 6px;
+  max-height: 180px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(91, 95, 157, 0.8) transparent;
 }
 
-.search-results .infobox-title,
-.search-results .faq-title,
-.search-results .discussions-title,
-.search-results .locations-title {
-  font-weight: 700;
-  font-size: 1rem;
-  margin-bottom: 0.5rem;
-  color: #ffd54f;
-}
-
-.search-results .infobox-content,
-.search-results .faq-content,
-.search-results .discussions-content,
-.search-results .locations-content {
-  white-space: pre-wrap;
-  line-height: 1.4;
-}
-
-/* Scrollbar inside panels */
 .search-results .infobox::-webkit-scrollbar,
 .search-results .faq::-webkit-scrollbar,
 .search-results .discussions::-webkit-scrollbar,
@@ -120,28 +152,48 @@
   border-radius: 6px;
 }
 
+/* Panel titles */
+.search-results .infobox-title,
+.search-results .faq-title,
+.search-results .discussions-title,
+.search-results .locations-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: #ffd54f;
+}
+
+/* Panel content */
+.search-results .infobox-content,
+.search-results .faq-content,
+.search-results .discussions-content,
+.search-results .locations-content {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* ───────────────────────────────────────────────────────────────── */
+/* Responsive tweaks                                                */
+/* ───────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
-  .search-results {
-    padding: 2px 0;
-    margin: 0.5rem 0;
-  }
   .search-results .results-title {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
   }
   .search-results li {
-    padding: 8px 10px;
+    padding: 10px 12px 10px 40px;
   }
   .search-results a {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
   }
   .search-results .snippet {
     font-size: 0.9rem;
+    max-height: 3em;
   }
   .search-results .infobox,
   .search-results .faq,
   .search-results .discussions,
   .search-results .locations {
-    padding: 4px;
+    padding: 6px;
     max-height: 140px;
   }
 }
