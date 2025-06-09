@@ -29,8 +29,7 @@ import {
   learnAboutTopic,
   saveLastSummaryToMemory,
   getPastSearches,
-  setLastSummary,
-  getLastSummary
+  setLastSummary // helper to cache last summary and term
 } from "./learnManager.js";
 
 // ========== Cache ==========
@@ -83,7 +82,7 @@ onAuthStateChanged(auth, user => {
 // ========== 4. Handler ==========
 form.addEventListener("submit", async e => {
   e.preventDefault();
-  let prompt = input.value.trim();
+  const prompt = input.value.trim();
   if (!prompt || !uid) return;
   input.value = "";
 
@@ -91,32 +90,29 @@ form.addEventListener("submit", async e => {
   window.setStatusFeedback?.("loading", "Thinking...");
 
   try {
-    // Normalize prompt lowercase for commands
-    const promptLower = prompt.toLowerCase();
-
     // 🔹 Static commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
-    if (quick.includes(promptLower)) {
-      await handleStaticCommand(promptLower, chatRef, uid);
+    if (quick.includes(prompt)) {
+      await handleStaticCommand(prompt, chatRef, uid);
       showChatInputSpinner(false);
       return;
     }
-    if (promptLower === "/notes") {
+    if (prompt === "/notes") {
       await listNotes(chatRef);
       showChatInputSpinner(false);
       return;
     }
-    if (promptLower === "/reminders") {
+    if (prompt === "/reminders") {
       await listReminders(chatRef);
       showChatInputSpinner(false);
       return;
     }
-    if (promptLower === "/events") {
+    if (prompt === "/events") {
       await listEvents(chatRef);
       showChatInputSpinner(false);
       return;
     }
-    if (promptLower === "/console") {
+    if (prompt === "/console") {
       window.showDebugOverlay?.();
       showChatInputSpinner(false);
       return;
@@ -150,52 +146,38 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 Save last summary with natural phrase "save that" or "/savesummary"
-    if (promptLower === "save that" || promptLower === "/savesummary") {
-      const { lastSummary, lastTerm } = getLastSummary();
-      if (!lastSummary || !lastTerm) {
-        await saveMessageToChat("assistant", "❌ No summary available to save.", uid);
-      } else {
-        const success = await saveLastSummaryToMemory(uid);
-        const msg = success ? `✅ Saved summary about "${lastTerm}".` : "❌ Failed to save summary.";
-        await saveMessageToChat("assistant", msg, uid);
-      }
-      showChatInputSpinner(false);
-      return;
-    }
-
-    // 🔹 /learn about [topic]
-    if (promptLower.startsWith("/learn about ")) {
-      const topic = prompt.slice(13).trim();
-      if (!topic) {
-        await saveMessageToChat("assistant", "❌ No topic provided.", uid);
+    // 🔹 Natural language search detection (e.g. "search for new iPhone")
+    const naturalSearchRegex = /^search( for)? /i;
+    if (naturalSearchRegex.test(prompt)) {
+      const term = prompt.replace(naturalSearchRegex, '').trim();
+      if (!term) {
+        window.setStatusFeedback?.("error", "Search query empty");
         showChatInputSpinner(false);
         return;
       }
+
+      const data = await webSearchBrave(term, { uid, count: 5 });
+      lastSearchData.term = term;
+      lastSearchData.results = data.results;
+
+      const summaryPrompt = [
+        { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
+        { role: "user", content: JSON.stringify(data.results, null, 2) }
+      ];
+      const summary = await getAssistantReply(summaryPrompt);
+
+      // Cache last summary for saving
+      setLastSummary(term, summary);
+
       await saveMessageToChat("user", prompt, uid);
-      const summary = await learnAboutTopic(topic, uid);
-      await saveMessageToChat("assistant", `📚 Learned about "${topic}":\n\n${summary}`, uid);
+      await saveMessageToChat("assistant", summary, uid);
+
       showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 /pastsearches or natural "show past searches"
-    if (promptLower === "/pastsearches" || promptLower.includes("past searches")) {
-      const list = await getPastSearches(uid);
-      if (!list.length) {
-        await saveMessageToChat("assistant", "No past learned topics found.", uid);
-      } else {
-        const msg = list
-          .map(i => `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`)
-          .join("\n");
-        await saveMessageToChat("assistant", `📂 Recent learned topics:\n${msg}`, uid);
-      }
-      showChatInputSpinner(false);
-      return;
-    }
-
-    // 🔹 /search [term] (mandatory prefix)
-    if (promptLower.startsWith("/search ")) {
+    // 🔹 /search command (legacy support)
+    if (prompt.startsWith("/search ")) {
       const term = prompt.slice(8).trim();
       if (!term) {
         window.setStatusFeedback?.("error", "Search query empty");
@@ -224,7 +206,7 @@ form.addEventListener("submit", async e => {
     }
 
     // 🔹 /searchresults
-    if (promptLower === "/searchresults") {
+    if (prompt === "/searchresults") {
       if (!lastSearchData.term) {
         await saveMessageToChat("assistant", "❌ No previous search found.", uid);
       } else {
@@ -238,6 +220,48 @@ form.addEventListener("submit", async e => {
         }
         html += `</ul></div>`;
         await saveMessageToChat("assistant", html, uid);
+      }
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 /savesummary
+    if (prompt === "/savesummary" || prompt.toLowerCase() === "save that") {
+      const success = await saveLastSummaryToMemory(uid);
+      const msg = success ? "✅ Summary saved to memory." : "❌ Failed to save summary.";
+      await saveMessageToChat("assistant", msg, uid);
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 /learn about
+    if (prompt.toLowerCase().startsWith("learn ")) {
+      const topic = prompt.slice(6).trim();
+      if (!topic) {
+        await saveMessageToChat("assistant", "❌ No topic provided.", uid);
+        showChatInputSpinner(false);
+        return;
+      }
+      await saveMessageToChat("user", prompt, uid);
+      const summary = await learnAboutTopic(topic, uid);
+      await saveMessageToChat("assistant", `📚 Learned about "${topic}":\n\n${summary}`, uid);
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 /pastsearches and natural language "show my past searches"
+    if (
+      prompt === "/pastsearches" ||
+      /show my past searches/i.test(prompt)
+    ) {
+      const list = getPastSearches();
+      if (!list.length) {
+        await saveMessageToChat("assistant", "No past learned topics found.", uid);
+      } else {
+        const msg = list
+          .map(i => `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`)
+          .join("\n");
+        await saveMessageToChat("assistant", `📂 Recent learned topics:\n${msg}`, uid);
       }
       showChatInputSpinner(false);
       return;
