@@ -82,7 +82,10 @@ onAuthStateChanged(auth, user => {
 form.addEventListener("submit", async e => {
   e.preventDefault();
   const prompt = input.value.trim();
-  if (!prompt || !uid) return;
+  if (!prompt || !uid) {
+    showChatInputSpinner(false);
+    return;
+  }
   input.value = "";
 
   showChatInputSpinner(true);
@@ -191,7 +194,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 /savesummary command
+    // 🔹 /savesummary or natural "save that"
     if (prompt === "/savesummary" || prompt.toLowerCase() === "save that") {
       const success = await saveLastSummaryToMemory(uid);
       const msg = success ? "✅ Summary saved to memory." : "❌ No summary available.";
@@ -200,7 +203,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 /learn command
+    // 🔹 /learn or natural "learn" command
     if (prompt.toLowerCase().startsWith("learn ")) {
       const topic = prompt.slice(6).trim();
       if (!topic) {
@@ -215,9 +218,9 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 /pastsearches command
+    // 🔹 /pastsearches or natural "show my past searches"
     if (prompt === "/pastsearches" || prompt.toLowerCase() === "show my past searches") {
-      const list = getPastSearches();
+      const list = await getPastSearches();
       if (!list.length) {
         await saveMessageToChat("assistant", "No past learned topics found.", uid);
       } else {
@@ -230,34 +233,28 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 Natural search trigger: only if prompt explicitly includes /search or starts with it
-    if (prompt.startsWith("/search ")) {
-      // Already handled above, no fallback here
-    } else {
-      // Standard conversation fallback
-      await saveMessageToChat("user", prompt, uid);
-      const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
-      const sysPrompt = buildSystemPrompt({
-        memory: ctx.memory,
-        todayLog: ctx.dayLog,
-        notes: ctx.notes,
-        calendar: ctx.calendar,
-        reminders: ctx.reminders,
-        calc: ctx.calc,
-        date: new Date().toISOString().slice(0, 10)
-      });
-      const full = [{ role: "system", content: sysPrompt }, ...last20];
-      const reply = await getAssistantReply(full);
-      await saveMessageToChat("assistant", reply, uid);
-      updateHeaderWithAssistantReply(reply);
-      await summarizeChatIfNeeded(uid);
-      showChatInputSpinner(false);
-      return;
-    }
+    // 🔹 Fallback: standard conversation, no auto-search
+    await saveMessageToChat("user", prompt, uid);
+    const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
+    const sysPrompt = buildSystemPrompt({
+      memory: ctx.memory,
+      todayLog: ctx.dayLog,
+      notes: ctx.notes,
+      calendar: ctx.calendar,
+      reminders: ctx.reminders,
+      calc: ctx.calc,
+      date: new Date().toISOString().slice(0, 10)
+    });
+    const full = [{ role: "system", content: sysPrompt }, ...last20];
+    const reply = await getAssistantReply(full);
+    await saveMessageToChat("assistant", reply, uid);
+    updateHeaderWithAssistantReply(reply);
+    await summarizeChatIfNeeded(uid);
+
+    showChatInputSpinner(false);
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
     window.debug?.("[ERROR]", err.message || err);
-  } finally {
     showChatInputSpinner(false);
   }
 });
