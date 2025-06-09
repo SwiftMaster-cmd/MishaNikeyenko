@@ -137,8 +137,10 @@ form.addEventListener("submit", async e => {
     // 4.2 Preference & smart memory intent
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
+      // Save user's original message
       await saveMessageToChat("user", prompt, uid);
 
+      // Preference
       if (memory.type === "preference") {
         await saveMessageToChat(
           "assistant",
@@ -149,15 +151,34 @@ form.addEventListener("submit", async e => {
         return;
       }
 
-      // for note/reminder/calendar/log, handle via static command
-      if (["note", "reminder", "calendar", "log"].includes(memory.type)) {
-        const cmdPath = {
-          note: `/note ${memory.content}`,
-          reminder: `/reminder ${memory.content}`,
-          calendar: `/calendar ${memory.content}`,
-          log: `/log ${memory.content}`
-        }[memory.type];
-        await handleStaticCommand(cmdPath, chatRef, uid);
+      // Reminder
+      if (memory.type === "reminder") {
+        await saveMessageToChat(
+          "assistant",
+          `✅ Saved reminder: "${memory.content}"`,
+          uid
+        );
+        showChatInputSpinner(false);
+        return;
+      }
+
+      // Calendar event
+      if (memory.type === "calendar") {
+        const when = memory.date ? ` on ${memory.date}` : "";
+        const at = memory.time ? ` at ${memory.time}` : "";
+        await saveMessageToChat(
+          "assistant",
+          `✅ Saved event: "${memory.content}"${when}${at}`,
+          uid
+        );
+        showChatInputSpinner(false);
+        return;
+      }
+
+      // Note or log
+      if (memory.type === "note" || memory.type === "log") {
+        const cmd = memory.type === "note" ? "/note" : "/log";
+        await handleStaticCommand(`${cmd} ${memory.content}`, chatRef, uid);
         showChatInputSpinner(false);
         return;
       }
