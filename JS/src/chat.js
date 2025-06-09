@@ -192,7 +192,7 @@ form.addEventListener("submit", async e => {
     }
 
     // 🔹 /savesummary command
-    if (prompt === "/savesummary") {
+    if (prompt === "/savesummary" || prompt.toLowerCase() === "save that") {
       const success = await saveLastSummaryToMemory(uid);
       const msg = success ? "✅ Summary saved to memory." : "❌ No summary available.";
       await saveMessageToChat("assistant", msg, uid);
@@ -200,9 +200,9 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 /learn about command
-    if (prompt.startsWith("/learn about ")) {
-      const topic = prompt.slice(13).trim();
+    // 🔹 /learn command
+    if (prompt.toLowerCase().startsWith("learn ")) {
+      const topic = prompt.slice(6).trim();
       if (!topic) {
         await saveMessageToChat("assistant", "❌ No topic provided.", uid);
         showChatInputSpinner(false);
@@ -216,7 +216,7 @@ form.addEventListener("submit", async e => {
     }
 
     // 🔹 /pastsearches command
-    if (prompt === "/pastsearches") {
+    if (prompt === "/pastsearches" || prompt.toLowerCase() === "show my past searches") {
       const list = getPastSearches();
       if (!list.length) {
         await saveMessageToChat("assistant", "No past learned topics found.", uid);
@@ -230,45 +230,30 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 Natural search trigger: only if prompt contains 'search' or 'look up'
-    const naturalSearchRegex = /\b(search|look up)\b/i;
-    if (naturalSearchRegex.test(prompt)) {
-      const term = prompt;
-      const data = await webSearchBrave(term, { uid, count: 5 });
-      lastSearchData.term = term;
-      lastSearchData.results = data.results;
-
-      const summaryPrompt = [
-        { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
-        { role: "user", content: JSON.stringify(data.results, null, 2) }
-      ];
-      const summary = await getAssistantReply(summaryPrompt);
-
+    // 🔹 Natural search trigger: only if prompt explicitly includes /search or starts with it
+    if (prompt.startsWith("/search ")) {
+      // Already handled above, no fallback here
+    } else {
+      // Standard conversation fallback
       await saveMessageToChat("user", prompt, uid);
-      await saveMessageToChat("assistant", summary, uid);
-
+      const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
+      const sysPrompt = buildSystemPrompt({
+        memory: ctx.memory,
+        todayLog: ctx.dayLog,
+        notes: ctx.notes,
+        calendar: ctx.calendar,
+        reminders: ctx.reminders,
+        calc: ctx.calc,
+        date: new Date().toISOString().slice(0, 10)
+      });
+      const full = [{ role: "system", content: sysPrompt }, ...last20];
+      const reply = await getAssistantReply(full);
+      await saveMessageToChat("assistant", reply, uid);
+      updateHeaderWithAssistantReply(reply);
+      await summarizeChatIfNeeded(uid);
       showChatInputSpinner(false);
       return;
     }
-
-    // 🔹 Fallback: Standard conversation
-    await saveMessageToChat("user", prompt, uid);
-    const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
-    const sysPrompt = buildSystemPrompt({
-      memory: ctx.memory,
-      todayLog: ctx.dayLog,
-      notes: ctx.notes,
-      calendar: ctx.calendar,
-      reminders: ctx.reminders,
-      calc: ctx.calc,
-      date: new Date().toISOString().slice(0, 10)
-    });
-    const full = [{ role: "system", content: sysPrompt }, ...last20];
-    const reply = await getAssistantReply(full);
-    await saveMessageToChat("assistant", reply, uid);
-    updateHeaderWithAssistantReply(reply);
-    await summarizeChatIfNeeded(uid);
-
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
     window.debug?.("[ERROR]", err.message || err);
