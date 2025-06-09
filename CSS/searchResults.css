@@ -1,15 +1,13 @@
 /* ───────────────────────────────────────────────────────────────── */
-/* Search Results Container (Glass Card)                            */
+/* Search Results Container (transparent wrapper)                  */
 /* ───────────────────────────────────────────────────────────────── */
 .search-results {
-  background: var(--clr-glass);
-  backdrop-filter: blur(14px) saturate(1.12);
-  border: 1.5px solid var(--clr-border-light);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
-  margin: var(--gap) auto;
+  background: transparent;             /* transparent container */
   padding: var(--gap);
+  margin: var(--gap) auto;
   max-width: 600px;
+  box-shadow: none;
+  border: none;
 }
 
 /* ───────────────────────────────────────────────────────────────── */
@@ -20,9 +18,12 @@
   font-size: 1.5rem;
   margin-bottom: 1rem;
   color: var(--clr-text);
-  user-select: none;
-  border-bottom: 2px solid var(--clr-border);
-  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--clr-border-light);
+  padding-bottom: 0.5rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ───────────────────────────────────────────────────────────────── */
@@ -32,7 +33,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 60vh;       /* never taller than viewport */
+  max-height: 60vh;
   overflow-y: auto;
 }
 .search-results ul::-webkit-scrollbar {
@@ -44,48 +45,30 @@
 }
 
 /* ───────────────────────────────────────────────────────────────── */
-/* Individual Item (glass card)                                     */
+/* Individual Item (lighter glass card)                             */
 /* ───────────────────────────────────────────────────────────────── */
 .search-results li {
-  background: var(--clr-surface);
-  border: 1px solid var(--clr-border);
+  background: rgba(30, 30, 48, 0.6);    /* lighter than surface */
+  border: 1px solid var(--clr-border-light);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
   padding: 12px 16px;
   margin-bottom: 0.75rem;
-  transition: box-shadow 0.25s, transform 0.2s, background 0.2s;
+  transition: background 0.2s, transform 0.2s;
   cursor: pointer;
 }
 .search-results li:hover,
 .search-results li:focus-within {
-  background: rgba(255,255,255,0.03);
-  box-shadow: var(--shadow-hover);
+  background: rgba(30, 30, 48, 0.85);
   transform: translateY(-2px);
 }
 .search-results li:last-child {
   margin-bottom: 0;
 }
+
 /* ───────────────────────────────────────────────────────────────── */
-/* Tidy up the "Top Results for …" heading                          */
-/* ───────────────────────────────────────────────────────────────── */
-.search-results .results-title {
-  display: block;                           /* full-width */
-  font-size: clamp(1.2rem, 2.5vw, 1.4rem);  /* responsive, but not enormous */
-  font-weight: 700;
-  margin: 0 0 1rem;                         /* space below */
-  color: var(--clr-text);                   /* main text color */
-  border-bottom: 1px solid var(--clr-border-light);
-  padding-bottom: 0.5rem;                   /* breathing room under line */
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;                  /* truncate if too long */
-}
-/* ───────────────────────────────────────────────────────────────── */
-/* Link Title (not purple by default)                               */
+/* Link Title                                                      */
 /* ───────────────────────────────────────────────────────────────── */
 .search-results a {
-  display: inline-block;
   color: var(--clr-text);
   font-weight: 600;
   font-size: 1.15rem;
@@ -103,8 +86,7 @@
 /* ───────────────────────────────────────────────────────────────── */
 .search-results .snippet,
 .search-results .result-url {
-  background: var(--clr-glass);
-  backdrop-filter: blur(14px) saturate(1.12);
+  background: rgba(30, 30, 48, 0.4);    /* subtle panel */
   border-radius: var(--radius);
   padding: 0.5rem 0.75rem;
   margin-top: 0.5rem;
@@ -115,7 +97,7 @@
   font-size: 0.95rem;
   color: var(--clr-text-muted);
   line-height: 1.4;
-  max-height: 5em;        /* ~3 lines */
+  max-height: 5em;
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;
@@ -147,8 +129,7 @@
 .search-results .faq,
 .search-results .discussions,
 .search-results .locations {
-  background: var(--clr-glass);
-  backdrop-filter: blur(14px) saturate(1.12);
+  background: rgba(30, 30, 48, 0.5);
   border-left: 4px solid var(--clr-primary);
   border-radius: var(--radius);
   padding: 8px;
@@ -157,19 +138,6 @@
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--clr-border-light) transparent;
-}
-.search-results .infobox::-webkit-scrollbar,
-.search-results .faq::-webkit-scrollbar,
-.search-results .discussions::-webkit-scrollbar,
-.search-results .locations::-webkit-scrollbar {
-  width: 6px;
-}
-.search-results .infobox::-webkit-scrollbar-thumb,
-.search-results .faq::-webkit-scrollbar-thumb,
-.search-results .discussions::-webkit-scrollbar-thumb,
-.search-results .locations::-webkit-scrollbar-thumb {
-  background-color: var(--clr-border-light);
-  border-radius: 6px;
 }
 .search-results .infobox-title,
 .search-results .faq-title,
