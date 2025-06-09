@@ -27,6 +27,7 @@ import {
   summarizeChatIfNeeded
 } from "./backgpt.js";
 
+import { webSearchBrave } from "./search.js";
 import { buildSystemPrompt } from "./memoryManager.js";
 import {
   renderMessages,
@@ -36,7 +37,8 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
-import { webSearchBrave } from "./search.js";
+// ========== Cache for last search ==========
+let lastSearchData = null;
 
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
@@ -134,10 +136,9 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 4.2 Preference & smart memory intent
+    // 4.2 Natural-language memory (preferences, notes, etc.)
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
-      // Save user's original message
       await saveMessageToChat("user", prompt, uid);
 
       switch (memory.type) {
@@ -148,7 +149,6 @@ form.addEventListener("submit", async e => {
             uid
           );
           break;
-
         case "reminder":
           await saveMessageToChat(
             "assistant",
@@ -156,23 +156,19 @@ form.addEventListener("submit", async e => {
             uid
           );
           break;
-
         case "calendar": {
           const when = memory.date ? ` on ${memory.date}` : "";
-          const at    = memory.time ? ` at ${memory.time}` : "";
-          const rec   = memory.recurrence ? ` (recurs: ${memory.recurrence})` : "";
+          const at = memory.time ? ` at ${memory.time}` : "";
           await saveMessageToChat(
             "assistant",
-            `✅ Saved event: "${memory.content}"${when}${at}${rec}`,
+            `✅ Saved event: "${memory.content}"${when}${at}`,
             uid
           );
           break;
         }
-
         case "note":
           await handleStaticCommand(`/note ${memory.content}`, chatRef, uid);
           break;
-
         case "log":
           await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
           break;
@@ -182,7 +178,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 4.3 Web search
+    // 4.3 /search → Summarize then defer full list to /showresults
     if (prompt.startsWith("/search ")) {
       const q = prompt.slice(8).trim();
       if (!q) {
@@ -190,49 +186,79 @@ form.addEventListener("submit", async e => {
         showChatInputSpinner(false);
         return;
       }
-      isShowingCommandOutput = true;
-      const data = await webSearchBrave(q, { count: 20 }).catch(() => null);
-      if (!data?.results) {
-        window.setStatusFeedback?.("error", "Search failed");
-        showChatInputSpinner(false);
-        return;
-      }
+      window.debug?.("[SEARCH] Query:", q);
 
-   // inside your `/search ` branch, replace the HTML-building section with:
+      // Fetch raw data
+      const data = await webSearchBrave(q, { uid, count: opts?.count || 5 });
+      lastSearchData = data;
 
-let html = `
-  <div class="search-results">
-    <div class="results-title">${q}</div>
-    <ul>
-`;
-for (const r of data.results) {
-  html += `
-      <li>
-        <a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>
-        ${r.snippet ? `<div class="snippet">${r.snippet}</div>` : ""}
-      </li>
-  `;
-}
-html += `
-    </ul>
-    ${data.infobox ? `<div class="infobox">${data.infobox}</div>` : ""}
-  </div>
-`;
+      // Summarize via GPT
+      const summaryPrompt = [
+        {
+          role: "system",
+          content:
+            "You are a concise summarizer. Summarize the key points from these search results in one paragraph:"
+        },
+        { role: "user", content: JSON.stringify(data.results, null, 2) }
+      ];
+      const summary = await getAssistantReply(summaryPrompt);
 
-await saveMessageToChat("user", prompt, uid);
-await saveMessageToChat("assistant", html, uid);
+      // Save and render only summary + showresults hint
+      await saveMessageToChat("user", prompt, uid);
+      await saveMessageToChat("assistant", summary, uid);
+      await saveMessageToChat(
+        "assistant",
+        "Type `/showresults` to view the full results.",
+        uid
+      );
 
-renderMessages([
-  { role: "user", content: prompt, timestamp: Date.now() },
-  { role: "assistant", content: html, timestamp: Date.now() }
-], true);
-
-scrollToBottom();
-showChatInputSpinner(false);
-return;
+      renderMessages(
+        [
+          { role: "user", content: prompt, timestamp: Date.now() },
+          { role: "assistant", content: summary, timestamp: Date.now() },
+          {
+            role: "assistant",
+            content: "Type `/showresults` to view the full results.",
+            timestamp: Date.now()
+          }
+        ],
+        true
+      );
+      scrollToBottom();
+      window.setStatusFeedback?.("success", "Search summarized");
+      showChatInputSpinner(false);
+      return;
     }
 
-    // 4.4 Standard GPT conversation
+    // 4.4 /showresults → display cached results
+    if (prompt === "/showresults") {
+      if (!lastSearchData) {
+        await saveMessageToChat(
+          "assistant",
+          "❌ No cached search results. Run `/search <term>` first.",
+          uid
+        );
+      } else {
+        // Build HTML from lastSearchData
+        let html = `<div class="search-results"><div class="results-title">Full Results:</div><ul>`;
+        for (const r of lastSearchData.results) {
+          html += `<li>
+              <a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>
+              ${r.snippet ? `<div class="snippet">${r.snippet}</div>` : ""}
+              <div class="result-url">${r.url}</div>
+            </li>`;
+        }
+        html += `</ul></div>`;
+
+        await saveMessageToChat("assistant", html, uid);
+        renderMessages([{ role: "assistant", content: html, timestamp: Date.now() }], true);
+        scrollToBottom();
+      }
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 4.5 Normal GPT conversation
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([
       fetchLast20Messages(uid),
@@ -255,6 +281,7 @@ return;
     await summarizeChatIfNeeded(uid);
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
+    window.debug?.("[ERROR]", err.message || err);
   } finally {
     showChatInputSpinner(false);
   }
