@@ -202,7 +202,7 @@ form.addEventListener("submit", async e => {
 
 let html = `
   <div class="search-results">
-    <div class="results-title">"${q}"</div>
+    <div class="results-title">${q}</div>
     <ul>
 `;
 for (const r of data.results) {
