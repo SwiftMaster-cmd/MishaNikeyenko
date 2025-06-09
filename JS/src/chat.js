@@ -105,7 +105,7 @@ form.addEventListener("submit", async (e) => {
   window.debug?.("[SUBMIT]", { uid, prompt });
 
   try {
-    // Quick static commands
+    // Static command triggers
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -114,7 +114,6 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // List commands
     if (prompt === "/notes") {
       isShowingCommandOutput = true;
       await listNotes(chatRef);
@@ -122,6 +121,7 @@ form.addEventListener("submit", async (e) => {
       showChatInputSpinner(false);
       return;
     }
+
     if (prompt === "/reminders") {
       isShowingCommandOutput = true;
       await listReminders(chatRef);
@@ -129,6 +129,7 @@ form.addEventListener("submit", async (e) => {
       showChatInputSpinner(false);
       return;
     }
+
     if (prompt === "/events") {
       isShowingCommandOutput = true;
       await listEvents(chatRef);
@@ -136,6 +137,7 @@ form.addEventListener("submit", async (e) => {
       showChatInputSpinner(false);
       return;
     }
+
     if (prompt === "/console") {
       if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
       window.setStatusFeedback?.("success", "Console opened");
@@ -143,17 +145,50 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // Embedded command support
-    const embeddedMatch = prompt.match(/\/(note|reminder|calendar)\s(.+)/i);
-    if (embeddedMatch) {
-      const [_, type, content] = embeddedMatch;
-      await handleStaticCommand(`/${type.toLowerCase()} ${content.trim()}`, chatRef, uid);
-      window.setStatusFeedback?.("success", `Command executed (${type})`);
-      showChatInputSpinner(false);
-      return;
+    // 🔍 Smart natural language or slash command intent
+    const commandIntentMatch = prompt.match(
+      /\b(?:\/?(note|reminder|calendar))\b|\b(write|save|make|add|set)\b.*\b(note|reminder|calendar|event)\b/i
+    );
+
+    if (commandIntentMatch) {
+      const type = (
+        commandIntentMatch[1] ||
+        commandIntentMatch[3]
+      )?.toLowerCase();
+
+      if (type) {
+        const [last20] = await Promise.all([fetchLast20Messages(uid)]);
+
+        const contextPrompt = [
+          {
+            role: "system",
+            content: `The user wants to save a ${type}. Based on context, respond ONLY with the exact text to store. No extra commentary.`
+          },
+          ...last20,
+          { role: "user", content: prompt }
+        ];
+
+        const gptResult = await getAssistantReply(contextPrompt);
+        const trimmed = gptResult.trim();
+
+        if (!trimmed) {
+          window.setStatusFeedback?.("error", "Nothing to save");
+          showChatInputSpinner(false);
+          return;
+        }
+
+        const syntheticCommand = `/${type} ${trimmed}`;
+        await handleStaticCommand(syntheticCommand, chatRef, uid);
+        await saveMessageToChat("user", prompt, uid);
+        await saveMessageToChat("assistant", `Saved ${type}: "${trimmed}"`, uid);
+        isShowingCommandOutput = true;
+        scrollToBottom();
+        showChatInputSpinner(false);
+        return;
+      }
     }
 
-    // Web search
+    // 🔎 Web search
     if (prompt.startsWith("/search ")) {
       const query = prompt.slice(8).trim();
       if (!query) {
@@ -213,7 +248,7 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    // === Normal GPT chat flow ===
+    // 🧠 Normal assistant chat
     await saveMessageToChat("user", prompt, uid);
     window.debug?.("[STEP 1] User message saved.");
 
