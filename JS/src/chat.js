@@ -177,14 +177,13 @@ form.addEventListener("submit", async (e) => {
           return;
         }
 
-        const syntheticCommand = `/${type} ${trimmed}`;
-        await handleStaticCommand(syntheticCommand, chatRef, uid);
-        await saveMessageToChat("user", prompt, uid);
-        await saveMessageToChat("assistant", `Saved ${type}: "${trimmed}"`, uid);
-        isShowingCommandOutput = true;
-        scrollToBottom();
-        showChatInputSpinner(false);
-        return;
+      const syntheticCommand = `/${type} ${trimmed}`;
+await saveMessageToChat("user", prompt, uid);
+await handleStaticCommand(syntheticCommand, chatRef, uid);
+isShowingCommandOutput = true;
+scrollToBottom();
+showChatInputSpinner(false);
+return;
       }
     }
 
