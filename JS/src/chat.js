@@ -1,4 +1,4 @@
-// chat.js – input and flow control only, all UI/logic in modules
+// 🔹 chat.js – input and flow control only, all UI/logic in modules
 
 import {
   onValue,
@@ -37,14 +37,10 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
-import { webSearchBrave } from "./search.js";
-import { renderSearchResults } from "./searchResults.js";
-
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
-const searchResultsContainer = document.getElementById("search-results");
 
 // ========== 2. Init ==========
 initScrollTracking();
@@ -84,7 +80,23 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 4. Submit Handler ==========
+// ========== 4. Search Results UI ==========
+function renderSearchResults(results, container) {
+  if (!container) return;
+  container.innerHTML = "";
+  results.forEach(res => {
+    const card = document.createElement("div");
+    card.className = "search-result-card";
+    card.innerHTML = `
+      <div class="search-result-title"><a href="${res.url}" target="_blank" rel="noopener">${res.title || res.url}</a></div>
+      <div class="search-result-snippet">${res.snippet || ""}</div>
+      <div class="search-result-link"><a href="${res.url}" target="_blank" rel="noopener">${res.url}</a></div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// ========== 5. Submit Handler ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -95,11 +107,8 @@ form.addEventListener("submit", async (e) => {
   window.setStatusFeedback?.("loading", "Thinking...");
   window.debug?.("[SUBMIT]", { uid, prompt });
 
-  // CLEAR SEARCH RESULTS unless next message is another /search
-  if (searchResultsContainer) searchResultsContainer.innerHTML = "";
-
   try {
-    // Static Commands
+    // Quick Static Commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -125,47 +134,74 @@ form.addEventListener("submit", async (e) => {
       showChatInputSpinner(false);
       return;
     }
-    // ===== /console as chat command =====
     if (prompt === "/console") {
       if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
       window.setStatusFeedback?.("success", "Console opened");
       showChatInputSpinner(false);
       return;
     }
-    // ===== /search as chat command =====
+
+    // ====== /search command integration ======
     if (prompt.startsWith("/search ")) {
       const query = prompt.replace("/search ", "").trim();
       window.debug?.("[SEARCH] Query:", query);
-      if (searchResultsContainer) searchResultsContainer.innerHTML = `<div class="search-result-card">Searching...</div>`;
+      // Display search results as a message bubble
       try {
-        // Try Brave search (proxy via your Netlify serverless function)
-        const resp = await fetch(`/.netlify/functions/brave-search?q=${encodeURIComponent(query)}&count=6`);
-        if (!resp.ok) throw new Error(`Brave search failed: ${resp.status}`);
-        const data = await resp.json();
+        // Call your Netlify function
+        const response = await fetch(`/.netlify/functions/brave-search?q=${encodeURIComponent(query)}&count=5`);
+        const data = await response.json();
+        window.debug?.("[SEARCH RAW]", data);
 
-        // Normalize for empty/faulty result shape
+        // Robust results handling:
         let results = [];
         if (Array.isArray(data.results)) {
-          results = data.results;
+          results = data.results.map(r => ({
+            title: r.title || "",
+            url: r.url || "",
+            snippet: r.description || r.snippet || ""
+          }));
         } else if (data.web && Array.isArray(data.web.results)) {
           results = data.web.results.map(r => ({
-            title: r.title,
-            url: r.url,
-            snippet: r.description
+            title: r.title || "",
+            url: r.url || "",
+            snippet: r.description || r.snippet || ""
           }));
+        } else {
+          throw new Error("No results found in search response.");
         }
 
-        renderSearchResults(results, searchResultsContainer);
+        // Display formatted results in chat (as a bot message)
+        const resultsHtml = results.length
+          ? results.map(res =>
+              `<div class="search-result-card">
+                <div class="search-result-title"><a href="${res.url}" target="_blank" rel="noopener">${res.title || res.url}</a></div>
+                <div class="search-result-snippet">${res.snippet || ""}</div>
+                <div class="search-result-link"><a href="${res.url}" target="_blank" rel="noopener">${res.url}</a></div>
+              </div>`).join("")
+          : `<div>No results found.</div>`;
+
+        // Save to chat log as assistant message
+        await saveMessageToChat("assistant", resultsHtml, uid);
+
+        // Update chat display
+        renderMessages([
+          ...document.querySelectorAll('.msg') // preserve history in view
+        ].map(node => ({
+          content: node.innerHTML,
+          role: node.classList.contains('user-msg') ? 'user' : 'assistant'
+        })).concat([{ content: resultsHtml, role: "assistant" }]));
+        scrollToBottom();
+
         window.setStatusFeedback?.("success", "Search complete");
-        window.debug?.("[SEARCH RESULTS]", results);
+        showChatInputSpinner(false);
+        return;
       } catch (err) {
+        window.debug?.("[SEARCH ERROR]", err.message || err);
+        await saveMessageToChat("assistant", `Search error: ${err.message || "Unknown error"}`, uid);
         window.setStatusFeedback?.("error", "Search failed");
-        if (searchResultsContainer)
-          searchResultsContainer.innerHTML = `<div class="search-result-card">Search error: ${err.message}</div>`;
-        window.debug?.("[SEARCH ERROR]", err.message);
+        showChatInputSpinner(false);
+        return;
       }
-      showChatInputSpinner(false);
-      return;
     }
 
     // Step 1: Save user message
@@ -201,7 +237,6 @@ form.addEventListener("submit", async (e) => {
     // Step 4: Get assistant reply
     const assistantReply = await getAssistantReply(full);
     await saveMessageToChat("assistant", assistantReply, uid);
-    window.logAssistantReply?.(assistantReply);
     updateHeaderWithAssistantReply(assistantReply);
 
     // Step 5: Summarize if needed
@@ -215,11 +250,10 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
-// ========== 5. /console Keyboard Activation ==========
+// ========== 6. /console Keyboard Activation ==========
 let consoleBuffer = "";
 
 document.addEventListener("keydown", (e) => {
-  // Only listen if chat input is NOT focused and no modifiers are held
   if (
     document.activeElement !== input &&
     !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
