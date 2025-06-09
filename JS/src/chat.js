@@ -38,21 +38,21 @@ import {
 } from "./learnManager.js";
 
 window.addEventListener("DOMContentLoaded", () => {
-  // ========== DOM ==========
+  // DOM refs
   const form = document.getElementById("chat-form");
   const input = document.getElementById("user-input");
   const debugToggle = document.getElementById("debug-toggle");
 
-  input?.focus();                     // activate immediately on load
+  // focus & init
+  input?.focus();
   initScrollTracking();
 
-  if (debugToggle) {
-    debugToggle.addEventListener("click", () => window.showDebugOverlay?.());
-  }
+  debugToggle?.addEventListener("click", () => window.showDebugOverlay?.());
 
-  // ========== Firebase Auth & Load ==========
+  // Firebase & state
   let uid = null;
   let chatRef = null;
+  let lastSearchData = { term: null, results: [] };
 
   onAuthStateChanged(auth, user => {
     if (!user) {
@@ -77,57 +77,179 @@ window.addEventListener("DOMContentLoaded", () => {
 
       renderMessages(chatMessages.slice(-20));
       scrollToBottom();
-      input?.focus();                 // keep focus after reload
+      input.focus();
     });
   });
 
-  // ========== List detection helpers ==========
-  function isList(text) {
-    return /^(\s*[-*]|\d+\.)\s/m.test(text);
-  }
-  function listToHtml(text) {
-    const lines = text
+  // Helpers for list detection/formatting
+  const isList = text => /^(\s*[-*]|\d+\.)\s/m.test(text);
+  const formatList = text => {
+    const items = text
       .split(/\r?\n/)
       .map(line => line.replace(/^\s*([-*]|\d+\.)\s*/, "").trim())
-      .filter(Boolean);
-    const items = lines.map(l => `<li>${l}</li>`).join("");
+      .filter(Boolean)
+      .map(item => `<li>${item}</li>`)
+      .join("");
     return `<div class="list-container"><ul>${items}</ul></div>`;
-  }
+  };
 
-  // ========== Form submission ==========
   form.addEventListener("submit", async e => {
     e.preventDefault();
-    const prompt = input.value.trim();
-    if (!prompt || !uid) {
+    const raw = input.value.trim();
+    if (!raw || !uid) {
       input.focus();
       return;
     }
-
+    const prompt = raw;
+    const lower = prompt.toLowerCase();
     input.value = "";
+
     showChatInputSpinner(true);
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      // -- Static commands (all early-exit)
-      const quick = ["/time","/date","/uid","/clearchat","/summary","/commands"];
-      if (quick.includes(prompt)) {
+      // Natural: Search for X
+      if (lower.startsWith("search for ") || lower.startsWith("search ")) {
+        const term = prompt.replace(/^search( for)? /i, "").trim();
+        if (!term) {
+          window.setStatusFeedback?.("error", "Search query empty");
+          return;
+        }
+        const { results } = await webSearchBrave(term, { uid, count: 5 });
+        const summary = await getAssistantReply([
+          { role: "system", content: "Summarize these results in one paragraph:" },
+          { role: "user", content: JSON.stringify(results, null, 2) }
+        ]);
+        await saveMessageToChat("user", prompt, uid);
+        await saveMessageToChat("assistant", summary, uid);
+        lastSearchData = { term, results };
+        return;
+      }
+
+      // Natural: Show last search results
+      if (
+        lower === "show results" ||
+        lower === "show search results" ||
+        prompt === "/searchresults"
+      ) {
+        if (!lastSearchData.term) {
+          await saveMessageToChat("assistant", "❌ No previous search found.", uid);
+        } else {
+          let html = `<div class="search-results"><div class="results-title">
+            Results for "${lastSearchData.term}"
+          </div><ul>`;
+          for (const r of lastSearchData.results) {
+            html += `<li>
+              <a href="${r.url}" target="_blank">${r.title}</a>
+              ${r.snippet ? `<div class="snippet">${r.snippet}</div>` : ""}
+              <div class="result-url">${r.url}</div>
+            </li>`;
+          }
+          html += `</ul></div>`;
+          await saveMessageToChat("assistant", html, uid);
+        }
+        return;
+      }
+
+      // Natural: Learn about X
+      if (lower.startsWith("learn about ")) {
+        const topic = prompt.slice(12).trim();
+        if (!topic) {
+          await saveMessageToChat("assistant", "❌ No topic provided.", uid);
+          return;
+        }
+        await saveMessageToChat("user", prompt, uid);
+        const summary = await learnAboutTopic(topic, uid);
+        await saveMessageToChat(
+          "assistant",
+          `📚 Learned about "${topic}":\n\n${summary}`,
+          uid
+        );
+        return;
+      }
+
+      // Natural: Save last summary
+      if (
+        lower === "save that" ||
+        lower === "save summary" ||
+        lower === "save that summary" ||
+        prompt === "/savesummary"
+      ) {
+        const ok = await saveLastSummaryToMemory(uid);
+        await saveMessageToChat(
+          "assistant",
+          ok ? "✅ Last summary saved." : "❌ Nothing to save.",
+          uid
+        );
+        return;
+      }
+
+      // Natural: List commands
+      if (
+        /^(list|show) commands?$/.test(lower) ||
+        prompt === "/commands"
+      ) {
+        await handleStaticCommand("/commands", chatRef, uid);
+        return;
+      }
+
+      // Natural: List notes
+      if (
+        /^(list|show) notes$/.test(lower) ||
+        prompt === "/notes"
+      ) {
+        await listNotes(chatRef);
+        return;
+      }
+
+      // Natural: List reminders
+      if (
+        /^(list|show) reminders$/.test(lower) ||
+        prompt === "/reminders"
+      ) {
+        await listReminders(chatRef);
+        return;
+      }
+
+      // Natural: List calendar events
+      if (
+        /^(list|show) events$/.test(lower) ||
+        prompt === "/events"
+      ) {
+        await listEvents(chatRef);
+        return;
+      }
+
+      // Natural: Show past searches
+      if (
+        lower === "past searches" ||
+        lower === "show past searches" ||
+        prompt === "/pastsearches"
+      ) {
+        const history = await getPastSearches(uid);
+        if (!history.length) {
+          await saveMessageToChat("assistant", "No past learned topics found.", uid);
+        } else {
+          const lines = history
+            .map(i => `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`)
+            .join("\n");
+          await saveMessageToChat("assistant", `📂 Recent learned topics:\n${lines}`, uid);
+        }
+        return;
+      }
+
+      // Static slash commands
+      const quick = new Set(["/time", "/date", "/uid", "/clearchat", "/summary"]);
+      if (quick.has(prompt)) {
         await handleStaticCommand(prompt, chatRef, uid);
         return;
       }
-      if (prompt === "/notes") {
-        await listNotes(chatRef); return;
-      }
-      if (prompt === "/reminders") {
-        await listReminders(chatRef); return;
-      }
-      if (prompt === "/events") {
-        await listEvents(chatRef); return;
-      }
       if (prompt === "/console") {
-        window.showDebugOverlay?.(); return;
+        window.showDebugOverlay?.();
+        return;
       }
 
-      // -- Memory intents
+      // Memory intents
       const memory = await extractMemoryFromPrompt(prompt, uid);
       if (memory) {
         await saveMessageToChat("user", prompt, uid);
@@ -139,10 +261,13 @@ window.addEventListener("DOMContentLoaded", () => {
             await saveMessageToChat("assistant", `✅ Saved reminder: "${memory.content}"`, uid);
             break;
           case "calendar": {
-            const when = memory.date ? ` on ${memory.date}` : "";
-            const at   = memory.time ? ` at ${memory.time}` : "";
-            await saveMessageToChat("assistant",
-              `✅ Saved event: "${memory.content}"${when}${at}`, uid);
+            const on = memory.date ? ` on ${memory.date}` : "";
+            const at = memory.time ? ` at ${memory.time}` : "";
+            await saveMessageToChat(
+              "assistant",
+              `✅ Saved event: "${memory.content}"${on}${at}`,
+              uid
+            );
             break;
           }
           case "note":
@@ -155,126 +280,32 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // -- /search
-      if (prompt.startsWith("/search ")) {
-        const term = prompt.slice(8).trim();
-        if (!term) {
-          window.setStatusFeedback?.("error","Search query empty");
-          return;
-        }
-        const data = await webSearchBrave(term, { uid, count: 5 });
-        const summaryPrompt = [
-          { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
-          { role: "user", content: JSON.stringify(data.results, null, 2) }
-        ];
-        const summary = await getAssistantReply(summaryPrompt);
-        await saveMessageToChat("user", prompt, uid);
-        await saveMessageToChat("assistant", summary, uid);
-        lastSearchData = { term, results: data.results };
-        return;
-      }
-
-      // -- /searchresults
-      if (prompt === "/searchresults") {
-        if (!lastSearchData.term) {
-          await saveMessageToChat("assistant","❌ No previous search found.", uid);
-        } else {
-          let html = `<div class="search-results"><div class="results-title">
-            Results for "${lastSearchData.term}"
-          </div><ul>`;
-          for (const r of lastSearchData.results) {
-            html += `<li>
-              <a href="${r.url}" target="_blank" rel="noopener">${r.title}</a>
-              ${r.snippet?`<div class="snippet">${r.snippet}</div>`:""}
-              <div class="result-url">${r.url}</div>
-            </li>`;
-          }
-          html += `</ul></div>`;
-          await saveMessageToChat("assistant", html, uid);
-        }
-        return;
-      }
-
-      // -- /savesummary
-      if (prompt === "/savesummary") {
-        const ok = await saveLastSummaryToMemory(uid);
-        await saveMessageToChat("assistant",
-          ok?"✅ Summary saved to memory.":"❌ No summary available.", uid);
-        return;
-      }
-
-      // -- /learn about
-      if (prompt.startsWith("/learn about ")) {
-        const topic = prompt.slice(13).trim();
-        if (!topic) {
-          await saveMessageToChat("assistant","❌ No topic provided.", uid);
-          return;
-        }
-        await saveMessageToChat("user", prompt, uid);
-        const summary = await learnAboutTopic(topic, uid);
-        await saveMessageToChat("assistant",
-          `📚 Learned about "${topic}":\n\n${summary}`, uid);
-        return;
-      }
-
-      // -- /pastsearches
-      if (prompt === "/pastsearches") {
-        const list = getPastSearches();
-        const msg = list.length
-          ? `📂 Recent learned topics:\n` +
-            list.map(i => `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`).join("\n")
-          : "No past learned topics found.";
-        await saveMessageToChat("assistant", msg, uid);
-        return;
-      }
-
-      // -- /commands
-      if (prompt === "/commands") {
-        const cmds = [
-          "/note - Save a note",
-          "/reminder - Set a reminder",
-          "/calendar - Create a calendar event",
-          "/log - Add to day log",
-          "/notes","/reminders","/events",
-          "/summary","/clearchat","/time","/date","/uid",
-          "/search","/searchresults","/savesummary",
-          "/learn about","/pastsearches"
-        ];
-        const listHtml = `<div class="commands-container"><h3>Commands</h3><ul>`+
-          cmds.map(c=>`<li>${c}</li>`).join("")+
-          `</ul></div>`;
-        await saveMessageToChat("assistant", listHtml, uid);
-        return;
-      }
-
-      // -- Fallback: conversation + list auto-detect
+      // Fallback conversation + list auto-detect
       await saveMessageToChat("user", prompt, uid);
-      const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
-      const sysPrompt = buildSystemPrompt({
+      const [last20, ctx] = await Promise.all([
+        fetchLast20Messages(uid),
+        getAllContext(uid)
+      ]);
+      const systemPrompt = buildSystemPrompt({
         memory: ctx.memory,
         todayLog: ctx.dayLog,
         notes: ctx.notes,
         calendar: ctx.calendar,
         reminders: ctx.reminders,
         calc: ctx.calc,
-        date: new Date().toISOString().slice(0,10)
+        date: new Date().toISOString().slice(0, 10)
       });
-
       let reply = await getAssistantReply([
-        { role:"system", content: sysPrompt },
+        { role: "system", content: systemPrompt },
         ...last20
       ]);
-
-      if (isList(reply)) {
-        reply = listToHtml(reply);
-      }
-
+      if (isList(reply)) reply = formatList(reply);
       await saveMessageToChat("assistant", reply, uid);
       updateHeaderWithAssistantReply(reply);
       await summarizeChatIfNeeded(uid);
 
     } catch (err) {
-      window.setStatusFeedback?.("error","Something went wrong");
+      window.setStatusFeedback?.("error", "Something went wrong");
       console.error(err);
     } finally {
       showChatInputSpinner(false);
@@ -282,24 +313,21 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ========== Keyboard Overlay ==========
+  // Keyboard shortcut for /console
   let buffer = "";
   document.addEventListener("keydown", e => {
     if (
       document.activeElement !== input &&
       !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
     ) {
-      if (e.key.length === 1) {
-        buffer += e.key;
-        if (buffer.endsWith("/console")) {
-          window.showDebugOverlay?.();
-          buffer = "";
-        } else if (!"/console".startsWith(buffer)) {
-          buffer = "";
-        }
-      } else if (e.key === "Escape") {
+      buffer += e.key;
+      if (buffer.endsWith("/console")) {
+        window.showDebugOverlay?.();
+        buffer = "";
+      } else if (!"/console".startsWith(buffer)) {
         buffer = "";
       }
+      if (e.key === "Escape") buffer = "";
     }
   });
 });
