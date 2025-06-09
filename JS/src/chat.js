@@ -166,7 +166,7 @@ form.addEventListener("submit", async e => {
       // Fetch raw results
       const data = await webSearchBrave(term, { uid, count: 5 });
 
-      // Cache term + results for later
+      // Cache term + results
       lastSearchData.term = term;
       lastSearchData.results = data.results;
 
@@ -188,6 +188,10 @@ form.addEventListener("submit", async e => {
         { role: "assistant", content: 'Type `/searchresults` to view full results.', timestamp: Date.now() }
       ], true);
       scrollToBottom();
+
+      // Reset flag so normal chat resumes
+      isShowingCommandOutput = false;
+      window.setStatusFeedback?.("success", "Search summarized");
       showChatInputSpinner(false);
       return;
     }
@@ -213,7 +217,7 @@ form.addEventListener("submit", async e => {
         scrollToBottom();
       }
 
-      // Reset so normal chat resumes
+      // Reset flag so normal chat resumes
       isShowingCommandOutput = false;
       window.setStatusFeedback?.("success", "Displayed full results");
       showChatInputSpinner(false);
@@ -237,7 +241,6 @@ form.addEventListener("submit", async e => {
     });
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     const reply = await getAssistantReply(full);
-
     await saveMessageToChat("assistant", reply, uid);
     updateHeaderWithAssistantReply(reply);
     await summarizeChatIfNeeded(uid);
