@@ -233,7 +233,30 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 Fallback: standard conversation, no auto-search
+    // 🔹 Natural conversation with optional search trigger on "search for" keyword
+    if (/search for/i.test(prompt)) {
+      const searchTermMatch = prompt.match(/search for (.+)/i);
+      if (searchTermMatch && searchTermMatch[1]) {
+        const term = searchTermMatch[1].trim();
+        const data = await webSearchBrave(term, { uid, count: 5 });
+        lastSearchData.term = term;
+        lastSearchData.results = data.results;
+
+        const summaryPrompt = [
+          { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
+          { role: "user", content: JSON.stringify(data.results, null, 2) }
+        ];
+        const summary = await getAssistantReply(summaryPrompt);
+
+        await saveMessageToChat("user", prompt, uid);
+        await saveMessageToChat("assistant", summary, uid);
+
+        showChatInputSpinner(false);
+        return;
+      }
+    }
+
+    // 🔹 Fallback: standard conversation without auto-search
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
