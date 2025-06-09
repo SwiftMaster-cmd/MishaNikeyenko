@@ -1,4 +1,4 @@
-// 🔹 chat.js – input and flow control only, all UI/logic in modules
+// chat.js – input and flow control only, all UI/logic in modules
 
 import {
   onValue,
@@ -37,7 +37,6 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
-
 import { webSearchBrave } from "./search.js";
 import { renderSearchResults } from "./searchResults.js";
 
@@ -45,6 +44,7 @@ import { renderSearchResults } from "./searchResults.js";
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
+const searchResultsContainer = document.getElementById("search-results");
 
 // ========== 2. Init ==========
 initScrollTracking();
@@ -95,6 +95,9 @@ form.addEventListener("submit", async (e) => {
   window.setStatusFeedback?.("loading", "Thinking...");
   window.debug?.("[SUBMIT]", { uid, prompt });
 
+  // CLEAR SEARCH RESULTS unless next message is another /search
+  if (searchResultsContainer) searchResultsContainer.innerHTML = "";
+
   try {
     // Static Commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
@@ -131,37 +134,35 @@ form.addEventListener("submit", async (e) => {
     }
     // ===== /search as chat command =====
     if (prompt.startsWith("/search ")) {
-      const searchQuery = prompt.replace("/search ", "").trim();
-      window.debug?.("[SEARCH] Query:", searchQuery);
+      const query = prompt.replace("/search ", "").trim();
+      window.debug?.("[SEARCH] Query:", query);
+      if (searchResultsContainer) searchResultsContainer.innerHTML = `<div class="search-result-card">Searching...</div>`;
       try {
-        const data = await webSearchBrave(searchQuery, { count: 5 });
-        let msg = "";
-        if (data.results.length) {
-          msg += data.results.map(r =>
-            `**${r.title}**\n${r.url}\n${r.snippet}`
-          ).join('\n\n');
+        // Try Brave search (proxy via your Netlify serverless function)
+        const resp = await fetch(`/.netlify/functions/brave-search?q=${encodeURIComponent(query)}&count=6`);
+        if (!resp.ok) throw new Error(`Brave search failed: ${resp.status}`);
+        const data = await resp.json();
+
+        // Normalize for empty/faulty result shape
+        let results = [];
+        if (Array.isArray(data.results)) {
+          results = data.results;
+        } else if (data.web && Array.isArray(data.web.results)) {
+          results = data.web.results.map(r => ({
+            title: r.title,
+            url: r.url,
+            snippet: r.description
+          }));
         }
-        if (data.infobox) {
-          msg += `\n\n---\n**Infobox:**\n${JSON.stringify(data.infobox, null, 2)}`;
-        }
-        if (data.faq.length) {
-          msg += `\n\n---\n**FAQ:**\n` +
-            data.faq.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n');
-        }
-        if (data.discussions.length) {
-          msg += `\n\n---\n**Discussions:**\n` +
-            data.discussions.map(d => `• ${d.text}`).join('\n');
-        }
-        if (data.locations.length) {
-          msg += `\n\n---\n**Locations:**\n` +
-            data.locations.map(loc => loc.name || "").join(', ');
-        }
-        if (!msg.trim()) msg = "No results found.";
-        await saveMessageToChat("assistant", msg, uid);
-        const last = await fetchLast20Messages(uid);
-        renderMessages(last);
+
+        renderSearchResults(results, searchResultsContainer);
+        window.setStatusFeedback?.("success", "Search complete");
+        window.debug?.("[SEARCH RESULTS]", results);
       } catch (err) {
-        await saveMessageToChat("assistant", "Search error: " + err.message, uid);
+        window.setStatusFeedback?.("error", "Search failed");
+        if (searchResultsContainer)
+          searchResultsContainer.innerHTML = `<div class="search-result-card">Search error: ${err.message}</div>`;
+        window.debug?.("[SEARCH ERROR]", err.message);
       }
       showChatInputSpinner(false);
       return;
