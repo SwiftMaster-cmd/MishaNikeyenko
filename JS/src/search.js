@@ -1,5 +1,4 @@
 // search.js – Brave Search API (Pro) integration
-
 const BRAVE_API_KEY = 'BSAPL_WUWCZ7JdfD5oCeZ1bAYlhc9n5'; // <-- your real Pro key
 
 export async function webSearchBrave(query, opts = {}) {
@@ -15,7 +14,7 @@ export async function webSearchBrave(query, opts = {}) {
       }
     });
   } catch (err) {
-    window.debug?.("[SEARCH ERROR] Brave fetch failed:", err);
+    window.debug?.("[SEARCH ERROR] Brave fetch failed:", err.message || err);
     throw new Error('Brave Search network error');
   }
 
@@ -32,9 +31,9 @@ export async function webSearchBrave(query, opts = {}) {
   let data;
   try {
     data = await response.json();
-    window.debug?.("[SEARCH RESPONSE]", data); // logs full raw Brave API response
+    window.debug?.("[SEARCH RESPONSE]", JSON.stringify(data, null, 2));
   } catch (err) {
-    window.debug?.("[SEARCH ERROR] Error parsing Brave response:", err);
+    window.debug?.("[SEARCH ERROR] Error parsing Brave response:", err.message || err);
     throw new Error('Brave Search parse error');
   }
 
@@ -44,7 +43,7 @@ export async function webSearchBrave(query, opts = {}) {
   const discussions = Array.isArray(data.discussions) ? data.discussions : [];
   const locations = Array.isArray(data.locations) ? data.locations : [];
 
-  window.debug?.(`[SEARCH] Results: ${resultsArr.length}, Infobox: ${!!infobox}, FAQ: ${faq.length}, Discussions: ${discussions.length}, Locations: ${locations.length}`);
+  window.debug?.(`[SEARCH] Summary: Results=${resultsArr.length}, Infobox=${!!infobox}, FAQ=${faq.length}, Discussions=${discussions.length}, Locations=${locations.length}`);
 
   return {
     results: resultsArr.map(r => ({
