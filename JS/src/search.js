@@ -1,66 +1,71 @@
-// search.js – Brave Search API via Netlify Function Proxy with GPT-powered query refinement
+// search.js – Brave Search API via Netlify Function Proxy with smart context & location
 
 import { fetchLast20Messages, getAssistantReply } from "./backgpt.js";
+import { get_user_info } from "./user_info.js";
 
 /**
- * Performs a context-aware Brave search:
- * 1. Pulls recent chat to refine the user’s query
- * 2. (Optionally) adds geolocation
- * 3. Sends to the Brave-search proxy
+ * Performs a context– and optionally location–aware Brave search:
+ * 1. Classifies whether local context is helpful
+ * 2. Refines the query via GPT using recent chat context
+ * 3. Attaches location parameters only if beneficial
+ * 4. Sends to the Brave‐search proxy and normalizes results
+ *
+ * @param {string} rawQuery – User’s original search phrase
+ * @param {object} opts
+ *   @property {string} uid     – Firebase user ID (for chat context)
+ *   @property {number} count   – Number of results (default 5)
  */
 export async function webSearchBrave(rawQuery, opts = {}) {
   window.debug?.(`[SEARCH] Raw Query: ${rawQuery}`);
 
-  // ── 1) Refine the query via GPT ─────────────────────────────────────
-  let refinedQuery = rawQuery;
+  // ── 1) Decide if adding "near {city}" makes sense ────────────────
+  let locationHint = "";
   try {
-    // Pull last few messages for context
+    const info = await get_user_info();
+    const city = info.location?.city || info.location?.region;
+    if (city) {
+      const clsPrompt = [
+        { role: "system", content:
+            "Answer only 'yes' or 'no'. Should we add local context (e.g. 'near City') to this search?" },
+        { role: "user", content: `Query: "${rawQuery}"` }
+      ];
+      const decision = (await getAssistantReply(clsPrompt)).trim().toLowerCase();
+      if (decision.startsWith("y")) locationHint = ` near ${city}`;
+      window.debug?.(`[SEARCH] Location decision: ${decision}`);
+    }
+  } catch (e) {
+    window.debug?.("[SEARCH] Location classification failed:", e.message);
+  }
+
+  // ── 2) Refine the query via GPT ─────────────────────────────────
+  let refined = rawQuery + locationHint;
+  try {
     const recent = await fetchLast20Messages(opts.uid);
     const context = recent
-      .filter(m => m.role === "user" || m.role === "assistant")
-      .slice(-6)  // last 6 messages
+      .filter(m => m.role !== "assistant")
+      .slice(-6)
       .map(m => `${m.role === "assistant" ? "AI" : "User"}: ${m.content}`)
       .join("\n");
-
     const rewritePrompt = [
-      {
-        role: "system",
-        content: `
-You are a search-optimization engine. Given the user’s recent conversation and their raw search phrase,
-produce a concise, effective search query--but do NOT include any commentary or markup.
-`
-      },
+      { role: "system", content:
+          "You are a search‐query optimizer. Given chat context and a raw search, produce a concise query." },
       { role: "assistant", content: context },
-      { role: "user", content: `Search for: "${rawQuery}"` }
+      { role: "user", content: `Search for: "${refined}"` }
     ];
-
-    const improved = await getAssistantReply(rewritePrompt);
-    refinedQuery = improved.trim().replace(/^Search for[:\s]*/i, "") || rawQuery;
-    window.debug?.(`[SEARCH] Refined Query: ${refinedQuery}`);
-  } catch (err) {
-    window.debug?.("[SEARCH] Query rewrite failed, using raw:", err.message);
+    const out = await getAssistantReply(rewritePrompt);
+    const cand = out.trim().replace(/^Search for[:\s]*/i, "");
+    refined = cand || refined;
+    window.debug?.(`[SEARCH] Refined Query: ${refined}`);
+  } catch (e) {
+    window.debug?.("[SEARCH] Query refinement failed:", e.message);
   }
 
-  // ── 2) (Optional) Attach geolocation ───────────────────────────────
-  let geoParams = "";
-  if (navigator.geolocation) {
-    try {
-      const pos = await new Promise((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
-      );
-      const { latitude, longitude } = pos.coords;
-      geoParams = `&lat=${latitude.toFixed(4)}&lon=${longitude.toFixed(4)}`;
-    } catch {
-      /* ignore if denied or timed out */
-    }
-  }
-
-  // ── 3) Call Brave proxy ─────────────────────────────────────────────
+  // ── 3) Build and call proxy ─────────────────────────────────────
   const count = opts.count || 5;
-  const endpoint = `/.netlify/functions/brave-search?q=${encodeURIComponent(
-    refinedQuery
-  )}&count=${count}${geoParams}`;
-  window.debug?.(`[SEARCH] Endpoint: ${endpoint}`);
+  const endpoint = `/.netlify/functions/brave-search` +
+                   `?q=${encodeURIComponent(refined)}` +
+                   `&count=${count}`;
+  window.debug?.("[SEARCH] Fetching", endpoint);
 
   const res = await fetch(endpoint, { headers: { Accept: "application/json" } });
   if (!res.ok) {
@@ -76,11 +81,11 @@ produce a concise, effective search query--but do NOT include any commentary or 
   const data = await res.json();
   window.debug?.("[SEARCH] Response:", data);
 
-  // ── 4) Normalize ───────────────────────────────────────────────────
+  // ── 4) Normalize output ─────────────────────────────────────────
   const web = data.web || {};
-  const resultsArr = Array.isArray(web.results) ? web.results : [];
+  const arr = Array.isArray(web.results) ? web.results : [];
   return {
-    results: resultsArr.map(r => ({
+    results: arr.map(r => ({
       title: r.title || "",
       url: r.url || "",
       snippet: r.description || "",
