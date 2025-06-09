@@ -1,82 +1,76 @@
-// search.js – Brave Search API via Netlify Function Proxy with GPT-powered query refinement
+// search.js – Brave Search API via Netlify Function Proxy with smart location injection
 
 import { fetchLast20Messages, getAssistantReply } from "./backgpt.js";
+import { get_user_info } from "./user_info";
 
 /**
- * Performs a context-aware Brave search:
- * 1. Pulls recent chat to refine the user’s query
- * 2. (Optionally) adds geolocation
- * 3. Sends to the Brave-search proxy
+ * Smart Brave search:
+ * - Optionally injects "near {city}" if query type benefits
+ * - Refines query via GPT using chat context
+ * - Proxies to Brave
  */
 export async function webSearchBrave(rawQuery, opts = {}) {
   window.debug?.(`[SEARCH] Raw Query: ${rawQuery}`);
 
-  // ── 1) Refine the query via GPT ─────────────────────────────────────
-  let refinedQuery = rawQuery;
+  // ── A) Determine if location injection is needed ──────────────
+  let locationHint = "";
   try {
-    // Pull last few messages for context
+    const info = await get_user_info();
+    const city = info.location?.city || info.location?.region;
+    if (city) {
+      // Ask GPT whether to add "near {city}"
+      const decisionPrompt = [
+        { role: "system", content:
+            "You are a query classifier. Answer ONLY 'yes' or 'no'.\n" +
+            "If the user's search would benefit from local context (restaurants, stores, services), answer yes. Otherwise no." },
+        { role: "user", content: `Should I add "near ${city}" to this search: "${rawQuery}"?` }
+      ];
+      const decision = (await getAssistantReply(decisionPrompt)).trim().toLowerCase();
+      if (decision.startsWith("y")) {
+        locationHint = ` near ${city}`;
+      }
+      window.debug?.(`[SEARCH] Location injection decision: ${decision}`);
+    }
+  } catch (e) {
+    window.debug?.("[SEARCH] Location inference failed:", e.message);
+  }
+
+  // ── B) Refine the query via GPT ──────────────────────────────
+  let refined = rawQuery + locationHint;
+  try {
     const recent = await fetchLast20Messages(opts.uid);
     const context = recent
-      .filter(m => m.role === "user" || m.role === "assistant")
-      .slice(-6)  // last 6 messages
-      .map(m => `${m.role === "assistant" ? "AI" : "User"}: ${m.content}`)
+      .filter(m => m.role !== "assistant")
+      .slice(-4)
+      .map(m => m.content)
       .join("\n");
-
     const rewritePrompt = [
-      {
-        role: "system",
-        content: `
-You are a search-optimization engine. Given the user’s recent conversation and their raw search phrase,
-produce a concise, effective search query--but do NOT include any commentary or markup.
-`
-      },
+      { role: "system", content:
+          "You are a search optimizer. Given this context and user search, produce a concise search query." },
       { role: "assistant", content: context },
-      { role: "user", content: `Search for: "${rawQuery}"` }
+      { role: "user", content: `Search for: "${refined}"` }
     ];
-
-    const improved = await getAssistantReply(rewritePrompt);
-    refinedQuery = improved.trim().replace(/^Search for[:\s]*/i, "") || rawQuery;
-    window.debug?.(`[SEARCH] Refined Query: ${refinedQuery}`);
-  } catch (err) {
-    window.debug?.("[SEARCH] Query rewrite failed, using raw:", err.message);
+    const out = await getAssistantReply(rewritePrompt);
+    refined = out.trim().replace(/^Search for[:\s]*/i, "") || refined;
+    window.debug?.(`[SEARCH] Refined Query: ${refined}`);
+  } catch (e) {
+    window.debug?.("[SEARCH] Query rewrite failed:", e.message);
   }
 
-  // ── 2) (Optional) Attach geolocation ───────────────────────────────
-  let geoParams = "";
-  if (navigator.geolocation) {
-    try {
-      const pos = await new Promise((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
-      );
-      const { latitude, longitude } = pos.coords;
-      geoParams = `&lat=${latitude.toFixed(4)}&lon=${longitude.toFixed(4)}`;
-    } catch {
-      /* ignore if denied or timed out */
-    }
-  }
-
-  // ── 3) Call Brave proxy ─────────────────────────────────────────────
+  // ── C) Call the Brave proxy ──────────────────────────────────
   const count = opts.count || 5;
-  const endpoint = `/.netlify/functions/brave-search?q=${encodeURIComponent(
-    refinedQuery
-  )}&count=${count}${geoParams}`;
-  window.debug?.(`[SEARCH] Endpoint: ${endpoint}`);
+  const endpoint = `/.netlify/functions/brave-search?q=${encodeURIComponent(refined)}&count=${count}`;
+  window.debug?.("[SEARCH] Endpoint:", endpoint);
 
   const res = await fetch(endpoint, { headers: { Accept: "application/json" } });
   if (!res.ok) {
-    let msg = `Proxy error [${res.status}]`;
-    try {
-      const err = await res.json();
-      if (err.error) msg += `: ${err.error}`;
-    } catch {}
-    window.debug?.("[SEARCH] Proxy failed:", msg);
-    throw new Error(msg);
+    const err = await res.text().catch(() => "");
+    throw new Error(`Proxy error [${res.status}]: ${err}`);
   }
-
   const data = await res.json();
   window.debug?.("[SEARCH] Response:", data);
 
-  // ── 4) Normalize ───────────────────────────────────────────────────
+  // ── D) Normalize output ───────────────────────────────────────
   const web = data.web || {};
   const resultsArr = Array.isArray(web.results) ? web.results : [];
   return {
