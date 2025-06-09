@@ -161,23 +161,44 @@
 /* ───────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .search-results {
-    padding: 1rem;
-    margin: 1rem;
-    max-width: 100%;
+    width: 100% !important;      /* fill viewport width */
+    max-width: none !important;  /* remove the 600px cap */
+    margin: var(--gap) 0 !important;   /* vertical spacing only */
+    padding: 0.75rem 1rem !important;  /* slightly tighter padding */
+    border: none;                /* remove any border if present */
+    box-shadow: none;            /* remove shadow */
   }
+
   .search-results .results-title {
     font-size: 1.3rem;
+    margin-bottom: 0.75rem;
   }
+
+  .search-results ul {
+    max-height: 50vh;            /* keep list from taking entire screen */
+    padding: 0;
+    margin: 0;
+  }
+
   .search-results li {
-    padding: 10px 12px;
+    padding: 10px 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: var(--radius);
   }
+
   .search-results a {
     font-size: 1.1rem;
   }
+
   .search-results .snippet {
     font-size: 0.9rem;
     max-height: 3em;
   }
+
+  .search-results .result-url {
+    font-size: 0.8rem;
+  }
+
   .search-results .infobox,
   .search-results .faq,
   .search-results .discussions,
