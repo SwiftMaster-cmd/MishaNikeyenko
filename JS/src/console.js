@@ -100,12 +100,15 @@ window.showDebugOverlay = function () {
   overlay.style.display = "flex";
   renderOverlayLogGroups();
 
-  overlay.querySelector(".close-btn")?.addEventListener("click", () => {
-    overlay.style.display = "none";
-    // Restore mini if it was previously visible
-    if (mini) mini.style.display = "block";
-    overlayAutoscroll = true;
-  });
+  // Replace old close button handler with strict both-close
+  const closeBtn = overlay.querySelector(".close-btn");
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      overlay.style.display = "none";
+      if (mini) mini.style.display = "none";
+      overlayAutoscroll = true;
+    };
+  }
   overlay.querySelector("#overlay-clear")?.addEventListener("click", window.clearDebugLog);
   overlay.querySelector("#overlay-export")?.addEventListener("click", window.exportDebugLog);
   overlay.querySelector("#overlay-autoscroll")?.addEventListener("click", function () {
@@ -185,7 +188,6 @@ function renderLogGroups(logs, container, useAutoscroll = true) {
     group.appendChild(logList);
     container.appendChild(group);
   });
-  // Only scroll to bottom if autoscroll is ON and already at (or very near) bottom.
   if (useAutoscroll && atBottom(container)) {
     container.scrollTop = container.scrollHeight;
   }
@@ -211,7 +213,6 @@ function scrollOverlayToBottom() {
 }
 function atBottom(scrollEl) {
   if (!scrollEl) return true;
-  // Within 12px of bottom is close enough
   return scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 12;
 }
 
