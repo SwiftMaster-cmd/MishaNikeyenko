@@ -47,7 +47,10 @@ export async function webSearchBrave(query, opts = {}) {
     results: resultsArr.map(r => ({
       title: r.title || "",
       url: r.url || "",
-      snippet: r.description || ""
+      snippet: r.description || "",
+      date: r.date || "",           // e.g. published date
+      source: r.source || "",       // source website or publisher
+      thumbnail: r.thumbnail || ""  // thumbnail image URL if available
     })),
     infobox,
     faq,
