@@ -147,7 +147,7 @@ function listCommands(chatRef) {
   ];
 
   // The rest of your function code to render or send this list goes here
-}
+
   const response = commandList
     .map(c => `🔹 **${c.cmd}** – ${c.desc}`)
     .join("\n");
