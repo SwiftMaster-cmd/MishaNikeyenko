@@ -2,10 +2,9 @@
 
 import { onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
 import { db, auth } from "./firebaseConfig.js";
-
 import { handleStaticCommand, listNotes, listReminders, listEvents } from "./commandHandlers.js";
-
 import {
   saveMessageToChat,
   fetchLast20Messages,
@@ -14,7 +13,6 @@ import {
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
-
 import { webSearchBrave } from "./search.js";
 import { buildSystemPrompt } from "./memoryManager.js";
 import {
@@ -36,7 +34,9 @@ const debugToggle = document.getElementById("debug-toggle");
 // ========== 2. Init ==========
 initScrollTracking();
 if (debugToggle) {
-  debugToggle.addEventListener("click", () => window.showDebugOverlay?.());
+  debugToggle.addEventListener("click", () => {
+    window.showDebugOverlay?.();
+  });
 }
 
 // ========== 3. Auth & Chat History ==========
@@ -46,21 +46,25 @@ let chatMessages = [];
 
 onAuthStateChanged(auth, user => {
   if (!user) {
-    signInAnonymously(auth).catch(() => window.setStatusFeedback?.("error", "Auth failed."));
+    signInAnonymously(auth).catch(() =>
+      window.setStatusFeedback?.("error", "Auth failed.")
+    );
     return;
   }
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
-  onValue(chatRef, snap => {
-    const data = snap.val() || {};
+
+  onValue(chatRef, snapshot => {
+    const data = snapshot.val() || {};
     chatMessages = Object.entries(data)
-      .map(([id, m]) => ({
+      .map(([id, msg]) => ({
         id,
-        role: m.role === "bot" ? "assistant" : m.role,
-        content: m.content,
-        timestamp: m.timestamp || 0
+        role: msg.role === "bot" ? "assistant" : msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp || 0
       }))
       .sort((a, b) => a.timestamp - b.timestamp);
+
     renderMessages(chatMessages.slice(-20));
     scrollToBottom();
   });
@@ -72,28 +76,12 @@ form.addEventListener("submit", async e => {
   const prompt = input.value.trim();
   if (!prompt || !uid) return;
   input.value = "";
+
   showChatInputSpinner(true);
   window.setStatusFeedback?.("loading", "Thinking...");
 
   try {
-    // Natural-language "search" → synthetic /search
-    if (!prompt.startsWith("/search ") && /\bsearch\b/i.test(prompt)) {
-      const query = prompt.replace(/.*search\s*/i, "").trim();
-      if (query) {
-        await handleStaticCommand(`/search ${query}`, chatRef, uid);
-        showChatInputSpinner(false);
-        return;
-      }
-    }
-
-    // Natural-language "show results" → synthetic /searchresults
-    if (!prompt.startsWith("/searchresults") && /\b(show|view).*(results)\b/i.test(prompt)) {
-      await handleStaticCommand("/searchresults", chatRef, uid);
-      showChatInputSpinner(false);
-      return;
-    }
-
-    // Static slash commands
+    // 4.1 Static slash commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -121,7 +109,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // Memory intents
+    // 4.2 Memory intents
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
       await saveMessageToChat("user", prompt, uid);
@@ -149,35 +137,32 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // /search – summarize & cache
-    if (prompt.startsWith("/search ")) {
-      const term = prompt.slice(8).trim();
-      if (!term) {
-        window.setStatusFeedback?.("error", "Search query empty");
-        showChatInputSpinner(false);
-        return;
-      }
-      const data = await webSearchBrave(term, { uid, count: 5 });
-      lastSearchData = { term, results: data.results };
+    // 4.3 Search intent (natural + /search)
+    const isSearch = prompt.startsWith("/search ") || /search.*\b/i.test(prompt);
+    if (isSearch) {
+      const term = prompt.startsWith("/search ") ? prompt.slice(8).trim() : prompt;
+      const searchTerm = term.replace(/^search\s*/i, "").trim();
+
+      const data = await webSearchBrave(searchTerm, { uid, count: 5 });
+      lastSearchData.term = searchTerm;
+      lastSearchData.results = data.results;
 
       const summaryPrompt = [
-        { role: "system", content: "You are a concise summarizer. Summarize these results in one paragraph:" },
+        { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
         { role: "user", content: JSON.stringify(data.results, null, 2) }
       ];
       const summary = await getAssistantReply(summaryPrompt);
 
       await saveMessageToChat("user", prompt, uid);
       await saveMessageToChat("assistant", summary, uid);
-      await saveMessageToChat("assistant", "Type `/searchresults` to view full results.", uid);
-
       showChatInputSpinner(false);
       return;
     }
 
-    // /searchresults – show full list
+    // 4.4 /searchresults – full list
     if (prompt === "/searchresults") {
       if (!lastSearchData.term) {
-        await saveMessageToChat("assistant", "❌ No previous search. Use `/search <term>` first.", uid);
+        await saveMessageToChat("assistant", "❌ No previous search. Use a search command first.", uid);
       } else {
         let html = `<div class="search-results"><div class="results-title">Results for "${lastSearchData.term}"</div><ul>`;
         for (const r of lastSearchData.results) {
@@ -194,7 +179,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // Standard GPT conversation
+    // 4.5 Standard GPT conversation
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -211,7 +196,6 @@ form.addEventListener("submit", async e => {
     await saveMessageToChat("assistant", reply, uid);
     updateHeaderWithAssistantReply(reply);
     await summarizeChatIfNeeded(uid);
-
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
     window.debug?.("[ERROR]", err.message || err);
@@ -220,7 +204,7 @@ form.addEventListener("submit", async e => {
   }
 });
 
-// 5. /console Keyboard Activation
+// ========== 5. /console Keyboard Activation ==========
 let buffer = "";
 document.addEventListener("keydown", e => {
   if (
