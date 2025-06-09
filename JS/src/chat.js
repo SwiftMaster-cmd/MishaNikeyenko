@@ -28,12 +28,13 @@ import {
 import {
   learnAboutTopic,
   saveLastSummaryToMemory,
-  getPastSearches
+  getPastSearches,
+  setLastSummary,
+  getLastSummary
 } from "./learnManager.js";
 
 // ========== Cache ==========
 let lastSearchData = { term: null, results: [] };
-let lastSummaryText = null;
 
 // ========== 1. DOM ==========
 const form = document.getElementById("chat-form");
@@ -82,47 +83,46 @@ onAuthStateChanged(auth, user => {
 // ========== 4. Handler ==========
 form.addEventListener("submit", async e => {
   e.preventDefault();
-  const prompt = input.value.trim();
+  let prompt = input.value.trim();
   if (!prompt || !uid) return;
   input.value = "";
 
-  // Show spinner right away
   showChatInputSpinner(true);
   window.setStatusFeedback?.("loading", "Thinking...");
 
   try {
-    // Reset spinner hidden flag on every submit start
-    let spinnerHidden = false;
+    // Normalize prompt lowercase for commands
+    const promptLower = prompt.toLowerCase();
 
-    // Static commands
+    // 🔹 Static commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
-    if (quick.includes(prompt)) {
-      await handleStaticCommand(prompt, chatRef, uid);
-      spinnerHidden = true;
+    if (quick.includes(promptLower)) {
+      await handleStaticCommand(promptLower, chatRef, uid);
+      showChatInputSpinner(false);
       return;
     }
-    if (prompt === "/notes") {
+    if (promptLower === "/notes") {
       await listNotes(chatRef);
-      spinnerHidden = true;
+      showChatInputSpinner(false);
       return;
     }
-    if (prompt === "/reminders") {
+    if (promptLower === "/reminders") {
       await listReminders(chatRef);
-      spinnerHidden = true;
+      showChatInputSpinner(false);
       return;
     }
-    if (prompt === "/events") {
+    if (promptLower === "/events") {
       await listEvents(chatRef);
-      spinnerHidden = true;
+      showChatInputSpinner(false);
       return;
     }
-    if (prompt === "/console") {
+    if (promptLower === "/console") {
       window.showDebugOverlay?.();
-      spinnerHidden = true;
+      showChatInputSpinner(false);
       return;
     }
 
-    // Memory intents
+    // 🔹 Memory intents
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
       await saveMessageToChat("user", prompt, uid);
@@ -146,16 +146,60 @@ form.addEventListener("submit", async e => {
           await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
           break;
       }
-      spinnerHidden = true;
+      showChatInputSpinner(false);
       return;
     }
 
-    // /search command
-    if (prompt.startsWith("/search ")) {
+    // 🔹 Save last summary with natural phrase "save that" or "/savesummary"
+    if (promptLower === "save that" || promptLower === "/savesummary") {
+      const { lastSummary, lastTerm } = getLastSummary();
+      if (!lastSummary || !lastTerm) {
+        await saveMessageToChat("assistant", "❌ No summary available to save.", uid);
+      } else {
+        const success = await saveLastSummaryToMemory(uid);
+        const msg = success ? `✅ Saved summary about "${lastTerm}".` : "❌ Failed to save summary.";
+        await saveMessageToChat("assistant", msg, uid);
+      }
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 /learn about [topic]
+    if (promptLower.startsWith("/learn about ")) {
+      const topic = prompt.slice(13).trim();
+      if (!topic) {
+        await saveMessageToChat("assistant", "❌ No topic provided.", uid);
+        showChatInputSpinner(false);
+        return;
+      }
+      await saveMessageToChat("user", prompt, uid);
+      const summary = await learnAboutTopic(topic, uid);
+      await saveMessageToChat("assistant", `📚 Learned about "${topic}":\n\n${summary}`, uid);
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 /pastsearches or natural "show past searches"
+    if (promptLower === "/pastsearches" || promptLower.includes("past searches")) {
+      const list = await getPastSearches(uid);
+      if (!list.length) {
+        await saveMessageToChat("assistant", "No past learned topics found.", uid);
+      } else {
+        const msg = list
+          .map(i => `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`)
+          .join("\n");
+        await saveMessageToChat("assistant", `📂 Recent learned topics:\n${msg}`, uid);
+      }
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 /search [term] (mandatory prefix)
+    if (promptLower.startsWith("/search ")) {
       const term = prompt.slice(8).trim();
       if (!term) {
         window.setStatusFeedback?.("error", "Search query empty");
-        spinnerHidden = true;
+        showChatInputSpinner(false);
         return;
       }
 
@@ -169,42 +213,18 @@ form.addEventListener("submit", async e => {
       ];
       const summary = await getAssistantReply(summaryPrompt);
 
-      lastSummaryText = summary;
+      // Cache last summary for saving
+      setLastSummary(term, summary);
 
       await saveMessageToChat("user", prompt, uid);
       await saveMessageToChat("assistant", summary, uid);
 
-      spinnerHidden = true;
+      showChatInputSpinner(false);
       return;
     }
 
-    // Natural "search for" phrase trigger
-    const searchMatch = prompt.match(/search for (.+)/i);
-    if (searchMatch) {
-      const term = searchMatch[1].trim();
-      if (term) {
-        const data = await webSearchBrave(term, { uid, count: 5 });
-        lastSearchData.term = term;
-        lastSearchData.results = data.results;
-
-        const summaryPrompt = [
-          { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
-          { role: "user", content: JSON.stringify(data.results, null, 2) }
-        ];
-        const summary = await getAssistantReply(summaryPrompt);
-
-        lastSummaryText = summary;
-
-        await saveMessageToChat("user", prompt, uid);
-        await saveMessageToChat("assistant", summary, uid);
-
-        spinnerHidden = true;
-        return;
-      }
-    }
-
-    // /searchresults command
-    if (prompt === "/searchresults") {
+    // 🔹 /searchresults
+    if (promptLower === "/searchresults") {
       if (!lastSearchData.term) {
         await saveMessageToChat("assistant", "❌ No previous search found.", uid);
       } else {
@@ -219,54 +239,11 @@ form.addEventListener("submit", async e => {
         html += `</ul></div>`;
         await saveMessageToChat("assistant", html, uid);
       }
-      spinnerHidden = true;
+      showChatInputSpinner(false);
       return;
     }
 
-    // /savesummary or "save that"
-    if (prompt === "/savesummary" || prompt.toLowerCase() === "save that") {
-      if (!lastSummaryText) {
-        await saveMessageToChat("assistant", "❌ No summary available to save.", uid);
-      } else {
-        const success = await saveLastSummaryToMemory(uid, lastSummaryText);
-        const msg = success ? "✅ Summary saved to memory." : "❌ Failed to save summary.";
-        await saveMessageToChat("assistant", msg, uid);
-      }
-      spinnerHidden = true;
-      return;
-    }
-
-    // /learn about command
-    if (prompt.startsWith("/learn about ")) {
-      const topic = prompt.slice(13).trim();
-      if (!topic) {
-        await saveMessageToChat("assistant", "❌ No topic provided.", uid);
-        spinnerHidden = true;
-        return;
-      }
-      await saveMessageToChat("user", prompt, uid);
-      const summary = await learnAboutTopic(topic, uid);
-      await saveMessageToChat("assistant", `📚 Learned about "${topic}":\n\n${summary}`, uid);
-      spinnerHidden = true;
-      return;
-    }
-
-    // /pastsearches command
-    if (prompt === "/pastsearches") {
-      const list = await getPastSearches(uid);
-      if (!list.length) {
-        await saveMessageToChat("assistant", "No past learned topics found.", uid);
-      } else {
-        const msg = list
-          .map(i => `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`)
-          .join("\n");
-        await saveMessageToChat("assistant", `📂 Recent learned topics:\n${msg}`, uid);
-      }
-      spinnerHidden = true;
-      return;
-    }
-
-    // Fallback: Standard GPT conversation
+    // 🔹 Fallback: Standard conversation
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -283,14 +260,10 @@ form.addEventListener("submit", async e => {
     await saveMessageToChat("assistant", reply, uid);
     updateHeaderWithAssistantReply(reply);
     await summarizeChatIfNeeded(uid);
-
-    spinnerHidden = true;
-
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
     window.debug?.("[ERROR]", err.message || err);
   } finally {
-    // Only hide spinner if not already hidden
     showChatInputSpinner(false);
   }
 });
