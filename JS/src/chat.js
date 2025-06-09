@@ -257,7 +257,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 Fallback: Standard conversation
+    // 🔹 Fallback: Standard conversation with auto-detect for lists
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -270,7 +270,19 @@ form.addEventListener("submit", async e => {
       date: new Date().toISOString().slice(0, 10)
     });
     const full = [{ role: "system", content: sysPrompt }, ...last20];
-    const reply = await getAssistantReply(full);
+    let reply = await getAssistantReply(full);
+
+    // Detect if reply looks like a list (simple heuristic)
+    const trimmed = reply.trim();
+    if (
+      trimmed.startsWith("- ") || 
+      trimmed.match(/^(\d+\.|\*|\•|\-)\s/m) || 
+      trimmed.toLowerCase().includes("list of") || 
+      trimmed.toLowerCase().includes("here are")
+    ) {
+      reply = `<div class="list-container">${reply}</div>`;
+    }
+
     await saveMessageToChat("assistant", reply, uid);
     updateHeaderWithAssistantReply(reply);
     await summarizeChatIfNeeded(uid);
