@@ -198,25 +198,38 @@ form.addEventListener("submit", async e => {
         return;
       }
 
-      let html = `<div class="search-results"><div class="results-title">"${q}":</div><ul>`;
-      for (const r of data.results) {
-        html += `<li><a href="${r.url}" target="_blank">${r.title}</a>`;
-        if (r.snippet) html += `<div class="snippet">${r.snippet}</div>`;
-        html += `</li>`;
-      }
-      html += `</ul>`;
-      if (data.infobox) html += `<div class="infobox">${data.infobox}</div>`;
-      html += `</div>`;
+   // inside your `/search ` branch, replace the HTML-building section with:
 
-      await saveMessageToChat("user", prompt, uid);
-      await saveMessageToChat("assistant", html, uid);
-      renderMessages([
-        { role: "user", content: prompt, timestamp: Date.now() },
-        { role: "assistant", content: html, timestamp: Date.now() }
-      ], true);
-      scrollToBottom();
-      showChatInputSpinner(false);
-      return;
+let html = `
+  <div class="search-results">
+    <div class="results-title">Top Results for "${q}":</div>
+    <ul>
+`;
+for (const r of data.results) {
+  html += `
+      <li>
+        <a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>
+        ${r.snippet ? `<div class="snippet">${r.snippet}</div>` : ""}
+      </li>
+  `;
+}
+html += `
+    </ul>
+    ${data.infobox ? `<div class="infobox">${data.infobox}</div>` : ""}
+  </div>
+`;
+
+await saveMessageToChat("user", prompt, uid);
+await saveMessageToChat("assistant", html, uid);
+
+renderMessages([
+  { role: "user", content: prompt, timestamp: Date.now() },
+  { role: "assistant", content: html, timestamp: Date.now() }
+], true);
+
+scrollToBottom();
+showChatInputSpinner(false);
+return;
     }
 
     // 4.4 Standard GPT conversation
