@@ -1,4 +1,4 @@
-// 🔹 uiShell.js – Enhanced UI: header animation, spinner, scroll, and animated message rendering
+// uiShell.js – Enhanced UI: header animation, spinner, scroll, animated message rendering, and inline lists
 
 let userHasScrolled = false;
 
@@ -42,7 +42,32 @@ export function scrollToBottom(force = false) {
   }
 }
 
-// ========== 4. Render messages w/ animation ==========
+// ========== 4. Special-container utils ==========
+function hasSpecialContainer(html) {
+  return /class="(list-container|commands-container|search-results)"/.test(html);
+}
+
+function renderSpecialContainer(html, targetDiv) {
+  const temp = document.createElement("div");
+  temp.innerHTML = html.trim();
+  const special = temp.firstElementChild;
+  if (!special) {
+    targetDiv.innerHTML = html;
+    return;
+  }
+
+  // apply inline scroll & sizing
+  special.style.maxHeight = "60vh";
+  special.style.overflowY = "auto";
+  special.style.background = "transparent";
+  special.style.boxShadow = "none";
+  special.style.margin = "var(--gap) 0";
+  special.style.padding = "4px";
+
+  targetDiv.appendChild(special);
+}
+
+// ========== 5. Render messages w/ animation & inline lists ==========
 export function renderMessages(messages) {
   const log = document.getElementById("chat-log");
   if (!log) return;
@@ -59,11 +84,25 @@ export function renderMessages(messages) {
         role === "assistant" ? "bot-msg" :
         "debug-msg"
       }`;
-      div.innerHTML = msg.content;
+
+      // handle special containers inline
+      if (hasSpecialContainer(msg.content)) {
+        renderSpecialContainer(msg.content, div);
+      } else {
+        // normal bubble
+        const bubble = document.createElement("div");
+        bubble.className = "bubble";
+        bubble.innerHTML = escapeAndLinkify(msg.content);
+        div.appendChild(bubble);
+      }
+
+      // animation
       div.style.opacity = 0;
       div.style.transform = "translateY(10px)";
       div.style.transition = `opacity 0.4s ease ${index * 20}ms, transform 0.4s ease ${index * 20}ms`;
+
       log.appendChild(div);
+
       requestAnimationFrame(() => {
         div.style.opacity = 1;
         div.style.transform = "translateY(0)";
@@ -71,4 +110,16 @@ export function renderMessages(messages) {
     });
 
   scrollToBottom();
+}
+
+// ========== 6. Utility ==========
+function escapeAndLinkify(str) {
+  const esc = str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return esc.replace(
+    /(https?:\/\/[^\s]+)/g,
+    url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`
+  );
 }

@@ -1,11 +1,19 @@
 // chat.js – input and flow control only, all UI/logic in modules
 
 import { onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import { db, auth } from "./firebaseConfig.js";
-import { handleStaticCommand, listNotes, listReminders, listEvents } from "./commandHandlers.js";
-
+import {
+  handleStaticCommand,
+  listNotes,
+  listReminders,
+  listEvents
+} from "./commandHandlers.js";
 import {
   saveMessageToChat,
   fetchLast20Messages,
@@ -14,7 +22,6 @@ import {
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
-
 import { webSearchBrave } from "./search.js";
 import { buildSystemPrompt } from "./memoryManager.js";
 import {
@@ -24,7 +31,6 @@ import {
   updateHeaderWithAssistantReply,
   initScrollTracking
 } from "./uiShell.js";
-
 import {
   learnAboutTopic,
   saveLastSummaryToMemory,
@@ -34,23 +40,20 @@ import {
 // ========== Cache ==========
 let lastSearchData = { term: null, results: [] };
 
-// ========== 1. DOM ==========
+// ========== DOM ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
 
-// ========== 2. Init ==========
+// ========== Init ==========
 initScrollTracking();
 if (debugToggle) {
-  debugToggle.addEventListener("click", () => {
-    window.showDebugOverlay?.();
-  });
+  debugToggle.addEventListener("click", () => window.showDebugOverlay?.());
 }
 
-// ========== 3. Auth & Load ==========
+// ========== Auth & Load ==========
 let uid = null;
 let chatRef = null;
-let chatMessages = [];
 
 onAuthStateChanged(auth, user => {
   if (!user) {
@@ -64,7 +67,7 @@ onAuthStateChanged(auth, user => {
 
   onValue(chatRef, snapshot => {
     const data = snapshot.val() || {};
-    chatMessages = Object.entries(data)
+    const chatMessages = Object.entries(data)
       .map(([id, msg]) => ({
         id,
         role: msg.role === "bot" ? "assistant" : msg.role,
@@ -78,13 +81,27 @@ onAuthStateChanged(auth, user => {
   });
 });
 
-// ========== 4. Handler ==========
+// ========== Helpers for list fallback ==========
+function isList(text) {
+  return /^(\s*[-*]|\d+\.)\s/m.test(text);
+}
+
+function listToHtml(text) {
+  const lines = text
+    .trim()
+    .split(/\r?\n/)
+    .map(line => line.replace(/^\s*([-*]|\d+\.)\s*/, "").trim())
+    .filter(line => line);
+  const items = lines.map(l => `<li>${l}</li>`).join("");
+  return `<div class="list-container"><ul>${items}</ul></div>`;
+}
+
+// ========== Form Handler ==========
 form.addEventListener("submit", async e => {
   e.preventDefault();
   const prompt = input.value.trim();
   if (!prompt || !uid) return;
   input.value = "";
-
   showChatInputSpinner(true);
   window.setStatusFeedback?.("loading", "Thinking...");
 
@@ -93,28 +110,21 @@ form.addEventListener("submit", async e => {
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
-      if (prompt === "/commands") {
-        // After sending commands message, update UI container
-        renderCommandsList();
-      }
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/notes") {
       await listNotes(chatRef);
-      renderNotesList();
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/reminders") {
       await listReminders(chatRef);
-      renderRemindersList();
       showChatInputSpinner(false);
       return;
     }
     if (prompt === "/events") {
       await listEvents(chatRef);
-      renderEventsList();
       showChatInputSpinner(false);
       return;
     }
@@ -130,15 +140,27 @@ form.addEventListener("submit", async e => {
       await saveMessageToChat("user", prompt, uid);
       switch (memory.type) {
         case "preference":
-          await saveMessageToChat("assistant", `✅ Saved preference: "${memory.content}"`, uid);
+          await saveMessageToChat(
+            "assistant",
+            `✅ Saved preference: "${memory.content}"`,
+            uid
+          );
           break;
         case "reminder":
-          await saveMessageToChat("assistant", `✅ Saved reminder: "${memory.content}"`, uid);
+          await saveMessageToChat(
+            "assistant",
+            `✅ Saved reminder: "${memory.content}"`,
+            uid
+          );
           break;
         case "calendar": {
           const when = memory.date ? ` on ${memory.date}` : "";
           const at = memory.time ? ` at ${memory.time}` : "";
-          await saveMessageToChat("assistant", `✅ Saved event: "${memory.content}"${when}${at}`, uid);
+          await saveMessageToChat(
+            "assistant",
+            `✅ Saved event: "${memory.content}"${when}${at}`,
+            uid
+          );
           break;
         }
         case "note":
@@ -160,20 +182,15 @@ form.addEventListener("submit", async e => {
         showChatInputSpinner(false);
         return;
       }
-
       const data = await webSearchBrave(term, { uid, count: 5 });
-      lastSearchData.term = term;
-      lastSearchData.results = data.results;
-
+      lastSearchData = { term, results: data.results };
       const summaryPrompt = [
         { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
         { role: "user", content: JSON.stringify(data.results, null, 2) }
       ];
       const summary = await getAssistantReply(summaryPrompt);
-
       await saveMessageToChat("user", prompt, uid);
       await saveMessageToChat("assistant", summary, uid);
-
       showChatInputSpinner(false);
       return;
     }
@@ -217,7 +234,11 @@ form.addEventListener("submit", async e => {
       }
       await saveMessageToChat("user", prompt, uid);
       const summary = await learnAboutTopic(topic, uid);
-      await saveMessageToChat("assistant", `📚 Learned about "${topic}":\n\n${summary}`, uid);
+      await saveMessageToChat(
+        "assistant",
+        `📚 Learned about "${topic}":\n\n${summary}`,
+        uid
+      );
       showChatInputSpinner(false);
       return;
     }
@@ -225,19 +246,45 @@ form.addEventListener("submit", async e => {
     // 🔹 /pastsearches
     if (prompt === "/pastsearches") {
       const list = getPastSearches();
-      if (!list.length) {
-        await saveMessageToChat("assistant", "No past learned topics found.", uid);
-      } else {
-        const msg = list
-          .map(i => `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`)
-          .join("\n");
-        await saveMessageToChat("assistant", `📂 Recent learned topics:\n${msg}`, uid);
-      }
+      const msg = list.length
+        ? `📂 Recent learned topics:\n` +
+          list.map(i => `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`).join("\n")
+        : "No past learned topics found.";
+      await saveMessageToChat("assistant", msg, uid);
       showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 Fallback: Standard conversation
+    // 🔹 /commands
+    if (prompt === "/commands") {
+      const commands = [
+        "/note - Save a note",
+        "/reminder - Set a reminder",
+        "/calendar - Create a calendar event",
+        "/log - Add to day log",
+        "/notes - List notes",
+        "/reminders - List reminders",
+        "/events - List events",
+        "/summary - Summarize logs",
+        "/clearchat - Clear chat history",
+        "/time - Show current time",
+        "/date - Show today's date",
+        "/uid - Show user ID",
+        "/search - Web search and summarize",
+        "/searchresults - Show last search results",
+        "/savesummary - Save last summary",
+        "/learn about - Auto search & save facts",
+        "/pastsearches - List learned topics"
+      ];
+      const listHtml = `<div class="commands-container"><h3>Available Commands</h3><ul>${commands
+        .map(c => `<li>${c}</li>`)
+        .join("")}</ul></div>`;
+      await saveMessageToChat("assistant", listHtml, uid);
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 Fallback standard conversation + list auto-detect
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -250,19 +297,19 @@ form.addEventListener("submit", async e => {
       date: new Date().toISOString().slice(0, 10)
     });
     const full = [{ role: "system", content: sysPrompt }, ...last20];
-    const reply = await getAssistantReply(full);
-    await saveMessageToChat("assistant", reply, uid);
-    updateHeaderWithAssistantReply(reply);
+    let reply = await getAssistantReply(full);
 
-    // If the reply contains command or list keywords, update UI containers:
-    if (reply.match(/\/commands|Available Commands|\/notes|List notes|\/reminders|List reminders|\/events|List events/)) {
-      renderCommandsList();
-      renderNotesList();
-      renderRemindersList();
-      renderEventsList();
+    if (isList(reply)) {
+      reply = listToHtml(reply);
+    } else {
+      // wrap raw HTML if any
+      reply = `<div>${reply}</div>`;
     }
 
+    await saveMessageToChat("assistant", reply, uid);
+    updateHeaderWithAssistantReply(reply);
     await summarizeChatIfNeeded(uid);
+
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
     window.debug?.("[ERROR]", err.message || err);
@@ -271,11 +318,12 @@ form.addEventListener("submit", async e => {
   }
 });
 
-// ========== 5. Keyboard Overlay ==========
+// ========== Keyboard Overlay ==========
 let buffer = "";
 document.addEventListener("keydown", e => {
+  const inputEl = document.getElementById("user-input");
   if (
-    document.activeElement !== input &&
+    document.activeElement !== inputEl &&
     !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
   ) {
     if (e.key.length === 1) {
@@ -291,11 +339,3 @@ document.addEventListener("keydown", e => {
     }
   }
 });
-
-// ======= UI Update functions to be implemented in uiShell.js =======
-// These must exist for the above calls to work:
-
-// export function renderCommandsList() { ... }
-// export function renderNotesList() { ... }
-// export function renderRemindersList() { ... }
-// export function renderEventsList() { ... }
