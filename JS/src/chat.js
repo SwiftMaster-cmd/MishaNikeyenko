@@ -47,18 +47,6 @@ if (debugToggle) {
   });
 }
 
-// ========== Helper: Detect lists in assistant replies ==========
-function containsList(text) {
-  // Simple heuristic to detect lists or commands in text
-  const listPatterns = [
-    /(^|\n)(\*|\-|\d+\.)\s+/m,                // markdown lists
-    /\*\*\/\w+\*\*/m,                        // commands like **/note**
-    /Available Commands/i,
-    /Here'?s an example/i,
-  ];
-  return listPatterns.some((pat) => pat.test(text));
-}
-
 // ========== 3. Auth & Load ==========
 let uid = null;
 let chatRef = null;
@@ -242,27 +230,31 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 Natural language search detection
-    if (
-      !prompt.startsWith("/") && 
-      /\b(search|find|lookup|look up|google|bing|duckduckgo)\b/i.test(prompt)
-    ) {
-      // Extract search term by removing known words
-      const term = prompt.replace(/\b(search|find|lookup|look up|google|bing|duckduckgo)\b/i, "").trim();
-      if (term) {
-        const data = await webSearchBrave(term, { uid, count: 5 });
-        lastSearchData.term = term;
-        lastSearchData.results = data.results;
-        const summaryPrompt = [
-          { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
-          { role: "user", content: JSON.stringify(data.results, null, 2) }
-        ];
-        const summary = await getAssistantReply(summaryPrompt);
-        await saveMessageToChat("user", prompt, uid);
-        await saveMessageToChat("assistant", summary, uid);
-        showChatInputSpinner(false);
-        return;
-      }
+    // 🔹 /commands – Show formatted commands list
+    if (prompt === "/commands") {
+      const commands = [
+        "/note - Save a note",
+        "/reminder - Set a reminder",
+        "/calendar - Create a calendar event",
+        "/log - Add to day log",
+        "/notes - List notes",
+        "/reminders - List reminders",
+        "/events - List events",
+        "/summary - Summarize logs",
+        "/clearchat - Clear chat history",
+        "/time - Show current time",
+        "/date - Show today's date",
+        "/uid - Show user ID",
+        "/search - Web search and summarize",
+        "/searchresults - Show last search results",
+        "/savesummary - Save last summary",
+        "/learn about - Auto search & save facts",
+        "/pastsearches - List learned topics"
+      ];
+      const listHtml = `<div class="commands-container"><h3>Available Commands</h3><ul>${commands.map(c => `<li>${c}</li>`).join("")}</ul></div>`;
+      await saveMessageToChat("assistant", listHtml, uid);
+      showChatInputSpinner(false);
+      return;
     }
 
     // 🔹 Fallback: Standard conversation
@@ -279,40 +271,9 @@ form.addEventListener("submit", async e => {
     });
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     const reply = await getAssistantReply(full);
-
-    // Check for lists or commands in reply to inject commands UI
-    let finalReply = reply;
-    if (containsList(reply)) {
-      finalReply +=
-        `<div class="commands-container"><h3>Available Commands</h3><ul>` +
-        [
-          "/note - Save a note",
-          "/reminder - Set a reminder",
-          "/calendar - Create a calendar event",
-          "/log - Add to day log",
-          "/notes - List notes",
-          "/reminders - List reminders",
-          "/events - List events",
-          "/summary - Summarize logs",
-          "/clearchat - Clear chat history",
-          "/time - Show current time",
-          "/date - Show today's date",
-          "/uid - Show user ID",
-          "/search - Web search and summarize",
-          "/searchresults - Show last search results",
-          "/savesummary - Save last summary",
-          "/learn about - Auto search & save facts",
-          "/pastsearches - List learned topics"
-        ]
-          .map(cmd => `<li>${cmd}</li>`)
-          .join("") +
-        `</ul></div>`;
-    }
-
-    await saveMessageToChat("assistant", finalReply, uid);
-    updateHeaderWithAssistantReply(finalReply);
+    await saveMessageToChat("assistant", reply, uid);
+    updateHeaderWithAssistantReply(reply);
     await summarizeChatIfNeeded(uid);
-
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
     window.debug?.("[ERROR]", err.message || err);
