@@ -33,6 +33,7 @@ import {
 
 // ========== Cache ==========
 let lastSearchData = { term: null, results: [] };
+let lastSummary = null;
 
 // ========== 1. DOM ==========
 const form = document.getElementById("chat-form");
@@ -145,7 +146,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 /search
+    // 🔹 /search command
     if (prompt.startsWith("/search ")) {
       const term = prompt.slice(8).trim();
       if (!term) {
@@ -153,25 +154,12 @@ form.addEventListener("submit", async e => {
         showChatInputSpinner(false);
         return;
       }
-
-      const data = await webSearchBrave(term, { uid, count: 5 });
-      lastSearchData.term = term;
-      lastSearchData.results = data.results;
-
-      const summaryPrompt = [
-        { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
-        { role: "user", content: JSON.stringify(data.results, null, 2) }
-      ];
-      const summary = await getAssistantReply(summaryPrompt);
-
-      await saveMessageToChat("user", prompt, uid);
-      await saveMessageToChat("assistant", summary, uid);
-
+      await performSearch(term, prompt);
       showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 /searchresults
+    // 🔹 /searchresults command
     if (prompt === "/searchresults") {
       if (!lastSearchData.term) {
         await saveMessageToChat("assistant", "❌ No previous search found.", uid);
@@ -191,16 +179,19 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 /savesummary
+    // 🔹 /savesummary command
     if (prompt === "/savesummary") {
-      const success = await saveLastSummaryToMemory(uid);
-      const msg = success ? "✅ Summary saved to memory." : "❌ No summary available.";
-      await saveMessageToChat("assistant", msg, uid);
+      if (lastSummary) {
+        await handleStaticCommand(`/note ${lastSummary}`, chatRef, uid);
+        await saveMessageToChat("assistant", "✅ Last summary saved to notes.", uid);
+      } else {
+        await saveMessageToChat("assistant", "❌ No summary available to save.", uid);
+      }
       showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 /learn about
+    // 🔹 /learn about command
     if (prompt.startsWith("/learn about ")) {
       const topic = prompt.slice(13).trim();
       if (!topic) {
@@ -215,7 +206,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 /pastsearches
+    // 🔹 /pastsearches command
     if (prompt === "/pastsearches") {
       const list = getPastSearches();
       if (!list.length) {
@@ -230,7 +221,14 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 Fallback: Standard conversation
+    // 🔹 Natural fallback search if no command & prompt is a question or request
+    if (!prompt.startsWith("/") && looksLikeSearchPrompt(prompt)) {
+      await performSearch(prompt);
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 Standard conversation fallback
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -254,6 +252,44 @@ form.addEventListener("submit", async e => {
     showChatInputSpinner(false);
   }
 });
+
+async function performSearch(term, userPrompt = null) {
+  const searchTerm = term || userPrompt;
+  if (!searchTerm) return;
+
+  const data = await webSearchBrave(searchTerm, { uid, count: 5 });
+  lastSearchData.term = searchTerm;
+  lastSearchData.results = data.results;
+
+  const summaryPrompt = [
+    { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
+    { role: "user", content: JSON.stringify(data.results, null, 2) }
+  ];
+  const summary = await getAssistantReply(summaryPrompt);
+  lastSummary = summary;
+
+  if (userPrompt) {
+    await saveMessageToChat("user", userPrompt, uid);
+  } else {
+    await saveMessageToChat("user", searchTerm, uid);
+  }
+  await saveMessageToChat("assistant", summary, uid);
+}
+
+// Helper to detect if a prompt looks like a search query
+function looksLikeSearchPrompt(text) {
+  const lowered = text.toLowerCase();
+  // Simple heuristic: question words or contains "search" word
+  return (
+    lowered.startsWith("who ") ||
+    lowered.startsWith("what ") ||
+    lowered.startsWith("when ") ||
+    lowered.startsWith("where ") ||
+    lowered.startsWith("why ") ||
+    lowered.startsWith("how ") ||
+    lowered.includes("search")
+  );
+}
 
 // ========== 5. Keyboard Overlay ==========
 let buffer = "";
