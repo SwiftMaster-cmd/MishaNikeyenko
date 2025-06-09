@@ -93,22 +93,27 @@ form.addEventListener("submit", async e => {
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
+      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/notes") {
       await listNotes(chatRef);
+      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/reminders") {
       await listReminders(chatRef);
+      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/events") {
       await listEvents(chatRef);
+      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/console") {
       window.showDebugOverlay?.();
+      showChatInputSpinner(false);
       return;
     }
 
@@ -136,19 +141,29 @@ form.addEventListener("submit", async e => {
           await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
           break;
       }
+      showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 Natural search (without /search)
-    // If prompt is a question or search-like phrase, do a search automatically
-    if (
-      !prompt.startsWith("/") && 
-      /search|find|who|what|when|where|how|tell me|show me/i.test(prompt)
-    ) {
-      const term = prompt;
+    // 🔹 Save that command (case-insensitive)
+    if (/^save that$/i.test(prompt)) {
+      // Find last assistant summary message (assumed length > 20 chars)
+      const lastSummary = chatMessages.slice().reverse().find(m => m.role === "assistant" && m.content.trim().length > 20)?.content;
+      if (!lastSummary) {
+        await saveMessageToChat("assistant", "❌ No summary found to save.", uid);
+      } else {
+        await handleStaticCommand(`/note ${lastSummary}`, chatRef, uid);
+        await saveMessageToChat("assistant", "✅ Summary saved as note.", uid);
+      }
+      showChatInputSpinner(false);
+      return;
+    }
 
-      const data = await webSearchBrave(term, { uid, count: 5 });
-      lastSearchData.term = term;
+    // 🔹 Natural search fallback (if prompt doesn't start with "/")
+    if (!prompt.startsWith("/")) {
+      // Treat as search query automatically
+      const data = await webSearchBrave(prompt, { uid, count: 5 });
+      lastSearchData.term = prompt;
       lastSearchData.results = data.results;
 
       const summaryPrompt = [
@@ -160,14 +175,16 @@ form.addEventListener("submit", async e => {
       await saveMessageToChat("user", prompt, uid);
       await saveMessageToChat("assistant", summary, uid);
 
+      showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 /search explicit
+    // 🔹 /search explicit command
     if (prompt.startsWith("/search ")) {
       const term = prompt.slice(8).trim();
       if (!term) {
         window.setStatusFeedback?.("error", "Search query empty");
+        showChatInputSpinner(false);
         return;
       }
 
@@ -184,10 +201,11 @@ form.addEventListener("submit", async e => {
       await saveMessageToChat("user", prompt, uid);
       await saveMessageToChat("assistant", summary, uid);
 
+      showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 /searchresults
+    // 🔹 /searchresults command
     if (prompt === "/searchresults") {
       if (!lastSearchData.term) {
         await saveMessageToChat("assistant", "❌ No previous search found.", uid);
@@ -203,31 +221,35 @@ form.addEventListener("submit", async e => {
         html += `</ul></div>`;
         await saveMessageToChat("assistant", html, uid);
       }
+      showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 /savesummary
+    // 🔹 /savesummary command
     if (prompt === "/savesummary") {
       const success = await saveLastSummaryToMemory(uid);
       const msg = success ? "✅ Summary saved to memory." : "❌ No summary available.";
       await saveMessageToChat("assistant", msg, uid);
+      showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 /learn about
+    // 🔹 /learn about command
     if (prompt.startsWith("/learn about ")) {
       const topic = prompt.slice(13).trim();
       if (!topic) {
         await saveMessageToChat("assistant", "❌ No topic provided.", uid);
+        showChatInputSpinner(false);
         return;
       }
       await saveMessageToChat("user", prompt, uid);
       const summary = await learnAboutTopic(topic, uid);
       await saveMessageToChat("assistant", `📚 Learned about "${topic}":\n\n${summary}`, uid);
+      showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 /pastsearches
+    // 🔹 /pastsearches command
     if (prompt === "/pastsearches") {
       const list = getPastSearches();
       if (!list.length) {
@@ -238,10 +260,11 @@ form.addEventListener("submit", async e => {
           .join("\n");
         await saveMessageToChat("assistant", `📂 Recent learned topics:\n${msg}`, uid);
       }
+      showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 Fallback: Standard conversation
+    // 🔹 Fallback: Standard GPT conversation
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -263,7 +286,6 @@ form.addEventListener("submit", async e => {
     window.debug?.("[ERROR]", err.message || err);
   } finally {
     showChatInputSpinner(false);
-    window.setStatusFeedback?.("idle", "");
   }
 });
 
