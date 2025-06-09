@@ -33,6 +33,7 @@ import {
 
 // ========== Cache ==========
 let lastSearchData = { term: null, results: [] };
+let lastSummaryText = null; // Cache last search summary text
 
 // ========== 1. DOM ==========
 const form = document.getElementById("chat-form");
@@ -82,10 +83,7 @@ onAuthStateChanged(auth, user => {
 form.addEventListener("submit", async e => {
   e.preventDefault();
   const prompt = input.value.trim();
-  if (!prompt || !uid) {
-    showChatInputSpinner(false);
-    return;
-  }
+  if (!prompt || !uid) return;
   input.value = "";
 
   showChatInputSpinner(true);
@@ -167,11 +165,38 @@ form.addEventListener("submit", async e => {
       ];
       const summary = await getAssistantReply(summaryPrompt);
 
+      lastSummaryText = summary;  // Cache summary here
+
       await saveMessageToChat("user", prompt, uid);
       await saveMessageToChat("assistant", summary, uid);
 
       showChatInputSpinner(false);
       return;
+    }
+
+    // 🔹 Natural "search for" phrase detection -- trigger search only here
+    const searchMatch = prompt.match(/search for (.+)/i);
+    if (searchMatch) {
+      const term = searchMatch[1].trim();
+      if (term) {
+        const data = await webSearchBrave(term, { uid, count: 5 });
+        lastSearchData.term = term;
+        lastSearchData.results = data.results;
+
+        const summaryPrompt = [
+          { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
+          { role: "user", content: JSON.stringify(data.results, null, 2) }
+        ];
+        const summary = await getAssistantReply(summaryPrompt);
+
+        lastSummaryText = summary;  // Cache summary here
+
+        await saveMessageToChat("user", prompt, uid);
+        await saveMessageToChat("assistant", summary, uid);
+
+        showChatInputSpinner(false);
+        return;
+      }
     }
 
     // 🔹 /searchresults command
@@ -194,18 +219,22 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 /savesummary or natural "save that"
+    // 🔹 /savesummary or "save that"
     if (prompt === "/savesummary" || prompt.toLowerCase() === "save that") {
-      const success = await saveLastSummaryToMemory(uid);
-      const msg = success ? "✅ Summary saved to memory." : "❌ No summary available.";
-      await saveMessageToChat("assistant", msg, uid);
+      if (!lastSummaryText) {
+        await saveMessageToChat("assistant", "❌ No summary available to save.", uid);
+      } else {
+        const success = await saveLastSummaryToMemory(uid, lastSummaryText);
+        const msg = success ? "✅ Summary saved to memory." : "❌ Failed to save summary.";
+        await saveMessageToChat("assistant", msg, uid);
+      }
       showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 /learn or natural "learn" command
-    if (prompt.toLowerCase().startsWith("learn ")) {
-      const topic = prompt.slice(6).trim();
+    // 🔹 /learn about command
+    if (prompt.startsWith("/learn about ")) {
+      const topic = prompt.slice(13).trim();
       if (!topic) {
         await saveMessageToChat("assistant", "❌ No topic provided.", uid);
         showChatInputSpinner(false);
@@ -218,9 +247,9 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 /pastsearches or natural "show my past searches"
-    if (prompt === "/pastsearches" || prompt.toLowerCase() === "show my past searches") {
-      const list = await getPastSearches();
+    // 🔹 /pastsearches command
+    if (prompt === "/pastsearches") {
+      const list = await getPastSearches(uid);
       if (!list.length) {
         await saveMessageToChat("assistant", "No past learned topics found.", uid);
       } else {
@@ -233,30 +262,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 🔹 Natural conversation with optional search trigger on "search for" keyword
-    if (/search for/i.test(prompt)) {
-      const searchTermMatch = prompt.match(/search for (.+)/i);
-      if (searchTermMatch && searchTermMatch[1]) {
-        const term = searchTermMatch[1].trim();
-        const data = await webSearchBrave(term, { uid, count: 5 });
-        lastSearchData.term = term;
-        lastSearchData.results = data.results;
-
-        const summaryPrompt = [
-          { role: "system", content: "You are a concise summarizer. Summarize these search results in one paragraph:" },
-          { role: "user", content: JSON.stringify(data.results, null, 2) }
-        ];
-        const summary = await getAssistantReply(summaryPrompt);
-
-        await saveMessageToChat("user", prompt, uid);
-        await saveMessageToChat("assistant", summary, uid);
-
-        showChatInputSpinner(false);
-        return;
-      }
-    }
-
-    // 🔹 Fallback: standard conversation without auto-search
+    // 🔹 Fallback: Standard GPT conversation
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -274,10 +280,10 @@ form.addEventListener("submit", async e => {
     updateHeaderWithAssistantReply(reply);
     await summarizeChatIfNeeded(uid);
 
-    showChatInputSpinner(false);
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
     window.debug?.("[ERROR]", err.message || err);
+  } finally {
     showChatInputSpinner(false);
   }
 });
