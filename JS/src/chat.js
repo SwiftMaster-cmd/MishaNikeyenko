@@ -37,6 +37,8 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
+import { webSearchBrave } from "./search.js"; // <-- NEW: Brave Search integration
+
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
@@ -122,6 +124,43 @@ form.addEventListener("submit", async (e) => {
     if (prompt === "/console") {
       if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
       window.setStatusFeedback?.("success", "Console opened");
+      showChatInputSpinner(false);
+      return;
+    }
+    // ===== /search as chat command =====
+    if (prompt.startsWith("/search ")) {
+      const searchQuery = prompt.replace("/search ", "").trim();
+      window.debug?.("[SEARCH] Query:", searchQuery);
+      try {
+        const data = await webSearchBrave(searchQuery, { count: 5 });
+        let msg = "";
+        if (data.results.length) {
+          msg += data.results.map(r =>
+            `**${r.title}**\n${r.url}\n${r.snippet}`
+          ).join('\n\n');
+        }
+        if (data.infobox) {
+          msg += `\n\n---\n**Infobox:**\n${JSON.stringify(data.infobox, null, 2)}`;
+        }
+        if (data.faq.length) {
+          msg += `\n\n---\n**FAQ:**\n` +
+            data.faq.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n');
+        }
+        if (data.discussions.length) {
+          msg += `\n\n---\n**Discussions:**\n` +
+            data.discussions.map(d => `• ${d.text}`).join('\n');
+        }
+        if (data.locations.length) {
+          msg += `\n\n---\n**Locations:**\n` +
+            data.locations.map(loc => loc.name || "").join(', ');
+        }
+        if (!msg.trim()) msg = "No results found.";
+        await saveMessageToChat("assistant", msg, uid);
+        const last = await fetchLast20Messages(uid);
+        renderMessages(last);
+      } catch (err) {
+        await saveMessageToChat("assistant", "Search error: " + err.message, uid);
+      }
       showChatInputSpinner(false);
       return;
     }
