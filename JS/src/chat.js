@@ -45,6 +45,11 @@ const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
 
+// Ensure the input is focused on load
+window.addEventListener("load", () => {
+  input?.focus();
+});
+
 // ========== Init ==========
 initScrollTracking();
 if (debugToggle) {
@@ -78,6 +83,8 @@ onAuthStateChanged(auth, user => {
 
     renderMessages(chatMessages.slice(-20));
     scrollToBottom();
+    // Refocus for immediate typing
+    input?.focus();
   });
 });
 
@@ -100,7 +107,10 @@ function listToHtml(text) {
 form.addEventListener("submit", async e => {
   e.preventDefault();
   const prompt = input.value.trim();
-  if (!prompt || !uid) return;
+  if (!prompt || !uid) {
+    input.focus();
+    return;
+  }
   input.value = "";
   showChatInputSpinner(true);
   window.setStatusFeedback?.("loading", "Thinking...");
@@ -110,27 +120,22 @@ form.addEventListener("submit", async e => {
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
-      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/notes") {
       await listNotes(chatRef);
-      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/reminders") {
       await listReminders(chatRef);
-      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/events") {
       await listEvents(chatRef);
-      showChatInputSpinner(false);
       return;
     }
     if (prompt === "/console") {
       window.showDebugOverlay?.();
-      showChatInputSpinner(false);
       return;
     }
 
@@ -170,7 +175,6 @@ form.addEventListener("submit", async e => {
           await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
           break;
       }
-      showChatInputSpinner(false);
       return;
     }
 
@@ -179,7 +183,6 @@ form.addEventListener("submit", async e => {
       const term = prompt.slice(8).trim();
       if (!term) {
         window.setStatusFeedback?.("error", "Search query empty");
-        showChatInputSpinner(false);
         return;
       }
       const data = await webSearchBrave(term, { uid, count: 5 });
@@ -191,7 +194,6 @@ form.addEventListener("submit", async e => {
       const summary = await getAssistantReply(summaryPrompt);
       await saveMessageToChat("user", prompt, uid);
       await saveMessageToChat("assistant", summary, uid);
-      showChatInputSpinner(false);
       return;
     }
 
@@ -211,7 +213,6 @@ form.addEventListener("submit", async e => {
         html += `</ul></div>`;
         await saveMessageToChat("assistant", html, uid);
       }
-      showChatInputSpinner(false);
       return;
     }
 
@@ -220,7 +221,6 @@ form.addEventListener("submit", async e => {
       const success = await saveLastSummaryToMemory(uid);
       const msg = success ? "✅ Summary saved to memory." : "❌ No summary available.";
       await saveMessageToChat("assistant", msg, uid);
-      showChatInputSpinner(false);
       return;
     }
 
@@ -229,7 +229,6 @@ form.addEventListener("submit", async e => {
       const topic = prompt.slice(13).trim();
       if (!topic) {
         await saveMessageToChat("assistant", "❌ No topic provided.", uid);
-        showChatInputSpinner(false);
         return;
       }
       await saveMessageToChat("user", prompt, uid);
@@ -239,7 +238,6 @@ form.addEventListener("submit", async e => {
         `📚 Learned about "${topic}":\n\n${summary}`,
         uid
       );
-      showChatInputSpinner(false);
       return;
     }
 
@@ -251,7 +249,6 @@ form.addEventListener("submit", async e => {
           list.map(i => `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`).join("\n")
         : "No past learned topics found.";
       await saveMessageToChat("assistant", msg, uid);
-      showChatInputSpinner(false);
       return;
     }
 
@@ -280,11 +277,10 @@ form.addEventListener("submit", async e => {
         .map(c => `<li>${c}</li>`)
         .join("")}</ul></div>`;
       await saveMessageToChat("assistant", listHtml, uid);
-      showChatInputSpinner(false);
       return;
     }
 
-    // 🔹 Fallback standard conversation + list auto-detect
+    // 🔹 Fallback: conversational + list auto-detect
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -302,7 +298,6 @@ form.addEventListener("submit", async e => {
     if (isList(reply)) {
       reply = listToHtml(reply);
     } else {
-      // wrap raw HTML if any
       reply = `<div>${reply}</div>`;
     }
 
@@ -315,6 +310,7 @@ form.addEventListener("submit", async e => {
     window.debug?.("[ERROR]", err.message || err);
   } finally {
     showChatInputSpinner(false);
+    input.focus();
   }
 });
 

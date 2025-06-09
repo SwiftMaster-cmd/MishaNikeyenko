@@ -14,12 +14,10 @@ export function updateHeaderWithAssistantReply(text) {
   }, 150);
 }
 
-// ========== 2. Chat input spinner ==========
+// ========== 2. Chat input spinner (no disabling) ==========
 export function showChatInputSpinner(show = true) {
   const spinner = document.getElementById("chat-loading-spinner");
-  const inputField = document.getElementById("user-input");
   if (spinner) spinner.style.display = show ? "inline-block" : "none";
-  if (inputField) inputField.disabled = show;
 }
 
 // ========== 3. Scroll control ==========
