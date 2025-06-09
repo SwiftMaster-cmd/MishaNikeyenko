@@ -33,7 +33,7 @@ import {
 
 // ========== Cache ==========
 let lastSearchData = { term: null, results: [] };
-let lastSummaryText = null; // Cache last search summary text
+let lastSummaryText = null;
 
 // ========== 1. DOM ==========
 const form = document.getElementById("chat-form");
@@ -86,39 +86,43 @@ form.addEventListener("submit", async e => {
   if (!prompt || !uid) return;
   input.value = "";
 
+  // Show spinner right away
   showChatInputSpinner(true);
   window.setStatusFeedback?.("loading", "Thinking...");
 
   try {
-    // 🔹 Static commands
+    // Reset spinner hidden flag on every submit start
+    let spinnerHidden = false;
+
+    // Static commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
     if (prompt === "/notes") {
       await listNotes(chatRef);
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
     if (prompt === "/reminders") {
       await listReminders(chatRef);
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
     if (prompt === "/events") {
       await listEvents(chatRef);
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
     if (prompt === "/console") {
       window.showDebugOverlay?.();
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
 
-    // 🔹 Memory intents
+    // Memory intents
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
       await saveMessageToChat("user", prompt, uid);
@@ -142,16 +146,16 @@ form.addEventListener("submit", async e => {
           await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
           break;
       }
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
 
-    // 🔹 /search command
+    // /search command
     if (prompt.startsWith("/search ")) {
       const term = prompt.slice(8).trim();
       if (!term) {
         window.setStatusFeedback?.("error", "Search query empty");
-        showChatInputSpinner(false);
+        spinnerHidden = true;
         return;
       }
 
@@ -165,16 +169,16 @@ form.addEventListener("submit", async e => {
       ];
       const summary = await getAssistantReply(summaryPrompt);
 
-      lastSummaryText = summary;  // Cache summary here
+      lastSummaryText = summary;
 
       await saveMessageToChat("user", prompt, uid);
       await saveMessageToChat("assistant", summary, uid);
 
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
 
-    // 🔹 Natural "search for" phrase detection -- trigger search only here
+    // Natural "search for" phrase trigger
     const searchMatch = prompt.match(/search for (.+)/i);
     if (searchMatch) {
       const term = searchMatch[1].trim();
@@ -189,17 +193,17 @@ form.addEventListener("submit", async e => {
         ];
         const summary = await getAssistantReply(summaryPrompt);
 
-        lastSummaryText = summary;  // Cache summary here
+        lastSummaryText = summary;
 
         await saveMessageToChat("user", prompt, uid);
         await saveMessageToChat("assistant", summary, uid);
 
-        showChatInputSpinner(false);
+        spinnerHidden = true;
         return;
       }
     }
 
-    // 🔹 /searchresults command
+    // /searchresults command
     if (prompt === "/searchresults") {
       if (!lastSearchData.term) {
         await saveMessageToChat("assistant", "❌ No previous search found.", uid);
@@ -215,11 +219,11 @@ form.addEventListener("submit", async e => {
         html += `</ul></div>`;
         await saveMessageToChat("assistant", html, uid);
       }
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
 
-    // 🔹 /savesummary or "save that"
+    // /savesummary or "save that"
     if (prompt === "/savesummary" || prompt.toLowerCase() === "save that") {
       if (!lastSummaryText) {
         await saveMessageToChat("assistant", "❌ No summary available to save.", uid);
@@ -228,26 +232,26 @@ form.addEventListener("submit", async e => {
         const msg = success ? "✅ Summary saved to memory." : "❌ Failed to save summary.";
         await saveMessageToChat("assistant", msg, uid);
       }
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
 
-    // 🔹 /learn about command
+    // /learn about command
     if (prompt.startsWith("/learn about ")) {
       const topic = prompt.slice(13).trim();
       if (!topic) {
         await saveMessageToChat("assistant", "❌ No topic provided.", uid);
-        showChatInputSpinner(false);
+        spinnerHidden = true;
         return;
       }
       await saveMessageToChat("user", prompt, uid);
       const summary = await learnAboutTopic(topic, uid);
       await saveMessageToChat("assistant", `📚 Learned about "${topic}":\n\n${summary}`, uid);
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
 
-    // 🔹 /pastsearches command
+    // /pastsearches command
     if (prompt === "/pastsearches") {
       const list = await getPastSearches(uid);
       if (!list.length) {
@@ -258,11 +262,11 @@ form.addEventListener("submit", async e => {
           .join("\n");
         await saveMessageToChat("assistant", `📂 Recent learned topics:\n${msg}`, uid);
       }
-      showChatInputSpinner(false);
+      spinnerHidden = true;
       return;
     }
 
-    // 🔹 Fallback: Standard GPT conversation
+    // Fallback: Standard GPT conversation
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -280,10 +284,13 @@ form.addEventListener("submit", async e => {
     updateHeaderWithAssistantReply(reply);
     await summarizeChatIfNeeded(uid);
 
+    spinnerHidden = true;
+
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
     window.debug?.("[ERROR]", err.message || err);
   } finally {
+    // Only hide spinner if not already hidden
     showChatInputSpinner(false);
   }
 });
