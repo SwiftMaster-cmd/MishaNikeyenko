@@ -5,6 +5,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gsta
 
 import { db, auth } from "./firebaseConfig.js";
 import { handleStaticCommand, listNotes, listReminders, listEvents } from "./commandHandlers.js";
+
 import {
   saveMessageToChat,
   fetchLast20Messages,
@@ -13,6 +14,7 @@ import {
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
+
 import { webSearchBrave } from "./search.js";
 import { buildSystemPrompt } from "./memoryManager.js";
 import {
@@ -23,10 +25,16 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
-// ========== Cache for last search ==========
+import {
+  learnAboutTopic,
+  saveLastSummaryToMemory,
+  getPastSearches
+} from "./learnManager.js";
+
+// ========== Cache ==========
 let lastSearchData = { term: null, results: [] };
 
-// ========== 1. DOM Elements ==========
+// ========== 1. DOM ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
@@ -39,7 +47,7 @@ if (debugToggle) {
   });
 }
 
-// ========== 3. Auth & Chat History ==========
+// ========== 3. Auth & Load ==========
 let uid = null;
 let chatRef = null;
 let chatMessages = [];
@@ -70,7 +78,7 @@ onAuthStateChanged(auth, user => {
   });
 });
 
-// ========== 4. Submit Handler ==========
+// ========== 4. Handler ==========
 form.addEventListener("submit", async e => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -81,7 +89,7 @@ form.addEventListener("submit", async e => {
   window.setStatusFeedback?.("loading", "Thinking...");
 
   try {
-    // 4.1 Static slash commands
+    // 🔹 Static commands
     const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
     if (quick.includes(prompt)) {
       await handleStaticCommand(prompt, chatRef, uid);
@@ -109,7 +117,7 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 4.2 Memory intents
+    // 🔹 Memory intents
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
       await saveMessageToChat("user", prompt, uid);
@@ -137,14 +145,17 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 4.3 Search intent (natural + /search)
-    const isSearch = prompt.startsWith("/search ") || /search.*\b/i.test(prompt);
-    if (isSearch) {
-      const term = prompt.startsWith("/search ") ? prompt.slice(8).trim() : prompt;
-      const searchTerm = term.replace(/^search\s*/i, "").trim();
+    // 🔹 /search
+    if (prompt.startsWith("/search ")) {
+      const term = prompt.slice(8).trim();
+      if (!term) {
+        window.setStatusFeedback?.("error", "Search query empty");
+        showChatInputSpinner(false);
+        return;
+      }
 
-      const data = await webSearchBrave(searchTerm, { uid, count: 5 });
-      lastSearchData.term = searchTerm;
+      const data = await webSearchBrave(term, { uid, count: 5 });
+      lastSearchData.term = term;
       lastSearchData.results = data.results;
 
       const summaryPrompt = [
@@ -155,14 +166,15 @@ form.addEventListener("submit", async e => {
 
       await saveMessageToChat("user", prompt, uid);
       await saveMessageToChat("assistant", summary, uid);
+
       showChatInputSpinner(false);
       return;
     }
 
-    // 4.4 /searchresults – full list
+    // 🔹 /searchresults
     if (prompt === "/searchresults") {
       if (!lastSearchData.term) {
-        await saveMessageToChat("assistant", "❌ No previous search. Use a search command first.", uid);
+        await saveMessageToChat("assistant", "❌ No previous search found.", uid);
       } else {
         let html = `<div class="search-results"><div class="results-title">Results for "${lastSearchData.term}"</div><ul>`;
         for (const r of lastSearchData.results) {
@@ -179,7 +191,46 @@ form.addEventListener("submit", async e => {
       return;
     }
 
-    // 4.5 Standard GPT conversation
+    // 🔹 /savesummary
+    if (prompt === "/savesummary") {
+      const success = await saveLastSummaryToMemory(uid);
+      const msg = success ? "✅ Summary saved to memory." : "❌ No summary available.";
+      await saveMessageToChat("assistant", msg, uid);
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 /learn about
+    if (prompt.startsWith("/learn about ")) {
+      const topic = prompt.slice(13).trim();
+      if (!topic) {
+        await saveMessageToChat("assistant", "❌ No topic provided.", uid);
+        showChatInputSpinner(false);
+        return;
+      }
+      await saveMessageToChat("user", prompt, uid);
+      const summary = await learnAboutTopic(topic, uid);
+      await saveMessageToChat("assistant", `📚 Learned about "${topic}":\n\n${summary}`, uid);
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 /pastsearches
+    if (prompt === "/pastsearches") {
+      const list = getPastSearches();
+      if (!list.length) {
+        await saveMessageToChat("assistant", "No past learned topics found.", uid);
+      } else {
+        const msg = list
+          .map(i => `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`)
+          .join("\n");
+        await saveMessageToChat("assistant", `📂 Recent learned topics:\n${msg}`, uid);
+      }
+      showChatInputSpinner(false);
+      return;
+    }
+
+    // 🔹 Fallback: Standard conversation
     await saveMessageToChat("user", prompt, uid);
     const [last20, ctx] = await Promise.all([fetchLast20Messages(uid), getAllContext(uid)]);
     const sysPrompt = buildSystemPrompt({
@@ -204,7 +255,7 @@ form.addEventListener("submit", async e => {
   }
 });
 
-// ========== 5. /console Keyboard Activation ==========
+// ========== 5. Keyboard Overlay ==========
 let buffer = "";
 document.addEventListener("keydown", e => {
   if (
