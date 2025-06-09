@@ -1,49 +1,74 @@
-.search-results-container {
+/* --- Search Results Card --- */
+.search-results {
+  background: rgba(50, 54, 82, 0.94);
+  border-radius: 20px;
+  box-shadow: 0 6px 28px -8px #1115, 0 2px 10px -2px #6f79e025;
+  padding: 2rem 2.2rem 1.4rem 2.2rem;
+  margin: 2.2rem auto 0 auto;
+  color: #f6f7fa;
+  max-width: 660px;
+  font-family: 'Inter', 'SF Pro', Arial, sans-serif;
+  position: relative;
+  animation: fadeIn 0.35s cubic-bezier(.7,.2,.5,1.1);
+}
+
+.search-results b,
+.search-results .results-title {
+  display: block;
+  font-size: 1.22rem;
+  color: #ffc86b;
+  letter-spacing: .04em;
+  margin-bottom: 1.1rem;
+  font-weight: 700;
+}
+
+.search-results ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 1.2rem;
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
-  width: 100%;
-  max-width: 780px;
-  margin: 0 auto 1.1rem auto;
-  z-index: 2;
 }
 
-.search-result-card {
-  background: var(--clr-card);
-  border-radius: 13px;
-  padding: 1rem 1.3rem;
-  box-shadow: 0 1px 7px #0002;
-  border: 1.5px solid var(--clr-border);
-  margin: 0;
-  transition: box-shadow 0.2s;
-  word-break: break-word;
-  font-size: 1.03rem;
+.search-results li {
+  background: rgba(80, 85, 135, 0.18);
+  border-radius: 14px;
+  padding: 1rem 1.2rem 0.6rem 1.2rem;
+  box-shadow: 0 1px 6px -3px #2226, 0 1px 6px -2px #7e3af228;
+  margin-bottom: 0.7rem;
+  transition: background 0.17s;
+  border-left: 5px solid #9b6aff44;
 }
 
-.search-result-card:hover {
-  box-shadow: 0 3px 22px #1e1e2e36;
-  border-color: var(--clr-user);
-}
-
-.result-title {
-  font-size: 1.11rem;
+.search-results a {
+  color: #57a1fd;
   font-weight: 600;
-  margin-bottom: 5px;
-}
-
-.result-title a {
-  color: #6cc1ff;
   text-decoration: none;
-  transition: color 0.16s;
+  font-size: 1.11em;
+  transition: color 0.14s;
+  word-break: break-all;
 }
 
-.result-title a:hover {
-  color: #ffe486;
+.search-results a:hover {
+  color: #b486ff;
   text-decoration: underline;
 }
 
-.result-snippet {
-  color: var(--clr-muted);
-  margin-top: 2px;
-  font-size: 0.98rem;
+.search-results .snippet {
+  display: block;
+  color: #d3d8e8;
+  font-size: 1.04em;
+  margin: 0.38rem 0 0.1rem 0;
+  line-height: 1.55;
+}
+
+@media (max-width: 700px) {
+  .search-results {
+    padding: 1.2rem 0.5rem 1rem 0.8rem;
+    max-width: 99vw;
+  }
+  .search-results li {
+    padding: 0.7rem 0.6rem 0.4rem 0.9rem;
+  }
 }
