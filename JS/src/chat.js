@@ -198,7 +198,7 @@ form.addEventListener("submit", async e => {
         return;
       }
 
-      let html = `<div class="search-results"><div class="results-title">Top Results for "${q}":</div><ul>`;
+      let html = `<div class="search-results"><div class="results-title">"${q}":</div><ul>`;
       for (const r of data.results) {
         html += `<li><a href="${r.url}" target="_blank">${r.title}</a>`;
         if (r.snippet) html += `<div class="snippet">${r.snippet}</div>`;
