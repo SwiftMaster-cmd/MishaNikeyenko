@@ -127,20 +127,27 @@ async function clearChatHistory(chatRef) {
 
 function listCommands(chatRef) {
   const commandList = [
-    { cmd: "/note",     desc: "Save a note (e.g. /note call Mom later)" },
-    { cmd: "/reminder", desc: "Set a reminder (e.g. /reminder pay bill tomorrow)" },
-    { cmd: "/calendar", desc: "Create a calendar event (e.g. /calendar dinner Friday)" },
-    { cmd: "/log",      desc: "Add to your day log (e.g. /log felt great after run)" },
-    { cmd: "/notes",    desc: "List all notes saved today" },
-    { cmd: "/reminders",desc: "List all reminders" },
-    { cmd: "/events",   desc: "List all calendar events" },
-    { cmd: "/summary",  desc: "Summarize today’s log and notes" },
-    { cmd: "/clearchat",desc: "Clear the visible chat history" },
-    { cmd: "/time",     desc: "Show current time" },
-    { cmd: "/date",     desc: "Show today’s date" },
-    { cmd: "/uid",      desc: "Show your Firebase user ID" }
+    { cmd: "/note",       desc: "Save a note (e.g. /note call Mom later)" },
+    { cmd: "/reminder",   desc: "Set a reminder (e.g. /reminder pay bill tomorrow)" },
+    { cmd: "/calendar",   desc: "Create a calendar event (e.g. /calendar dinner Friday)" },
+    { cmd: "/log",        desc: "Add to your day log (e.g. /log felt great after run)" },
+    { cmd: "/notes",      desc: "List all notes saved today" },
+    { cmd: "/reminders",  desc: "List all reminders" },
+    { cmd: "/events",     desc: "List all calendar events" },
+    { cmd: "/summary",    desc: "Summarize today’s log and notes" },
+    { cmd: "/clearchat",  desc: "Clear the visible chat history" },
+    { cmd: "/time",       desc: "Show current time" },
+    { cmd: "/date",       desc: "Show today’s date" },
+    { cmd: "/uid",        desc: "Show your Firebase user ID" },
+    { cmd: "/search <term>",  desc: "Search the web and summarize results" },
+    { cmd: "/searchresults",  desc: "Show full results from last search" },
+    { cmd: "/savesummary",    desc: "Save the last summary to your memory" },
+    { cmd: "/learn about <topic>", desc: "Auto search, summarize, and save facts about a topic" },
+    { cmd: "/pastsearches",    desc: "List your recent learned topics" }
   ];
 
+  // The rest of your function code to render or send this list goes here
+}
   const response = commandList
     .map(c => `🔹 **${c.cmd}** – ${c.desc}`)
     .join("\n");
