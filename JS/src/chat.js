@@ -118,6 +118,13 @@ form.addEventListener("submit", async (e) => {
       showChatInputSpinner(false);
       return;
     }
+    // ===== /console as chat command =====
+    if (prompt === "/console") {
+      if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
+      window.setStatusFeedback?.("success", "Console opened");
+      showChatInputSpinner(false);
+      return;
+    }
 
     // Step 1: Save user message
     await saveMessageToChat("user", prompt, uid);
@@ -163,5 +170,28 @@ form.addEventListener("submit", async (e) => {
     window.debug?.("[ERROR]", err.message || err);
   } finally {
     showChatInputSpinner(false);
+  }
+});
+
+// ========== 5. /console Keyboard Activation ==========
+let consoleBuffer = "";
+
+document.addEventListener("keydown", (e) => {
+  // Only listen if chat input is NOT focused and no modifiers are held
+  if (
+    document.activeElement !== input &&
+    !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
+  ) {
+    if (e.key.length === 1) {
+      consoleBuffer += e.key;
+      if (consoleBuffer.endsWith("/console")) {
+        if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
+        consoleBuffer = "";
+      } else if (!"/console".startsWith(consoleBuffer)) {
+        consoleBuffer = "";
+      }
+    } else if (e.key === "Escape") {
+      consoleBuffer = "";
+    }
   }
 });
