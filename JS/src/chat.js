@@ -140,48 +140,46 @@ form.addEventListener("submit", async e => {
       // Save user's original message
       await saveMessageToChat("user", prompt, uid);
 
-      // Preference
-      if (memory.type === "preference") {
-        await saveMessageToChat(
-          "assistant",
-          `✅ Saved preference: "${memory.content}"`,
-          uid
-        );
-        showChatInputSpinner(false);
-        return;
+      switch (memory.type) {
+        case "preference":
+          await saveMessageToChat(
+            "assistant",
+            `✅ Saved preference: "${memory.content}"`,
+            uid
+          );
+          break;
+
+        case "reminder":
+          await saveMessageToChat(
+            "assistant",
+            `✅ Saved reminder: "${memory.content}"`,
+            uid
+          );
+          break;
+
+        case "calendar": {
+          const when = memory.date ? ` on ${memory.date}` : "";
+          const at    = memory.time ? ` at ${memory.time}` : "";
+          const rec   = memory.recurrence ? ` (recurs: ${memory.recurrence})` : "";
+          await saveMessageToChat(
+            "assistant",
+            `✅ Saved event: "${memory.content}"${when}${at}${rec}`,
+            uid
+          );
+          break;
+        }
+
+        case "note":
+          await handleStaticCommand(`/note ${memory.content}`, chatRef, uid);
+          break;
+
+        case "log":
+          await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
+          break;
       }
 
-      // Reminder
-      if (memory.type === "reminder") {
-        await saveMessageToChat(
-          "assistant",
-          `✅ Saved reminder: "${memory.content}"`,
-          uid
-        );
-        showChatInputSpinner(false);
-        return;
-      }
-
-      // Calendar event
-      if (memory.type === "calendar") {
-        const when = memory.date ? ` on ${memory.date}` : "";
-        const at = memory.time ? ` at ${memory.time}` : "";
-        await saveMessageToChat(
-          "assistant",
-          `✅ Saved event: "${memory.content}"${when}${at}`,
-          uid
-        );
-        showChatInputSpinner(false);
-        return;
-      }
-
-      // Note or log
-      if (memory.type === "note" || memory.type === "log") {
-        const cmd = memory.type === "note" ? "/note" : "/log";
-        await handleStaticCommand(`${cmd} ${memory.content}`, chatRef, uid);
-        showChatInputSpinner(false);
-        return;
-      }
+      showChatInputSpinner(false);
+      return;
     }
 
     // 4.3 Web search
