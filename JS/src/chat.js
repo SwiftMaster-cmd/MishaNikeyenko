@@ -1,4 +1,4 @@
-// chat.js – input and flow control only, all UI/logic in modules
+// 🔹 chat.js – input and flow control only, all UI/logic in modules
 
 import {
   onValue,
@@ -37,12 +37,13 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 
-import { webSearchBrave } from "./search.js";
+import { renderSearchResults } from "./searchResults.js"; // import your search results renderer
 
 // ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const debugToggle = document.getElementById("debug-toggle");
+const chatLog = document.getElementById("chat-log");
 
 // ========== 2. Init ==========
 initScrollTracking();
@@ -82,7 +83,41 @@ onAuthStateChanged(auth, (user) => {
   });
 });
 
-// ========== 4. Submit Handler ==========
+// ========== 4. Helper to append search results as chat message ==========
+function appendSearchResults(results, container) {
+  if (!results || results.length === 0) {
+    appendAssistantMessage("No search results found.");
+    return;
+  }
+  // Render search results HTML
+  const wrapper = document.createElement("div");
+  wrapper.className = "assistant-msg msg search-results-wrapper";
+
+  // Use your searchResults renderer, but get HTML as string:
+  const resultsHTML = results.map(r => `
+    <div class="search-result-card">
+      <div class="result-title">
+        <a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>
+      </div>
+      <div class="result-snippet">${r.snippet}</div>
+    </div>
+  `).join('');
+  wrapper.innerHTML = resultsHTML;
+
+  chatLog.appendChild(wrapper);
+  scrollToBottom();
+}
+
+// ========== 5. Helper to append assistant messages ==========
+function appendAssistantMessage(text) {
+  const message = document.createElement("div");
+  message.className = "assistant-msg msg";
+  message.textContent = text;
+  chatLog.appendChild(message);
+  scrollToBottom();
+}
+
+// ========== 6. Submit Handler ==========
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
@@ -126,71 +161,44 @@ form.addEventListener("submit", async (e) => {
       showChatInputSpinner(false);
       return;
     }
+
+    // ===== Custom: Search Command =====
     if (prompt.startsWith("/search ")) {
-      const query = prompt.slice(8).trim();
+      const query = prompt.replace("/search ", "").trim();
       if (!query) {
-        window.setStatusFeedback?.("error", "Search query empty");
+        appendAssistantMessage("Please provide a search query.");
         showChatInputSpinner(false);
         return;
       }
       window.debug?.("[SEARCH] Query:", query);
-      try {
-        const data = await webSearchBrave(query, { count: 20 });
-        if (!data || !data.results) throw new Error("No results");
-        // Format rich search results for chat display
-        let formatted = `<div class="search-results">`;
-        formatted += `<div class="results-title">Top Results for "${query}":</div>`;
-        formatted += `<ul>`;
-        for (const r of data.results) {
-          formatted += `<li>`;
-          formatted += `<a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>`;
-          if (r.snippet) formatted += `<div class="snippet">${r.snippet}</div>`;
-          formatted += `</li>`;
-        }
-        formatted += `</ul>`;
 
-        // Optional richer sections
-        if (data.infobox) {
-          formatted += `<div class="infobox"><strong>Info Box:</strong> ${data.infobox}</div>`;
-        }
-        if (data.faq && data.faq.length) {
-          formatted += `<div class="faq-section"><strong>FAQs:</strong><ul>`;
-          for (const faq of data.faq) {
-            formatted += `<li><strong>Q:</strong> ${faq.question}<br><strong>A:</strong> ${faq.answer}</li>`;
-          }
-          formatted += `</ul></div>`;
-        }
-        if (data.discussions && data.discussions.length) {
-          formatted += `<div class="discussions-section"><strong>Discussions:</strong><ul>`;
-          for (const disc of data.discussions) {
-            formatted += `<li><a href="${disc.url}" target="_blank" rel="noopener noreferrer">${disc.title}</a></li>`;
-          }
-          formatted += `</ul></div>`;
-        }
-        formatted += `</div>`;
+      // Save user search prompt to chat DB
+      await saveMessageToChat("user", prompt, uid);
+      window.debug?.("[STEP 1] User search message saved.");
 
-        // Save user's original search prompt
-        await saveMessageToChat("user", prompt, uid);
-        window.debug?.("[STEP 1] User message saved.");
+      // Perform search (import your webSearchBrave from search.js accordingly)
+      import("./search.js").then(async ({ webSearchBrave }) => {
+        try {
+          const searchData = await webSearchBrave(query, { count: 5 });
+          // Save search results summary as assistant message in chat DB (optional)
+          await saveMessageToChat("assistant", `[Search results for "${query}"]`, uid);
 
-        // Save assistant’s formatted search results as one message
-        await saveMessageToChat("assistant", formatted, uid);
-        window.debug?.("[STEP 4] Assistant search results saved.");
+          // Append the search results visually in chat log
+          appendSearchResults(searchData.results, chatLog);
 
-        renderMessages([{ role: "user", content: prompt, timestamp: Date.now() }, { role: "assistant", content: formatted, timestamp: Date.now() }], true);
-        scrollToBottom();
-        window.setStatusFeedback?.("success", "Search results loaded");
-      } catch (searchErr) {
-        window.setStatusFeedback?.("error", "Search failed");
-        window.debug?.("[SEARCH ERROR]", searchErr.message || searchErr);
-      } finally {
-        showChatInputSpinner(false);
-      }
+          window.setStatusFeedback?.("success", "Search results displayed");
+        } catch (searchErr) {
+          window.debug?.("[SEARCH ERROR]", searchErr.message || searchErr);
+          appendAssistantMessage(`Search error: ${searchErr.message || "Failed to fetch results"}`);
+          window.setStatusFeedback?.("error", "Search failed");
+        }
+      });
+
+      showChatInputSpinner(false);
       return;
     }
 
-    // Normal chat flow
-
+    // Normal chat flow:
     // Step 1: Save user message
     await saveMessageToChat("user", prompt, uid);
     window.debug?.("[STEP 1] User message saved.");
@@ -238,10 +246,11 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
-// ========== 5. /console Keyboard Activation ==========
+// ========== 7. /console Keyboard Activation ==========
 let consoleBuffer = "";
 
 document.addEventListener("keydown", (e) => {
+  // Only listen if chat input is NOT focused and no modifiers are held
   if (
     document.activeElement !== input &&
     !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
