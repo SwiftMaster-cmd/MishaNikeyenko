@@ -1,3 +1,4 @@
+// search.js – Brave Search API via Netlify Function Proxy (logs everything)
 export async function webSearchBrave(query, opts = {}) {
   window.debug?.(`[SEARCH] Query: ${query}`);
   const endpoint = `/.netlify/functions/brave-search?q=${encodeURIComponent(query)}&count=${opts.count || 5}`;
@@ -30,5 +31,27 @@ export async function webSearchBrave(query, opts = {}) {
     throw new Error('Proxy parse error');
   }
 
-  // ...same as before for summary and return
+  // Defensive: Always check for structure
+  const web = (data && typeof data === 'object' && data.web) ? data.web : {};
+  const resultsArr = Array.isArray(web.results) ? web.results : [];
+  const infobox = data && data.infobox ? data.infobox : null;
+  const faq = Array.isArray(data && data.faq) ? data.faq : [];
+  const discussions = Array.isArray(data && data.discussions) ? data.discussions : [];
+  const locations = Array.isArray(data && data.locations) ? data.locations : [];
+
+  window.debug?.(
+    `[SEARCH] Summary: Results=${resultsArr.length}, Infobox=${!!infobox}, FAQ=${faq.length}, Discussions=${discussions.length}, Locations=${locations.length}`
+  );
+
+  return {
+    results: resultsArr.map(r => ({
+      title: r.title || "",
+      url: r.url || "",
+      snippet: r.description || ""
+    })),
+    infobox,
+    faq,
+    discussions,
+    locations
+  };
 }
