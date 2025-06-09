@@ -1,9 +1,11 @@
 // search.js – Brave Search API (Pro) integration
+
 const BRAVE_API_KEY = 'BSAPL_WUWCZ7JdfD5oCeZ1bAYlhc9n5'; // <-- your real Pro key
 
 export async function webSearchBrave(query, opts = {}) {
-  window.debug?.(`[SEARCH] Sending query to Brave: "${query}" with opts: ${JSON.stringify(opts)}`);
+  window.debug?.(`[SEARCH] Query: ${query}`);
   const endpoint = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${opts.count || 5}`;
+
   let response;
   try {
     response = await fetch(endpoint, {
@@ -30,9 +32,9 @@ export async function webSearchBrave(query, opts = {}) {
   let data;
   try {
     data = await response.json();
-    window.debug?.("[SEARCH RESPONSE]", data); // logs full raw data
+    window.debug?.("[SEARCH RESPONSE]", data); // logs full raw Brave API response
   } catch (err) {
-    window.debug?.("[SEARCH ERROR] Error parsing response:", err);
+    window.debug?.("[SEARCH ERROR] Error parsing Brave response:", err);
     throw new Error('Brave Search parse error');
   }
 
