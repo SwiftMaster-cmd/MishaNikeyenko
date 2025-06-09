@@ -1,31 +1,22 @@
-// chat.js – input and flow control only, all UI/logic in modules
-
 import {
   onValue,
   ref,
-  push
+  push,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth,
   signInAnonymously,
-  onAuthStateChanged
+  onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import { db, auth } from "./firebaseConfig.js";
-import {
-  handleStaticCommand,
-  listNotes,
-  listReminders,
-  listEvents
-} from "./commandHandlers.js";
-
 import {
   saveMessageToChat,
   fetchLast20Messages,
   getAllContext,
   getAssistantReply,
   extractMemoryFromPrompt,
-  summarizeChatIfNeeded
+  summarizeChatIfNeeded,
 } from "./backgpt.js";
 
 import { buildSystemPrompt } from "./memoryManager.js";
@@ -34,180 +25,136 @@ import {
   showChatInputSpinner,
   scrollToBottom,
   updateHeaderWithAssistantReply,
-  initScrollTracking
+  initScrollTracking,
 } from "./uiShell.js";
 
 import { webSearchBrave } from "./search.js";
 
-// ========== 1. DOM Elements ==========
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
-const debugToggle = document.getElementById("debug-toggle");
+const chatLog = document.getElementById("chat-log");
 
-// ========== 2. Init ==========
 initScrollTracking();
 
-if (debugToggle) {
-  debugToggle.addEventListener("click", () => {
-    if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
-  });
-}
-
-// ========== 3. Auth & Chat History ==========
 let uid = null;
 let chatRef = null;
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
-    signInAnonymously(auth)
-      .catch(e => window.setStatusFeedback?.("error", "Auth failed."));
+    signInAnonymously(auth).catch(() =>
+      window.setStatusFeedback?.("error", "Authentication failed")
+    );
     window.setStatusFeedback?.("loading", "Signing in...");
-    window.debug?.("Auth: Signing in anonymously...");
+    window.debug?.("Auth: signing in anonymously");
     return;
   }
   uid = user.uid;
   chatRef = ref(db, `chatHistory/${uid}`);
-  window.debug?.("Auth Ready → UID:", uid);
 
   onValue(chatRef, (snapshot) => {
     const data = snapshot.val() || {};
-    const messages = Object.entries(data).map(([id, msg]) => ({
-      id,
-      role: msg.role === "bot" ? "assistant" : msg.role,
-      content: msg.content,
-      timestamp: msg.timestamp || 0
-    }));
-    renderMessages(messages.slice(-20));
+    const messages = Object.entries(data)
+      .map(([id, msg]) => ({
+        id,
+        role: msg.role === "bot" ? "assistant" : msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp || 0,
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    renderMessages(messages.slice(-50));
     scrollToBottom();
   });
+
+  window.debug?.("Auth ready → UID:", uid);
 });
 
-// ========== 4. Submit Handler ==========
+function appendAssistantMessage(text, isHTML = false) {
+  const msg = document.createElement("div");
+  msg.className = "assistant-msg msg";
+  if (isHTML) msg.innerHTML = text;
+  else msg.textContent = text;
+  chatLog.appendChild(msg);
+  scrollToBottom();
+}
+
+function appendUserMessage(text) {
+  const msg = document.createElement("div");
+  msg.className = "user-msg msg";
+  msg.textContent = text;
+  chatLog.appendChild(msg);
+  scrollToBottom();
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = input.value.trim();
   if (!prompt || !uid) return;
   input.value = "";
+  appendUserMessage(prompt);
 
   showChatInputSpinner(true);
   window.setStatusFeedback?.("loading", "Thinking...");
   window.debug?.("[SUBMIT]", { uid, prompt });
 
   try {
-    // Static Commands
-    const quick = ["/time", "/date", "/uid", "/clearchat", "/summary", "/commands"];
-    if (quick.includes(prompt)) {
-      await handleStaticCommand(prompt, chatRef, uid);
-      window.setStatusFeedback?.("success", "Command executed");
-      showChatInputSpinner(false);
-      return;
-    }
-    if (prompt === "/notes") {
-      await listNotes(chatRef);
-      window.setStatusFeedback?.("success", "Notes listed");
-      showChatInputSpinner(false);
-      return;
-    }
-    if (prompt === "/reminders") {
-      await listReminders(chatRef);
-      window.setStatusFeedback?.("success", "Reminders listed");
-      showChatInputSpinner(false);
-      return;
-    }
-    if (prompt === "/events") {
-      await listEvents(chatRef);
-      window.setStatusFeedback?.("success", "Events listed");
-      showChatInputSpinner(false);
-      return;
-    }
-    if (prompt === "/console") {
-      if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
-      window.setStatusFeedback?.("success", "Console opened");
-      showChatInputSpinner(false);
-      return;
-    }
     if (prompt.startsWith("/search ")) {
       const query = prompt.slice(8).trim();
       if (!query) {
-        window.setStatusFeedback?.("error", "Search query empty");
+        appendAssistantMessage("Please provide a search query.");
         showChatInputSpinner(false);
         return;
       }
-      window.debug?.("[SEARCH] Query:", query);
+
+      await saveMessageToChat("user", prompt, uid);
+      window.debug?.("[STEP 1] User search message saved.");
+
       try {
-        const data = await webSearchBrave(query, { count: 20 });
-        if (!data || !data.results) throw new Error("No results");
-        // Format rich search results for chat display
-        let formatted = `<div class="search-results">`;
-        formatted += `<div class="results-title">Top Results for "${query}":</div>`;
-        formatted += `<ul>`;
-        for (const r of data.results) {
-          formatted += `<li>`;
-          formatted += `<a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>`;
-          if (r.snippet) formatted += `<div class="snippet">${r.snippet}</div>`;
-          formatted += `</li>`;
-        }
-        formatted += `</ul>`;
+        const searchData = await webSearchBrave(query, { count: 5 });
+        await saveMessageToChat(
+          "assistant",
+          `[Search results for "${query}"]`,
+          uid
+        );
 
-        // Optional richer sections
-        if (data.infobox) {
-          formatted += `<div class="infobox"><strong>Info Box:</strong> ${data.infobox}</div>`;
-        }
-        if (data.faq && data.faq.length) {
-          formatted += `<div class="faq-section"><strong>FAQs:</strong><ul>`;
-          for (const faq of data.faq) {
-            formatted += `<li><strong>Q:</strong> ${faq.question}<br><strong>A:</strong> ${faq.answer}</li>`;
-          }
-          formatted += `</ul></div>`;
-        }
-        if (data.discussions && data.discussions.length) {
-          formatted += `<div class="discussions-section"><strong>Discussions:</strong><ul>`;
-          for (const disc of data.discussions) {
-            formatted += `<li><a href="${disc.url}" target="_blank" rel="noopener noreferrer">${disc.title}</a></li>`;
-          }
-          formatted += `</ul></div>`;
-        }
-        formatted += `</div>`;
+        // Append search results as assistant message without clearing chat log:
+        const html = searchData.results
+          .map(r => `
+            <div class="search-result-card">
+              <div class="result-title">
+                <a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.title}</a>
+              </div>
+              <div class="result-snippet">${r.snippet}</div>
+            </div>`
+          )
+          .join("");
+        appendAssistantMessage(html, true);
 
-        // Save user's original search prompt
-        await saveMessageToChat("user", prompt, uid);
-        window.debug?.("[STEP 1] User message saved.");
-
-        // Save assistant’s formatted search results as one message
-        await saveMessageToChat("assistant", formatted, uid);
-        window.debug?.("[STEP 4] Assistant search results saved.");
-
-        renderMessages([{ role: "user", content: prompt, timestamp: Date.now() }, { role: "assistant", content: formatted, timestamp: Date.now() }], true);
-        scrollToBottom();
-        window.setStatusFeedback?.("success", "Search results loaded");
+        window.setStatusFeedback?.("success", "Search results displayed");
       } catch (searchErr) {
-        window.setStatusFeedback?.("error", "Search failed");
         window.debug?.("[SEARCH ERROR]", searchErr.message || searchErr);
-      } finally {
-        showChatInputSpinner(false);
+        appendAssistantMessage(
+          `Search error: ${searchErr.message || "Failed to fetch results"}`
+        );
+        window.setStatusFeedback?.("error", "Search failed");
       }
+      showChatInputSpinner(false);
       return;
     }
 
     // Normal chat flow
-
-    // Step 1: Save user message
     await saveMessageToChat("user", prompt, uid);
     window.debug?.("[STEP 1] User message saved.");
 
-    // Step 2: Try memory extraction
-    window.debug?.("[STEP 2] Checking for memory...");
     const memory = await extractMemoryFromPrompt(prompt, uid);
     if (memory) {
       window.setStatusFeedback?.("success", `Memory saved (${memory.type})`);
       window.debug?.("[MEMORY]", memory);
     }
 
-    // Step 3: Build assistant prompt
-    window.debug?.("[STEP 3] Fetching context...");
     const [last20, context] = await Promise.all([
       fetchLast20Messages(uid),
-      getAllContext(uid)
+      getAllContext(uid),
     ]);
     const sysPrompt = buildSystemPrompt({
       memory: context.memory,
@@ -216,46 +163,23 @@ form.addEventListener("submit", async (e) => {
       calendar: context.calendar,
       reminders: context.reminders,
       calc: context.calc,
-      date: new Date().toISOString().slice(0, 10)
+      date: new Date().toISOString().slice(0, 10),
     });
+
     const full = [{ role: "system", content: sysPrompt }, ...last20];
     window.debug?.("[GPT INPUT]", full);
 
-    // Step 4: Get assistant reply
     const assistantReply = await getAssistantReply(full);
     await saveMessageToChat("assistant", assistantReply, uid);
-    window.logAssistantReply?.(assistantReply);
-    updateHeaderWithAssistantReply(assistantReply);
 
-    // Step 5: Summarize if needed
+    updateHeaderWithAssistantReply(assistantReply);
     await summarizeChatIfNeeded(uid);
+
     window.setStatusFeedback?.("success", "Message sent");
   } catch (err) {
     window.setStatusFeedback?.("error", "Something went wrong");
     window.debug?.("[ERROR]", err.message || err);
   } finally {
     showChatInputSpinner(false);
-  }
-});
-
-// ========== 5. /console Keyboard Activation ==========
-let consoleBuffer = "";
-
-document.addEventListener("keydown", (e) => {
-  if (
-    document.activeElement !== input &&
-    !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
-  ) {
-    if (e.key.length === 1) {
-      consoleBuffer += e.key;
-      if (consoleBuffer.endsWith("/console")) {
-        if (typeof window.showDebugOverlay === "function") window.showDebugOverlay();
-        consoleBuffer = "";
-      } else if (!"/console".startsWith(consoleBuffer)) {
-        consoleBuffer = "";
-      }
-    } else if (e.key === "Escape") {
-      consoleBuffer = "";
-    }
   }
 });
