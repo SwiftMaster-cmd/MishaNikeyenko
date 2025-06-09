@@ -65,12 +65,27 @@ export async function getAssistantReply(fullMessages) {
   return data.choices?.[0]?.message?.content || "[No reply]";
 }
 
-// 🔹 5. Try to extract memory (note/reminder/calendar/log) from prompt
+// 🔹 5. Try to extract memory (note/reminder/calendar/log) or preferences from prompt
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
+
+  // -- Preference capture: "remember I like X" or "I like X"
+  const prefMatch = prompt.match(/\b(?:remember(?: that)?\s*)?i (?:like|love|prefer) (.+)/i);
+  if (prefMatch) {
+    const value = prefMatch[1].trim();
+    // Store under memory/{uid}/preferences/likes
+    await push(ref(db, `memory/${uid}/preferences/likes`), {
+      content: value,
+      timestamp: Date.now()
+    });
+    return { type: "preference", key: "likes", content: value };
+  }
+
+  // -- Existing typed-memory extraction
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
   if (!memoryType) return null;
 
+  // Ask GPT to parse into structured JSON
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -79,21 +94,20 @@ export async function extractMemoryFromPrompt(prompt, uid) {
         {
           role: "system",
           content: `
-You are a memory extraction engine. ALWAYS return exactly one JSON object with these keys:
+You are a memory extraction engine. ALWAYS return exactly one JSON object with keys:
 {
   "type":   "note" | "reminder" | "calendar" | "log",
   "content": "string",
   "date":   "optional YYYY-MM-DD"
 }
-
-RULES:
-1. If text begins with "/note", type="note".
-2. If it begins with "/reminder" or "remind me", type="reminder".
-3. If it mentions a date/time (e.g. "tomorrow", "Friday", "on 2025-06-10"), type="calendar".
-4. If it begins with "/log" or includes "journal", type="log".
-5. Otherwise, type="note" as a last resort.
-6. Populate "date" only when explicitly given.
-7. Return ONLY the JSON block.`
+Rules:
+1. "/note" → type="note"
+2. "/reminder" or "remind me" → type="reminder"
+3. Mentions of date/time → type="calendar"
+4. "/log" or "journal" → type="log"
+5. Otherwise → type="note"
+6. Include "date" only when explicit
+Return ONLY the JSON.`
         },
         { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
       ],
@@ -106,15 +120,23 @@ RULES:
   const parsed = extractJson(text);
   if (!parsed?.type || !parsed?.content) return null;
 
-  const path =
-    parsed.type === "calendar"
-      ? `calendarEvents/${uid}`
-      : parsed.type === "reminder"
-      ? `reminders/${uid}`
-      : parsed.type === "log"
-      ? `dayLog/${uid}/${today}`
-      : `notes/${uid}/${today}`;
+  // Determine path
+  let path;
+  switch (parsed.type) {
+    case "calendar":
+      path = `calendarEvents/${uid}`;
+      break;
+    case "reminder":
+      path = `reminders/${uid}`;
+      break;
+    case "log":
+      path = `dayLog/${uid}/${today}`;
+      break;
+    default:
+      path = `notes/${uid}/${today}`;
+  }
 
+  // Save the memory entry
   await push(ref(db, path), {
     content: parsed.content,
     timestamp: Date.now(),
@@ -138,8 +160,7 @@ export async function summarizeChatIfNeeded(uid) {
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
 
-  const count = allMessages.length;
-  if (count % 20 !== 0) return;
+  if (allMessages.length % 20 !== 0) return;
 
   const convoText = allMessages
     .slice(-20)
