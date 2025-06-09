@@ -64,7 +64,7 @@ main.chat-container {
 
 /* Message bubbles take nearly full width minus padding */
 .msg {
-  max-width: calc(100vw - 3.5rem);
+  max-width: 50vw;      /* or use 50vw to lock to half the viewport */
   padding: 0.8rem 1.1rem;
   border-radius: var(--radius);
   word-break: break-word;
