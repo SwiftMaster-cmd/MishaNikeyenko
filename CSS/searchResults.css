@@ -1,8 +1,8 @@
 .search-results {
-  /* Remove background, padding, and shadow for a minimal wrapper */
+  /* Minimal wrapper: no background or extra padding */
   background: transparent;
-  padding: 0;
-  margin: 0;
+  padding: 4px 0;
+  margin: 0.5rem 0;
   box-shadow: none;
 }
 
@@ -18,7 +18,17 @@
   list-style: none;
   padding: 0;
   margin: 0;
-  overflow: visible;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Scrollbar styling */
+.search-results ul::-webkit-scrollbar {
+  width: 8px;
+}
+.search-results ul::-webkit-scrollbar-thumb {
+  background-color: rgba(91, 95, 157, 0.8);
+  border-radius: 8px;
 }
 
 .search-results li {
@@ -29,7 +39,8 @@
   transition: background 0.2s ease, transform 0.2s ease;
   cursor: pointer;
 }
-.search-results li:hover {
+.search-results li:hover,
+.search-results li:focus-within {
   background: rgba(70, 75, 110, 1);
   transform: translateY(-1px);
 }
@@ -94,13 +105,13 @@
   line-height: 1.4;
 }
 
+/* Scrollbar inside panels */
 .search-results .infobox::-webkit-scrollbar,
 .search-results .faq::-webkit-scrollbar,
 .search-results .discussions::-webkit-scrollbar,
 .search-results .locations::-webkit-scrollbar {
   width: 6px;
 }
-
 .search-results .infobox::-webkit-scrollbar-thumb,
 .search-results .faq::-webkit-scrollbar-thumb,
 .search-results .discussions::-webkit-scrollbar-thumb,
@@ -110,6 +121,10 @@
 }
 
 @media (max-width: 600px) {
+  .search-results {
+    padding: 2px 0;
+    margin: 0.5rem 0;
+  }
   .search-results .results-title {
     font-size: 1.2rem;
   }
