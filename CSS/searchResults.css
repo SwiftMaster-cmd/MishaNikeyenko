@@ -65,7 +65,22 @@
 .search-results li:last-child {
   margin-bottom: 0;
 }
-
+/* ───────────────────────────────────────────────────────────────── */
+/* Tidy up the "Top Results for …" heading                          */
+/* ───────────────────────────────────────────────────────────────── */
+.search-results .results-title {
+  display: block;                           /* full-width */
+  font-size: clamp(1.2rem, 2.5vw, 1.4rem);  /* responsive, but not enormous */
+  font-weight: 700;
+  margin: 0 0 1rem;                         /* space below */
+  color: var(--clr-text);                   /* main text color */
+  border-bottom: 1px solid var(--clr-border-light);
+  padding-bottom: 0.5rem;                   /* breathing room under line */
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;                  /* truncate if too long */
+}
 /* ───────────────────────────────────────────────────────────────── */
 /* Link Title (not purple by default)                               */
 /* ───────────────────────────────────────────────────────────────── */
