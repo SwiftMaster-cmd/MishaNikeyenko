@@ -1,4 +1,4 @@
-// chat.js – input & flow control only; UI in uiShell.js; natural-language commands delegated to naturalCommands.js
+// chat.js â€" input & flow control only; UI in uiShell.js; natural-language commands delegated to naturalCommands.js
 
 import { onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
@@ -17,9 +17,9 @@ import {
 import {
   saveMessageToChat,
   fetchLast20Messages,
+  getAllContext,
   extractMemoryFromPrompt,
-  summarizeChatIfNeeded,
-  getSelectedContext
+  summarizeChatIfNeeded
 } from "./backgpt.js";
 import { buildSystemPrompt } from "./memoryManager.js";
 import {
@@ -30,7 +30,7 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 import { tryNatural } from "./naturalCommands.js";
-import { trackedChat } from "./tokenTracker.js";
+import { trackedChat } from "./tokenTracker.js";  // <-- new
 
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("chat-form");
@@ -85,7 +85,9 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      if (await tryNatural(prompt, { uid, chatRef, state })) return;
+      if (await tryNatural(prompt, { uid, chatRef, state })) {
+        return;
+      }
 
       const staticCommands = new Set([
         "/time", "/date", "/uid",
@@ -112,16 +114,16 @@ window.addEventListener("DOMContentLoaded", () => {
         await saveMessageToChat("user", prompt, uid);
         switch (memory.type) {
           case "preference":
-            await saveMessageToChat("assistant", `✅ Saved preference: "${memory.content}"`, uid);
+            await saveMessageToChat("assistant", `âœ… Saved preference: "${memory.content}"`, uid);
             break;
           case "reminder":
-            await saveMessageToChat("assistant", `✅ Saved reminder: "${memory.content}"`, uid);
+            await saveMessageToChat("assistant", `âœ… Saved reminder: "${memory.content}"`, uid);
             break;
           case "calendar": {
             const on = memory.date ? ` on ${memory.date}` : "";
             const at = memory.time ? ` at ${memory.time}` : "";
             await saveMessageToChat("assistant",
-              `✅ Saved event: "${memory.content}"${on}${at}`, uid);
+              `âœ… Saved event: "${memory.content}"${on}${at}`, uid);
             break;
           }
           case "note":
@@ -136,23 +138,27 @@ window.addEventListener("DOMContentLoaded", () => {
 
       await saveMessageToChat("user", prompt, uid);
 
-      const all20 = await fetchLast20Messages(uid);
+      // fetch full 20 for UI, but only send 5 to GPT
+      const [all20, ctx] = await Promise.all([
+        fetchLast20Messages(uid),
+        getAllContext(uid)
+      ]);
       const last5 = all20.slice(-5);
-      const ctx = await getSelectedContext(prompt, uid);
 
       const systemPrompt = buildSystemPrompt({
-        memory:    ctx.memory,
-        todayLog:  ctx.dayLog,
-        notes:     ctx.notes,
-        calendar:  ctx.calendar,
+        memory: ctx.memory,
+        todayLog: ctx.dayLog,
+        notes: ctx.notes,
+        calendar: ctx.calendar,
         reminders: ctx.reminders,
-        calc:      ctx.calc,
+        calc: ctx.calc,
         date: new Date().toISOString().slice(0, 10)
       });
 
+      // --- use trackedChat instead of getAssistantReply ---
       const apiResponse = await trackedChat("/.netlify/functions/chatgpt", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type":"application/json"},
         body: JSON.stringify({
           messages: [
             { role: "system", content: systemPrompt },
