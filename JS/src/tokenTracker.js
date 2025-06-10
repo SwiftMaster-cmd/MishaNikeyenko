@@ -1,29 +1,34 @@
-// tokenTracker.js – Smart token-aware GPT calls
+// tokenTracker.js – Smart token-aware GPT calls w/ auto model switching
 
 import { init } from "https://cdn.jsdelivr.net/npm/@dqbd/tiktoken-web/dist/esm/index.js";
 const tokenizerPromise = init();
 
+/**
+ * Count estimated tokens in a message.
+ */
 async function countMsgTokens(message) {
   const tokenizer = await tokenizerPromise;
   return tokenizer.encode(message.content).length + 4;
 }
 
-async function breakdownMessages(msgs) {
+/**
+ * Breaks down token count by role.
+ */
+export async function breakdownMessages(msgs) {
   const byRole = { system: 0, user: 0, assistant: 0 };
   let total = 0;
   for (const m of msgs) {
-    const c = await countMsgTokens(m);
-    byRole[m.role] += c;
-    total += c;
+    const count = await countMsgTokens(m);
+    byRole[m.role] += count;
+    total += count;
   }
   return { byRole, total };
 }
 
 /**
- * trackedChat – sends request to GPT API
- * Dynamically switches models:
- * - gpt-4o if visible to user
- * - gpt-3.5-turbo otherwise
+ * trackedChat – handles GPT calls with smart model switching.
+ * - Uses `gpt-4o` for user-visible chats
+ * - Uses `gpt-3.5-turbo` for summaries, memory extraction, etc.
  */
 export async function trackedChat(url, options, logUsage = true) {
   let msgs = [];
@@ -32,11 +37,11 @@ export async function trackedChat(url, options, logUsage = true) {
     const body = JSON.parse(options.body);
     msgs = body.messages || [];
 
-    const visible = msgs.some(
-      m => m.role === "user" || m.role === "assistant"
-    );
-    const model = visible ? "gpt-4o" : "gpt-3.5-turbo";
+    // Smart model selection
+    const isVisible = msgs.some(m => m.role === "user" || m.role === "assistant");
+    const model = isVisible ? "gpt-4o" : "gpt-3.5-turbo";
 
+    // Apply model and stringify
     body.model = model;
     options.body = JSON.stringify(body);
 
@@ -55,6 +60,6 @@ export async function trackedChat(url, options, logUsage = true) {
     if (window.debugLog) {
       window.debugLog(`[ERROR][trackedChat] ${err.message}`);
     }
-    return { choices: [{ message: { content: "[Error]" } }] };
+    return { choices: [{ message: { content: "[Error: GPT request failed]" } }] };
   }
 }
