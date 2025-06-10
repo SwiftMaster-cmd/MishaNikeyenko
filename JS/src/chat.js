@@ -36,8 +36,8 @@ window.addEventListener("DOMContentLoaded", () => {
   let uid = null;
   let chatRef = null;
   const state = {};
+  let last20Cache = [];
 
-  // 1) Set up Firebase auth & real-time listener
   onAuthStateChanged(auth, user => {
     if (!user) {
       signInAnonymously(auth).catch(() =>
@@ -59,13 +59,13 @@ window.addEventListener("DOMContentLoaded", () => {
         }))
         .sort((a, b) => a.timestamp - b.timestamp);
 
-      renderMessages(messages);
+      last20Cache = messages.slice(-20);
+      renderMessages(last20Cache);
       scrollToBottom();
       input.focus();
     });
   });
 
-  // 2) Submit handler
   form.addEventListener("submit", async e => {
     e.preventDefault();
     const prompt = input.value.trim();
@@ -79,16 +79,14 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      // a) Save user message
+      // 1) Save user message
       await saveMessageToChat("user", prompt, uid);
 
-      // b) Gather context
-      const [last20, ctx] = await Promise.all([
-        fetchLast20Messages(uid),
-        getAllContext(uid)
-      ]);
+      // 2) Refresh last20Cache before LLM call
+      last20Cache = await fetchLast20Messages(uid);
 
-      // c) Build system prompt
+      // 3) Build system prompt
+      const ctx = await getAllContext(uid);
       const systemPrompt = buildSystemPrompt({
         memory: ctx.memory,
         todayLog: ctx.dayLog,
@@ -99,25 +97,33 @@ window.addEventListener("DOMContentLoaded", () => {
         date: new Date().toISOString().slice(0, 10)
       });
 
-      // d) Let admin.js handle LLM + function calls
+      // 4) Agent call
       const reply = await processUserMessage({
         messages: [
           { role: "system", content: systemPrompt },
-          ...last20,
+          ...last20Cache,
           { role: "user", content: prompt }
         ],
         uid,
         state
       });
 
-      // e) Save assistant reply
+      // 5) Save assistant reply
       await saveMessageToChat("assistant", reply, uid);
 
-      // f) Immediately fetch & render updated messages
-      const updated = await fetchLast20Messages(uid);
-      renderMessages(updated);
+      // 6) Immediately update UI from cache + local reply
+      const newMsg = {
+        id: `local-${Date.now()}`,
+        role: "assistant",
+        content: reply,
+        timestamp: Date.now()
+      };
+      last20Cache = [...last20Cache, newMsg].slice(-20);
+      renderMessages(last20Cache);
       updateHeaderWithAssistantReply(reply);
       scrollToBottom();
+
+      // 7) Summarize if needed
       await summarizeChatIfNeeded(uid);
 
     } catch (err) {
@@ -130,7 +136,6 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 3) Keyboard `/console` shortcut
   let buffer = "";
   document.addEventListener("keydown", e => {
     if (
