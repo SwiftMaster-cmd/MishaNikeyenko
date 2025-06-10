@@ -15,7 +15,7 @@ html, body {
   width: 100vw;
   min-width: 100vw;
   font-family: 'Inter', sans-serif;
-   background-color: #000;
+  background-color: #000;
   color: var(--clr-text);
   overflow: hidden;
   margin: 0;
@@ -27,8 +27,8 @@ body {
   min-width: 100vw;
   margin: 0;
   padding: 0;
-    overflow: hidden;
-      overscroll-behavior: none;
+  overflow: hidden;
+  overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -53,11 +53,7 @@ main.chat-container {
   width: 100vw;
   min-width: 0;
   max-width: 100vw;
-    max-height: 100dvh;
-    @supports (height: 100svh) {
-  height: 100svh;
-  max-height: 100svh;
-  }
+  max-height: 100dvh;
   margin: 0;
   overflow-y: auto;
   padding: var(--padding);
@@ -70,30 +66,32 @@ main.chat-container {
   box-sizing: border-box;
 }
 
-/* Message bubbles take nearly full width minus padding */
+/* Message bubbles - improved spacing & alignment */
 .msg {
-  max-width: 50vw;      /* or use 50vw to lock to half the viewport */
-  padding: 0.8rem 1.1rem;
+  max-width: 75%;
+  padding: 0.75rem 1rem;
   border-radius: var(--radius);
   word-break: break-word;
   line-height: 1.5;
-  background: #2c2c3c;
   animation: fadeIn 0.2s ease-in-out;
   transition: opacity 0.3s ease, transform 0.3s ease;
   will-change: opacity, transform;
-  font-size: 1.07rem;
+  font-size: 1.05rem;
 }
 
 .user-msg {
   align-self: flex-end;
   background: var(--clr-user);
   color: white;
+  margin-right: 0.5rem;
 }
 
-.bot-msg, .assistant-msg {
+.bot-msg,
+.assistant-msg {
   align-self: flex-start;
   background: var(--clr-bot);
   color: white;
+  margin-left: 0.5rem;
 }
 
 .debug-msg {
@@ -107,39 +105,37 @@ main.chat-container {
   padding: 0;
 }
 
-/* Full-width input form */
+/* Floating input form like iMessage */
 #chat-form {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   border-top: 1px solid var(--clr-border);
   background: var(--clr-card);
   width: 100vw;
-  min-width: 100vw;
-  max-width: 100vw;
   box-sizing: border-box;
-  position: relative;
-  margin: 0;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 1000;
+  backdrop-filter: blur(18px) saturate(1.3);
 }
 
-/* Full-width text field */
+/* Text input */
 #user-input {
   flex: 1 1 auto;
   min-width: 0;
-  max-width: 100vw;
-  width: 100vw;
   padding: 0.75rem 1rem;
   font-size: 1rem;
-  border-radius: 12px;
+  border-radius: var(--radius);
   border: 1px solid var(--clr-border);
-  background: #2c2c3c;
+  background: rgba(255, 255, 255, 0.05);
   color: var(--clr-text);
   outline: none;
   transition: border 0.2s;
-  margin-right: 0.5rem;
-  height: 44px;
   box-sizing: border-box;
+  height: 44px;
 }
 
 #user-input:disabled {
@@ -148,7 +144,9 @@ main.chat-container {
   cursor: not-allowed;
 }
 
-button[type="submit"], #console-toggle-btn {
+/* Submit & Console buttons */
+button[type="submit"],
+#console-toggle-btn {
   flex: 0 0 auto;
   height: 44px;
   min-width: 48px;
@@ -156,7 +154,7 @@ button[type="submit"], #console-toggle-btn {
   font-size: 1rem;
   font-weight: 600;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius);
   cursor: pointer;
   white-space: nowrap;
   margin: 0;
@@ -231,7 +229,7 @@ button[type="submit"]:active {
   color: var(--clr-muted);
   opacity: 0.93;
   display: none;
-  background: rgba(30,30,50,0.93);
+  background: rgba(30, 30, 50, 0.93);
   padding: 2px 10px;
   border-radius: 7px;
   white-space: nowrap;
@@ -279,26 +277,24 @@ body, html, .chat-container, main.chat-container {
     font-size: 0.98rem;
     padding: 0.8rem 0.1rem;
   }
-  .msg { max-width: 98vw; font-size: 0.98rem; }
+  .msg {
+    max-width: 90vw;
+    font-size: 0.98rem;
+  }
   #chat-form {
     flex-direction: column;
     align-items: stretch;
     gap: 0.5rem;
-    max-width: 100vw;
-    width: 100vw;
-    padding: 0.8rem 0.2rem;
+    padding: 0.8rem 0.6rem;
   }
   #user-input {
     margin-right: 0;
-    min-width: 0;
-    width: 100vw;
-    max-width: 100vw;
-  }
-  button[type="submit"], #console-toggle-btn {
     width: 100%;
-    min-width: 0;
+  }
+  button[type="submit"],
+  #console-toggle-btn {
+    width: 100%;
     margin-left: 0;
-    height: 44px;
     margin-top: 4px;
   }
 }
