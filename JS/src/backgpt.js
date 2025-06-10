@@ -1,4 +1,4 @@
-// 🔹 backgpt.js – Token-savvy pruning and summarization before sending to GPT
+// 🔹 backgpt.js – Summarize only context (system) messages >100 chars before GPT calls
 
 import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "./firebaseConfig.js";
@@ -13,22 +13,21 @@ import {
 import { extractJson, detectMemoryType } from "./chatUtils.js";
 
 const todayStr         = () => new Date().toISOString().slice(0, 10);
-const ASSISTANT_MODEL  = "gpt-4o";          // for final replies
-const CHEAP_MODEL      = "gpt-3.5-turbo";   // for extraction & summarization
+const ASSISTANT_MODEL  = "gpt-4o";         // only for final replies
+const CHEAP_MODEL      = "gpt-3.5-turbo";  // for extraction & summaries
 const LOW_TEMP         = 0.3;
-const KEEP_COUNT       = 10;                // how many raw messages to keep
-const MAX_SAVE_LEN     = 2000;              // hard cap on saved text
-const LONG_MSG_THRESH  = 100;               // threshold to trigger summarization
+const KEEP_COUNT       = 10;               // raw history kept
+const MAX_SAVE_LEN     = 2000;             // hard truncate cap
+const LONG_MSG_THRESH  = 100;              // context summarization threshold
 
 // ─── Helpers ────────────────────────────────────────────
 
-// Truncate any message over MAX_SAVE_LEN
+// truncate saved messages
 function trimContent(s) {
-  if (s.length <= MAX_SAVE_LEN) return s;
-  return s.slice(0, MAX_SAVE_LEN) + "\n…[truncated]";
+  return s.length <= MAX_SAVE_LEN ? s : s.slice(0, MAX_SAVE_LEN) + "\n…[truncated]";
 }
 
-// Summarize a block of messages (used for history pruning)
+// summarize a block of messages (for history pruning)
 async function summarizeBlock(block) {
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST", headers: {"Content-Type":"application/json"},
@@ -49,7 +48,7 @@ async function summarizeBlock(block) {
   return data.choices?.[0]?.message?.content || "[…summary failed]";
 }
 
-// Summarize a single long message into one sentence
+// one-sentence summary for a single system message
 async function summarizeText(text) {
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST", headers: {"Content-Type":"application/json"},
@@ -57,7 +56,7 @@ async function summarizeText(text) {
       model: CHEAP_MODEL,
       temperature: LOW_TEMP,
       messages: [
-        { role: "system", content: "In one sentence, summarize the following message:" },
+        { role: "system", content: "In one sentence, summarize the following context:" },
         { role: "user",   content: text }
       ]
     })
@@ -65,7 +64,7 @@ async function summarizeText(text) {
   const data = await res.json();
   if (data.usage && window.debugLog) {
     const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
-    window.debugLog(`[USAGE][SummarizeMsg] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
+    window.debugLog(`[USAGE][SummarizeContext] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
   }
   return data.choices?.[0]?.message?.content || text.slice(0, LONG_MSG_THRESH) + "…";
 }
@@ -119,17 +118,18 @@ export async function getAllContext(uid) {
 
 // ─── 4. Generate assistant reply via GPT ─────────────────
 export async function getAssistantReply(fullMessages) {
-  // 4a) Pre-summarize any message > LONG_MSG_THRESH
+  // 4a) Summarize only system messages > threshold
   const pruned = [];
   for (let m of fullMessages) {
-    let content = m.content;
-    if (content.length > LONG_MSG_THRESH) {
-      content = await summarizeText(content);
+    if (m.role === "system" && m.content.length > LONG_MSG_THRESH) {
+      const short = await summarizeText(m.content);
+      pruned.push({ role: "system", content: short });
+    } else {
+      pruned.push(m);
     }
-    pruned.push({ role: m.role, content });
   }
 
-  // 4b) Call GPT with pruned history
+  // 4b) Call GPT with pruned context
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -173,7 +173,6 @@ Return ONLY JSON.`
       { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
     ]
   };
-
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST", headers: {"Content-Type":"application/json"},
     body: JSON.stringify(payload)
