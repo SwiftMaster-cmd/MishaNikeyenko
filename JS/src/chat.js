@@ -80,6 +80,7 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // show spinner and top status
     showChatInputSpinner(true);
     window.setStatusFeedback?.("loading", "Thinking...");
 
@@ -110,7 +111,7 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // 3. Memory intents (preferences, reminders, notes, logs, calendar)
+      // 3. Memory intents
       const memory = await extractMemoryFromPrompt(prompt, uid);
       if (memory) {
         await saveMessageToChat("user", prompt, uid);
@@ -178,11 +179,14 @@ window.addEventListener("DOMContentLoaded", () => {
       window.setStatusFeedback?.("error", "Something went wrong");
       console.error(err);
     } finally {
+      // always hide spinner and clear top status
       showChatInputSpinner(false);
+      window.setStatusFeedback?.("idle", "");
       input.focus();
     }
   });
 
+  // keyboard shortcut to open console
   let buffer = "";
   document.addEventListener("keydown", e => {
     if (
