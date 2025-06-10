@@ -79,18 +79,16 @@ window.addEventListener("DOMContentLoaded", () => {
       input.focus();
       return;
     }
+    input.value = "";
 
-    // show spinner and top status
     showChatInputSpinner(true);
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      // 1. Natural-language commands
       if (await tryNatural(prompt, { uid, chatRef, state })) {
         return;
       }
 
-      // 2. Static slash commands
       const staticCommands = new Set([
         "/time", "/date", "/uid",
         "/clearchat", "/summary", "/commands",
@@ -111,7 +109,6 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // 3. Memory intents
       const memory = await extractMemoryFromPrompt(prompt, uid);
       if (memory) {
         await saveMessageToChat("user", prompt, uid);
@@ -139,7 +136,6 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // 4. Fallback: conversational AI + auto-list detection
       await saveMessageToChat("user", prompt, uid);
 
       const [last20, ctx] = await Promise.all([
@@ -179,14 +175,12 @@ window.addEventListener("DOMContentLoaded", () => {
       window.setStatusFeedback?.("error", "Something went wrong");
       console.error(err);
     } finally {
-      // always hide spinner and clear top status
       showChatInputSpinner(false);
       window.setStatusFeedback?.("idle", "");
       input.focus();
     }
   });
 
-  // keyboard shortcut to open console
   let buffer = "";
   document.addEventListener("keydown", e => {
     if (
