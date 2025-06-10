@@ -52,6 +52,7 @@ window.addEventListener("DOMContentLoaded", () => {
       );
       return;
     }
+
     uid = user.uid;
     chatRef = ref(db, `chatHistory/${uid}`);
 
@@ -68,7 +69,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       renderMessages(messages.slice(-20));
       scrollToBottom();
-      input.focus();
+      input?.focus();
     });
   });
 
@@ -80,7 +81,6 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
     input.value = "";
-
     showChatInputSpinner(true);
     window.setStatusFeedback?.("loading", "Thinking...");
 
@@ -88,21 +88,18 @@ window.addEventListener("DOMContentLoaded", () => {
       if (await tryNatural(prompt, { uid, chatRef, state })) return;
 
       const staticCommands = new Set([
-        "/time", "/date", "/uid",
-        "/clearchat", "/summary", "/commands",
-        "/notes", "/reminders", "/events", "/console"
+        "/time", "/date", "/uid", "/clearchat",
+        "/summary", "/commands", "/notes", "/reminders",
+        "/events", "/console"
       ]);
+
       if (staticCommands.has(prompt)) {
-        if (prompt === "/notes") {
-          await listNotes(chatRef);
-        } else if (prompt === "/reminders") {
-          await listReminders(chatRef);
-        } else if (prompt === "/events") {
-          await listEvents(chatRef);
-        } else if (prompt === "/console") {
-          window.showDebugOverlay?.();
-        } else {
-          await handleStaticCommand(prompt, chatRef, uid);
+        switch (prompt) {
+          case "/notes": await listNotes(chatRef); break;
+          case "/reminders": await listReminders(chatRef); break;
+          case "/events": await listEvents(chatRef); break;
+          case "/console": window.showDebugOverlay?.(); break;
+          default: await handleStaticCommand(prompt, chatRef, uid);
         }
         return;
       }
@@ -110,25 +107,18 @@ window.addEventListener("DOMContentLoaded", () => {
       const memory = await extractMemoryFromPrompt(prompt, uid);
       if (memory) {
         await saveMessageToChat("user", prompt, uid);
-        switch (memory.type) {
-          case "preference":
-            await saveMessageToChat("assistant", `✅ Saved preference: "${memory.content}"`, uid);
-            break;
-          case "reminder":
-            await saveMessageToChat("assistant", `✅ Saved reminder: "${memory.content}"`, uid);
-            break;
-          case "calendar": {
-            const on = memory.date ? ` on ${memory.date}` : "";
-            const at = memory.time ? ` at ${memory.time}` : "";
-            await saveMessageToChat("assistant", `✅ Saved event: "${memory.content}"${on}${at}`, uid);
-            break;
-          }
-          case "note":
-            await handleStaticCommand(`/note ${memory.content}`, chatRef, uid);
-            break;
-          case "log":
-            await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
-            break;
+        const responseMap = {
+          preference: `✅ Saved preference: "${memory.content}"`,
+          reminder:   `✅ Saved reminder: "${memory.content}"`,
+          calendar:   `✅ Saved event: "${memory.content}"${memory.date ? ` on ${memory.date}` : ""}${memory.time ? ` at ${memory.time}` : ""}`
+        };
+
+        if (responseMap[memory.type]) {
+          await saveMessageToChat("assistant", responseMap[memory.type], uid);
+        } else if (memory.type === "note") {
+          await handleStaticCommand(`/note ${memory.content}`, chatRef, uid);
+        } else if (memory.type === "log") {
+          await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
         }
         return;
       }
@@ -163,6 +153,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       let reply = apiResponse.choices?.[0]?.message?.content || "[No reply]";
 
+      // Render as a list if it looks like one
       if (/^(\s*[-*]|\d+\.)\s/m.test(reply)) {
         const items = reply
           .split(/\r?\n/)
@@ -178,8 +169,8 @@ window.addEventListener("DOMContentLoaded", () => {
       await summarizeChatIfNeeded(uid);
 
     } catch (err) {
-      window.setStatusFeedback?.("error", "Something went wrong");
       console.error(err);
+      window.setStatusFeedback?.("error", "Something went wrong");
     } finally {
       showChatInputSpinner(false);
       window.setStatusFeedback?.("idle", "");
