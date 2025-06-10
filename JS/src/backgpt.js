@@ -1,5 +1,3 @@
-// backgpt.js
-
 import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "./firebaseConfig.js";
 import {
@@ -67,29 +65,6 @@ async function summarizeText(text) {
   return data.choices?.[0]?.message?.content || text.slice(0, LONG_MSG_THRESH) + "…";
 }
 
-async function getRelevanceMetadata(text) {
-  const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: CHEAP_MODEL,
-      temperature: LOW_TEMP,
-      messages: [
-        {
-          role: "system",
-          content: `For the following user memory or note, return a JSON object:
-{
-  "summary": "1-sentence summary",
-  "tags": ["tag1", "tag2", ...] // like "goal", "habit", "preference", "task", "mood"
-}`
-        },
-        { role: "user", content: text }
-      ]
-    })
-  });
-  const data = await res.json();
-  return extractJson(data.choices?.[0]?.message?.content || "{}") || { summary: "", tags: [] };
-}
-
 // ─── Chat History ────────────────────────────────────────
 
 export async function saveMessageToChat(role, content, uid) {
@@ -100,13 +75,30 @@ export async function saveMessageToChat(role, content, uid) {
   });
 }
 
-// ─── Context Selection ───────────────────────────────────
+export async function fetchLast20Messages(uid) {
+  const snap = await get(child(ref(db), `chatHistory/${uid}`));
+  if (!snap.exists()) return [];
+  const all = Object.entries(snap.val())
+    .map(([_, m]) => ({
+      role: m.role === "bot" ? "assistant" : m.role,
+      content: m.content,
+      timestamp: m.timestamp || 0
+    }))
+    .sort((a, b) => a.timestamp - b.timestamp);
 
-function filterByTags(entries = [], requiredTags = []) {
-  return entries.filter(entry =>
-    (entry.tags || []).some(tag => requiredTags.includes(tag))
-  );
+  if (all.length <= KEEP_COUNT) return all;
+
+  const older = all.slice(0, all.length - KEEP_COUNT);
+  const recent = all.slice(-KEEP_COUNT);
+  const summary = await summarizeBlock(older);
+
+  return [
+    { role: "system", content: `Conversation so far:\n${summary}` },
+    ...recent
+  ];
 }
+
+// ─── Context Selection ───────────────────────────────────
 
 export async function getRelevantContext(prompt, uid) {
   const res = await fetch("/.netlify/functions/chatgpt", {
@@ -117,26 +109,17 @@ export async function getRelevantContext(prompt, uid) {
       messages: [
         {
           role: "system",
-          content: `You are a smart context router.
-Return a JSON object with booleans for these keys:
-{
-  "memory": true | false,
-  "dayLog": true | false,
-  "notes": true | false,
-  "calendar": true | false,
-  "reminders": true | false,
-  "calc": true | false
-}
-Always include "memory" if the prompt refers to:
-- 'me', 'remember', 'what do you know', 'my preferences'
-Return ONLY JSON.`
+          content: `Given a user's prompt, return a JSON object with keys from this list if needed:
+["memory", "dayLog", "notes", "calendar", "reminders", "calc"]
+Return only what's relevant. Return only valid JSON.`
         },
         { role: "user", content: prompt }
       ]
     })
   });
   const data = await res.json();
-  return extractJson(data.choices?.[0]?.message?.content || "{}") || {};
+  const parsed = extractJson(JSON.stringify(data.choices?.[0]?.message?.content || {}));
+  return parsed || {};
 }
 
 export async function getSelectedContext(prompt, uid) {
@@ -144,11 +127,11 @@ export async function getSelectedContext(prompt, uid) {
   const today = todayStr();
   const ctx = {};
   const sources = {
-    memory:    async () => filterByTags(await getMemory(uid), ["preference", "goal", "habit"]),
+    memory:    () => getMemory(uid),
     dayLog:    () => getDayLog(uid, today),
-    notes:     async () => filterByTags(await getNotes(uid), ["important", "task", "project"]),
+    notes:     () => getNotes(uid),
     calendar:  () => getCalendar(uid),
-    reminders: async () => filterByTags(await getReminders(uid), ["task", "event"]),
+    reminders: () => getReminders(uid),
     calc:      () => getCalcHistory(uid)
   };
   await Promise.all(Object.entries(keys).map(async ([key]) => {
@@ -157,55 +140,54 @@ export async function getSelectedContext(prompt, uid) {
   return ctx;
 }
 
+// ─── Compression ─────────────────────────────────────────
+
+async function compressMessages(messages, maxTokens = 1000) {
+  const result = [];
+  let total = 0;
+
+  for (const m of messages.reverse()) {
+    const content = m.content || "";
+    const tokenEstimate = Math.ceil(content.length / 4);
+
+    if (total + tokenEstimate > maxTokens) {
+      if (m.role === "system" && content.length > LONG_MSG_THRESH) {
+        const short = await summarizeText(content);
+        const shortEstimate = Math.ceil(short.length / 4);
+        if (total + shortEstimate <= maxTokens) {
+          result.unshift({ role: m.role, content: short });
+          total += shortEstimate;
+        }
+      }
+      continue;
+    }
+
+    result.unshift(m);
+    total += tokenEstimate;
+  }
+
+  return result;
+}
+
 // ─── GPT Call ────────────────────────────────────────────
 
-export async function getAssistantReply(fullMessages, prompt, uid) {
-  const MAX_TOKENS = 1000;
-  let total = 0;
-  const finalMessages = [];
-
-  const wantsDetail = /more detail|expand|show all|full (note|log|memory)|deep dive/i.test(prompt);
-
-  // Layer 1: Recent messages
-  const recent = fullMessages.slice(-5).reverse();
-  for (const m of recent) {
-    const size = Math.ceil((m.content || "").length / 4);
-    if (total + size <= MAX_TOKENS) {
-      finalMessages.unshift(m);
-      total += size;
-    }
-  }
-
-  // Layer 2: Context entries (summary or full depending on flag)
-  const context = await getSelectedContext(prompt, uid);
-  for (const [key, list] of Object.entries(context)) {
-    for (const item of list.slice(-5)) {
-      const text = wantsDetail ? item.content : (item.summary || item.content);
-      const line = `${key.toUpperCase()}: ${text}`;
-      const size = Math.ceil(line.length / 4);
-      if (total + size <= MAX_TOKENS) {
-        finalMessages.unshift({ role: "system", content: line });
-        total += size;
-      }
-    }
-  }
+export async function getAssistantReply(fullMessages) {
+  const pruned = await compressMessages(fullMessages, 1000);
 
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      messages: pruned,
       model: CHEAP_MODEL,
-      temperature: 0.8,
-      messages: finalMessages
+      temperature: 0.8
     })
   });
-
   const data = await res.json();
   if (data.usage && window.debugLog) {
     const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
     window.debugLog(`[USAGE][AssistantReply] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
   }
-
   return data.choices?.[0]?.message?.content || "[No reply]";
 }
 
@@ -216,15 +198,13 @@ export async function extractMemoryFromPrompt(prompt, uid) {
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
   if (!memoryType) return null;
 
-  const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: CHEAP_MODEL,
-      temperature: LOW_TEMP,
-      messages: [
-        {
-          role: "system",
-          content: `
+  const payload = {
+    model: CHEAP_MODEL,
+    temperature: LOW_TEMP,
+    messages: [
+      {
+        role: "system",
+        content: `
 You are a memory extraction engine. Return exactly one JSON object:
 { "type":"note"|"reminder"|"calendar"|"log", "content":"string",
   "date":"optional YYYY-MM-DD", "time":"optional HH:MM", "recurrence":"optional RRULE" }
@@ -235,19 +215,25 @@ Rules:
 4. "/log" or "journal" → log
 5. Otherwise → note
 Return ONLY JSON.`
-        },
-        { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
-      ]
-    })
-  });
+      },
+      { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
+    ]
+  };
 
+  const res = await fetch("/.netlify/functions/chatgpt", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
   const data = await res.json();
+  if (data.usage && window.debugLog) {
+    const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
+    window.debugLog(`[USAGE][Extraction] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
+  }
+
   const parsed = extractJson(
     JSON.stringify(data.choices?.[0]?.message?.content ?? data.choices?.[0])
   );
   if (!parsed?.type || !parsed?.content) return null;
-
-  const relevance = await getRelevanceMetadata(parsed.content);
 
   let path;
   switch (parsed.type) {
@@ -259,8 +245,6 @@ Return ONLY JSON.`
 
   await push(ref(db, path), {
     content: parsed.content,
-    summary: relevance.summary,
-    tags: relevance.tags,
     ...(parsed.date       ? { date: parsed.date }       : {}),
     ...(parsed.time       ? { time: parsed.time }       : {}),
     ...(parsed.recurrence ? { recurrence: parsed.recurrence } : {}),
