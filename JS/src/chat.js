@@ -85,9 +85,7 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      if (await tryNatural(prompt, { uid, chatRef, state })) {
-        return;
-      }
+      if (await tryNatural(prompt, { uid, chatRef, state })) return;
 
       const staticCommands = new Set([
         "/time", "/date", "/uid",
@@ -109,7 +107,7 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const memory = await extractMemoryFromPrompt(prompt, uid);
+      const memory = await extractMemoryFromPrompt(prompt, uid); // uses 3.5
       if (memory) {
         await saveMessageToChat("user", prompt, uid);
         switch (memory.type) {
@@ -122,11 +120,7 @@ window.addEventListener("DOMContentLoaded", () => {
           case "calendar": {
             const on = memory.date ? ` on ${memory.date}` : "";
             const at = memory.time ? ` at ${memory.time}` : "";
-            await saveMessageToChat(
-              "assistant",
-              `✅ Saved event: "${memory.content}"${on}${at}`,
-              uid
-            );
+            await saveMessageToChat("assistant", `✅ Saved event: "${memory.content}"${on}${at}`, uid);
             break;
           }
           case "note":
@@ -141,10 +135,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
       await saveMessageToChat("user", prompt, uid);
 
-      // fetch full 20 for UI, but only send 5 to GPT
       const [all20, ctx] = await Promise.all([
-        fetchLast20Messages(uid),
-        getAllContext(uid)
+        fetchLast20Messages(uid),     // DB
+        getAllContext(uid)            // uses 3.5
       ]);
       const last5 = all20.slice(-5);
 
@@ -158,11 +151,10 @@ window.addEventListener("DOMContentLoaded", () => {
         date: new Date().toISOString().slice(0, 10)
       });
 
-      // call assistant; backgpt.js handles token logging
       const reply = await getAssistantReply([
         { role: "system", content: systemPrompt },
         ...last5
-      ]);
+      ]); // GPT-4o only for replies
 
       const formatted =
         /^(\s*[-*]|\d+\.)\s/m.test(reply) ?
@@ -178,7 +170,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       await saveMessageToChat("assistant", formatted, uid);
       updateHeaderWithAssistantReply(formatted);
-      await summarizeChatIfNeeded(uid);
+      await summarizeChatIfNeeded(uid); // uses 3.5
 
     } catch (err) {
       window.setStatusFeedback?.("error", "Something went wrong");
