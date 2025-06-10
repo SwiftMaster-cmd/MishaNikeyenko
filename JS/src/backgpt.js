@@ -1,5 +1,4 @@
-// 🔹 backgpt.js – Handles assistant replies, memory context, saving, summaries
-
+// backgpt.js – Handles assistant replies, memory context, saving, summaries
 import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "./firebaseConfig.js";
 import {
@@ -11,6 +10,7 @@ import {
   getCalcHistory
 } from "./memoryManager.js";
 import { extractJson, detectMemoryType } from "./chatUtils.js";
+import { trackedChat } from "./tokenTracker.js"; // ← track tokens
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -58,7 +58,7 @@ export async function getAllContext(uid) {
 
 // ─── 4. Generate assistant reply via GPT ───────────────
 export async function getAssistantReply(fullMessages) {
-  const res = await fetch("/.netlify/functions/chatgpt", {
+  const data = await trackedChat("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -67,41 +67,103 @@ export async function getAssistantReply(fullMessages) {
       temperature: 0.8
     })
   });
-  const data = await res.json();
-
-  // log usage for assistant reply
-  if (data.usage && window.debugLog) {
-    const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
-    window.debugLog(
-      `[USAGE][AssistantReply] prompt:${prompt_tokens}` +
-      ` completion:${completion_tokens}` +
-      ` total:${total_tokens}`
-    );
-  }
-
   return data.choices?.[0]?.message?.content || "[No reply]";
 }
 
-// ─── New parsing helpers (unchanged) ───────────────────
+// ─── New parsing helpers ───────────────────────────────
 const weekdayMap = {
-  sunday: "SU", monday: "MO", tuesday: "TU", wednesday: "WE",
-  thursday: "TH", friday: "FR", saturday: "SA"
+  sunday:    "SU",
+  monday:    "MO",
+  tuesday:   "TU",
+  wednesday: "WE",
+  thursday:  "TH",
+  friday:    "FR",
+  saturday:  "SA"
 };
-function parseNaturalDate(text) { /* …same as before… */ }
-function parseTime(text)        { /* …same as before… */ }
-function parseRecurrence(text)  { /* …same as before… */ }
+
+function parseNaturalDate(text) {
+  const today = new Date();
+  if (/\btoday\b/i.test(text)) {
+    return today.toISOString().slice(0, 10);
+  }
+  if (/\btomorrow\b/i.test(text)) {
+    const t = new Date(today);
+    t.setDate(t.getDate() + 1);
+    return t.toISOString().slice(0, 10);
+  }
+  const wd = Object.keys(weekdayMap).find(d => new RegExp(`\\b${d}\\b`, "i").test(text));
+  if (wd) {
+    const t = new Date(today);
+    const diff = ((Object.keys(weekdayMap).indexOf(wd) + 7) - t.getDay()) % 7 || 7;
+    t.setDate(t.getDate() + diff);
+    return t.toISOString().slice(0, 10);
+  }
+  const iso = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  return iso ? iso[1] : null;
+}
+
+function parseTime(text) {
+  const m = text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10),
+      min = m[2] ? parseInt(m[2], 10) : 0;
+  const ampm = m[3]?.toLowerCase();
+  if (ampm === "pm" && h < 12) h += 12;
+  if (ampm === "am" && h === 12) h = 0;
+  return `${h.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")}`;
+}
+
+function parseRecurrence(text) {
+  const every = text.match(/\bevery\s+(day|week|month|(\w+day))\b/i);
+  if (!every) return null;
+  const freq = every[1].toLowerCase();
+  if (freq === "day")   return { rrule: "FREQ=DAILY" };
+  if (freq === "week")  return { rrule: "FREQ=WEEKLY" };
+  if (freq === "month") return { rrule: "FREQ=MONTHLY" };
+  if (weekdayMap[freq]) return { rrule: `FREQ=WEEKLY;BYDAY=${weekdayMap[freq]}` };
+  return null;
+}
 
 // ─── 5. Extract memory from prompt ─────────────────────
-//    uses cheap model for fallback extraction
+//     uses cheap model for fallback extraction
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
-  // (a) explicit calendar & reminders, (b) preferences… omitted for brevity
 
-  // (d) Fallback: use cheap model for extraction
+  // a) explicit calendar event
+  const date = parseNaturalDate(prompt);
+  const time = parseTime(prompt);
+  const rec  = parseRecurrence(prompt);
+  if (/\b(?:remember(?: to)?\s*)?i need\b/i.test(prompt) && date) {
+    const content = prompt.replace(/.*?i need\s+/i, "").split(/\bon\b/i)[0].trim();
+    const node = { content, ...(date ? { date } : {}), ...(time ? { time } : {}), ...(rec ? { recurrence: rec.rrule } : {}), timestamp: Date.now() };
+    await push(ref(db, `calendarEvents/${uid}`), node);
+    return { type: "calendar", ...node };
+  }
+
+  // b) reminder without date
+  const remMatch = prompt.match(/\b(?:remember(?: to)?\s*)?i need\s+(.+?)(?:\s+on\b|\s*$)/i);
+  if (remMatch && !date) {
+    const content = remMatch[1].trim();
+    const node = { content, ...(rec ? { recurrence: rec.rrule } : {}), timestamp: Date.now() };
+    await push(ref(db, `reminders/${uid}`), node);
+    return { type: "reminder", ...node };
+  }
+
+  // c) preferences
+  const prefMatch = prompt.match(/\b(?:remember(?: that)?\s*)?i\s+(like|love|prefer|dislike|hate)\s+(.+)/i);
+  if (prefMatch) {
+    const verb  = prefMatch[1].toLowerCase();
+    const value = prefMatch[2].trim();
+    const node  = { content: `${verb} ${value}`, timestamp: Date.now() };
+    await push(ref(db, `memory/${uid}/preferences/${verb}s`), node);
+    return { type: "preference", key: `${verb}s`, ...node };
+  }
+
+  // d) fallback via GPT (tracked)
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
   if (!memoryType) return null;
 
-  const extractionRes = await fetch("/.netlify/functions/chatgpt", {
+  const extractionData = await trackedChat("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -126,22 +188,13 @@ Return ONLY JSON.`
       ]
     })
   });
-  const extractionData = await extractionRes.json();
 
-  // log usage for memory extraction
-  if (extractionData.usage && window.debugLog) {
-    const { prompt_tokens, completion_tokens, total_tokens } = extractionData.usage;
-    window.debugLog(
-      `[USAGE][Extraction] prompt:${prompt_tokens}` +
-      ` completion:${completion_tokens}` +
-      ` total:${total_tokens}`
-    );
-  }
-
-  const parsed = extractJson(JSON.stringify(extractionData.choices?.[0]?.message?.content ?? extractionData.choices?.[0]));
+  const parsed = extractJson(
+    extractionData.choices?.[0]?.message?.content ||
+    extractionData.choices?.[0]
+  );
   if (!parsed?.type || !parsed?.content) return null;
 
-  // determine path and save
   let path;
   switch (parsed.type) {
     case "calendar": path = `calendarEvents/${uid}`; break;
@@ -160,7 +213,7 @@ Return ONLY JSON.`
 }
 
 // ─── 6. Run summary every 20 messages ──────────────────
-//    uses cheap model for summarization
+//     uses cheap model for summarization
 export async function summarizeChatIfNeeded(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return;
@@ -175,9 +228,9 @@ export async function summarizeChatIfNeeded(uid) {
   if (all.length % 20 !== 0) return;
   const block = all.slice(-20).map(m => `${m.role}: ${m.content}`).join("\n");
 
-  const summaryRes = await fetch("/.netlify/functions/chatgpt", {
+  const summaryData = await trackedChat("/.netlify/functions/chatgpt", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {"Content-Type":"application/json"},
     body: JSON.stringify({
       model: CHEAP_MODEL,
       temperature: LOW_TEMP,
@@ -187,17 +240,6 @@ export async function summarizeChatIfNeeded(uid) {
       ]
     })
   });
-  const summaryData = await summaryRes.json();
-
-  // log usage for summarization
-  if (summaryData.usage && window.debugLog) {
-    const { prompt_tokens, completion_tokens, total_tokens } = summaryData.usage;
-    window.debugLog(
-      `[USAGE][Summary] prompt:${prompt_tokens}` +
-      ` completion:${completion_tokens}` +
-      ` total:${total_tokens}`
-    );
-  }
 
   const summary = summaryData.choices?.[0]?.message?.content || "[No summary]";
   await push(ref(db, `memory/${uid}`), { summary, timestamp: Date.now() });

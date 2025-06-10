@@ -18,6 +18,7 @@ import {
   saveMessageToChat,
   fetchLast20Messages,
   getAllContext,
+  getAssistantReply,
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
@@ -30,7 +31,6 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 import { tryNatural } from "./naturalCommands.js";
-import { trackedChat } from "./tokenTracker.js";  // <-- new
 
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("chat-form");
@@ -122,8 +122,11 @@ window.addEventListener("DOMContentLoaded", () => {
           case "calendar": {
             const on = memory.date ? ` on ${memory.date}` : "";
             const at = memory.time ? ` at ${memory.time}` : "";
-            await saveMessageToChat("assistant",
-              `✅ Saved event: "${memory.content}"${on}${at}`, uid);
+            await saveMessageToChat(
+              "assistant",
+              `✅ Saved event: "${memory.content}"${on}${at}`,
+              uid
+            );
             break;
           }
           case "note":
@@ -155,34 +158,26 @@ window.addEventListener("DOMContentLoaded", () => {
         date: new Date().toISOString().slice(0, 10)
       });
 
-      // --- use trackedChat instead of getAssistantReply ---
-      const apiResponse = await trackedChat("/.netlify/functions/chatgpt", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...last5
-          ],
-          model: "gpt-4o",
-          temperature: 0.8
-        })
-      });
+      // call assistant; backgpt.js handles token logging
+      const reply = await getAssistantReply([
+        { role: "system", content: systemPrompt },
+        ...last5
+      ]);
 
-      let reply = apiResponse.choices?.[0]?.message?.content || "[No reply]";
+      const formatted =
+        /^(\s*[-*]|\d+\.)\s/m.test(reply) ?
+        `<div class="list-container"><ul>${
+          reply
+            .split(/\r?\n/)
+            .map(l => l.replace(/^\s*([-*]|\d+\.)\s*/, "").trim())
+            .filter(Boolean)
+            .map(li => `<li>${li}</li>`)
+            .join("")
+        }</ul></div>` :
+        reply;
 
-      if (/^(\s*[-*]|\d+\.)\s/m.test(reply)) {
-        const items = reply
-          .split(/\r?\n/)
-          .map(l => l.replace(/^\s*([-*]|\d+\.)\s*/, "").trim())
-          .filter(Boolean)
-          .map(li => `<li>${li}</li>`)
-          .join("");
-        reply = `<div class="list-container"><ul>${items}</ul></div>`;
-      }
-
-      await saveMessageToChat("assistant", reply, uid);
-      updateHeaderWithAssistantReply(reply);
+      await saveMessageToChat("assistant", formatted, uid);
+      updateHeaderWithAssistantReply(formatted);
       await summarizeChatIfNeeded(uid);
 
     } catch (err) {
