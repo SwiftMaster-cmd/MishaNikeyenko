@@ -35,8 +35,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   let uid = null;
   let chatRef = null;
-  const state = {}; // optional state passed to admin.js
+  const state = {};
 
+  // 1) Set up Firebase auth & real-time listener
   onAuthStateChanged(auth, user => {
     if (!user) {
       signInAnonymously(auth).catch(() =>
@@ -58,12 +59,13 @@ window.addEventListener("DOMContentLoaded", () => {
         }))
         .sort((a, b) => a.timestamp - b.timestamp);
 
-      renderMessages(messages.slice(-20));
+      renderMessages(messages);
       scrollToBottom();
       input.focus();
     });
   });
 
+  // 2) Submit handler
   form.addEventListener("submit", async e => {
     e.preventDefault();
     const prompt = input.value.trim();
@@ -77,16 +79,16 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      // 1. Save user message to Firebase
+      // a) Save user message
       await saveMessageToChat("user", prompt, uid);
 
-      // 2. Fetch last messages and context
+      // b) Gather context
       const [last20, ctx] = await Promise.all([
         fetchLast20Messages(uid),
         getAllContext(uid)
       ]);
 
-      // 3. Build system prompt with context
+      // c) Build system prompt
       const systemPrompt = buildSystemPrompt({
         memory: ctx.memory,
         todayLog: ctx.dayLog,
@@ -97,19 +99,25 @@ window.addEventListener("DOMContentLoaded", () => {
         date: new Date().toISOString().slice(0, 10)
       });
 
-      // 4. Assemble messages for agent
-      const messages = [
-        { role: "system", content: systemPrompt },
-        ...last20,
-        { role: "user", content: prompt }
-      ];
+      // d) Let admin.js handle LLM + function calls
+      const reply = await processUserMessage({
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...last20,
+          { role: "user", content: prompt }
+        ],
+        uid,
+        state
+      });
 
-      // 5. Process via admin.js (function-calling agent)
-      const reply = await processUserMessage({ messages, uid, state });
-
-      // 6. Save and render assistant reply
+      // e) Save assistant reply
       await saveMessageToChat("assistant", reply, uid);
+
+      // f) Immediately fetch & render updated messages
+      const updated = await fetchLast20Messages(uid);
+      renderMessages(updated);
       updateHeaderWithAssistantReply(reply);
+      scrollToBottom();
       await summarizeChatIfNeeded(uid);
 
     } catch (err) {
@@ -122,7 +130,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // keyboard shortcut to open debug console on typing "/console"
+  // 3) Keyboard `/console` shortcut
   let buffer = "";
   document.addEventListener("keydown", e => {
     if (
