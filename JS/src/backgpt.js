@@ -252,4 +252,4 @@ export async function summarizeChatIfNeeded(uid) {
   if (all.length % 20 !== 0) return;
   const summary = await summarizeBlock(all.slice(-20));
   await push(ref(db, `memory/${uid}`), { summary, timestamp: Date.now() });
-} which model is backgpt using
+}
