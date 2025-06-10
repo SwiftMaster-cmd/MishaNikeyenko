@@ -1,3 +1,5 @@
+// backgpt.js
+
 import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "./firebaseConfig.js";
 import {
@@ -65,6 +67,29 @@ async function summarizeText(text) {
   return data.choices?.[0]?.message?.content || text.slice(0, LONG_MSG_THRESH) + "…";
 }
 
+async function getRelevanceMetadata(text) {
+  const res = await fetch("/.netlify/functions/chatgpt", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: CHEAP_MODEL,
+      temperature: LOW_TEMP,
+      messages: [
+        {
+          role: "system",
+          content: `For the following user memory or note, return a JSON object:
+{
+  "summary": "1-sentence summary",
+  "tags": ["tag1", "tag2", ...] // like "goal", "habit", "preference", "task", "mood"
+}`
+        },
+        { role: "user", content: text }
+      ]
+    })
+  });
+  const data = await res.json();
+  return extractJson(data.choices?.[0]?.message?.content || "{}") || { summary: "", tags: [] };
+}
+
 // ─── Chat History ────────────────────────────────────────
 
 export async function saveMessageToChat(role, content, uid) {
@@ -75,30 +100,13 @@ export async function saveMessageToChat(role, content, uid) {
   });
 }
 
-export async function fetchLast20Messages(uid) {
-  const snap = await get(child(ref(db), `chatHistory/${uid}`));
-  if (!snap.exists()) return [];
-  const all = Object.entries(snap.val())
-    .map(([_, m]) => ({
-      role: m.role === "bot" ? "assistant" : m.role,
-      content: m.content,
-      timestamp: m.timestamp || 0
-    }))
-    .sort((a, b) => a.timestamp - b.timestamp);
-
-  if (all.length <= KEEP_COUNT) return all;
-
-  const older = all.slice(0, all.length - KEEP_COUNT);
-  const recent = all.slice(-KEEP_COUNT);
-  const summary = await summarizeBlock(older);
-
-  return [
-    { role: "system", content: `Conversation so far:\n${summary}` },
-    ...recent
-  ];
-}
-
 // ─── Context Selection ───────────────────────────────────
+
+function filterByTags(entries = [], requiredTags = []) {
+  return entries.filter(entry =>
+    (entry.tags || []).some(tag => requiredTags.includes(tag))
+  );
+}
 
 export async function getRelevantContext(prompt, uid) {
   const res = await fetch("/.netlify/functions/chatgpt", {
@@ -121,7 +129,6 @@ Return a JSON object with booleans for these keys:
 }
 Always include "memory" if the prompt refers to:
 - 'me', 'remember', 'what do you know', 'my preferences'
-- anything about the user's identity, history, behavior, or assistant's knowledge of the user.
 Return ONLY JSON.`
         },
         { role: "user", content: prompt }
@@ -129,8 +136,7 @@ Return ONLY JSON.`
     })
   });
   const data = await res.json();
-  const parsed = extractJson(data.choices?.[0]?.message?.content || "{}");
-  return parsed || {};
+  return extractJson(data.choices?.[0]?.message?.content || "{}") || {};
 }
 
 export async function getSelectedContext(prompt, uid) {
@@ -138,11 +144,11 @@ export async function getSelectedContext(prompt, uid) {
   const today = todayStr();
   const ctx = {};
   const sources = {
-    memory:    () => getMemory(uid),
+    memory:    async () => filterByTags(await getMemory(uid), ["preference", "goal", "habit"]),
     dayLog:    () => getDayLog(uid, today),
-    notes:     () => getNotes(uid),
+    notes:     async () => filterByTags(await getNotes(uid), ["important", "task", "project"]),
     calendar:  () => getCalendar(uid),
-    reminders: () => getReminders(uid),
+    reminders: async () => filterByTags(await getReminders(uid), ["task", "event"]),
     calc:      () => getCalcHistory(uid)
   };
   await Promise.all(Object.entries(keys).map(async ([key]) => {
@@ -151,14 +157,16 @@ export async function getSelectedContext(prompt, uid) {
   return ctx;
 }
 
-// ─── GPT Call: Layered Compression ───────────────────────
+// ─── GPT Call ────────────────────────────────────────────
 
 export async function getAssistantReply(fullMessages, prompt, uid) {
   const MAX_TOKENS = 1000;
   let total = 0;
   const finalMessages = [];
 
-  // Layer 1: Last 5 messages
+  const wantsDetail = /more detail|expand|show all|full (note|log|memory)|deep dive/i.test(prompt);
+
+  // Layer 1: Recent messages
   const recent = fullMessages.slice(-5).reverse();
   for (const m of recent) {
     const size = Math.ceil((m.content || "").length / 4);
@@ -168,41 +176,17 @@ export async function getAssistantReply(fullMessages, prompt, uid) {
     }
   }
 
-  // Layer 2: Context
+  // Layer 2: Context entries (summary or full depending on flag)
   const context = await getSelectedContext(prompt, uid);
-  const systemPrompt = buildSystemPrompt({
-    memory:    context.memory,
-    todayLog:  context.dayLog,
-    notes:     context.notes,
-    calendar:  context.calendar,
-    reminders: context.reminders,
-    calc:      context.calc,
-    date: todayStr()
-  });
-  const sysSize = Math.ceil(systemPrompt.length / 4);
-  if (total + sysSize <= MAX_TOKENS) {
-    finalMessages.unshift({ role: "system", content: systemPrompt });
-    total += sysSize;
-  } else {
-    const summarized = await summarizeText(systemPrompt);
-    const sumSize = Math.ceil(summarized.length / 4);
-    if (total + sumSize <= MAX_TOKENS) {
-      finalMessages.unshift({ role: "system", content: summarized });
-      total += sumSize;
-    }
-  }
-
-  // Layer 3: Summary of older history
-  const older = fullMessages.slice(0, -5);
-  if (older.length && total < MAX_TOKENS - 100) {
-    const summary = await summarizeBlock(older);
-    const sumSize = Math.ceil(summary.length / 4);
-    if (total + sumSize <= MAX_TOKENS) {
-      finalMessages.unshift({
-        role: "system",
-        content: `Conversation summary:\n${summary}`
-      });
-      total += sumSize;
+  for (const [key, list] of Object.entries(context)) {
+    for (const item of list.slice(-5)) {
+      const text = wantsDetail ? item.content : (item.summary || item.content);
+      const line = `${key.toUpperCase()}: ${text}`;
+      const size = Math.ceil(line.length / 4);
+      if (total + size <= MAX_TOKENS) {
+        finalMessages.unshift({ role: "system", content: line });
+        total += size;
+      }
     }
   }
 
@@ -232,13 +216,15 @@ export async function extractMemoryFromPrompt(prompt, uid) {
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
   if (!memoryType) return null;
 
-  const payload = {
-    model: CHEAP_MODEL,
-    temperature: LOW_TEMP,
-    messages: [
-      {
-        role: "system",
-        content: `
+  const res = await fetch("/.netlify/functions/chatgpt", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: CHEAP_MODEL,
+      temperature: LOW_TEMP,
+      messages: [
+        {
+          role: "system",
+          content: `
 You are a memory extraction engine. Return exactly one JSON object:
 { "type":"note"|"reminder"|"calendar"|"log", "content":"string",
   "date":"optional YYYY-MM-DD", "time":"optional HH:MM", "recurrence":"optional RRULE" }
@@ -249,25 +235,19 @@ Rules:
 4. "/log" or "journal" → log
 5. Otherwise → note
 Return ONLY JSON.`
-      },
-      { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
-    ]
-  };
-
-  const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+        },
+        { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
+      ]
+    })
   });
-  const data = await res.json();
-  if (data.usage && window.debugLog) {
-    const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
-    window.debugLog(`[USAGE][Extraction] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
-  }
 
+  const data = await res.json();
   const parsed = extractJson(
     JSON.stringify(data.choices?.[0]?.message?.content ?? data.choices?.[0])
   );
   if (!parsed?.type || !parsed?.content) return null;
+
+  const relevance = await getRelevanceMetadata(parsed.content);
 
   let path;
   switch (parsed.type) {
@@ -279,6 +259,8 @@ Return ONLY JSON.`
 
   await push(ref(db, path), {
     content: parsed.content,
+    summary: relevance.summary,
+    tags: relevance.tags,
     ...(parsed.date       ? { date: parsed.date }       : {}),
     ...(parsed.time       ? { time: parsed.time }       : {}),
     ...(parsed.recurrence ? { recurrence: parsed.recurrence } : {}),
