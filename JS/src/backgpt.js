@@ -1,4 +1,4 @@
-// 🔹 backgpt.js – Retrieval-augmented, context-pruning assistant
+// 🔹 backgpt.js – Summarize only context (system) messages >100 chars before GPT calls
 
 import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "./firebaseConfig.js";
@@ -12,45 +12,46 @@ import {
 } from "./memoryManager.js";
 import { extractJson, detectMemoryType } from "./chatUtils.js";
 
-const ASSISTANT_MODEL  = "gpt-4o";
-const CHEAP_MODEL      = "gpt-3.5-turbo";
+const todayStr         = () => new Date().toISOString().slice(0, 10);
+const ASSISTANT_MODEL  = "gpt-4o";         // only for final replies
+const CHEAP_MODEL      = "gpt-3.5-turbo";  // for extraction & summaries
 const LOW_TEMP         = 0.3;
-const LONG_MSG_THRESH  = 100;
-const KEEP_COUNT       = 10;
-const MAX_SAVE_LEN     = 2000;
+const KEEP_COUNT       = 10;               // raw history kept
+const MAX_SAVE_LEN     = 2000;             // hard truncate cap
+const LONG_MSG_THRESH  = 100;              // context summarization threshold
 
 // ─── Helpers ────────────────────────────────────────────
 
-// Truncate overly long content before saving
+// truncate saved messages
 function trimContent(s) {
-  return s.length <= MAX_SAVE_LEN
-    ? s
-    : s.slice(0, MAX_SAVE_LEN) + "\n…[truncated]";
+  return s.length <= MAX_SAVE_LEN ? s : s.slice(0, MAX_SAVE_LEN) + "\n…[truncated]";
 }
 
-// Summarize a block of messages with the cheap model
+// summarize a block of messages (for history pruning)
 async function summarizeBlock(block) {
   const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: "POST", headers: {"Content-Type":"application/json"},
     body: JSON.stringify({
       model: CHEAP_MODEL,
       temperature: LOW_TEMP,
       messages: [
         { role: "system", content: "Summarize this conversation in one short paragraph:" },
-        { role: "user", content: block.map(m => `${m.role}: ${m.content}`).join("\n") }
+        { role: "user",   content: block.map(m => `${m.role}: ${m.content}`).join("\n") }
       ]
     })
   });
   const data = await res.json();
+  if (data.usage && window.debugLog) {
+    const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
+    window.debugLog(`[USAGE][HistorySummary] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
+  }
   return data.choices?.[0]?.message?.content || "[…summary failed]";
 }
 
-// One-sentence summary for a single long system message
+// one-sentence summary for a single system message
 async function summarizeText(text) {
   const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: "POST", headers: {"Content-Type":"application/json"},
     body: JSON.stringify({
       model: CHEAP_MODEL,
       temperature: LOW_TEMP,
@@ -61,11 +62,14 @@ async function summarizeText(text) {
     })
   });
   const data = await res.json();
-  return data.choices?.[0]?.message?.content
-    || text.slice(0, LONG_MSG_THRESH) + "…";
+  if (data.usage && window.debugLog) {
+    const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
+    window.debugLog(`[USAGE][SummarizeContext] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
+  }
+  return data.choices?.[0]?.message?.content || text.slice(0, LONG_MSG_THRESH) + "…";
 }
 
-// ─── 1. Save inbound message ─────────────────────────────
+// ─── 1. Save a message to Firebase ───────────────────────
 export async function saveMessageToChat(role, content, uid) {
   await push(ref(db, `chatHistory/${uid}`), {
     role,
@@ -74,78 +78,20 @@ export async function saveMessageToChat(role, content, uid) {
   });
 }
 
-// ─── 2. Function definitions for OpenAI ─────────────────
-const functions = [
-  {
-    name: "fetch_context",
-    description: "Load only the user data fields needed for this query",
-    parameters: {
-      type: "object",
-      properties: {
-        query: { type: "string" },
-        types: {
-          type: "array",
-          items: { type: "string", enum: ["memory","dayLog","chatHistory","notes","calendarEvents","reminders","calcHistory"] }
-        }
-      },
-      required: ["query","types"]
-    }
-  }
-];
-
-// ─── 3. Handler to fetch from Firebase ───────────────────
-async function handleFetchContext(args, uid) {
-  const out = {};
-  const today = new Date().toISOString().slice(0, 10);
-  for (let t of args.types) {
-    switch (t) {
-      case "memory":
-        out.memory = await getMemory(uid);
-        break;
-      case "dayLog":
-        out.dayLog = await getDayLog(uid, today);
-        break;
-      case "notes":
-        out.notes = await getNotes(uid);
-        break;
-      case "calendarEvents":
-        out.calendarEvents = await getCalendar(uid);
-        break;
-      case "reminders":
-        out.reminders = await getReminders(uid);
-        break;
-      case "calcHistory":
-        out.calcHistory = await getCalcHistory(uid);
-        break;
-      case "chatHistory":
-        const snap = await get(child(ref(db), `chatHistory/${uid}`));
-        if (!snap.exists()) {
-          out.chatHistory = [];
-        } else {
-          const all = Object.values(snap.val())
-            .sort((a,b) => (a.timestamp||0) - (b.timestamp||0))
-            .slice(-KEEP_COUNT);
-          out.chatHistory = all;
-        }
-        break;
-    }
-  }
-  return out;
-}
-
-// ─── 4. Fetch pruned history with summarization ──────────
+// ─── 2. Fetch pruned history ─────────────────────────────
 export async function fetchLast20Messages(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return [];
-  const all = Object.values(snap.val())
-    .map(m => ({
+  const all = Object.entries(snap.val())
+    .map(([_, m]) => ({
       role: m.role === "bot" ? "assistant" : m.role,
       content: m.content,
       timestamp: m.timestamp || 0
     }))
-    .sort((a,b) => a.timestamp - b.timestamp);
+    .sort((a, b) => a.timestamp - b.timestamp);
 
   if (all.length <= KEEP_COUNT) return all;
+
   const older = all.slice(0, all.length - KEEP_COUNT);
   const recent = all.slice(-KEEP_COUNT);
   const summary = await summarizeBlock(older);
@@ -156,9 +102,23 @@ export async function fetchLast20Messages(uid) {
   ];
 }
 
-// ─── 5. Main GPT interaction ──────────────────────────────
-export async function getAssistantReply(fullMessages, uid) {
-  // 5a) Prune very long system messages
+// ─── 3. Fetch all contextual memory ───────────────────────
+export async function getAllContext(uid) {
+  const today = todayStr();
+  const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
+    getMemory(uid),
+    getDayLog(uid, today),
+    getNotes(uid),
+    getCalendar(uid),
+    getReminders(uid),
+    getCalcHistory(uid)
+  ]);
+  return { memory, dayLog, notes, calendar, reminders, calc };
+}
+
+// ─── 4. Generate assistant reply via GPT ─────────────────
+export async function getAssistantReply(fullMessages) {
+  // 4a) Summarize only system messages > threshold
   const pruned = [];
   for (let m of fullMessages) {
     if (m.role === "system" && m.content.length > LONG_MSG_THRESH) {
@@ -169,47 +129,27 @@ export async function getAssistantReply(fullMessages, uid) {
     }
   }
 
-  // 5b) Ask GPT which context it needs
-  let res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST", headers: {"Content-Type":"application/json"},
+  // 4b) Call GPT with pruned context
+  const res = await fetch("/.netlify/functions/chatgpt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      messages: pruned,
       model: ASSISTANT_MODEL,
-      messages: [
-        { role: "system", content: "You can call fetch_context to load any user data you need before replying." },
-        ...pruned
-      ],
-      functions,
-      function_call: { name: "fetch_context" }
+      temperature: 0.8
     })
   });
-  let payload = await res.json();
-  const choice = payload.choices[0].message;
-
-  // 5c) If GPT asked to fetch_context, execute it
-  if (choice.function_call) {
-    const args = JSON.parse(choice.function_call.arguments);
-    const ctx  = await handleFetchContext(args, uid);
-
-    // 5d) Send context back and get final answer
-    res = await fetch("/.netlify/functions/chatgpt", {
-      method: "POST", headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        model: ASSISTANT_MODEL,
-        messages: [
-          choice,
-          { role: "function", name: "fetch_context", content: JSON.stringify(ctx) }
-        ]
-      })
-    });
-    payload = await res.json();
+  const data = await res.json();
+  if (data.usage && window.debugLog) {
+    const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
+    window.debugLog(`[USAGE][AssistantReply] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
   }
-
-  return payload.choices[0].message.content || "[No reply]";
+  return data.choices?.[0]?.message?.content || "[No reply]";
 }
 
-// ─── 6. Extract memory from prompt ───────────────────────
+// ─── 5. Extract memory from prompt ───────────────────────
 export async function extractMemoryFromPrompt(prompt, uid) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
   if (!memoryType) return null;
 
@@ -217,8 +157,7 @@ export async function extractMemoryFromPrompt(prompt, uid) {
     model: CHEAP_MODEL,
     temperature: LOW_TEMP,
     messages: [
-      {
-        role: "system",
+      { role: "system",
         content: `
 You are a memory extraction engine. Return exactly one JSON object:
 { "type":"note"|"reminder"|"calendar"|"log", "content":"string",
@@ -234,13 +173,16 @@ Return ONLY JSON.`
       { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
     ]
   };
-
   const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
+    method: "POST", headers: {"Content-Type":"application/json"},
     body: JSON.stringify(payload)
   });
   const data = await res.json();
+  if (data.usage && window.debugLog) {
+    const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
+    window.debugLog(`[USAGE][Extraction] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
+  }
+
   const parsed = extractJson(
     JSON.stringify(data.choices?.[0]?.message?.content ?? data.choices?.[0])
   );
@@ -248,12 +190,11 @@ Return ONLY JSON.`
 
   let path;
   switch (parsed.type) {
-    case "calendar":      path = `calendarEvents/${uid}`; break;
-    case "reminder":      path = `reminders/${uid}`;      break;
-    case "log":           path = `dayLog/${uid}/${today}`;break;
-    default:              path = `notes/${uid}/${today}`; break;
+    case "calendar": path = `calendarEvents/${uid}`; break;
+    case "reminder": path = `reminders/${uid}`;      break;
+    case "log":      path = `dayLog/${uid}/${today}`;break;
+    default:         path = `notes/${uid}/${today}`; break;
   }
-
   await push(ref(db, path), {
     content: parsed.content,
     ...(parsed.date       ? { date: parsed.date }       : {}),
@@ -264,17 +205,17 @@ Return ONLY JSON.`
   return parsed;
 }
 
-// ─── 7. Periodic summary every 20 messages ──────────────
+// ─── 6. Periodic summary every 20 messages ──────────────
 export async function summarizeChatIfNeeded(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return;
-  const all = Object.values(snap.val())
-    .map(m => ({
+  const all = Object.entries(snap.val())
+    .map(([_, m]) => ({
       role: m.role === "bot" ? "assistant" : m.role,
       content: m.content,
       timestamp: m.timestamp || 0
     }))
-    .sort((a,b) => a.timestamp - b.timestamp);
+    .sort((a, b) => a.timestamp - b.timestamp);
 
   if (all.length % 20 !== 0) return;
   const summary = await summarizeBlock(all.slice(-20));
