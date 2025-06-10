@@ -2,14 +2,22 @@
 @import url('variables.css');
 
 /* -- header -- */
-.header-bar{
-  position:fixed; top:0; left:0; width:100%; height:var(--nav-h);
-  display:flex; align-items:center; justify-content:space-between;
-  padding:0 1.6rem;
-  backdrop-filter:blur(18px) saturate(1.3);
-  background:var(--clr-glass);
-  border-bottom:1px solid var(--clr-border);
-  z-index:1000;
+.header-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.6rem;
+  backdrop-filter: blur(18px) saturate(1.3);
+  background: var(--clr-glass);
+  border-bottom: 1px solid var(--clr-border);
+  z-index: 1000;
+  box-sizing: border-box;
 }
 .header-title{
   position:absolute; left:50%; transform:translateX(-50%);
