@@ -77,16 +77,16 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      // Save user message
+      // 1. Save user message to Firebase
       await saveMessageToChat("user", prompt, uid);
 
-      // Fetch history & context
+      // 2. Fetch last messages and context
       const [last20, ctx] = await Promise.all([
         fetchLast20Messages(uid),
         getAllContext(uid)
       ]);
 
-      // Build system prompt
+      // 3. Build system prompt with context
       const systemPrompt = buildSystemPrompt({
         memory: ctx.memory,
         todayLog: ctx.dayLog,
@@ -97,17 +97,17 @@ window.addEventListener("DOMContentLoaded", () => {
         date: new Date().toISOString().slice(0, 10)
       });
 
-      // Assemble messages
+      // 4. Assemble messages for agent
       const messages = [
         { role: "system", content: systemPrompt },
         ...last20,
         { role: "user", content: prompt }
       ];
 
-      // Delegate to admin.js for function-calling and response
+      // 5. Process via admin.js (function-calling agent)
       const reply = await processUserMessage({ messages, uid, state });
 
-      // Save and render assistant reply
+      // 6. Save and render assistant reply
       await saveMessageToChat("assistant", reply, uid);
       updateHeaderWithAssistantReply(reply);
       await summarizeChatIfNeeded(uid);
@@ -122,7 +122,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Keyboard shortcut: type "/console" anywhere to open debug overlay
+  // keyboard shortcut to open debug console on typing "/console"
   let buffer = "";
   document.addEventListener("keydown", e => {
     if (
