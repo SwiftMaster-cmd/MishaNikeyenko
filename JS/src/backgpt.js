@@ -13,7 +13,7 @@ import {
 import { extractJson, detectMemoryType } from "./chatUtils.js";
 
 const todayStr         = () => new Date().toISOString().slice(0, 10);
-const ASSISTANT_MODEL  = "gpt-4o";
+const ASSISTANT_MODEL  = "gpt-3.5-turbo";
 const CHEAP_MODEL      = "gpt-3.5-turbo";
 const LOW_TEMP         = 0.3;
 const KEEP_COUNT       = 10;
@@ -252,4 +252,4 @@ export async function summarizeChatIfNeeded(uid) {
   if (all.length % 20 !== 0) return;
   const summary = await summarizeBlock(all.slice(-20));
   await push(ref(db, `memory/${uid}`), { summary, timestamp: Date.now() });
-}
+} which model is backgpt using
