@@ -17,7 +17,7 @@ import {
 import {
   saveMessageToChat,
   fetchLast20Messages,
-  getAllContext,
+  getSelectedContext,
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
@@ -30,7 +30,7 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 import { tryNatural } from "./naturalCommands.js";
-import { trackedChat } from "./tokenTracker.js";  // <-- new
+import { trackedChat } from "./tokenTracker.js";
 
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("chat-form");
@@ -85,9 +85,7 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      if (await tryNatural(prompt, { uid, chatRef, state })) {
-        return;
-      }
+      if (await tryNatural(prompt, { uid, chatRef, state })) return;
 
       const staticCommands = new Set([
         "/time", "/date", "/uid",
@@ -122,8 +120,7 @@ window.addEventListener("DOMContentLoaded", () => {
           case "calendar": {
             const on = memory.date ? ` on ${memory.date}` : "";
             const at = memory.time ? ` at ${memory.time}` : "";
-            await saveMessageToChat("assistant",
-              `✅ Saved event: "${memory.content}"${on}${at}`, uid);
+            await saveMessageToChat("assistant", `✅ Saved event: "${memory.content}"${on}${at}`, uid);
             break;
           }
           case "note":
@@ -138,12 +135,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
       await saveMessageToChat("user", prompt, uid);
 
-      // fetch full 20 for UI, but only send 5 to GPT
-      const [all20, ctx] = await Promise.all([
-        fetchLast20Messages(uid),
-        getAllContext(uid)
-      ]);
+      const all20 = await fetchLast20Messages(uid);
       const last5 = all20.slice(-5);
+      const ctx = await getSelectedContext(prompt, uid);
 
       const systemPrompt = buildSystemPrompt({
         memory: ctx.memory,
@@ -155,16 +149,14 @@ window.addEventListener("DOMContentLoaded", () => {
         date: new Date().toISOString().slice(0, 10)
       });
 
-      // --- use trackedChat instead of getAssistantReply ---
       const apiResponse = await trackedChat("/.netlify/functions/chatgpt", {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [
             { role: "system", content: systemPrompt },
             ...last5
           ],
-          model: "gpt-4o",
           temperature: 0.8
         })
       });
