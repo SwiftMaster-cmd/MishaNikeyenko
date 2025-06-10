@@ -1,4 +1,4 @@
-// 🔹 backgpt.js – Handles assistant replies, memory context, saving, summaries, and auto-summarization of long messages
+// 🔹 backgpt.js – Token-savvy pruning and summarization before sending to GPT
 
 import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "./firebaseConfig.js";
@@ -20,15 +20,15 @@ const KEEP_COUNT       = 10;                // how many raw messages to keep
 const MAX_SAVE_LEN     = 2000;              // hard cap on saved text
 const LONG_MSG_THRESH  = 100;               // threshold to trigger summarization
 
-// ─── Helpers ─────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────
 
-// 1) Truncate any message over MAX_SAVE_LEN
+// Truncate any message over MAX_SAVE_LEN
 function trimContent(s) {
   if (s.length <= MAX_SAVE_LEN) return s;
   return s.slice(0, MAX_SAVE_LEN) + "\n…[truncated]";
 }
 
-// 2) Summarize a block of messages
+// Summarize a block of messages (used for history pruning)
 async function summarizeBlock(block) {
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST", headers: {"Content-Type":"application/json"},
@@ -44,12 +44,12 @@ async function summarizeBlock(block) {
   const data = await res.json();
   if (data.usage && window.debugLog) {
     const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
-    window.debugLog(`[USAGE][OnTheFlySummary] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
+    window.debugLog(`[USAGE][HistorySummary] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
   }
   return data.choices?.[0]?.message?.content || "[…summary failed]";
 }
 
-// 3) Summarize a single long message
+// Summarize a single long message into one sentence
 async function summarizeText(text) {
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST", headers: {"Content-Type":"application/json"},
@@ -65,20 +65,16 @@ async function summarizeText(text) {
   const data = await res.json();
   if (data.usage && window.debugLog) {
     const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
-    window.debugLog(`[USAGE][SummarizeLongMsg] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
+    window.debugLog(`[USAGE][SummarizeMsg] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
   }
   return data.choices?.[0]?.message?.content || text.slice(0, LONG_MSG_THRESH) + "…";
 }
 
 // ─── 1. Save a message to Firebase ───────────────────────
 export async function saveMessageToChat(role, content, uid) {
-  let finalContent = content;
-  if (content.length > LONG_MSG_THRESH) {
-    finalContent = await summarizeText(content);
-  }
   await push(ref(db, `chatHistory/${uid}`), {
     role,
-    content: trimContent(finalContent),
+    content: trimContent(content),
     timestamp: Date.now()
   });
 }
@@ -95,12 +91,12 @@ export async function fetchLast20Messages(uid) {
     }))
     .sort((a, b) => a.timestamp - b.timestamp);
 
-  if (all.length <= KEEP_COUNT) {
-    return all;
-  }
+  if (all.length <= KEEP_COUNT) return all;
+
   const older = all.slice(0, all.length - KEEP_COUNT);
   const recent = all.slice(-KEEP_COUNT);
   const summary = await summarizeBlock(older);
+
   return [
     { role: "system", content: `Conversation so far:\n${summary}` },
     ...recent
@@ -123,11 +119,22 @@ export async function getAllContext(uid) {
 
 // ─── 4. Generate assistant reply via GPT ─────────────────
 export async function getAssistantReply(fullMessages) {
+  // 4a) Pre-summarize any message > LONG_MSG_THRESH
+  const pruned = [];
+  for (let m of fullMessages) {
+    let content = m.content;
+    if (content.length > LONG_MSG_THRESH) {
+      content = await summarizeText(content);
+    }
+    pruned.push({ role: m.role, content });
+  }
+
+  // 4b) Call GPT with pruned history
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      messages: fullMessages,
+      messages: pruned,
       model: ASSISTANT_MODEL,
       temperature: 0.8
     })
@@ -191,9 +198,9 @@ Return ONLY JSON.`
   }
   await push(ref(db, path), {
     content: parsed.content,
-    ...(parsed.date      ? { date: parsed.date } : {}),
-    ...(parsed.time      ? { time: parsed.time } : {}),
-    ...(parsed.recurrence? { recurrence: parsed.recurrence } : {}),
+    ...(parsed.date       ? { date: parsed.date }       : {}),
+    ...(parsed.time       ? { time: parsed.time }       : {}),
+    ...(parsed.recurrence ? { recurrence: parsed.recurrence } : {}),
     timestamp: Date.now()
   });
   return parsed;
