@@ -109,16 +109,27 @@ export async function getRelevantContext(prompt, uid) {
       messages: [
         {
           role: "system",
-          content: `Given a user's prompt, return a JSON object with keys from this list if needed:
-["memory", "dayLog", "notes", "calendar", "reminders", "calc"]
-Return only what's relevant. Return only valid JSON.`
+          content: `You are a smart context router.
+Return a JSON object with booleans for these keys:
+{
+  "memory": true | false,
+  "dayLog": true | false,
+  "notes": true | false,
+  "calendar": true | false,
+  "reminders": true | false,
+  "calc": true | false
+}
+Always include "memory" if the prompt refers to:
+- 'me', 'remember', 'what do you know', 'my preferences'
+- anything about the user's identity, history, behavior, or assistant's knowledge of the user.
+Return ONLY JSON.`
         },
         { role: "user", content: prompt }
       ]
     })
   });
   const data = await res.json();
-  const parsed = extractJson(JSON.stringify(data.choices?.[0]?.message?.content || {}));
+  const parsed = extractJson(data.choices?.[0]?.message?.content || "{}");
   return parsed || {};
 }
 
@@ -140,54 +151,77 @@ export async function getSelectedContext(prompt, uid) {
   return ctx;
 }
 
-// ─── Compression ─────────────────────────────────────────
+// ─── GPT Call: Layered Compression ───────────────────────
 
-async function compressMessages(messages, maxTokens = 1000) {
-  const result = [];
+export async function getAssistantReply(fullMessages, prompt, uid) {
+  const MAX_TOKENS = 1000;
   let total = 0;
+  const finalMessages = [];
 
-  for (const m of messages.reverse()) {
-    const content = m.content || "";
-    const tokenEstimate = Math.ceil(content.length / 4);
-
-    if (total + tokenEstimate > maxTokens) {
-      if (m.role === "system" && content.length > LONG_MSG_THRESH) {
-        const short = await summarizeText(content);
-        const shortEstimate = Math.ceil(short.length / 4);
-        if (total + shortEstimate <= maxTokens) {
-          result.unshift({ role: m.role, content: short });
-          total += shortEstimate;
-        }
-      }
-      continue;
+  // Layer 1: Last 5 messages
+  const recent = fullMessages.slice(-5).reverse();
+  for (const m of recent) {
+    const size = Math.ceil((m.content || "").length / 4);
+    if (total + size <= MAX_TOKENS) {
+      finalMessages.unshift(m);
+      total += size;
     }
-
-    result.unshift(m);
-    total += tokenEstimate;
   }
 
-  return result;
-}
+  // Layer 2: Context
+  const context = await getSelectedContext(prompt, uid);
+  const systemPrompt = buildSystemPrompt({
+    memory:    context.memory,
+    todayLog:  context.dayLog,
+    notes:     context.notes,
+    calendar:  context.calendar,
+    reminders: context.reminders,
+    calc:      context.calc,
+    date: todayStr()
+  });
+  const sysSize = Math.ceil(systemPrompt.length / 4);
+  if (total + sysSize <= MAX_TOKENS) {
+    finalMessages.unshift({ role: "system", content: systemPrompt });
+    total += sysSize;
+  } else {
+    const summarized = await summarizeText(systemPrompt);
+    const sumSize = Math.ceil(summarized.length / 4);
+    if (total + sumSize <= MAX_TOKENS) {
+      finalMessages.unshift({ role: "system", content: summarized });
+      total += sumSize;
+    }
+  }
 
-// ─── GPT Call ────────────────────────────────────────────
-
-export async function getAssistantReply(fullMessages) {
-  const pruned = await compressMessages(fullMessages, 1000);
+  // Layer 3: Summary of older history
+  const older = fullMessages.slice(0, -5);
+  if (older.length && total < MAX_TOKENS - 100) {
+    const summary = await summarizeBlock(older);
+    const sumSize = Math.ceil(summary.length / 4);
+    if (total + sumSize <= MAX_TOKENS) {
+      finalMessages.unshift({
+        role: "system",
+        content: `Conversation summary:\n${summary}`
+      });
+      total += sumSize;
+    }
+  }
 
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      messages: pruned,
       model: CHEAP_MODEL,
-      temperature: 0.8
+      temperature: 0.8,
+      messages: finalMessages
     })
   });
+
   const data = await res.json();
   if (data.usage && window.debugLog) {
     const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
     window.debugLog(`[USAGE][AssistantReply] prompt:${prompt_tokens} completion:${completion_tokens} total:${total_tokens}`);
   }
+
   return data.choices?.[0]?.message?.content || "[No reply]";
 }
 
