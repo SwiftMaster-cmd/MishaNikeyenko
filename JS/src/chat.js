@@ -33,16 +33,16 @@ import { tryNatural } from "./naturalCommands.js";
 import { trackedChat } from "./tokenTracker.js";
 
 window.addEventListener("DOMContentLoaded", () => {
-  const form = document.getElementById("chat-form");
-  const input = document.getElementById("user-input");
-  const debugToggle = document.getElementById("debug-toggle");
+  const form       = document.getElementById("chat-form");
+  const input      = document.getElementById("user-input");
+  const debugToggle= document.getElementById("debug-toggle");
 
   input?.focus();
   initScrollTracking();
   debugToggle?.addEventListener("click", () => window.showDebugOverlay?.());
 
-  let uid = null;
-  let chatRef = null;
+  let uid    = null;
+  let chatRef= null;
 
   onAuthStateChanged(auth, user => {
     if (!user) {
@@ -84,8 +84,10 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      // 1) Natural commands (e.g. /commands, /notes)
-      if (await tryNatural(prompt, { uid, chatRef, state: {} })) return;
+      // 1) Natural-language commands (e.g. /commands)
+      if (await tryNatural(prompt, { uid, chatRef, state: {} })) {
+        return;
+      }
 
       // 2) Static slash commands
       const staticCommands = new Set([
@@ -101,23 +103,24 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // 3) Memory extraction (preferences, reminders, notes, etc.)
+      // 3) Memory extraction (preferences, reminders, etc.)
       const memory = await extractMemoryFromPrompt(prompt, uid);
       if (memory) {
         await saveMessageToChat("user", prompt, uid);
-        const ack = {
+        const ackMap = {
           preference: `✅ Saved preference: "${memory.content}"`,
           reminder:   `✅ Saved reminder: "${memory.content}"`,
-          calendar:   `✅ Saved event: "${memory.content}"${memory.date?` on ${memory.date}`:""}${memory.time?` at ${memory.time}`:""}`,
-        }[memory.type];
-        if (ack) await saveMessageToChat("assistant", ack, uid);
+          calendar:   `✅ Saved event: "${memory.content}"${memory.date?` on ${memory.date}`:""}${memory.time?` at ${memory.time}`:""}`
+        };
+        if (ackMap[memory.type]) {
+          await saveMessageToChat("assistant", ackMap[memory.type], uid);
+        }
         return;
       }
 
-      // 4) Normal chat: save user, build context, and ONE trackedChat call
+      // 4) Normal chat flow: one trackedChat call
       await saveMessageToChat("user", prompt, uid);
 
-      // keep UI history at 20, but send only last 5 as context
       const [all20, ctx] = await Promise.all([
         fetchLast20Messages(uid),
         getAllContext(uid)
@@ -125,26 +128,24 @@ window.addEventListener("DOMContentLoaded", () => {
       const last5 = all20.slice(-5);
 
       const systemPrompt = buildSystemPrompt({
-        memory: ctx.memory,
-        todayLog: ctx.dayLog,
-        notes: ctx.notes,
-        calendar: ctx.calendar,
+        memory:    ctx.memory,
+        todayLog:  ctx.dayLog,
+        notes:     ctx.notes,
+        calendar:  ctx.calendar,
         reminders: ctx.reminders,
-        calc: ctx.calc,
-        date: new Date().toISOString().slice(0,10)
+        calc:      ctx.calc,
+        date:      new Date().toISOString().slice(0,10)
       });
 
-      // collapse any "search" into this single call
+      // Single API call with token tracking
       const apiResponse = await trackedChat("/.netlify/functions/chatgpt", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
         body: JSON.stringify({
           messages: [
-            { role: "system", content:
-                `${systemPrompt}\n\n` +
-                `User query: "${prompt}"\n` +
-                `If you need external facts, fetch them yourself. Focus on accuracy and brevity.` },
-            ...last5
+            { role: "system", content: systemPrompt },
+            ...last5,
+            { role: "user", content: prompt }
           ],
           model: "gpt-4o",
           temperature: 0.8
@@ -152,8 +153,6 @@ window.addEventListener("DOMContentLoaded", () => {
       });
 
       let reply = apiResponse.choices?.[0]?.message?.content || "[No reply]";
-
-      // auto-format lists
       if (/^(\s*[-*]|\d+\.)\s/m.test(reply)) {
         reply = `<div class="list-container"><ul>${
           reply.split(/\r?\n/)
@@ -177,11 +176,13 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 5) Konami-style listener for "/console" shortcut
+  // Shortcut listener for "/console"
   let buffer = "";
   document.addEventListener("keydown", e => {
-    if (document.activeElement !== input && !e.ctrlKey && !e.metaKey && 
-        !e.altKey && !e.shiftKey) {
+    if (
+      document.activeElement !== input &&
+      !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
+    ) {
       buffer += e.key;
       if (buffer.endsWith("/console")) {
         window.showDebugOverlay?.();
