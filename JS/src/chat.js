@@ -30,26 +30,21 @@ import {
   updateHeaderWithAssistantReply,
   initScrollTracking
 } from "./uiShell.js";
-
 import { tryNatural } from "./naturalCommands.js";
 
 window.addEventListener("DOMContentLoaded", () => {
-  // DOM references
   const form = document.getElementById("chat-form");
   const input = document.getElementById("user-input");
   const debugToggle = document.getElementById("debug-toggle");
 
-  // Initial focus & scroll setup
   input?.focus();
   initScrollTracking();
   debugToggle?.addEventListener("click", () => window.showDebugOverlay?.());
 
-  // Application state
   let uid = null;
   let chatRef = null;
   const state = { lastSearchData: { term: null, results: [] } };
 
-  // Firebase auth and real-time chat listener
   onAuthStateChanged(auth, user => {
     if (!user) {
       signInAnonymously(auth).catch(() =>
@@ -77,7 +72,6 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Message submission handler
   form.addEventListener("submit", async e => {
     e.preventDefault();
     const prompt = input.value.trim();
@@ -85,7 +79,6 @@ window.addEventListener("DOMContentLoaded", () => {
       input.focus();
       return;
     }
-    input.value = "";
 
     showChatInputSpinner(true);
     window.setStatusFeedback?.("loading", "Thinking...");
@@ -167,9 +160,7 @@ window.addEventListener("DOMContentLoaded", () => {
         ...last20
       ]);
 
-      // simple list heuristic
       if (/^(\s*[-*]|\d+\.)\s/m.test(reply)) {
-        // format into <div class="list-container"><ul>…
         const items = reply
           .split(/\r?\n/)
           .map(l => l.replace(/^\s*([-*]|\d+\.)\s*/, "").trim())
@@ -192,7 +183,6 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Keyboard shortcut for `/console`
   let buffer = "";
   document.addEventListener("keydown", e => {
     if (
