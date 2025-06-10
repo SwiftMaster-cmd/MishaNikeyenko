@@ -1,6 +1,15 @@
-// agent.js
+// admin.js
+// Encapsulates GPT function‐calling "agent" logic for your chat app
+
 import OpenAI from "openai";
 import { webSearchBrave } from "./search.js";
+import {
+  saveMessageToChat,
+  fetchLast20Messages,
+  getAllContext,
+  summarizeChatIfNeeded
+} from "./backgpt.js";
+import { buildSystemPrompt } from "./memoryManager.js";
 import {
   saveNoteToFirebase,
   saveReminderToFirebase,
@@ -12,9 +21,10 @@ import {
   getPastSearches
 } from "./learnManager.js";
 
+// Initialize OpenAI client
 const openai = new OpenAI();
 
-// 1) Define the "functions" you’ll expose to GPT
+// 1) Define the functions you’ll expose to GPT
 export const functions = [
   {
     name: "search_web",
@@ -23,7 +33,7 @@ export const functions = [
       type: "object",
       properties: {
         query: { type: "string", description: "Search query" },
-        maxResults: { type: "integer", description: "How many results to fetch" }
+        maxResults: { type: "integer", description: "How many results to fetch (default 5)" }
       },
       required: ["query"]
     }
@@ -76,7 +86,7 @@ export const functions = [
   },
   {
     name: "save_summary",
-    description: "Save last summary to memory",
+    description: "Save the last generated summary to memory",
     parameters: { type: "object", properties: {}, required: [] }
   },
   {
@@ -86,61 +96,5 @@ export const functions = [
   }
 ];
 
-// 2) Core router
-export async function processUserMessage({ messages, uid, state }) {
-  // ask GPT with functions
-  const res = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages,
-    functions,
-    function_call: "auto"
-  });
-
-  const msg = res.choices[0].message;
-  // if GPT wants to call a function:
-  if (msg.function_call) {
-    const { name, arguments: argsJson } = msg.function_call;
-    const args = JSON.parse(argsJson);
-    let funcResult;
-
-    switch (name) {
-      case "search_web":
-        funcResult = await webSearchBrave(args.query, { uid, count: args.maxResults ?? 5 });
-        break;
-      case "create_note":
-        funcResult = await saveNoteToFirebase(args.content, uid);
-        break;
-      case "create_reminder":
-        funcResult = await saveReminderToFirebase(args.content, uid);
-        break;
-      case "create_event":
-        funcResult = await saveEventToFirebase(args.content, uid, args.date, args.time);
-        break;
-      case "learn_topic":
-        funcResult = await learnAboutTopic(args.topic, uid);
-        break;
-      case "save_summary":
-        funcResult = await saveLastSummaryToMemory(uid);
-        break;
-      case "get_past_searches":
-        funcResult = await getPastSearches(uid);
-        break;
-      default:
-        funcResult = { error: "Unknown function" };
-    }
-
-    // send function result back into GPT
-    const followUp = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        ...messages,
-        msg,
-        { role: "function", name, content: JSON.stringify(funcResult) }
-      ]
-    });
-    return followUp.choices[0].message.content;
-  }
-
-  // otherwise just return GPT’s normal reply
-  return msg.content;
-}
+// 2) Main entrypoint -- call this from chat.js
+export async
