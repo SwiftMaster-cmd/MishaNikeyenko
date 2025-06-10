@@ -13,24 +13,24 @@ import {
 import { extractJson, detectMemoryType } from "./chatUtils.js";
 
 const todayStr         = () => new Date().toISOString().slice(0, 10);
-const ASSISTANT_MODEL  = "gpt-4o";         // only for final replies
-const CHEAP_MODEL      = "gpt-3.5-turbo";  // for extraction & summaries
+const ASSISTANT_MODEL  = "gpt-4o";
+const CHEAP_MODEL      = "gpt-3.5-turbo";
 const LOW_TEMP         = 0.3;
-const KEEP_COUNT       = 10;               // raw history kept
-const MAX_SAVE_LEN     = 2000;             // hard truncate cap
-const LONG_MSG_THRESH  = 100;              // context summarization threshold
+const KEEP_COUNT       = 10;
+const MAX_SAVE_LEN     = 2000;
+const LONG_MSG_THRESH  = 100;
 
-// ─── Helpers ────────────────────────────────────────────
+// ─── Trimming ────────────────────────────────────────────
 
-// truncate saved messages
 function trimContent(s) {
   return s.length <= MAX_SAVE_LEN ? s : s.slice(0, MAX_SAVE_LEN) + "\n…[truncated]";
 }
 
-// summarize a block of messages (for history pruning)
+// ─── Summarization ───────────────────────────────────────
+
 async function summarizeBlock(block) {
   const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: CHEAP_MODEL,
       temperature: LOW_TEMP,
@@ -48,10 +48,9 @@ async function summarizeBlock(block) {
   return data.choices?.[0]?.message?.content || "[…summary failed]";
 }
 
-// one-sentence summary for a single system message
 async function summarizeText(text) {
   const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: CHEAP_MODEL,
       temperature: LOW_TEMP,
@@ -69,7 +68,8 @@ async function summarizeText(text) {
   return data.choices?.[0]?.message?.content || text.slice(0, LONG_MSG_THRESH) + "…";
 }
 
-// ─── 1. Save a message to Firebase ───────────────────────
+// ─── Chat History ────────────────────────────────────────
+
 export async function saveMessageToChat(role, content, uid) {
   await push(ref(db, `chatHistory/${uid}`), {
     role,
@@ -78,7 +78,6 @@ export async function saveMessageToChat(role, content, uid) {
   });
 }
 
-// ─── 2. Fetch pruned history ─────────────────────────────
 export async function fetchLast20Messages(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return [];
@@ -102,23 +101,51 @@ export async function fetchLast20Messages(uid) {
   ];
 }
 
-// ─── 3. Fetch all contextual memory ───────────────────────
-export async function getAllContext(uid) {
-  const today = todayStr();
-  const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
-    getMemory(uid),
-    getDayLog(uid, today),
-    getNotes(uid),
-    getCalendar(uid),
-    getReminders(uid),
-    getCalcHistory(uid)
-  ]);
-  return { memory, dayLog, notes, calendar, reminders, calc };
+// ─── Context Selection ───────────────────────────────────
+
+export async function getRelevantContext(prompt, uid) {
+  const res = await fetch("/.netlify/functions/chatgpt", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: CHEAP_MODEL,
+      temperature: LOW_TEMP,
+      messages: [
+        {
+          role: "system",
+          content: `Given a user's prompt, return a JSON object with keys from this list if needed:
+["memory", "dayLog", "notes", "calendar", "reminders", "calc"]
+Return only what's relevant. Return only valid JSON.`
+        },
+        { role: "user", content: prompt }
+      ]
+    })
+  });
+  const data = await res.json();
+  const parsed = extractJson(JSON.stringify(data.choices?.[0]?.message?.content || {}));
+  return parsed || {};
 }
 
-// ─── 4. Generate assistant reply via GPT ─────────────────
+export async function getSelectedContext(prompt, uid) {
+  const keys = await getRelevantContext(prompt, uid);
+  const today = todayStr();
+  const ctx = {};
+  const sources = {
+    memory:    () => getMemory(uid),
+    dayLog:    () => getDayLog(uid, today),
+    notes:     () => getNotes(uid),
+    calendar:  () => getCalendar(uid),
+    reminders: () => getReminders(uid),
+    calc:      () => getCalcHistory(uid)
+  };
+  await Promise.all(Object.entries(keys).map(async ([key]) => {
+    if (sources[key]) ctx[key] = await sources[key]();
+  }));
+  return ctx;
+}
+
+// ─── GPT Call ────────────────────────────────────────────
+
 export async function getAssistantReply(fullMessages) {
-  // 4a) Summarize only system messages > threshold
   const pruned = [];
   for (let m of fullMessages) {
     if (m.role === "system" && m.content.length > LONG_MSG_THRESH) {
@@ -129,7 +156,6 @@ export async function getAssistantReply(fullMessages) {
     }
   }
 
-  // 4b) Call GPT with pruned context
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -147,7 +173,8 @@ export async function getAssistantReply(fullMessages) {
   return data.choices?.[0]?.message?.content || "[No reply]";
 }
 
-// ─── 5. Extract memory from prompt ───────────────────────
+// ─── Memory Extraction ───────────────────────────────────
+
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
   const { memoryType, rawPrompt } = detectMemoryType(prompt);
@@ -157,7 +184,8 @@ export async function extractMemoryFromPrompt(prompt, uid) {
     model: CHEAP_MODEL,
     temperature: LOW_TEMP,
     messages: [
-      { role: "system",
+      {
+        role: "system",
         content: `
 You are a memory extraction engine. Return exactly one JSON object:
 { "type":"note"|"reminder"|"calendar"|"log", "content":"string",
@@ -173,8 +201,9 @@ Return ONLY JSON.`
       { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
     ]
   };
+
   const res = await fetch("/.netlify/functions/chatgpt", {
-    method: "POST", headers: {"Content-Type":"application/json"},
+    method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
   const data = await res.json();
@@ -195,6 +224,7 @@ Return ONLY JSON.`
     case "log":      path = `dayLog/${uid}/${today}`;break;
     default:         path = `notes/${uid}/${today}`; break;
   }
+
   await push(ref(db, path), {
     content: parsed.content,
     ...(parsed.date       ? { date: parsed.date }       : {}),
@@ -202,10 +232,12 @@ Return ONLY JSON.`
     ...(parsed.recurrence ? { recurrence: parsed.recurrence } : {}),
     timestamp: Date.now()
   });
+
   return parsed;
 }
 
-// ─── 6. Periodic summary every 20 messages ──────────────
+// ─── Periodic Summarization ──────────────────────────────
+
 export async function summarizeChatIfNeeded(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return;
