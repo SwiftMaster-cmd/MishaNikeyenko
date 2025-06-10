@@ -1,4 +1,4 @@
-// 🔹 backgpt.js – Efficient smart context + history handling
+// 🔹 backgpt.js – Summarize only context (system) messages >100 chars before GPT calls
 
 import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "./firebaseConfig.js";
@@ -20,11 +20,13 @@ const KEEP_COUNT       = 10;
 const MAX_SAVE_LEN     = 2000;
 const LONG_MSG_THRESH  = 100;
 
-// ─── Trim & Summarize ─────────────────────────────────────
+// ─── Trimming ────────────────────────────────────────────
 
 function trimContent(s) {
   return s.length <= MAX_SAVE_LEN ? s : s.slice(0, MAX_SAVE_LEN) + "\n…[truncated]";
 }
+
+// ─── Summarization ───────────────────────────────────────
 
 async function summarizeBlock(block) {
   const res = await fetch("/.netlify/functions/chatgpt", {
@@ -99,7 +101,7 @@ export async function fetchLast20Messages(uid) {
   ];
 }
 
-// ─── Selective Context Inference ─────────────────────────
+// ─── Context Selection ───────────────────────────────────
 
 export async function getRelevantContext(prompt, uid) {
   const res = await fetch("/.netlify/functions/chatgpt", {
@@ -127,24 +129,21 @@ export async function getSelectedContext(prompt, uid) {
   const keys = await getRelevantContext(prompt, uid);
   const today = todayStr();
   const ctx = {};
-
-  const fetchers = {
-    memory:    async () => (await getMemory(uid)).slice(-1),
-    dayLog:    async () => (await getDayLog(uid, today)).slice?.(-1) || [],
-    notes:     async () => (await getNotes(uid)).slice(-1),
-    calendar:  async () => (await getCalendar(uid)).slice(-1),
-    reminders: async () => (await getReminders(uid)).slice(-1),
-    calc:      async () => (await getCalcHistory(uid)).slice(-1)
+  const sources = {
+    memory:    () => getMemory(uid),
+    dayLog:    () => getDayLog(uid, today),
+    notes:     () => getNotes(uid),
+    calendar:  () => getCalendar(uid),
+    reminders: () => getReminders(uid),
+    calc:      () => getCalcHistory(uid)
   };
-
   await Promise.all(Object.entries(keys).map(async ([key]) => {
-    if (fetchers[key]) ctx[key] = await fetchers[key]();
+    if (sources[key]) ctx[key] = await sources[key]();
   }));
-
   return ctx;
 }
 
-// ─── GPT Response ────────────────────────────────────────
+// ─── GPT Call ────────────────────────────────────────────
 
 export async function getAssistantReply(fullMessages) {
   const pruned = [];
@@ -237,7 +236,7 @@ Return ONLY JSON.`
   return parsed;
 }
 
-// ─── Periodic Summary ────────────────────────────────────
+// ─── Periodic Summarization ──────────────────────────────
 
 export async function summarizeChatIfNeeded(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
