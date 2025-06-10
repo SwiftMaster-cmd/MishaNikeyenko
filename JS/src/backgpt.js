@@ -13,7 +13,7 @@ import {
 import { extractJson, detectMemoryType } from "./chatUtils.js";
 
 const todayStr         = () => new Date().toISOString().slice(0, 10);
-const ASSISTANT_MODEL  = "gpt-3.5-turbo";
+const ASSISTANT_MODEL  = "gpt-4o";
 const CHEAP_MODEL      = "gpt-3.5-turbo";
 const LOW_TEMP         = 0.3;
 const KEEP_COUNT       = 10;
