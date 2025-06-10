@@ -1,4 +1,4 @@
-// chat.js – input & flow control only; UI in uiShell.js; actions delegated to agent.js
+// chat.js – input & flow control only; UI in uiShell.js; actions delegated to admin.js
 
 import { onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
@@ -22,7 +22,7 @@ import {
   updateHeaderWithAssistantReply,
   initScrollTracking
 } from "./uiShell.js";
-import { processUserMessage } from "./agent.js";
+import { processUserMessage } from "./admin.js";
 
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("chat-form");
@@ -35,7 +35,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   let uid = null;
   let chatRef = null;
-  const state = {}; // used by agent.js if needed
+  const state = {}; // optional state passed to admin.js
 
   onAuthStateChanged(auth, user => {
     if (!user) {
@@ -77,16 +77,16 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      // 1. Persist user message
+      // Save user message
       await saveMessageToChat("user", prompt, uid);
 
-      // 2. Fetch recent messages & context
+      // Fetch history & context
       const [last20, ctx] = await Promise.all([
         fetchLast20Messages(uid),
         getAllContext(uid)
       ]);
 
-      // 3. Build system prompt with memory/context
+      // Build system prompt
       const systemPrompt = buildSystemPrompt({
         memory: ctx.memory,
         todayLog: ctx.dayLog,
@@ -97,17 +97,17 @@ window.addEventListener("DOMContentLoaded", () => {
         date: new Date().toISOString().slice(0, 10)
       });
 
-      // 4. Assemble messages for agent
+      // Assemble messages
       const messages = [
         { role: "system", content: systemPrompt },
         ...last20,
         { role: "user", content: prompt }
       ];
 
-      // 5. Let agent.js handle function-calling and reply generation
+      // Delegate to admin.js for function-calling and response
       const reply = await processUserMessage({ messages, uid, state });
 
-      // 6. Persist and display assistant reply
+      // Save and render assistant reply
       await saveMessageToChat("assistant", reply, uid);
       updateHeaderWithAssistantReply(reply);
       await summarizeChatIfNeeded(uid);
@@ -122,7 +122,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // keyboard shortcut to open debug console
+  // Keyboard shortcut: type "/console" anywhere to open debug overlay
   let buffer = "";
   document.addEventListener("keydown", e => {
     if (
