@@ -1,5 +1,4 @@
 // chat.js – input & flow control only; UI in uiShell.js; natural-language commands delegated to naturalCommands.js
-
 import { onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getAuth,
@@ -33,16 +32,16 @@ import { tryNatural } from "./naturalCommands.js";
 import { trackedChat } from "./tokenTracker.js";
 
 window.addEventListener("DOMContentLoaded", () => {
-  const form       = document.getElementById("chat-form");
-  const input      = document.getElementById("user-input");
-  const debugToggle= document.getElementById("debug-toggle");
+  const form        = document.getElementById("chat-form");
+  const input       = document.getElementById("user-input");
+  const debugToggle = document.getElementById("debug-toggle");
 
   input?.focus();
   initScrollTracking();
   debugToggle?.addEventListener("click", () => window.showDebugOverlay?.());
 
-  let uid    = null;
-  let chatRef= null;
+  let uid     = null;
+  let chatRef = null;
 
   onAuthStateChanged(auth, user => {
     if (!user) {
@@ -51,7 +50,7 @@ window.addEventListener("DOMContentLoaded", () => {
       );
       return;
     }
-    uid = user.uid;
+    uid     = user.uid;
     chatRef = ref(db, `chatHistory/${uid}`);
 
     onValue(chatRef, snapshot => {
@@ -84,17 +83,17 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      // 1) Natural-language commands (e.g. /commands)
+      // 1. Natural‐language commands
       if (await tryNatural(prompt, { uid, chatRef, state: {} })) {
         return;
       }
 
-      // 2) Static slash commands
-      const staticCommands = new Set([
+      // 2. Static slash commands
+      const staticCmds = new Set([
         "/time","/date","/uid","/clearchat","/summary","/commands",
         "/notes","/reminders","/events","/console"
       ]);
-      if (staticCommands.has(prompt)) {
+      if (staticCmds.has(prompt)) {
         if (prompt === "/notes")      await listNotes(chatRef);
         else if (prompt === "/reminders") await listReminders(chatRef);
         else if (prompt === "/events")    await listEvents(chatRef);
@@ -103,22 +102,20 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // 3) Memory extraction (preferences, reminders, etc.)
+      // 3. Memory extraction (preferences, reminders, notes, logs)
       const memory = await extractMemoryFromPrompt(prompt, uid);
       if (memory) {
         await saveMessageToChat("user", prompt, uid);
-        const ackMap = {
+        const ack = {
           preference: `✅ Saved preference: "${memory.content}"`,
           reminder:   `✅ Saved reminder: "${memory.content}"`,
           calendar:   `✅ Saved event: "${memory.content}"${memory.date?` on ${memory.date}`:""}${memory.time?` at ${memory.time}`:""}`
-        };
-        if (ackMap[memory.type]) {
-          await saveMessageToChat("assistant", ackMap[memory.type], uid);
-        }
+        }[memory.type];
+        if (ack) await saveMessageToChat("assistant", ack, uid);
         return;
       }
 
-      // 4) Normal chat flow: one trackedChat call
+      // 4. Main chat: record user message, build context, single trackedChat call
       await saveMessageToChat("user", prompt, uid);
 
       const [all20, ctx] = await Promise.all([
@@ -137,7 +134,6 @@ window.addEventListener("DOMContentLoaded", () => {
         date:      new Date().toISOString().slice(0,10)
       });
 
-      // Single API call with token tracking
       const apiResponse = await trackedChat("/.netlify/functions/chatgpt", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
@@ -164,6 +160,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
       await saveMessageToChat("assistant", reply, uid);
       updateHeaderWithAssistantReply(reply);
+
+      // 5. Summarize if needed (silent)
       await summarizeChatIfNeeded(uid);
 
     } catch (err) {
@@ -176,7 +174,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Shortcut listener for "/console"
+  // Shortcut for "/console"
   let buffer = "";
   document.addEventListener("keydown", e => {
     if (
