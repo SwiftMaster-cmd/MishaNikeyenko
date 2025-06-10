@@ -1,3 +1,5 @@
+// 🔹 backgpt.js – Summarize only context (system) messages >100 chars before GPT calls
+
 import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "./firebaseConfig.js";
 import {
@@ -11,6 +13,7 @@ import {
 import { extractJson, detectMemoryType } from "./chatUtils.js";
 
 const todayStr         = () => new Date().toISOString().slice(0, 10);
+const ASSISTANT_MODEL  = "gpt-4o";
 const CHEAP_MODEL      = "gpt-3.5-turbo";
 const LOW_TEMP         = 0.3;
 const KEEP_COUNT       = 10;
@@ -140,46 +143,25 @@ export async function getSelectedContext(prompt, uid) {
   return ctx;
 }
 
-// ─── Compression ─────────────────────────────────────────
-
-async function compressMessages(messages, maxTokens = 1000) {
-  const result = [];
-  let total = 0;
-
-  for (const m of messages.reverse()) {
-    const content = m.content || "";
-    const tokenEstimate = Math.ceil(content.length / 4);
-
-    if (total + tokenEstimate > maxTokens) {
-      if (m.role === "system" && content.length > LONG_MSG_THRESH) {
-        const short = await summarizeText(content);
-        const shortEstimate = Math.ceil(short.length / 4);
-        if (total + shortEstimate <= maxTokens) {
-          result.unshift({ role: m.role, content: short });
-          total += shortEstimate;
-        }
-      }
-      continue;
-    }
-
-    result.unshift(m);
-    total += tokenEstimate;
-  }
-
-  return result;
-}
-
 // ─── GPT Call ────────────────────────────────────────────
 
 export async function getAssistantReply(fullMessages) {
-  const pruned = await compressMessages(fullMessages, 1000);
+  const pruned = [];
+  for (let m of fullMessages) {
+    if (m.role === "system" && m.content.length > LONG_MSG_THRESH) {
+      const short = await summarizeText(m.content);
+      pruned.push({ role: "system", content: short });
+    } else {
+      pruned.push(m);
+    }
+  }
 
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       messages: pruned,
-      model: CHEAP_MODEL,
+      model: ASSISTANT_MODEL,
       temperature: 0.8
     })
   });
