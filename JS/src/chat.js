@@ -1,4 +1,4 @@
-// chat.js – input & flow control only; UI in uiShell.js; natural-language commands delegated to naturalCommands.js
+// chat.js – input & flow control only; UI in uiShell.js; actions delegated to agent.js
 
 import { onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
@@ -9,17 +9,9 @@ import {
 
 import { db, auth } from "./firebaseConfig.js";
 import {
-  handleStaticCommand,
-  listNotes,
-  listReminders,
-  listEvents
-} from "./commandHandlers.js";
-import {
   saveMessageToChat,
   fetchLast20Messages,
   getAllContext,
-  getAssistantReply,
-  extractMemoryFromPrompt,
   summarizeChatIfNeeded
 } from "./backgpt.js";
 import { buildSystemPrompt } from "./memoryManager.js";
@@ -30,7 +22,7 @@ import {
   updateHeaderWithAssistantReply,
   initScrollTracking
 } from "./uiShell.js";
-import { tryNatural } from "./naturalCommands.js";
+import { processUserMessage } from "./agent.js";
 
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("chat-form");
@@ -43,7 +35,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   let uid = null;
   let chatRef = null;
-  const state = { lastSearchData: { term: null, results: [] } };
+  const state = {}; // used by agent.js if needed
 
   onAuthStateChanged(auth, user => {
     if (!user) {
@@ -79,76 +71,22 @@ window.addEventListener("DOMContentLoaded", () => {
       input.focus();
       return;
     }
-
-    // clear input immediately
     input.value = "";
 
-    // show spinner and top status
     showChatInputSpinner(true);
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      // 1. Natural-language commands
-      if (await tryNatural(prompt, { uid, chatRef, state })) {
-        return;
-      }
-
-      // 2. Static slash commands
-      const staticCommands = new Set([
-        "/time", "/date", "/uid",
-        "/clearchat", "/summary", "/commands",
-        "/notes", "/reminders", "/events", "/console"
-      ]);
-      if (staticCommands.has(prompt)) {
-        if (prompt === "/notes") {
-          await listNotes(chatRef);
-        } else if (prompt === "/reminders") {
-          await listReminders(chatRef);
-        } else if (prompt === "/events") {
-          await listEvents(chatRef);
-        } else if (prompt === "/console") {
-          window.showDebugOverlay?.();
-        } else {
-          await handleStaticCommand(prompt, chatRef, uid);
-        }
-        return;
-      }
-
-      // 3. Memory intents
-      const memory = await extractMemoryFromPrompt(prompt, uid);
-      if (memory) {
-        await saveMessageToChat("user", prompt, uid);
-        switch (memory.type) {
-          case "preference":
-            await saveMessageToChat("assistant", `✅ Saved preference: "${memory.content}"`, uid);
-            break;
-          case "reminder":
-            await saveMessageToChat("assistant", `✅ Saved reminder: "${memory.content}"`, uid);
-            break;
-          case "calendar": {
-            const on = memory.date ? ` on ${memory.date}` : "";
-            const at = memory.time ? ` at ${memory.time}` : "";
-            await saveMessageToChat("assistant",
-              `✅ Saved event: "${memory.content}"${on}${at}`, uid);
-            break;
-          }
-          case "note":
-            await handleStaticCommand(`/note ${memory.content}`, chatRef, uid);
-            break;
-          case "log":
-            await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
-            break;
-        }
-        return;
-      }
-
-      // 4. Fallback conversational AI
+      // 1. Persist user message
       await saveMessageToChat("user", prompt, uid);
 
+      // 2. Fetch recent messages & context
       const [last20, ctx] = await Promise.all([
         fetchLast20Messages(uid),
         getAllContext(uid)
       ]);
+
+      // 3. Build system prompt with memory/context
       const systemPrompt = buildSystemPrompt({
         memory: ctx.memory,
         todayLog: ctx.dayLog,
@@ -159,21 +97,17 @@ window.addEventListener("DOMContentLoaded", () => {
         date: new Date().toISOString().slice(0, 10)
       });
 
-      let reply = await getAssistantReply([
+      // 4. Assemble messages for agent
+      const messages = [
         { role: "system", content: systemPrompt },
-        ...last20
-      ]);
+        ...last20,
+        { role: "user", content: prompt }
+      ];
 
-      if (/^(\s*[-*]|\d+\.)\s/m.test(reply)) {
-        const items = reply
-          .split(/\r?\n/)
-          .map(l => l.replace(/^\s*([-*]|\d+\.)\s*/, "").trim())
-          .filter(Boolean)
-          .map(li => `<li>${li}</li>`)
-          .join("");
-        reply = `<div class="list-container"><ul>${items}</ul></div>`;
-      }
+      // 5. Let agent.js handle function-calling and reply generation
+      const reply = await processUserMessage({ messages, uid, state });
 
+      // 6. Persist and display assistant reply
       await saveMessageToChat("assistant", reply, uid);
       updateHeaderWithAssistantReply(reply);
       await summarizeChatIfNeeded(uid);
@@ -182,14 +116,13 @@ window.addEventListener("DOMContentLoaded", () => {
       window.setStatusFeedback?.("error", "Something went wrong");
       console.error(err);
     } finally {
-      // always hide spinner and clear top status
       showChatInputSpinner(false);
       window.setStatusFeedback?.("idle", "");
       input.focus();
     }
   });
 
-  // keyboard shortcut to open console
+  // keyboard shortcut to open debug console
   let buffer = "";
   document.addEventListener("keydown", e => {
     if (
