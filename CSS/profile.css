@@ -20,24 +20,25 @@
   align-items: center;
   padding: 0 1.6rem;
   box-sizing: border-box;
-  overflow: hidden;
   position: relative;
+  overflow: visible;
 }
 
-/* ✨ Overlay for intense bottom blur and fade */
-.header-bar::after {
-  content: "";
+/* 🧊 Intense blur-fade layer */
+.header-blur-fade {
   position: absolute;
-  bottom: 0;
+  bottom: -16px;
   left: 0;
   width: 100%;
-  height: 60%; /* fade starts from 40% up */
+  height: 80px;
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent 100%);
-  backdrop-filter: blur(60px); /* 🧠 intense */
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 100%);
+  backdrop-filter: blur(60px);
   -webkit-backdrop-filter: blur(60px);
-  opacity: 0.9;
-  z-index: 2;
+  opacity: 1;
+  z-index: -1;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
 }
 .header-title{
   position:absolute; left:50%; transform:translateX(-50%);
