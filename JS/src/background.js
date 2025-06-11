@@ -18,7 +18,7 @@
       this.y = Math.random() * H;
       this.vx = (Math.random() - 0.5) * 0.15;
       this.vy = (Math.random() - 0.5) * 0.15;
-this.baseSize = 270 + Math.random() * 120;
+this.baseSize = 180 + Math.random() * 120;
       this.color = colors[Math.floor(Math.random() * colors.length)];
       this.offset = Math.random(); // phase shift so they don't all pulse together
       this.life = 0;
