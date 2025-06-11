@@ -269,7 +269,7 @@ body, html, .chat-container, main.chat-container {
     max-width: 100vw;
     width: 100vw;
     font-size: 0.98rem;
-    padding: 0.8rem 0.1rem;
+    padding: var(--padding) 1rem 10rem; /* more bottom space on iPhone */
   }
   .msg {
     max-width: 90vw;
