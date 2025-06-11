@@ -1,4 +1,4 @@
-// uiShell.js – Enhanced UI: header animation, spinner, scroll, animated message rendering, and inline lists
+// uiShell.js â€" Enhanced UI: header animation, spinner, scroll, animated message rendering, and inline lists
 
 let userHasScrolled = false;
 
