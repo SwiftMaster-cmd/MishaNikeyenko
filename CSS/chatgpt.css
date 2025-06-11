@@ -48,7 +48,7 @@ body {
   padding: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
+  -webkit-overflow-scrolling: none;
 }
 
 main.chat-container {
