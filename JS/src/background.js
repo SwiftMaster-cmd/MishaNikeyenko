@@ -1,62 +1,79 @@
+// background.js – Blob background that reacts to clicks on messages
+
 (() => {
   const canvas = document.getElementById('bg-canvas');
   const ctx = canvas.getContext('2d');
-  let W, H, particles;
-  let lastTimestamp = 0;
+  let W, H, particles = [];
+  let lastTs = 0;
 
-  const colors = [
-    'rgba(191,82,255,1)',  // violet
-    'rgba(255,105,180,1)', // pink
-    'rgba(64,128,255,1)'   // soft blue
-  ];
+  const config = {
+    particleDensity: 1 / 50000,
+    maxSpeed: 0.15,
+    sizeRange: [120, 200],
+    wiggle: { freq: [0.4, 1.4], amp: [0.08, 0.23] },
+    alphaBase: 0.18,
+    hueShiftSpeed: 0.0001,
+    clickReactionDuration: 500,   // ms of attraction after click
+    clickStrength: 0.1            // how strongly particles are pulled
+  };
+
+  let pointer = { x: null, y: null, active: false };
+
+  // Only activate pointer attraction on clicks within a message
+  document.getElementById('chat-log')?.addEventListener('click', e => {
+    pointer.x = e.clientX;
+    pointer.y = e.clientY;
+    pointer.active = true;
+    setTimeout(() => { pointer.active = false; }, config.clickReactionDuration);
+  });
 
   class Particle {
-    constructor() {
-      this.init();
-    }
-
+    constructor() { this.init(); }
     init() {
       this.x = Math.random() * W;
       this.y = Math.random() * H;
-      this.vx = (Math.random() - 0.5) * 0.1;
-      this.vy = (Math.random() - 0.5) * 0.1;
-      this.baseSize = 160 + Math.random() * 100;
-      this.color = colors[Math.floor(Math.random() * colors.length)];
+      this.vx = (Math.random() - 0.5) * config.maxSpeed;
+      this.vy = (Math.random() - 0.5) * config.maxSpeed;
+      this.baseSize = config.sizeRange[0] + Math.random() * (config.sizeRange[1] - config.sizeRange[0]);
+      this.life = Math.random();
       this.offset = Math.random();
-      this.life = 0;
-      this.wiggleFreq = 0.4 + Math.random();
-      this.wiggleAmp = 0.08 + Math.random() * 0.15;
+      this.wf = config.wiggle.freq[0] + Math.random() * (config.wiggle.freq[1] - config.wiggle.freq[0]);
+      this.wa = config.wiggle.amp[0]  + Math.random() * (config.wiggle.amp[1] - config.wiggle.amp[0]);
+      this.hue = Math.random() * 360;
     }
+    update(dt) {
+      const wigX = Math.cos(this.life * Math.PI * 2 * this.wf) * this.wa;
+      const wigY = Math.sin(this.life * Math.PI * 2 * this.wf) * this.wa;
 
-    update(delta) {
-      const t = this.life * Math.PI * 2;
-      const wiggleX = Math.cos(t * this.wiggleFreq) * this.wiggleAmp;
-      const wiggleY = Math.sin(t * this.wiggleFreq) * this.wiggleAmp;
+      if (pointer.active) {
+        const dx = pointer.x - this.x, dy = pointer.y - this.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const force = config.clickStrength * dt * 0.001;
+        this.vx += (dx / dist) * force;
+        this.vy += (dy / dist) * force;
+      }
 
-      const speedMod = 0.5 + 0.5 * Math.sin(this.life * Math.PI * 2);
-      this.vx *= 0.98;
-      this.vy *= 0.98;
-      this.x += (this.vx + wiggleX) * speedMod;
-      this.y += (this.vy + wiggleY) * speedMod;
+      this.vx *= 0.99; this.vy *= 0.99;
+      this.x += (this.vx + wigX) * dt * 0.01;
+      this.y += (this.vy + wigY) * dt * 0.01;
 
-      if (this.x < 0 || this.x > W) this.vx *= -1 + (Math.random() - 0.5) * 0.1;
-      if (this.y < 0 || this.y > H) this.vy *= -1 + (Math.random() - 0.5) * 0.1;
+      if (this.x < 0 || this.x > W) this.vx *= -1;
+      if (this.y < 0 || this.y > H) this.vy *= -1;
 
-      this.life += delta * 0.0002;
-      if (this.life > 1) this.life = 0;
+      this.life = (this.life + dt * 0.0002) % 1;
+      this.hue = (this.hue + config.hueShiftSpeed * dt) % 360;
     }
-
     draw() {
       const phase = (this.life + this.offset) % 1;
-      const easedCycle = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2); // smooth pulse
-
-      const radius = this.baseSize * (1 + 0.3 * easedCycle);
-      const alpha = 0.18 * easedCycle;
+      const pulse = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
+      const radius = this.baseSize * (1 + 0.3 * pulse);
+      const alpha = config.alphaBase * pulse;
+      const color = `hsla(${this.hue},70%,60%,${alpha})`;
 
       const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, radius);
-      grad.addColorStop(0, this.color.replace(',1)', `,${alpha})`));
-      grad.addColorStop(0.5, this.color.replace(',1)', `,${alpha * 0.5})`));
-      grad.addColorStop(1, this.color.replace(',1)', ',0)'));
+      grad.addColorStop(0, color);
+      grad.addColorStop(0.5, color.replace(/[\d\.]+\)$/, '0.5)'));
+      grad.addColorStop(1, color.replace(/[\d\.]+\)$/, '0)'));
 
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -69,24 +86,22 @@
     const ratio = window.devicePixelRatio || 1;
     W = canvas.width = window.innerWidth * ratio;
     H = canvas.height = window.innerHeight * ratio;
-    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.width  = window.innerWidth  + 'px';
     canvas.style.height = window.innerHeight + 'px';
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
-    const count = Math.round((W * H) / 50000);
-    particles = Array.from({ length: count }, () => new Particle());
+    const count = Math.ceil(W * H * config.particleDensity);
+    particles.length = count;
+    for (let i = 0; i < count; i++) {
+      if (!particles[i]) particles[i] = new Particle();
+    }
   }
 
-  function animate(timestamp) {
-    const delta = timestamp - lastTimestamp;
-    lastTimestamp = timestamp;
-
+  function animate(ts) {
+    const dt = Math.min(ts - lastTs, 50);
+    lastTs = ts;
     ctx.clearRect(0, 0, W, H);
-    particles.forEach(p => {
-      p.update(delta);
-      p.draw();
-    });
-
+    particles.forEach(p => { p.update(dt); p.draw(); });
     requestAnimationFrame(animate);
   }
 
