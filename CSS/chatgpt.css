@@ -91,6 +91,7 @@ main.chat-container {
   align-self: flex-start;
   background: transparent;
   color: white;
+    border: 1px solid var(--clr-bot);
   margin-left: 0.5rem;
       backdrop-filter: blur(18px) saturate(1.3);
 }
