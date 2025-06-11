@@ -1,13 +1,13 @@
-// background.js – Particle system with magic bursts & click‐triggered effects
+// background.js – Particle system with upward "magic" bursts from a DOM element
 
 (() => {
   const canvas = document.getElementById('bg-canvas');
   const ctx    = canvas.getContext('2d');
   let W, H, particles = [], lastTimestamp = 0;
+  const ambientCount = () => Math.round((W * H) / 50000);
 
-  // For automatic bursts and click/receive/send effects
-  let magicQueue = 0;
-  const magicEvents = []; // { x, y, count }
+  // Queue for burst events: { x, y, count }
+  const bursts = [];
 
   const colors = [
     'rgba(191,82,255,1)',   // violet
@@ -16,52 +16,37 @@
   ];
 
   class Particle {
-    constructor(x = Math.random() * W, y = Math.random() * H, speedBoost = 1, sizeBase = 160) {
-      this.x = x;
-      this.y = y;
-      this.vx = (Math.random() - 0.5) * 0.1 * speedBoost;
-      this.vy = (Math.random() - 0.5) * 0.1 * speedBoost;
-      this.baseSize = sizeBase + Math.random() * (sizeBase * 0.6);
-      this.color = colors[Math.floor(Math.random() * colors.length)];
-      this.offset = Math.random();
+    constructor(x, y, vx, vy, sizeBase, color) {
+      this.x = x; this.y = y;
+      this.vx = vx; this.vy = vy;
+      this.baseSize = sizeBase;
+      this.color = color;
       this.life = 0;
-      this.wiggleFreq = 0.4 + Math.random();
-      this.wiggleAmp  = 0.08 + Math.random() * 0.15;
+      this.maxLife = 60 + Math.random() * 30;  // frames
     }
 
-    update(delta) {
-      const t = this.life * Math.PI * 2;
-      const wiggleX = Math.cos(t * this.wiggleFreq) * this.wiggleAmp;
-      const wiggleY = Math.sin(t * this.wiggleFreq) * this.wiggleAmp;
-      const speedMod = 0.5 + 0.5 * Math.sin(t);
-
-      this.vx *= 0.98;
-      this.vy *= 0.98;
-      this.x += (this.vx + wiggleX) * speedMod;
-      this.y += (this.vy + wiggleY) * speedMod;
-
-      if (this.x < 0 || this.x > W) this.vx *= -1 + (Math.random() - 0.5) * 0.1;
-      if (this.y < 0 || this.y > H) this.vy *= -1 + (Math.random() - 0.5) * 0.1;
-
-      this.life += delta * 0.0002;
-      if (this.life > 1) this.life = 0;
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.vy += 0.05;            // gravity-like slow down
+      this.life++;
     }
 
     draw() {
-      const phase = (this.life + this.offset) % 1;
-      const eased = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
-      const radius = this.baseSize * (1 + 0.3 * eased);
-      const alpha  = 0.18 * eased;
-
-      const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, radius);
+      const t = this.life / this.maxLife;
+      const size = this.baseSize * (1 - t);
+      const alpha = (1 - t) * 0.8;
+      const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, size);
       grad.addColorStop(0, this.color.replace(',1)', `,${alpha})`));
-      grad.addColorStop(0.5, this.color.replace(',1)', `,${alpha * 0.5})`));
       grad.addColorStop(1, this.color.replace(',1)', ',0)'));
-
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
+      ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    isDead() {
+      return this.life >= this.maxLife;
     }
   }
 
@@ -73,65 +58,69 @@
     canvas.style.height = window.innerHeight + 'px';
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
-    // base background density
-    const count = Math.round((W * H) / 50000);
-    particles = Array.from({ length: count }, () => new Particle());
+    // regenerate ambient particles
+    particles = particles.filter(p => false); // clear
+    for (let i = 0; i < ambientCount(); i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * H;
+      particles.push(new Particle(
+        x, y,
+        (Math.random() - 0.5) * 0.2,   // slow drift
+        (Math.random() - 0.5) * 0.2,
+        100 + Math.random() * 50,
+        colors[Math.floor(Math.random() * colors.length)]
+      ));
+    }
   }
 
-  function animate(timestamp) {
-    const delta = timestamp - lastTimestamp;
-    lastTimestamp = timestamp;
-
-    // 1) Handle global magicQueue: random‐origin sparks
-    if (magicQueue > 0) {
-      const spawn = Math.min(magicQueue, 5);
-      for (let i = 0; i < spawn; i++) {
-        particles.push(new Particle(
-          undefined, undefined, 10, 20  // speedBoost=10, sizeBase=20 for spark look
-        ));
-        magicQueue--;
-      }
-    }
-
-    // 2) Handle click/receive/send events
-    for (let i = magicEvents.length - 1; i >= 0; i--) {
-      const ev = magicEvents[i];
-      const burst = Math.min(ev.count, 5);
-      for (let j = 0; j < burst; j++) {
-        // slight random dispersion around click
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 30;
-        particles.push(new Particle(
-          ev.x + Math.cos(angle) * dist,
-          ev.y + Math.sin(angle) * dist,
-          8, 15
-        ));
-        ev.count--;
-      }
-      if (ev.count <= 0) magicEvents.splice(i, 1);
-    }
-
+  function animate() {
     ctx.clearRect(0, 0, W, H);
-    particles.forEach(p => {
-      p.update(delta);
-      p.draw();
+
+    // spawn bursts
+    bursts.forEach((b, i) => {
+      const spawn = Math.min(b.count, 5);
+      for (let j = 0; j < spawn; j++) {
+        const angle = -Math.PI/2 + (Math.random() - 0.5) * 0.6; // upward cone
+        const speed = 2 + Math.random() * 1.5;
+        particles.push(new Particle(
+          b.x, b.y,
+          Math.cos(angle) * speed,
+          Math.sin(angle) * speed,
+          8 + Math.random() * 4,
+          colors[Math.floor(Math.random() * colors.length)]
+        ));
+        b.count--;
+      }
+      if (b.count <= 0) bursts.splice(i, 1);
     });
 
-    // prune off‐screen or excess particles
-    if (particles.length > 1000) {
-      particles.splice(0, particles.length - 800);
+    // update & draw
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.update();
+      p.draw();
+      if (p.isDead()) particles.splice(i, 1);
     }
 
     requestAnimationFrame(animate);
   }
 
-  // Expose magic triggers globally:
-  window.triggerMagic      = (amount = 30)                => { magicQueue += amount; };
-  window.triggerMagicAt    = (x, y, amount = 30)          => { magicEvents.push({ x, y, count: amount }); };
-  window.triggerMagicOnSend    = () => window.triggerMagic(25);
-  window.triggerMagicOnReceive = () => window.triggerMagic(40);
+  // --- API for triggering bursts from a button ---
+  window.triggerMagicFromElement = (elementId, amount = 30) => {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    // position at center-top of element
+    const x = rect.left + rect.width / 2;
+    const y = rect.top;
+    bursts.push({ x, y, count: amount });
+  };
+
+  // Convenience aliases for send/receive
+  window.triggerMagicOnSend    = () => window.triggerMagicFromElement('send-button', 25);
+  window.triggerMagicOnReceive = () => window.triggerMagicFromElement('send-button', 40);
 
   window.addEventListener('resize', onResize);
   onResize();
-  requestAnimationFrame(animate);
+  animate();
 })();
