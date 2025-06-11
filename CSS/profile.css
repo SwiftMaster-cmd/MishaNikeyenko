@@ -4,13 +4,17 @@
 
 
 .header-bar {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 10;
+  left: 0;
+  right: 0;
+  z-index: 1000;
 
+  width: 100%;
   height: var(--nav-h);
   background: var(--clr-glass);
   backdrop-filter: blur(18px) saturate(1.3);
+
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -18,7 +22,7 @@
   box-sizing: border-box;
 
   pointer-events: auto;
-  transform: translateZ(0); /* 🔒 Helps sticky stay consistent on iOS */
+  transform: translateZ(0); /* keeps it sharp on iOS */
 }
 
 
