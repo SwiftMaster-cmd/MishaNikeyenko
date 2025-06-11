@@ -46,12 +46,13 @@ main.chat-container {
   align-items: stretch;
   width: 100vw;
   min-width: 100vw;
-  height: 100%;
-  overflow: auto; /* ❗ critical */
+  height: 100vh;
+  overflow-y: auto; /* ❗ critical */
   scroll-padding-bottom: 200px; 
   padding-top: var(--nav-h); /* Reserve space for sticky header */
   position: relative;
   background: transparent;
+  -webkit-overflow-scrolling: touch;
   z-index: 1;
   
  
