@@ -8,6 +8,7 @@
   }
 /* -- header -- */
 .header-bar {
+.header-bar {
   position: sticky;
   top: 0;
   z-index: 1000;
@@ -20,6 +21,14 @@
   padding: 0 1.6rem;
   height: var(--nav-h);
   box-sizing: border-box;
+
+  /* ✨ Bottom fade effect */
+  mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
 }
 .header-title{
   position:absolute; left:50%; transform:translateX(-50%);
