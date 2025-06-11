@@ -47,7 +47,7 @@ main.chat-container {
   width: 100vw;
   min-width: 100vw;
   height: 100vh;
-  overflow-y: auto;
+  overflow: hidden; /* ❗ critical */
   padding-top: var(--nav-h); /* Reserve space for sticky header */
   position: relative;
   background: transparent;
