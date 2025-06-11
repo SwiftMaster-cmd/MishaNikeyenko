@@ -52,21 +52,28 @@ body {
 }
 
 main.chat-container {
+  /* Position it beneath a fixed header */
+  position: absolute;
+  top: var(--nav-h);
+  bottom: 0;
+  left: 0;
+  right: 0;
+
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   width: 100vw;
   min-width: 100vw;
-  height: 100vh;
-  overflow-y: auto; /* ❗ critical */
-  scroll-padding-bottom: 200px; 
-  padding-top: var(--nav-h); /* Reserve space for sticky header */
-  position: relative;
-  background: transparent;
+
+  /* Scrollable chat log */
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+
+  /* Ensure new messages/input aren’t covered by keyboard or notch */
+  padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 60px);
+  scroll-padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 60px);
+
+  background: transparent;
   z-index: 1;
-  
- 
 }
 
 #chat-log {

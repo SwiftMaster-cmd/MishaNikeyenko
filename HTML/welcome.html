@@ -1,14 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="viewport"
-      content="width=device-width,
-               initial-scale=1,
-               minimum-scale=1,
-               maximum-scale=1,
-               user-scalable=no" />
+<meta
+  name="viewport"
+  content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+/>
 
-<script>
+
   document.addEventListener('gesturestart', e => e.preventDefault());
   document.addEventListener('gesturechange', e => e.preventDefault());
 </script>
@@ -150,19 +148,27 @@
 </main>
 
 <script>
+  // Grab the viewport meta
   const vp = document.querySelector('meta[name=viewport]');
+
+  // Reset to 1× zoom (including safe‐area)
   function resetZoom() {
     vp.setAttribute(
       'content',
-      'width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no'
+      'width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover'
     );
   }
-  // pinch, dbl-tap, or any zoom gesture
+
+  // Block all Safari pinch/dbl‐tap gestures
+  ['gesturestart', 'gesturechange'].forEach(evt =>
+    document.addEventListener(evt, e => e.preventDefault())
+  );
+
+  // On end of a gesture, snap back
   document.addEventListener('gestureend', resetZoom);
-  document.addEventListener('touchend', () => {
-    // small timeout to let the scale happen then reset
-    setTimeout(resetZoom, 10);
-  });
+
+  // Also guard against any zoom that slips through
+  document.addEventListener('touchend', () => setTimeout(resetZoom, 10));
 </script>
 
 
