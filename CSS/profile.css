@@ -23,7 +23,7 @@
   pointer-events: auto;
   transform: translateZ(0);
     padding-top: 24px; /* Replace with actual pixel height of header */;
-  height: 112px; /* Match this value */
+  height: 96px; /* Match this value */
 }
 
 
