@@ -3,25 +3,19 @@
 
 /* -- header -- */
 .header-bar {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  height: var(--nav-h);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 1.6rem;
-  backdrop-filter: blur(18px) saturate(1.3);
-  background: var(--clr-glass);
-  border-bottom: 1px solid var(--clr-border);
   z-index: 1000;
+  background: var(--clr-glass);
+  backdrop-filter: blur(18px) saturate(1.3);
+  border-bottom: 1px solid var(--clr-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1.6rem;
+  height: var(--nav-h);
   box-sizing: border-box;
-  pointer-events: auto;            /* ⬅ ensures it's interactive */
-  touch-action: none;              /* ⬅ avoid scroll affecting it */
-  will-change: transform;          /* ⬅ hint to browser for perf */
-  }
+}
 .header-title{
   position:absolute; left:50%; transform:translateX(-50%);
   font:600 1.1rem/1 'Inter',sans-serif; pointer-events:none;
