@@ -9,10 +9,12 @@
 /* -- header -- */
 
 .header-bar {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 1000;
+  left: 0;
+  width: 100%;
   height: var(--nav-h);
+  z-index: 1000;
   background: var(--clr-glass);
   backdrop-filter: blur(18px) saturate(1.3);
   display: flex;
@@ -20,8 +22,6 @@
   align-items: center;
   padding: 0 1.6rem;
   box-sizing: border-box;
-  position: relative;
-  overflow: visible;
 }
 
 /* 🧊 Intense blur-fade layer */
