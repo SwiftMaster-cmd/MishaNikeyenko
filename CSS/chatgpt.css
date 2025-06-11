@@ -56,7 +56,7 @@ main.chat-container {
   max-height: 100dvh;
   margin: 0;
   overflow-y: auto;
-  padding: var(--padding);
+  padding: var(--padding) var(--padding) 8rem; /* adds space at bottom for input field */
   scroll-behavior: smooth;
   display: flex;
   flex-direction: column;
@@ -127,7 +127,7 @@ main.chat-container {
   font-size: 1rem;
   border-radius: var(--radius);
   border: 1px solid var(--clr-border);
-  background: rgba(255, 255, 255, 0.05);
+  background: transparent;
   color: var(--clr-text);
   outline: none;
   transition: border 0.2s;
