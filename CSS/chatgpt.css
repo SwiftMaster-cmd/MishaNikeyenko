@@ -5,8 +5,8 @@
   --clr-border: rgba(255, 255, 255, 0.06);          /* ultra-subtle */
   --clr-text: rgba(255, 255, 255, 0.95);            /* bright clean text */
   --clr-muted: rgba(200, 200, 255, 0.45);           /* subtle hinting */
-  --clr-user: rgba(191, 82, 255, 0.8);              /* strong neon-violet */
-  --clr-bot: rgba(64, 72, 128, 0.7);                /* cool AI blue glow */
+  --clr-bot: rgba(191, 82, 255, 0.8);              /* strong neon-violet */
+  --clr-user: rgba(64, 72, 128, 0.7);                /* cool AI blue glow */
   --radius: 18px;
   --padding: 1rem;
 }
