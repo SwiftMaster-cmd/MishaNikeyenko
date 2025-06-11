@@ -167,18 +167,21 @@ button[type="submit"] {
 
 button[type="submit"]:hover,
 button[type="submit"]:active {
-  background: #5b2ee5;
+  background: transparent;
+        backdrop-filter: blur(27px) saturate(1.3);
 }
 
 #console-toggle-btn {
-  background: #363c66;
+  background: transparent;
   color: white;
   margin-left: 0.5rem;
+      backdrop-filter: blur(18px) saturate(1.3);
 }
 
 #console-toggle-btn:active,
 #console-toggle-btn:focus {
   background: #474d8c;
+      backdrop-filter: blur(27px) saturate(1.3);
 }
 
 #chat-loading-spinner {
