@@ -89,7 +89,7 @@ main.chat-container {
 .bot-msg,
 .assistant-msg {
   align-self: flex-start;
-  background: var(--clr-bot);
+  background: transparent;
   color: white;
   margin-left: 0.5rem;
       backdrop-filter: blur(18px) saturate(1.3);
