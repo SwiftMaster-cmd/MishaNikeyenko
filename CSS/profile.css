@@ -18,7 +18,10 @@
   border-bottom: 1px solid var(--clr-border);
   z-index: 1000;
   box-sizing: border-box;
-}
+  pointer-events: auto;            /* ⬅ ensures it's interactive */
+  touch-action: none;              /* ⬅ avoid scroll affecting it */
+  will-change: transform;          /* ⬅ hint to browser for perf */
+  }
 .header-title{
   position:absolute; left:50%; transform:translateX(-50%);
   font:600 1.1rem/1 'Inter',sans-serif; pointer-events:none;
