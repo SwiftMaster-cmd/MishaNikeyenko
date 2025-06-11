@@ -4,39 +4,42 @@
   let W, H, particles;
 
   const colors = [
-    'rgba(191,82,255,0.4)',  // violet
-    'rgba(255,105,180,0.4)', // pink
-    'rgba(64,128,255,0.4)'   // soft blue
+    'rgba(191,82,255,1)',  // violet
+    'rgba(255,105,180,1)', // pink
+    'rgba(64,128,255,1)'   // soft blue
   ];
 
   class Particle {
     constructor() {
-      this.reset();
+      this.init();
     }
-    reset() {
+    init() {
       this.x = Math.random() * W;
       this.y = Math.random() * H;
-      this.vx = (Math.random() - 0.5) * 0.25;
-      this.vy = (Math.random() - 0.5) * 0.25;
-      this.baseSize = 20 + Math.random() * 30;
-      this.life = Math.random();
+      this.vx = (Math.random() - 0.5) * 0.15;
+      this.vy = (Math.random() - 0.5) * 0.15;
+      this.baseSize = 40 + Math.random() * 50;
       this.color = colors[Math.floor(Math.random() * colors.length)];
+      this.offset = Math.random(); // phase shift so they don't all pulse together
+      this.life = 0;
     }
     update() {
       this.x += this.vx;
       this.y += this.vy;
       this.life += 0.002;
-      if (this.x < -50 || this.x > W + 50 || this.y < -50 || this.y > H + 50 || this.life > 1) {
-        this.reset();
-        this.life = 0;
-      }
+
+      // bounce back softly at edges
+      if (this.x < 0 || this.x > W) this.vx *= -1;
+      if (this.y < 0 || this.y > H) this.vy *= -1;
     }
     draw() {
-      const pulse = Math.sin(this.life * Math.PI) * 0.5 + 0.5;
-      const radius = this.baseSize * pulse;
+      const cycle = (Math.sin((this.life + this.offset) * Math.PI * 2) + 1) / 2;
+      const radius = this.baseSize * (0.6 + 0.4 * cycle);
+      const alpha = 0.25 * cycle;
+
       const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, radius);
-      grad.addColorStop(0, this.color.replace('0.4', '0.25'));
-      grad.addColorStop(1, this.color.replace('0.4', '0'));
+      grad.addColorStop(0, this.color.replace(',1)', `,${alpha})`));
+      grad.addColorStop(1, this.color.replace(',1)', ',0)'));
 
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -53,7 +56,7 @@
     canvas.style.height = window.innerHeight + 'px';
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
-    const count = Math.round((W * H) / 14000); // denser than before
+    const count = Math.round((W * H) / 12000); // slightly denser
     particles = Array.from({ length: count }, () => new Particle());
   }
 
