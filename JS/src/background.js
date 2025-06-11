@@ -2,21 +2,19 @@
   const canvas = document.getElementById('bg-canvas');
   const ctx = canvas.getContext('2d');
   let W, H, particles;
-  let lastTime = 0;
-
-  const MAX_FPS = 60;
-  const FRAME_INTERVAL = 1000 / MAX_FPS;
+  let lastTimestamp = 0;
 
   const colors = [
-    'rgba(191,82,255,1)',
-    'rgba(255,105,180,1)',
-    'rgba(64,128,255,1)'
+    'rgba(191,82,255,1)',  // violet
+    'rgba(255,105,180,1)', // pink
+    'rgba(64,128,255,1)'   // soft blue
   ];
 
   class Particle {
     constructor() {
       this.init();
     }
+
     init() {
       this.x = Math.random() * W;
       this.y = Math.random() * H;
@@ -29,7 +27,8 @@
       this.wiggleFreq = 0.4 + Math.random();
       this.wiggleAmp = 0.08 + Math.random() * 0.15;
     }
-    update() {
+
+    update(delta) {
       const t = this.life * Math.PI * 2;
       const wiggleX = Math.cos(t * this.wiggleFreq) * this.wiggleAmp;
       const wiggleY = Math.sin(t * this.wiggleFreq) * this.wiggleAmp;
@@ -43,12 +42,13 @@
       if (this.x < 0 || this.x > W) this.vx *= -1 + (Math.random() - 0.5) * 0.1;
       if (this.y < 0 || this.y > H) this.vy *= -1 + (Math.random() - 0.5) * 0.1;
 
-      this.life += 0.0015;
+      this.life += delta * 0.0002;
       if (this.life > 1) this.life = 0;
     }
+
     draw() {
       const phase = (this.life + this.offset) % 1;
-      const easedCycle = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2); // easeInOutSine
+      const easedCycle = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2); // smooth pulse
 
       const radius = this.baseSize * (1 + 0.3 * easedCycle);
       const alpha = 0.18 * easedCycle;
@@ -77,18 +77,16 @@
     particles = Array.from({ length: count }, () => new Particle());
   }
 
-  function animate(now) {
-    if (now - lastTime < FRAME_INTERVAL) {
-      requestAnimationFrame(animate);
-      return;
-    }
-    lastTime = now;
+  function animate(timestamp) {
+    const delta = timestamp - lastTimestamp;
+    lastTimestamp = timestamp;
 
     ctx.clearRect(0, 0, W, H);
     particles.forEach(p => {
-      p.update();
+      p.update(delta);
       p.draw();
     });
+
     requestAnimationFrame(animate);
   }
 
