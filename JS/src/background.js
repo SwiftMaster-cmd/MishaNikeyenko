@@ -34,7 +34,7 @@ this.baseSize = 270 + Math.random() * 120;
     }
     draw() {
       const cycle = (Math.sin((this.life + this.offset) * Math.PI * 2) + 1) / 2;
-      const radius = this.baseSize * (0.6 + 0.4 * cycle);
+      const radius = this.baseSize * (1.2 + 0.6 * cycle);
       const alpha = 0.25 * cycle;
 
       const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, radius);
