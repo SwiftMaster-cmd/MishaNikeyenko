@@ -280,7 +280,7 @@ body, html, .chat-container, main.chat-container {
     max-width: 100vw;
     width: 100vw;
     font-size: 0.98rem;
-    padding: var(--padding) 1rem 9rem;
+    padding: var(--padding) 1rem 2.5rem;
   }
 
   .msg {
@@ -292,7 +292,7 @@ body, html, .chat-container, main.chat-container {
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.4rem 0.3rem;
+    padding: 0.8rem 0.6rem;
   }
 
   #user-input {
