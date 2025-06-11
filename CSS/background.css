@@ -4,7 +4,7 @@ html, body {
   width: 100vw;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
   background: radial-gradient(circle at 50% 40%, rgba(20, 18, 34, 0.9), rgba(12, 10, 20, 0.98));
   backdrop-filter: blur(40px) saturate(1.4);
