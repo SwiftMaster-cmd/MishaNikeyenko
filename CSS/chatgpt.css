@@ -53,9 +53,7 @@ main.chat-container {
   background: transparent;
   z-index: 1;
   
-   /* Hide scrollbar */
-  scrollbar-width: none;          /* Firefox */
-  -ms-overflow-style: none;       /* IE/Edge */
+ 
 }
 
 #chat-log {
@@ -74,6 +72,28 @@ main.chat-container {
   -webkit-overflow-scrolling: touch;
   background: transparent;
   box-sizing: border-box;
+}
+
+#chat-log::-webkit-scrollbar {
+  width: 12px;
+}
+
+#chat-log::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px) saturate(1.5);
+  border-radius: 10px;
+}
+
+#chat-log::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border: 3px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  transition: background 0.3s;
+}
+
+#chat-log::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .msg {
