@@ -162,6 +162,7 @@ button[type="submit"],
 
 button[type="submit"] {
   background: transparent;
+    border: 1px solid var(--clr-border);
   color: white;
         backdrop-filter: blur(18px) saturate(1.3);
 }
@@ -169,6 +170,7 @@ button[type="submit"] {
 button[type="submit"]:hover,
 button[type="submit"]:active {
   background: transparent;
+    border: 1px solid var(--clr-border);
         backdrop-filter: blur(27px) saturate(1.3);
 }
 
