@@ -1,6 +1,11 @@
 /* imports tokens + reset from variables.css */
 @import url('variables.css');
 
+
+.scroll-container {
+  height: 100vh;
+  overflow-y: auto;
+  }
 /* -- header -- */
 .header-bar {
   position: sticky;
