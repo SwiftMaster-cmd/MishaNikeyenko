@@ -1,9 +1,7 @@
-// netlify/functions-swift/swiftgpt.js
-
+import fetch from "node-fetch";
 import { getAllContext } from "../../js/src/backgpt.js";
 import { buildSystemPrompt } from "../../js/src/memoryManager.js";
 import { trackedChat } from "../../js/src/tokenTracker.js";
-import fetch from "node-fetch"; // node-fetch v3, ESM-compatible
 
 export async function handler(event) {
   try {
@@ -12,11 +10,14 @@ export async function handler(event) {
     if (!uid || messages.length === 0) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Missing UID or messages" })
+        body: JSON.stringify({
+          choices: [
+            { message: { content: "❌ Missing UID or messages" } }
+          ]
+        })
       };
     }
 
-    // Load context for the UID
     const ctx = await getAllContext(uid);
     const systemPrompt = buildSystemPrompt({
       memory: ctx.memory,
@@ -28,7 +29,6 @@ export async function handler(event) {
       date: new Date().toISOString().slice(0, 10)
     });
 
-    // Final message list: system + last 5
     const finalMessages = [
       { role: "system", content: systemPrompt },
       ...messages.slice(-5)
@@ -36,26 +36,27 @@ export async function handler(event) {
 
     const apiResponse = await trackedChat("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        messages: finalMessages,
-        temperature
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model, messages: finalMessages, temperature })
     });
 
     return {
       statusCode: 200,
-      body: JSON.stringify(apiResponse)
+      body: JSON.stringify({
+        choices: apiResponse.choices || [
+          { message: { content: "⚠️ GPT reply missing" } }
+        ]
+      })
     };
 
   } catch (err) {
-    console.error("SwiftGPT error:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message || "Unknown error" })
+      body: JSON.stringify({
+        choices: [
+          { message: { content: `🚨 Error: ${err.message}` } }
+        ]
+      })
     };
   }
 }
