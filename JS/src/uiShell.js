@@ -14,11 +14,10 @@ export function updateHeaderWithAssistantReply(text) {
   }, 150);
 }
 
-// ========== 2. Chat input spinner ==========
+// ========== 2. Chat input spinner (no disabling) ==========
 export function showChatInputSpinner(show = true) {
   const spinner = document.getElementById("chat-loading-spinner");
-  if (!spinner) return;
-  spinner.style.display = show ? "inline-block" : "none";
+  if (spinner) spinner.style.display = show ? "inline-block" : "none";
 }
 
 // ========== 3. Scroll control ==========
@@ -41,72 +40,79 @@ export function scrollToBottom(force = false) {
   }
 }
 
-// ========== 4. Special-container detection & rendering ==========
+// ========== 4. Special-container utils ==========
 function hasSpecialContainer(html) {
   return /class="(list-container|commands-container|search-results)"/.test(html);
 }
 
-function renderSpecialContainer(html, container) {
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = html.trim();
-  const special = wrapper.firstElementChild;
+function renderSpecialContainer(html, targetDiv) {
+  const temp = document.createElement("div");
+  temp.innerHTML = html.trim();
+  const special = temp.firstElementChild;
   if (!special) {
-    container.innerHTML = html;
+    targetDiv.innerHTML = html;
     return;
   }
-  // style inline scroll & sizing
-  Object.assign(special.style, {
-    maxHeight: "60vh",
-    overflowY: "auto",
-    background: "transparent",
-    boxShadow: "none",
-    margin: "var(--gap) 0",
-    padding: "4px"
-  });
-  container.appendChild(special);
+
+  // apply inline scroll & sizing
+  special.style.maxHeight = "60vh";
+  special.style.overflowY = "auto";
+  special.style.background = "transparent";
+  special.style.boxShadow = "none";
+  special.style.margin = "var(--gap) 0";
+  special.style.padding = "4px";
+
+  targetDiv.appendChild(special);
 }
 
-// ========== 5. Render messages w/ animation & role-based classes ==========
+// ========== 5. Render messages w/ animation & inline lists ==========
 export function renderMessages(messages) {
   const log = document.getElementById("chat-log");
   if (!log) return;
+
   log.innerHTML = "";
 
   messages
     .sort((a, b) => a.timestamp - b.timestamp)
-    .forEach((msg, idx) => {
-      const role = msg.role === "bot" || msg.role === "assistant" ? "received" : "sent";
-      const wrapper = document.createElement("div");
-      wrapper.className = `msg ${role}`;
-      
-      // inline lists or normal bubble
+    .forEach((msg, index) => {
+      const role = msg.role === "bot" ? "assistant" : msg.role;
+      const div = document.createElement("div");
+      div.className = `msg ${
+        role === "user" ? "user-msg" :
+        role === "assistant" ? "bot-msg" :
+        "debug-msg"
+      }`;
+
+      // handle special containers inline
       if (hasSpecialContainer(msg.content)) {
-        renderSpecialContainer(msg.content, wrapper);
+        renderSpecialContainer(msg.content, div);
       } else {
+        // normal bubble
         const bubble = document.createElement("div");
         bubble.className = "bubble";
         bubble.innerHTML = escapeAndLinkify(msg.content);
-        wrapper.appendChild(bubble);
+        div.appendChild(bubble);
       }
 
-      // entrance animation
-      wrapper.style.opacity = 0;
-      wrapper.style.transform = "translateY(10px)";
-      wrapper.style.transition = `opacity 0.4s ease ${idx * 20}ms, transform 0.4s ease ${idx * 20}ms`;
+      // animation
+      div.style.opacity = 0;
+      div.style.transform = "translateY(10px)";
+      div.style.transition = `opacity 0.4s ease ${index * 20}ms, transform 0.4s ease ${index * 20}ms`;
 
-      log.appendChild(wrapper);
+      log.appendChild(div);
+
       requestAnimationFrame(() => {
-        wrapper.style.opacity = 1;
-        wrapper.style.transform = "translateY(0)";
+        div.style.opacity = 1;
+        div.style.transform = "translateY(0)";
       });
     });
 
   scrollToBottom();
 }
 
-// ========== 6. Utility: escape & linkify ==========
-function escapeAndLinkify(text) {
-  const esc = text
+// ========== 6. Utility ==========
+function escapeAndLinkify(str) {
+  const esc = str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
@@ -114,4 +120,4 @@ function escapeAndLinkify(text) {
     /(https?:\/\/[^\s]+)/g,
     url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`
   );
-}
+} update this fully please
