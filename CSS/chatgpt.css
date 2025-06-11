@@ -63,7 +63,7 @@ main.chat-container {
   overflow-y: auto;
   overflow-x: hidden; /* Avoid side-scrolling issues */
   scroll-padding-bottom: 200px;
-  padding-top: var(--nav-h);
+  padding-top: 64px; /* Replace with actual pixel height of header */;
 
   position: relative;
   background: transparent;
