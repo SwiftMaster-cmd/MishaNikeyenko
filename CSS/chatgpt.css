@@ -116,7 +116,7 @@ main.chat-container {
   bottom: 0;
   left: 0;
   z-index: 1000;
-  backdrop-filter: blur(18px) saturate(1.3);
+
 }
 
 #user-input {
@@ -132,6 +132,7 @@ main.chat-container {
   transition: border 0.2s;
   box-sizing: border-box;
   height: 44px;
+    backdrop-filter: blur(18px) saturate(1.3);
 }
 
 #user-input:disabled {
