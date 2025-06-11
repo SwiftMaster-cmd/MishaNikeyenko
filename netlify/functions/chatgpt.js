@@ -55,4 +55,4 @@ exports.handler = async (event) => {
       body: JSON.stringify({ error: err.message })
     };
   }
-};
+}; update this fully, and does updating this affect my web side?
