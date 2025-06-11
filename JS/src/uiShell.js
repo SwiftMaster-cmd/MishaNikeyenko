@@ -107,7 +107,7 @@ export function renderMessages(messages) {
       });
     });
 
-  scrollToBottom();
+  scrollToBottom(); 
 }
 
 // ========== 6. Utility ==========
