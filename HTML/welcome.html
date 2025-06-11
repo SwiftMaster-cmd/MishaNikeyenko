@@ -33,15 +33,7 @@
   <canvas id="bg-canvas"></canvas>
   <!-- HEADER
   <!-- HEADER -->
-  <header class="header-bar">
-    <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
 
-<div id="chat-status-bar"></div>
-    <button id="profile-toggle-btn" class="profile-toggle-btn"
-            aria-haspopup="true" aria-controls="profile-card">
-      Profile
-    </button>
-  </header>
 
   <!-- SIDEBAR -->
   <nav id="side-nav" class="side-nav" aria-hidden="true">
@@ -69,6 +61,19 @@
   <span id="status-icon" style="font-size:2rem;"></span>
   <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
 </div>
+
+
+  <header class="header-bar">
+    <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
+
+<div id="chat-status-bar"></div>
+    <button id="profile-toggle-btn" class="profile-toggle-btn"
+            aria-haspopup="true" aria-controls="profile-card">
+      Profile
+    </button>
+  </header>
+  
+    <main class="scroll-container">
 
 <main class="chat-container">
   <!-- Chat Log -->
@@ -133,7 +138,7 @@
   
   
   
-  
+   </main>
 </main>
   <!-- MODULE SCRIPTS -->
   <script type="module" src="../JS/profile.js"></script>
