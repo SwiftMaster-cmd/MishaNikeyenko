@@ -148,6 +148,24 @@
   
   
 </main>
+
+<script>
+  const vp = document.querySelector('meta[name=viewport]');
+  function resetZoom() {
+    vp.setAttribute(
+      'content',
+      'width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no'
+    );
+  }
+  // pinch, dbl-tap, or any zoom gesture
+  document.addEventListener('gestureend', resetZoom);
+  document.addEventListener('touchend', () => {
+    // small timeout to let the scale happen then reset
+    setTimeout(resetZoom, 10);
+  });
+</script>
+
+
   <!-- MODULE SCRIPTS -->
   <script type="module" src="../JS/profile.js"></script>
   <script type="module" src="../JS/links.js"></script>
