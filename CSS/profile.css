@@ -15,15 +15,26 @@
   height: var(--nav-h);
   background: var(--clr-glass);
   backdrop-filter: blur(18px) saturate(1.3);
-  border-bottom: none; /* remove sharp border */
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 1.6rem;
   box-sizing: border-box;
+  overflow: hidden;
+}
 
-  /* 🧊 Fade from black at top 0% to transparent at 100% */
-  background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent 75%);
+/* 👇 Overlay pseudo-element for black fade */
+.header-bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 75%; /* fade starts from 75% down */
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 100%);
+  filter: blur(16px); /* makes it fuzzy and soft */
+  z-index: 1;
 }
 .header-title{
   position:absolute; left:50%; transform:translateX(-50%);
