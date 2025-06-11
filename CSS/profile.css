@@ -12,23 +12,18 @@
   position: sticky;
   top: 0;
   z-index: 1000;
+  height: var(--nav-h);
   background: var(--clr-glass);
   backdrop-filter: blur(18px) saturate(1.3);
-  border-bottom: 1px solid var(--clr-border);
+  border-bottom: none; /* remove sharp border */
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 1.6rem;
-  height: var(--nav-h);
   box-sizing: border-box;
 
-  /* ✨ Bottom fade effect */
-  mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
-  mask-size: 100% 100%;
-  -webkit-mask-size: 100% 100%;
-  mask-repeat: no-repeat;
-  -webkit-mask-repeat: no-repeat;
+  /* 🧊 Fade from black at top 0% to transparent at 100% */
+  background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent 75%);
 }
 .header-title{
   position:absolute; left:50%; transform:translateX(-50%);
