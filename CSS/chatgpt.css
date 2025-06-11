@@ -16,7 +16,7 @@ html, body {
   width: 100vw;
   min-width: 100vw;
   font-family: 'Inter', sans-serif;
-  background-color: var(--clr-bg;
+  background-color: var(--clr-bg);
   color: var(--clr-text);
   overflow: hidden;
   margin: 0;
