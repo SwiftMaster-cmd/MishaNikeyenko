@@ -29,22 +29,7 @@
   transform: translateZ(0);             /* 🔒 iOS keyboard fix */
 }
 
-/* 🧊 Intense blur-fade layer */
-.header-blur-fade {
-  position: absolute;
-  bottom: -16px;
-  left: 0;
-  width: 100%;
-  height: 80px;
-  pointer-events: none;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 100%);
-  backdrop-filter: blur(60px);
-  -webkit-backdrop-filter: blur(60px);
-  opacity: 1;
-  z-index: -1;
-  mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
-}
+
 
 
 
