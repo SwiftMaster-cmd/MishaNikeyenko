@@ -1,10 +1,9 @@
-// .netlify/functions/swiftgpt.js
+const fetch = require("node-fetch");
+const { getAllContext } = require("../../js/src/backgpt.js");
+const { buildSystemPrompt } = require("../../js/src/memoryManager.js");
+const { trackedChat } = require("../../js/src/tokenTracker.js");
 
-import { getAllContext } from "../../js/src/backgpt.js";
-import { buildSystemPrompt } from "../../js/src/memoryManager.js";
-import { trackedChat } from "../../js/src/tokenTracker.js";
-
-export const handler = async (event) => {
+exports.handler = async (event) => {
   try {
     const { messages = [], uid, model = "gpt-4o", temperature = 0.7 } = JSON.parse(event.body || "{}");
 
@@ -15,7 +14,6 @@ export const handler = async (event) => {
       };
     }
 
-    // Load context for this user
     const ctx = await getAllContext(uid);
     const systemPrompt = buildSystemPrompt({
       memory: ctx.memory,
@@ -27,13 +25,11 @@ export const handler = async (event) => {
       date: new Date().toISOString().slice(0, 10)
     });
 
-    // Final message block: context + last 5 messages
     const finalMessages = [
       { role: "system", content: systemPrompt },
       ...messages.slice(-5)
     ];
 
-    // Call GPT with full backend logic
     const apiResponse = await trackedChat("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -50,7 +46,7 @@ export const handler = async (event) => {
     };
 
   } catch (err) {
-    console.error("swiftgpt error:", err);
+    console.error("SwiftGPT error:", err);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message || "Unknown error" })
