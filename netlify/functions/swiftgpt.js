@@ -1,8 +1,8 @@
-// .netlify/functions/swiftgpt.js
+// netlify/functions/swiftgpt.js
 
-import { getAllContext } from "../../src/backgpt.js";
-import { buildSystemPrompt } from "../../src/memoryManager.js";
-import { trackedChat } from "../../src/tokenTracker.js";
+import { getAllContext } from "../../js/src/backgpt.js";
+import { buildSystemPrompt } from "../../js/src/memoryManager.js";
+import { trackedChat } from "../../js/src/tokenTracker.js";
 
 export const handler = async (event) => {
   try {
@@ -15,14 +15,14 @@ export const handler = async (event) => {
       };
     }
 
-    const ctx = await getAllContext(uid);
+    const context = await getAllContext(uid);
     const systemPrompt = buildSystemPrompt({
-      memory: ctx.memory,
-      todayLog: ctx.dayLog,
-      notes: ctx.notes,
-      calendar: ctx.calendar,
-      reminders: ctx.reminders,
-      calc: ctx.calc,
+      memory: context.memory,
+      todayLog: context.dayLog,
+      notes: context.notes,
+      calendar: context.calendar,
+      reminders: context.reminders,
+      calc: context.calc,
       date: new Date().toISOString().slice(0, 10)
     });
 
