@@ -109,7 +109,6 @@ main.chat-container {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  border-top: 1px solid var(--clr-border);
   background: transparent;
   width: 100vw;
   box-sizing: border-box;
