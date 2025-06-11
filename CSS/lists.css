@@ -1,0 +1,49 @@
+.commands-container {
+  max-height: 300px;
+  overflow-y: auto;
+  background: rgba(30,30,50,0.85);
+  border-radius: 12px;
+  padding: 16px;
+  color: #eee;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  margin: 1rem 0;
+}
+
+.commands-title {
+  font-weight: 700;
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  padding-bottom: 6px;
+}
+
+.commands-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.commands-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  justify-content: space-between;
+  font-size: 1rem;
+}
+
+.commands-list li:last-child {
+  border-bottom: none;
+}
+
+.command-name {
+  font-weight: 600;
+  color: #7e3af2; /* Example accent */
+  min-width: 120px;
+}
+
+.command-desc {
+  flex: 1;
+  margin-left: 12px;
+  color: #ccc;
+}
