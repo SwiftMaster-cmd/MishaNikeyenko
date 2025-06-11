@@ -1,12 +1,12 @@
 
 :root {
-  --clr-bg: linear-gradient(135deg, #161026, #1e1e2e);
-  --clr-card: rgba(30, 30, 48, 0.88);
-  --clr-border: #2e2e3e;
-  --clr-text: #f8fafd;
-  --clr-muted: #a1a6b9;
-  --clr-user: #7e3af2;
-  --clr-bot: #363c66;
+  --clr-bg: linear-gradient(135deg, rgba(22, 16, 38, 0.6), rgba(30, 30, 46, 0.5));
+  --clr-card: rgba(24, 24, 36, 0.45);          /* blurred glassy card */
+  --clr-border: rgba(255, 255, 255, 0.08);     /* subtle border */
+  --clr-text: rgba(248, 250, 253, 0.96);       /* bright but softened */
+  --clr-muted: rgba(160, 166, 185, 0.65);      /* for muted labels/hints */
+  --clr-user: rgba(126, 58, 242, 0.7);         /* vibrant user bubble */
+  --clr-bot: rgba(54, 60, 102, 0.65);          /* cooler assistant bubble */
   --radius: 18px;
   --padding: 1rem;
 }
