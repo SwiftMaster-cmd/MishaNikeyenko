@@ -149,7 +149,6 @@ button[type="submit"],
   padding: 0 18px;
   font-size: 1rem;
   font-weight: 600;
-    background: transparent;
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -159,12 +158,12 @@ button[type="submit"],
   display: flex;
   align-items: center;
   justify-content: center;
-        backdrop-filter: blur(18px) saturate(1.3);
 }
 
 button[type="submit"] {
-  background: var(--clr-user);
+  background: transparent;
   color: white;
+        backdrop-filter: blur(18px) saturate(1.3);
 }
 
 button[type="submit"]:hover,
