@@ -45,6 +45,10 @@ main.chat-container {
   position: relative;
   background: transparent;
   z-index: 1;
+  
+   /* Hide scrollbar */
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* IE/Edge */
 }
 
 #chat-log {
