@@ -1,31 +1,40 @@
-/* style.css */
-
-/* 1) Full-page body layers */
-body, html {
+/* 1) Full-page layered background */
+html, body {
   height: 100%;
   width: 100vw;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  font-family: 'Inter','Segoe UI',Arial,sans-serif;
-  background:
-    /* deep base gradient */
-    linear-gradient(120deg, #222238 0%, #181a26 100%),
-    /* soft radial glows */
-    radial-gradient(ellipse at 80% 15%,rgba(126,58,242,0.18) 0%,transparent 70%),
-    radial-gradient(ellipse at 18% 80%,rgba(64,168,252,0.11) 0%,transparent 75%),
-    /* vignette */
-    radial-gradient(ellipse at 50% 80%,rgba(24,20,40,0.68) 60%,transparent 95%),
-    /* bokeh dots */
-    repeating-radial-gradient(circle at 60% 40%,rgba(255,255,255,0.017) 0,rgba(255,255,255,0.013) 1.3px,transparent 1.3px,transparent 95px);
-  background-blend-mode: overlay, lighten, overlay, normal;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: radial-gradient(circle at 50% 40%, rgba(20, 18, 34, 0.9), rgba(12, 10, 20, 0.98));
+  backdrop-filter: blur(40px) saturate(1.4);
+  -webkit-backdrop-filter: blur(40px) saturate(1.4);
+  background-color: #0d0c15;
+  color: rgba(255, 255, 255, 0.95);
 }
 
-/* 2) Canvas sits immediately above the gradient */
+/* 2) Liquid glass overlays: subtle gradients + fog layers */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 70% 20%, rgba(191, 82, 255, 0.08), transparent 60%),
+    radial-gradient(ellipse at 25% 75%, rgba(64, 168, 252, 0.06), transparent 70%),
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.02), transparent 80%);
+  background-blend-mode: overlay;
+  pointer-events: none;
+  z-index: -2;
+}
+
+/* 3) Canvas floats just above the layered background */
 #bg-canvas {
   position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   z-index: -1;
   pointer-events: none;
+  opacity: 0.9;
 }
