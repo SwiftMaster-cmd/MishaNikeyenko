@@ -4,13 +4,16 @@
 
 
 .header-bar {
+  position: -webkit-sticky; /* Safari-specific sticky */
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 100; /* Higher than 10 to guarantee it stays above content */
 
   height: var(--nav-h);
-  background: var(--clr-glass);
+  background: rgba(30, 30, 48, 0.6); /* Replace var with fixed semi-transparent bg if var fails */
   backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3); /* For Safari */
+
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -18,10 +21,8 @@
   box-sizing: border-box;
 
   pointer-events: auto;
-  transform: translateZ(0); /* 🔒 Helps sticky stay consistent on iOS */
+  transform: translateZ(0);
 }
-
-
 
 
 
