@@ -47,13 +47,15 @@
       if (this.life > 1) this.life = 0;
     }
     draw() {
-      const cycle = (Math.sin((this.life + this.offset) * Math.PI * 2) + 1) / 2;
-      const radius = this.baseSize * (1 + 0.3 * cycle);
-      const alpha = 0.15 * cycle;
+      const phase = (this.life + this.offset) % 1;
+      const easedCycle = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2); // easeInOutSine
+
+      const radius = this.baseSize * (1 + 0.3 * easedCycle);
+      const alpha = 0.18 * easedCycle;
 
       const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, radius);
       grad.addColorStop(0, this.color.replace(',1)', `,${alpha})`));
-      grad.addColorStop(0.5, this.color.replace(',1)', `,${alpha * 0.4})`));
+      grad.addColorStop(0.5, this.color.replace(',1)', `,${alpha * 0.5})`));
       grad.addColorStop(1, this.color.replace(',1)', ',0)'));
 
       ctx.fillStyle = grad;
