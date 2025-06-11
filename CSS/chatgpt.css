@@ -278,7 +278,7 @@ body, html, .chat-container, main.chat-container {
   button[type="submit"],
   #console-toggle-btn {
     width: auto;
-    max-width: 20%;
+    max-width: 100%;
     min-width: 44px;
     margin: 0;
   }
