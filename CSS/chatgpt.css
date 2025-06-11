@@ -56,7 +56,7 @@ main.chat-container {
   max-height: 100dvh;
   margin: 0;
   overflow-y: auto;
-  padding: var(--padding) var(--padding) 2.5rem; /* adds space at bottom for input field */
+  padding: var(--padding) var(--padding) 2.6rem; /* adds space at bottom for input field */
   scroll-behavior: smooth;
   display: flex;
   flex-direction: column;
@@ -292,7 +292,7 @@ body, html, .chat-container, main.chat-container {
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.8rem 0.3rem;
+    padding: 0.4rem 0.3rem;
   }
 
   #user-input {
