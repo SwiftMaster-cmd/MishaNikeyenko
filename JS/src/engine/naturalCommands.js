@@ -5,12 +5,11 @@ import { webSearchBrave } from "./search.js";
 import { getAssistantReply, saveMessageToChat } from "./backgpt.js";
 import { handleStaticCommand } from "./commandHandlers.js";
 
-// Main entry
 export async function tryNatural(prompt, ctx) {
   const lower = prompt.toLowerCase().trim();
   let handled = false;
 
-  // Fix mapping
+  // 1️⃣ Command Fix Mapping
   try {
     const fixSnap = await get(ref(db, `commandFixes/${ctx.uid}`));
     if (fixSnap.exists()) {
@@ -22,11 +21,11 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // Alias teach (quotes optional)
+  // 2️⃣ Alias Teach (quotes optional, wildcards supported)
   try {
-    const aliasMatch = prompt.match(/^when i say\s+[""']?(.+?)[""']?\s+do\s+[""']?(.+?)[""']?$/i);
-    if (aliasMatch) {
-      const [, trigger, command] = aliasMatch;
+    const aliasTeach = prompt.match(/^when i say\s+[""']?(.+?)[""']?\s+do\s+[""']?(.+?)[""']?$/i);
+    if (aliasTeach) {
+      const [, trigger, command] = aliasTeach;
       await push(ref(db, `commandPatterns/${ctx.uid}`), {
         match: [trigger],
         action: { type: "alias", run: command },
@@ -37,7 +36,7 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // Teach new command (quotes optional)
+  // 3️⃣ Teach new command (quotes optional)
   try {
     const teachMatch = prompt.match(/^teach command\s+[""']?(.+?)[""']?\s+to\s+(reply|gpt)\s+[""']?(.+?)[""']?$/i);
     if (teachMatch) {
@@ -55,7 +54,7 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // Update command (quotes optional)
+  // 4️⃣ Update existing command (quotes optional)
   try {
     const updateMatch = prompt.match(/^update command\s+[""']?(.+?)[""']?\s+to\s+(reply|gpt)\s+[""']?(.+?)[""']?$/i);
     if (updateMatch) {
@@ -85,13 +84,38 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // --- 5️⃣  Natural/fuzzy system commands ---
-  // Make sure these work regardless of teach/alias (true natural fallback)
+  // 5️⃣ Get all user patterns once
+  let userPatterns = [];
+  try {
+    const patternSnap = await get(ref(db, `commandPatterns/${ctx.uid}`));
+    if (patternSnap.exists()) {
+      userPatterns = Object.values(patternSnap.val());
+    }
+  } catch (_) {}
+
+  // 6️⃣ Wildcard/parameter alias support ("learn about *" → "/search *")
+  if (!handled && userPatterns.length) {
+    for (const entry of userPatterns) {
+      if (entry.action?.type === "alias" && entry.match[0].includes('*')) {
+        // Build regex for wildcard
+        const pattern = entry.match[0];
+        const regex = new RegExp('^' + pattern.replace('*', '(.+)') + '$', 'i');
+        const m = prompt.match(regex);
+        if (m) {
+          const arg = m[1].trim();
+          const realCmd = entry.action.run.replace('*', arg);
+          return await tryNatural(realCmd, ctx);
+        }
+      }
+    }
+  }
+
+  // 7️⃣ System commands: Always respond to natural phrases
   const sysCommands = [
     { triggers: ["clear chat", "/clearchat", "reset chat"], cmd: "/clearchat" },
     { triggers: ["time", "/time", "current time", "what time"], cmd: "/time" },
     { triggers: ["date", "/date", "today's date", "what date"], cmd: "/date" }
-    // Add more system commands here if needed
+    // Add more if needed
   ];
   for (const s of sysCommands) {
     if (s.triggers.some(t => lower.includes(t))) {
@@ -101,41 +125,35 @@ export async function tryNatural(prompt, ctx) {
     }
   }
 
-  // --- 6️⃣  User-taught fuzzy pattern matching ---
-  if (!handled) {
-    try {
-      const patternSnap = await get(ref(db, `commandPatterns/${ctx.uid}`));
-      if (patternSnap.exists()) {
-        const patterns = Object.values(patternSnap.val());
-        for (const entry of patterns) {
-          const triggers = entry.match.map(t => t.toLowerCase());
-          if (triggers.some(t => lower.includes(t))) {
-            const action = entry.action;
-            if (action.type === "static") {
-              await saveMessageToChat("assistant", action.response, ctx.uid);
-              handled = true;
-              break;
-            }
-            if (action.type === "gpt") {
-              const reply = await getAssistantReply([
-                { role: "system", content: action.system || "Respond appropriately." },
-                { role: "user", content: action.prompt }
-              ]);
-              await saveMessageToChat("assistant", reply, ctx.uid);
-              handled = true;
-              break;
-            }
-            if (action.type === "alias") {
-              handled = await tryNatural(action.run, ctx);
-              break;
-            }
-          }
+  // 8️⃣ User-taught fuzzy pattern matching
+  if (!handled && userPatterns.length) {
+    for (const entry of userPatterns) {
+      const triggers = entry.match.map(t => t.toLowerCase());
+      if (triggers.some(t => lower.includes(t))) {
+        const action = entry.action;
+        if (action.type === "static") {
+          await saveMessageToChat("assistant", action.response, ctx.uid);
+          handled = true;
+          break;
+        }
+        if (action.type === "gpt") {
+          const reply = await getAssistantReply([
+            { role: "system", content: action.system || "Respond appropriately." },
+            { role: "user", content: action.prompt }
+          ]);
+          await saveMessageToChat("assistant", reply, ctx.uid);
+          handled = true;
+          break;
+        }
+        if (action.type === "alias") {
+          handled = await tryNatural(action.run, ctx);
+          break;
         }
       }
-    } catch (_) {}
+    }
   }
 
-  // --- 7️⃣  Fallback GPT classifier: command vs dialog
+  // 9️⃣ Fallback GPT classifier: command vs dialog
   if (!handled) {
     try {
       const decision = await getAssistantReply([
@@ -152,7 +170,7 @@ export async function tryNatural(prompt, ctx) {
     } catch (_) {}
   }
 
-  // --- 8️⃣  Log failure only if no command matched ---
+  // 🔟 Log failure only if no command matched
   if (!handled) {
     try {
       await push(ref(db, `commandFailures/${ctx.uid}`), {
