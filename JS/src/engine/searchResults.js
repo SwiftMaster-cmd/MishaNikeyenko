@@ -1,40 +1,37 @@
-// searchResults.js
+// 🧾 searchResults.js – Renders Brave search results with extended metadata + semantic UI
 
 /**
- * Renders search results into a container element, using the "minimal outer container"
- * and capping the list at 60vh so it never exceeds the viewport height.
- *
- * @param {Array<Object>} results
- *    Each object may have: { title, url, snippet, source?, date?, thumbnail? }
+ * Renders search results into the given container.
+ * @param {Array<Object>} results – Array of search result objects:
+ *   { title, url, snippet, source?, date?, thumbnail?, tags? }
  * @param {HTMLElement} container
  */
 export function renderSearchResults(results, container) {
-  // Clear container
   container.innerHTML = "";
 
-  // Outer wrapper with minimal styling (CSS handles most, we ensure it's present)
   const wrapper = document.createElement("div");
   wrapper.className = "search-results";
-  // inline safety fallback
   wrapper.style.background = "transparent";
   wrapper.style.boxShadow = "none";
   wrapper.style.padding = "4px 0";
   wrapper.style.margin = "var(--gap) 0";
 
-  // If no results, show message and return
   if (!Array.isArray(results) || results.length === 0) {
     const empty = document.createElement("div");
     empty.className = "search-result-card";
+    empty.setAttribute("role", "alert");
+    empty.setAttribute("aria-live", "polite");
+
     const msg = document.createElement("div");
     msg.className = "result-snippet";
     msg.textContent = "No results found.";
+
     empty.appendChild(msg);
     wrapper.appendChild(empty);
     container.appendChild(wrapper);
     return;
   }
 
-  // Create scrollable <ul>
   const list = document.createElement("ul");
   list.style.maxHeight = "60vh";
   list.style.overflowY = "auto";
@@ -48,23 +45,22 @@ export function renderSearchResults(results, container) {
     li.setAttribute("role", "listitem");
     li.tabIndex = 0;
 
-    // Thumbnail (optional)
+    // ── Thumbnail
     if (res.thumbnail) {
       const thumb = document.createElement("div");
       thumb.className = "result-thumbnail";
       const img = document.createElement("img");
       img.src = res.thumbnail;
-      img.alt = res.title || "";
+      img.alt = res.title || "Thumbnail";
       img.loading = "lazy";
       thumb.appendChild(img);
       li.appendChild(thumb);
     }
 
-    // Content block
     const content = document.createElement("div");
     content.className = "result-content";
 
-    // Title
+    // ── Title
     const titleWrap = document.createElement("div");
     titleWrap.className = "result-title";
     const a = document.createElement("a");
@@ -75,7 +71,20 @@ export function renderSearchResults(results, container) {
     titleWrap.appendChild(a);
     content.appendChild(titleWrap);
 
-    // Meta (source + date)
+    // ── Tags (optional)
+    if (Array.isArray(res.tags) && res.tags.length) {
+      const tagLine = document.createElement("div");
+      tagLine.className = "result-tags";
+      res.tags.forEach(tag => {
+        const span = document.createElement("span");
+        span.className = "tag";
+        span.textContent = tag;
+        tagLine.appendChild(span);
+      });
+      content.appendChild(tagLine);
+    }
+
+    // ── Meta (source + date)
     if (res.source || res.date) {
       const meta = document.createElement("div");
       meta.className = "result-meta";
@@ -94,7 +103,7 @@ export function renderSearchResults(results, container) {
       content.appendChild(meta);
     }
 
-    // Snippet
+    // ── Snippet
     if (res.snippet) {
       const sn = document.createElement("div");
       sn.className = "result-snippet";
@@ -102,7 +111,7 @@ export function renderSearchResults(results, container) {
       content.appendChild(sn);
     }
 
-    // URL line
+    // ── URL preview
     if (res.url) {
       const urlLine = document.createElement("div");
       urlLine.className = "result-url";

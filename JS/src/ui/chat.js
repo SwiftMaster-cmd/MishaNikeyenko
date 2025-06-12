@@ -1,4 +1,4 @@
-// chat.js â€" input & flow control only; UI in uiShell.js; natural-language commands delegated to naturalCommands.js
+// chat.js -- input & flow control only; UI in uiShell.js; natural-language commands delegated to naturalCommands.js
 
 import { onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
@@ -30,7 +30,8 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 import { tryNatural } from "../engine/naturalCommands.js";
-import { trackedChat } from "../engine/tokenTracker.js";  // <-- new
+import { trackedChat } from "../engine/tokenTracker.js";
+import { encrypt, decrypt } from "../engine/encrypt.js"; // 🛡️ Add encryption
 
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("chat-form");
@@ -55,18 +56,19 @@ window.addEventListener("DOMContentLoaded", () => {
     uid = user.uid;
     chatRef = ref(db, `chatHistory/${uid}`);
 
-    onValue(chatRef, snapshot => {
+    onValue(chatRef, async snapshot => {
       const data = snapshot.val() || {};
-      const messages = Object.entries(data)
-        .map(([id, m]) => ({
+      const messages = await Promise.all(Object.entries(data).map(async ([id, m]) => {
+        const decrypted = await decrypt(m.content, uid);
+        return {
           id,
           role: m.role === "bot" ? "assistant" : m.role,
-          content: m.content,
+          content: decrypted,
           timestamp: m.timestamp || 0
-        }))
-        .sort((a, b) => a.timestamp - b.timestamp);
+        };
+      }));
 
-      renderMessages(messages.slice(-20));
+      renderMessages(messages.slice(-20).sort((a, b) => a.timestamp - b.timestamp));
       scrollToBottom();
       input.focus();
     });
@@ -85,9 +87,7 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
-      if (await tryNatural(prompt, { uid, chatRef, state })) {
-        return;
-      }
+      if (await tryNatural(prompt, { uid, chatRef, state })) return;
 
       const staticCommands = new Set([
         "/time", "/date", "/uid",
@@ -111,34 +111,27 @@ window.addEventListener("DOMContentLoaded", () => {
 
       const memory = await extractMemoryFromPrompt(prompt, uid);
       if (memory) {
-        await saveMessageToChat("user", prompt, uid);
-        switch (memory.type) {
-          case "preference":
-            await saveMessageToChat("assistant", `âœ… Saved preference: "${memory.content}"`, uid);
-            break;
-          case "reminder":
-            await saveMessageToChat("assistant", `âœ… Saved reminder: "${memory.content}"`, uid);
-            break;
-          case "calendar": {
-            const on = memory.date ? ` on ${memory.date}` : "";
-            const at = memory.time ? ` at ${memory.time}` : "";
-            await saveMessageToChat("assistant",
-              `âœ… Saved event: "${memory.content}"${on}${at}`, uid);
-            break;
-          }
-          case "note":
-            await handleStaticCommand(`/note ${memory.content}`, chatRef, uid);
-            break;
-          case "log":
-            await handleStaticCommand(`/log ${memory.content}`, chatRef, uid);
-            break;
+        await saveMessageToChat("user", await encrypt(prompt, uid), uid);
+        const confirm = {
+          preference: `✅ Saved preference: "${memory.content}"`,
+          reminder:   `✅ Saved reminder: "${memory.content}"`,
+          calendar:   `✅ Saved event: "${memory.content}"` + 
+                      (memory.date ? ` on ${memory.date}` : "") + 
+                      (memory.time ? ` at ${memory.time}` : ""),
+          note:       null,
+          log:        null
+        };
+        if (confirm[memory.type]) {
+          await saveMessageToChat("assistant", await encrypt(confirm[memory.type], uid), uid);
+        }
+        if (memory.type === "note" || memory.type === "log") {
+          await handleStaticCommand(`/${memory.type} ${memory.content}`, chatRef, uid);
         }
         return;
       }
 
-      await saveMessageToChat("user", prompt, uid);
+      await saveMessageToChat("user", await encrypt(prompt, uid), uid);
 
-      // fetch full 20 for UI, but only send 5 to GPT
       const [all20, ctx] = await Promise.all([
         fetchLast20Messages(uid),
         getAllContext(uid)
@@ -155,7 +148,6 @@ window.addEventListener("DOMContentLoaded", () => {
         date: new Date().toISOString().slice(0, 10)
       });
 
-      // --- use trackedChat instead of getAssistantReply ---
       const apiResponse = await trackedChat("/.netlify/functions/chatgpt", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
@@ -181,7 +173,7 @@ window.addEventListener("DOMContentLoaded", () => {
         reply = `<div class="list-container"><ul>${items}</ul></div>`;
       }
 
-      await saveMessageToChat("assistant", reply, uid);
+      await saveMessageToChat("assistant", await encrypt(reply, uid), uid);
       updateHeaderWithAssistantReply(reply);
       await summarizeChatIfNeeded(uid);
 

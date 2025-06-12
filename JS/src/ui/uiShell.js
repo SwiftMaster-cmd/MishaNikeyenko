@@ -1,4 +1,4 @@
-// uiShell.js â€" Enhanced UI: header animation, spinner, scroll, animated message rendering, and inline lists
+// uiShell.js – Updated: header animation, spinner, scroll tracking, structured rendering
 
 let userHasScrolled = false;
 
@@ -14,7 +14,7 @@ export function updateHeaderWithAssistantReply(text) {
   }, 150);
 }
 
-// ========== 2. Chat input spinner (no disabling) ==========
+// ========== 2. Chat input spinner ==========
 export function showChatInputSpinner(show = true) {
   const spinner = document.getElementById("chat-loading-spinner");
   if (spinner) spinner.style.display = show ? "inline-block" : "none";
@@ -40,9 +40,9 @@ export function scrollToBottom(force = false) {
   }
 }
 
-// ========== 4. Special-container utils ==========
+// ========== 4. Special container utils ==========
 function hasSpecialContainer(html) {
-  return /class="(list-container|commands-container|search-results)"/.test(html);
+  return /class="(list-container|commands-container|search-results|markdown-preview)"/.test(html);
 }
 
 function renderSpecialContainer(html, targetDiv) {
@@ -54,7 +54,6 @@ function renderSpecialContainer(html, targetDiv) {
     return;
   }
 
-  // apply inline scroll & sizing
   special.style.maxHeight = "60vh";
   special.style.overflowY = "auto";
   special.style.background = "transparent";
@@ -65,7 +64,7 @@ function renderSpecialContainer(html, targetDiv) {
   targetDiv.appendChild(special);
 }
 
-// ========== 5. Render messages w/ animation & inline lists ==========
+// ========== 5. Render messages ==========
 export function renderMessages(messages) {
   const log = document.getElementById("chat-log");
   if (!log) return;
@@ -83,18 +82,15 @@ export function renderMessages(messages) {
         "debug-msg"
       }`;
 
-      // handle special containers inline
       if (hasSpecialContainer(msg.content)) {
         renderSpecialContainer(msg.content, div);
       } else {
-        // normal bubble
         const bubble = document.createElement("div");
         bubble.className = "bubble";
-        bubble.innerHTML = escapeAndLinkify(msg.content);
+        bubble.innerHTML = renderBubbleContent(msg.content, msg.metadata || {});
         div.appendChild(bubble);
       }
 
-      // animation
       div.style.opacity = 0;
       div.style.transform = "translateY(10px)";
       div.style.transition = `opacity 0.4s ease ${index * 20}ms, transform 0.4s ease ${index * 20}ms`;
@@ -110,7 +106,7 @@ export function renderMessages(messages) {
   scrollToBottom();
 }
 
-// ========== 6. Utility ==========
+// ========== 6. Helpers ==========
 function escapeAndLinkify(str) {
   const esc = str
     .replace(/&/g, "&amp;")
@@ -120,4 +116,23 @@ function escapeAndLinkify(str) {
     /(https?:\/\/[^\s]+)/g,
     url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`
   );
+}
+
+function renderBubbleContent(content, metadata) {
+  const escaped = escapeAndLinkify(content);
+  const { category, tags = [], topic } = metadata;
+
+  let metaHTML = "";
+
+  if (category || tags.length || topic) {
+    metaHTML += `<div class="meta-line">`;
+    if (category) metaHTML += `<span class="meta-badge category">${category}</span>`;
+    if (topic) metaHTML += `<span class="meta-badge topic">${topic}</span>`;
+    tags.forEach(tag => {
+      metaHTML += `<span class="meta-badge tag">${tag}</span>`;
+    });
+    metaHTML += `</div>`;
+  }
+
+  return metaHTML + `<div class="msg-text">${escaped}</div>`;
 }

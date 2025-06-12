@@ -6,10 +6,33 @@ import {
   set,
   push
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { encryptContent } from "./encrypt.js";
 import { appendNode } from "../config/firebaseHelpers.js";
-import { saveMessageToChat } from "./backgpt.js"; // if you prefer saveMessageToChat over appendNode
+import { saveMessageToChat } from "./backgpt.js";
 
-// Handles static commands ("/time", "/date", "/uid", etc.)
+// Unified encrypted memory save
+async function saveEncryptedMemory(uid, type, rawContent) {
+  const id = push(ref(db)).key;
+  const encrypted = await encryptContent(rawContent);
+  const now = Date.now();
+
+  const metadata = {
+    type,
+    summary: rawContent.slice(0, 80), // simple summary fallback
+    topic: "General",
+    category: type,
+    tags: [],
+    timestamp: now
+  };
+
+  await Promise.all([
+    set(ref(db, `memoryBlob/${uid}/${id}`), encrypted),
+    set(ref(db, `memorySummary/${uid}/${id}`), metadata)
+  ]);
+
+  return { id, now };
+}
+
 export async function handleStaticCommand(cmd, chatRef, uid) {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -23,10 +46,7 @@ export async function handleStaticCommand(cmd, chatRef, uid) {
         timestamp: Date.now()
       });
     }
-    await appendNode(ref(db, `notes/${uid}/${today}`), {
-      content,
-      timestamp: Date.now()
-    });
+    await saveEncryptedMemory(uid, "note", content);
     return appendNode(chatRef, {
       role: "assistant",
       content: `📝 Note saved: ${content}`,
@@ -44,10 +64,7 @@ export async function handleStaticCommand(cmd, chatRef, uid) {
         timestamp: Date.now()
       });
     }
-    await appendNode(ref(db, `reminders/${uid}`), {
-      content,
-      timestamp: Date.now()
-    });
+    await saveEncryptedMemory(uid, "reminder", content);
     return appendNode(chatRef, {
       role: "assistant",
       content: `⏰ Reminder saved: ${content}`,
@@ -65,10 +82,7 @@ export async function handleStaticCommand(cmd, chatRef, uid) {
         timestamp: Date.now()
       });
     }
-    await appendNode(ref(db, `calendarEvents/${uid}`), {
-      content,
-      timestamp: Date.now()
-    });
+    await saveEncryptedMemory(uid, "calendar", content);
     return appendNode(chatRef, {
       role: "assistant",
       content: `📅 Event saved: ${content}`,
@@ -76,16 +90,32 @@ export async function handleStaticCommand(cmd, chatRef, uid) {
     });
   }
 
-  // quick single-word commands
-  switch (cmd) {
-    case "/time": {
-      const time = new Date().toLocaleTimeString();
+  // /log
+  if (cmd.startsWith("/log")) {
+    const content = cmd.replace("/log", "").trim();
+    if (!content) {
       return appendNode(chatRef, {
         role: "assistant",
-        content: `🕒 Current time is ${time}`,
+        content: "Please provide the log content.",
         timestamp: Date.now()
       });
     }
+    await saveEncryptedMemory(uid, "log", content);
+    return appendNode(chatRef, {
+      role: "assistant",
+      content: `📔 Log entry saved: ${content}`,
+      timestamp: Date.now()
+    });
+  }
+
+  // Single-word commands
+  switch (cmd) {
+    case "/time":
+      return appendNode(chatRef, {
+        role: "assistant",
+        content: `🕒 Current time is ${new Date().toLocaleTimeString()}`,
+        timestamp: Date.now()
+      });
 
     case "/date":
       return appendNode(chatRef, {
@@ -102,7 +132,7 @@ export async function handleStaticCommand(cmd, chatRef, uid) {
       });
 
     case "/clearchat":
-      await set(chatRef, {}); // clear
+      await set(chatRef, {});
       return appendNode(chatRef, {
         role: "assistant",
         content: "🧼 Chat history cleared.",
@@ -120,40 +150,26 @@ export async function handleStaticCommand(cmd, chatRef, uid) {
   }
 }
 
-// Renders a full HTML commands container
 async function listCommands(chatRef, uid) {
   const commandList = [
-    { cmd: "/note",       desc: "Save a note (e.g. /note call Mom later)" },
-    { cmd: "/reminder",   desc: "Set a reminder (e.g. /reminder pay bill tomorrow)" },
-    { cmd: "/calendar",   desc: "Create a calendar event (e.g. /calendar dinner Friday)" },
-    { cmd: "/log",        desc: "Add to your day log (e.g. /log felt great after run)" },
-    { cmd: "/notes",      desc: "List all notes saved today" },
-    { cmd: "/reminders",  desc: "List all reminders" },
-    { cmd: "/events",     desc: "List all calendar events" },
-    { cmd: "/summary",    desc: "Summarize today’s log and notes" },
-    { cmd: "/clearchat",  desc: "Clear the visible chat history" },
-    { cmd: "/time",       desc: "Show current time" },
-    { cmd: "/date",       desc: "Show today’s date" },
-    { cmd: "/uid",        desc: "Show your Firebase user ID" },
-    { cmd: "/search <term>",  desc: "Search the web and summarize results" },
-    { cmd: "/searchresults",  desc: "Show full results from last search" },
-    { cmd: "/savesummary",    desc: "Save the last summary to your memory" },
-    { cmd: "/learn about <topic>", desc: "Auto search, summarize, and save facts about a topic" },
-    { cmd: "/pastsearches",    desc: "List your recent learned topics" }
+    { cmd: "/note", desc: "Save a note (e.g. /note call Mom later)" },
+    { cmd: "/reminder", desc: "Set a reminder (e.g. /reminder pay bill tomorrow)" },
+    { cmd: "/calendar", desc: "Create a calendar event (e.g. /calendar dinner Friday)" },
+    { cmd: "/log", desc: "Add to your day log (e.g. /log felt great after run)" },
+    { cmd: "/clearchat", desc: "Clear the visible chat history" },
+    { cmd: "/summary", desc: "Summarize recent memory entries" },
+    { cmd: "/time", desc: "Show current time" },
+    { cmd: "/date", desc: "Show today’s date" },
+    { cmd: "/uid", desc: "Show your Firebase user ID" },
+    { cmd: "/search <term>", desc: "Search the web and summarize results" },
+    { cmd: "/searchresults", desc: "Show full results from last search" },
+    { cmd: "/savesummary", desc: "Save the last summary to memory" },
+    { cmd: "/learn about <topic>", desc: "Auto search, summarize, and save topic" },
+    { cmd: "/pastsearches", desc: "List your recent learned topics" }
   ];
 
-  const listItems = commandList
-    .map(c => `<li><code>${c.cmd}</code> -- ${c.desc}</li>`)
-    .join("");
-
-  const html = `
-    <div class="commands-container">
-      <h3>Available Commands</h3>
-      <ul>
-        ${listItems}
-      </ul>
-    </div>
-  `;
+  const listItems = commandList.map(c => `<li><code>${c.cmd}</code> -- ${c.desc}</li>`).join("");
+  const html = `<div class="commands-container"><h3>Available Commands</h3><ul>${listItems}</ul></div>`;
 
   return appendNode(chatRef, {
     role: "assistant",
@@ -184,148 +200,11 @@ async function sendSummary(chatRef, uid, today) {
 ${logLines}
 
 🗒️ Notes:
-${noteLines}
-  `.trim();
+${noteLines}`.trim();
 
   return appendNode(chatRef, {
     role: "assistant",
     content,
     timestamp: Date.now()
   });
-}
-
-export async function listNotes(chatRef) {
-  const uid = chatRef._path.pieces_[1];
-  const today = new Date().toISOString().slice(0, 10);
-
-  try {
-    const snap = await get(child(ref(db), `notes/${uid}`));
-    const notesToday = snap.exists() ? snap.val()[today] || {} : {};
-    const keys = Object.keys(notesToday);
-
-    if (!keys.length) {
-      return appendNode(chatRef, {
-        role: "assistant",
-        content: "🗒️ You have no notes for today.",
-        timestamp: Date.now()
-      });
-    }
-
-    const lines = keys
-      .map(key => {
-        const { content, timestamp } = notesToday[key];
-        const t = new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        return `<li>[${t}] ${content}</li>`;
-      })
-      .join("");
-
-    const html = `
-      <div class="list-container">
-        <h3>🗒️ Today's Notes</h3>
-        <ul>${lines}</ul>
-      </div>
-    `;
-
-    return appendNode(chatRef, {
-      role: "assistant",
-      content: html,
-      timestamp: Date.now()
-    });
-  } catch (err) {
-    return appendNode(chatRef, {
-      role: "assistant",
-      content: `❌ Error fetching notes: ${err.message}`,
-      timestamp: Date.now()
-    });
-  }
-}
-
-export async function listReminders(chatRef) {
-  const uid = chatRef._path.pieces_[1];
-
-  try {
-    const snap = await get(child(ref(db), `reminders/${uid}`));
-    const data = snap.exists() ? snap.val() : {};
-    const keys = Object.keys(data);
-
-    if (!keys.length) {
-      return appendNode(chatRef, {
-        role: "assistant",
-        content: "⏰ You have no reminders set.",
-        timestamp: Date.now()
-      });
-    }
-
-    const lines = keys
-      .map(key => {
-        const { content, timestamp, date } = data[key];
-        const t = date || new Date(timestamp).toLocaleDateString();
-        return `<li>[${t}] ${content}</li>`;
-      })
-      .join("");
-
-    const html = `
-      <div class="list-container">
-        <h3>⏰ Your Reminders</h3>
-        <ul>${lines}</ul>
-      </div>
-    `;
-
-    return appendNode(chatRef, {
-      role: "assistant",
-      content: html,
-      timestamp: Date.now()
-    });
-  } catch (err) {
-    return appendNode(chatRef, {
-      role: "assistant",
-      content: `❌ Error fetching reminders: ${err.message}`,
-      timestamp: Date.now()
-    });
-  }
-}
-
-export async function listEvents(chatRef) {
-  const uid = chatRef._path.pieces_[1];
-
-  try {
-    const snap = await get(child(ref(db), `calendarEvents/${uid}`));
-    const data = snap.exists() ? snap.val() : {};
-    const keys = Object.keys(data);
-
-    if (!keys.length) {
-      return appendNode(chatRef, {
-        role: "assistant",
-        content: "📆 You have no calendar events.",
-        timestamp: Date.now()
-      });
-    }
-
-    const lines = keys
-      .map(key => {
-        const { content, timestamp, date } = data[key];
-        const t = date || new Date(timestamp).toLocaleDateString();
-        return `<li>[${t}] ${content}</li>`;
-      })
-      .join("");
-
-    const html = `
-      <div class="list-container">
-        <h3>📆 Your Events</h3>
-        <ul>${lines}</ul>
-      </div>
-    `;
-
-    return appendNode(chatRef, {
-      role: "assistant",
-      content: html,
-      timestamp: Date.now()
-    });
-  } catch (err) {
-    return appendNode(chatRef, {
-      role: "assistant",
-      content: `❌ Error fetching events: ${err.message}`,
-      timestamp: Date.now()
-    });
-  }
 }
