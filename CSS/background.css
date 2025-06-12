@@ -1,0 +1,40 @@
+/* 1) Full-page layered background */
+html, body {
+  height: 100%;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: radial-gradient(circle at 50% 40%, rgba(20, 18, 34, 0.9), rgba(12, 10, 20, 0.98));
+  backdrop-filter: blur(40px) saturate(1.4);
+  -webkit-backdrop-filter: blur(40px) saturate(1.4);
+  background-color: #0d0c15;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* 2) Liquid glass overlays: subtle gradients + fog layers */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 70% 20%, rgba(191, 82, 255, 0.08), transparent 60%),
+    radial-gradient(ellipse at 25% 75%, rgba(64, 168, 252, 0.06), transparent 70%),
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.02), transparent 80%);
+  background-blend-mode: overlay;
+  pointer-events: none;
+  z-index: -2;
+}
+
+/* 3) Canvas floats just above the layered background */
+#bg-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+height: 100dvh;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.9;
+}
