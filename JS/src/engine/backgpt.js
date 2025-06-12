@@ -1,7 +1,7 @@
 // ðŸ"¹ backgpt.js â€" Handles assistant replies, memory context, saving, summaries
 
 import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { db } from "./firebaseConfig.js";
+import { db, auth } from "../config/firebaseConfig.js";
 import {
   getMemory,
   getDayLog,

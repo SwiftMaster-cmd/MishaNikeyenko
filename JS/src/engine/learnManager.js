@@ -1,6 +1,6 @@
 // 🔹 learnManager.js -- Handles topic learning, past searches, and memory writing
 import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { db } from "./firebaseConfig.js";
+import { db, auth } from "../config/firebaseConfig.js";
 import { getAssistantReply } from "./backgpt.js";
 import { webSearchBrave } from "./search.js";
 

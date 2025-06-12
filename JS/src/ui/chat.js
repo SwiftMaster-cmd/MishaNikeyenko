@@ -7,21 +7,21 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-import { db, auth } from "./firebaseConfig.js";
+import { db, auth } from "../config/firebaseConfig.js";
 import {
   handleStaticCommand,
   listNotes,
   listReminders,
   listEvents
-} from "./commandHandlers.js";
+} from "../engine/commandHandlers.js";
 import {
   saveMessageToChat,
   fetchLast20Messages,
   getAllContext,
   extractMemoryFromPrompt,
   summarizeChatIfNeeded
-} from "./backgpt.js";
-import { buildSystemPrompt } from "./memoryManager.js";
+} from "../engine/backgpt.js";
+import { buildSystemPrompt } from "../engine/memoryManager.js";
 import {
   renderMessages,
   showChatInputSpinner,
@@ -29,8 +29,8 @@ import {
   updateHeaderWithAssistantReply,
   initScrollTracking
 } from "./uiShell.js";
-import { tryNatural } from "./naturalCommands.js";
-import { trackedChat } from "./tokenTracker.js";  // <-- new
+import { tryNatural } from "../engine/naturalCommands.js";
+import { trackedChat } from "../engine/tokenTracker.js";  // <-- new
 
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("chat-form");

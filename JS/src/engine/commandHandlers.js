@@ -1,4 +1,4 @@
-import { db } from "./firebaseConfig.js";
+import { db } from "../config/firebaseConfig.js";
 import {
   ref,
   get,
@@ -6,7 +6,7 @@ import {
   set,
   push
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { appendNode } from "./firebaseHelpers.js";
+import { appendNode } from "../config/firebaseHelpers.js";
 import { saveMessageToChat } from "./backgpt.js"; // if you prefer saveMessageToChat over appendNode
 
 // Handles static commands ("/time", "/date", "/uid", etc.)
