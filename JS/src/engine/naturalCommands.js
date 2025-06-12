@@ -1,53 +1,30 @@
 // naturalCommands.js
-// Centralizes all natural-language command patterns, auto-learns fixes,
-// logs failures, supports aliasing and teaching.
-
-// ────────────────────────────────────────────────────────────────────────────
-// Imports
-// ────────────────────────────────────────────────────────────────────────────
 import { ref, push, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "../config/firebaseConfig.js";
-
 import { webSearchBrave } from "./search.js";
 import { getAssistantReply, saveMessageToChat } from "./backgpt.js";
-import {
-  learnAboutTopic,
-  saveLastSummaryToMemory,
-  getPastSearches
-} from "./learnManager.js";
-import {
-  handleStaticCommand,
-  listNotes,
-  listReminders,
-  listEvents
-} from "./commandHandlers.js";
+import { handleStaticCommand } from "./commandHandlers.js";
 
-// ────────────────────────────────────────────────────────────────────────────
-// tryNatural -- master dispatcher
-// Returns true if a pattern handled the prompt, else false.
-// Adds self-healing: applies saved fixes; logs failures; supports aliasing and teaching.
-// ────────────────────────────────────────────────────────────────────────────
+// Main entry
 export async function tryNatural(prompt, ctx) {
   const lower = prompt.toLowerCase().trim();
   let handled = false;
 
-  // 1️⃣  Check for user-defined fixes first with recursion prevention
+  // Fix mapping
   try {
     const fixSnap = await get(ref(db, `commandFixes/${ctx.uid}`));
     if (fixSnap.exists()) {
       const fixes = Object.values(fixSnap.val());
       const found = fixes.find(f => f.bad.toLowerCase() === lower);
-      if (found) {
-        if (found.fixed.toLowerCase().trim() !== lower) {
-          return await tryNatural(found.fixed, ctx);
-        }
+      if (found && found.fixed.toLowerCase().trim() !== lower) {
+        return await tryNatural(found.fixed, ctx);
       }
     }
   } catch (_) {}
 
-  // 2️⃣  Handle alias teaching: when I say X do Y (quotes optional)
+  // Alias teach (quotes optional)
   try {
-    const aliasMatch = prompt.match(/^when i say\s+[""]?(.+?)[""]?\s+do\s+[""]?(.+?)[""]?$/i);
+    const aliasMatch = prompt.match(/^when i say\s+[""']?(.+?)[""']?\s+do\s+[""']?(.+?)[""']?$/i);
     if (aliasMatch) {
       const [, trigger, command] = aliasMatch;
       await push(ref(db, `commandPatterns/${ctx.uid}`), {
@@ -60,9 +37,9 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // 3️⃣  Teach new commands: static or GPT (quotes optional)
+  // Teach new command (quotes optional)
   try {
-    const teachMatch = prompt.match(/^teach command\s+[""]?(.+?)[""]?\s+to\s+(reply|gpt)\s+[""]?(.+?)[""]?$/i);
+    const teachMatch = prompt.match(/^teach command\s+[""']?(.+?)[""']?\s+to\s+(reply|gpt)\s+[""']?(.+?)[""']?$/i);
     if (teachMatch) {
       const [, trigger, type, content] = teachMatch;
       const action = type === "reply"
@@ -78,9 +55,9 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // 4️⃣  Update existing command (quotes optional)
+  // Update command (quotes optional)
   try {
-    const updateMatch = prompt.match(/^update command\s+[""]?(.+?)[""]?\s+to\s+(reply|gpt)\s+[""]?(.+?)[""]?$/i);
+    const updateMatch = prompt.match(/^update command\s+[""']?(.+?)[""']?\s+to\s+(reply|gpt)\s+[""']?(.+?)[""']?$/i);
     if (updateMatch) {
       const [, trigger, type, content] = updateMatch;
       const snap = await get(ref(db, `commandPatterns/${ctx.uid}`));
@@ -108,39 +85,57 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // 5️⃣  Standard pattern loop with fuzzy includes() matching
-  try {
-    const patternSnap = await get(ref(db, `commandPatterns/${ctx.uid}`));
-    if (patternSnap.exists()) {
-      const patterns = Object.values(patternSnap.val());
-      for (const entry of patterns) {
-        const triggers = entry.match.map(t => t.toLowerCase());
-        if (triggers.some(t => lower.includes(t))) {
-          const action = entry.action;
-          if (action.type === "static") {
-            await saveMessageToChat("assistant", action.response, ctx.uid);
-            handled = true;
-            break;
-          }
-          if (action.type === "gpt") {
-            const reply = await getAssistantReply([
-              { role: "system", content: action.system || "Respond appropriately." },
-              { role: "user", content: action.prompt }
-            ]);
-            await saveMessageToChat("assistant", reply, ctx.uid);
-            handled = true;
-            break;
-          }
-          if (action.type === "alias") {
-            handled = await tryNatural(action.run, ctx);
-            break;
+  // --- 5️⃣  Natural/fuzzy system commands ---
+  // Make sure these work regardless of teach/alias (true natural fallback)
+  const sysCommands = [
+    { triggers: ["clear chat", "/clearchat", "reset chat"], cmd: "/clearchat" },
+    { triggers: ["time", "/time", "current time", "what time"], cmd: "/time" },
+    { triggers: ["date", "/date", "today's date", "what date"], cmd: "/date" }
+    // Add more system commands here if needed
+  ];
+  for (const s of sysCommands) {
+    if (s.triggers.some(t => lower.includes(t))) {
+      await handleStaticCommand(s.cmd, ctx.chatRef, ctx.uid);
+      handled = true;
+      break;
+    }
+  }
+
+  // --- 6️⃣  User-taught fuzzy pattern matching ---
+  if (!handled) {
+    try {
+      const patternSnap = await get(ref(db, `commandPatterns/${ctx.uid}`));
+      if (patternSnap.exists()) {
+        const patterns = Object.values(patternSnap.val());
+        for (const entry of patterns) {
+          const triggers = entry.match.map(t => t.toLowerCase());
+          if (triggers.some(t => lower.includes(t))) {
+            const action = entry.action;
+            if (action.type === "static") {
+              await saveMessageToChat("assistant", action.response, ctx.uid);
+              handled = true;
+              break;
+            }
+            if (action.type === "gpt") {
+              const reply = await getAssistantReply([
+                { role: "system", content: action.system || "Respond appropriately." },
+                { role: "user", content: action.prompt }
+              ]);
+              await saveMessageToChat("assistant", reply, ctx.uid);
+              handled = true;
+              break;
+            }
+            if (action.type === "alias") {
+              handled = await tryNatural(action.run, ctx);
+              break;
+            }
           }
         }
       }
-    }
-  } catch (_) {}
+    } catch (_) {}
+  }
 
-  // 6️⃣  Fallback GPT classifier: command vs dialog
+  // --- 7️⃣  Fallback GPT classifier: command vs dialog
   if (!handled) {
     try {
       const decision = await getAssistantReply([
@@ -150,16 +145,14 @@ export async function tryNatural(prompt, ctx) {
         },
         { role: "user", content: prompt }
       ]);
-      const result = decision.trim().toLowerCase();
-
-      if (result === "command") {
+      if (decision.trim().toLowerCase() === "command") {
         await saveMessageToChat("assistant", "⚠️ That seems like a command, but I didn’t recognize it. Want to teach it?", ctx.uid);
       }
-      // No reply if dialog
+      // If dialog, no reply.
     } catch (_) {}
   }
 
-  // 7️⃣  Log failure only if no command matched
+  // --- 8️⃣  Log failure only if no command matched ---
   if (!handled) {
     try {
       await push(ref(db, `commandFailures/${ctx.uid}`), {
@@ -171,10 +164,3 @@ export async function tryNatural(prompt, ctx) {
 
   return handled;
 }
-
-// ────────────────────────────────────────────────────────────────────────────
-// Pattern registry (legacy, minimal, if needed; you can remove or disable)
-// ────────────────────────────────────────────────────────────────────────────
-const patterns = [
-  // Minimal or fallback patterns if you want
-];
