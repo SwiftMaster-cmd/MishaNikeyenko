@@ -1,19 +1,15 @@
+// naturalCommands.js
 import { ref, push, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db } from "../config/firebaseConfig.js";
 import { webSearchBrave } from "./search.js";
-import {
-  getAssistantReply,
-  saveMessageToChat,
-  handleDestructiveCommand,
-  confirmDestructiveAction
-} from "./backgpt.js";
+import { getAssistantReply, saveMessageToChat } from "./backgpt.js";
 import { handleStaticCommand } from "./commandHandlers.js";
 
 export async function tryNatural(prompt, ctx) {
   const lower = prompt.toLowerCase().trim();
   let handled = false;
 
-  // 1️⃣ Fix command aliases (from commandFixes/)
+  // 1ï¸âƒ£ Command Fix Mapping
   try {
     const fixSnap = await get(ref(db, `commandFixes/${ctx.uid}`));
     if (fixSnap.exists()) {
@@ -25,9 +21,9 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // 2️⃣ Teach: "when I say X do Y"
+  // 2ï¸âƒ£ Alias Teach (quotes optional, wildcards supported)
   try {
-    const aliasTeach = prompt.match(/^when i say\s+["']?(.+?)["']?\s+do\s+["']?(.+?)["']?$/i);
+    const aliasTeach = prompt.match(/^when i say\s+[""']?(.+?)[""']?\s+do\s+[""']?(.+?)[""']?$/i);
     if (aliasTeach) {
       const [, trigger, command] = aliasTeach;
       await push(ref(db, `commandPatterns/${ctx.uid}`), {
@@ -35,14 +31,14 @@ export async function tryNatural(prompt, ctx) {
         action: { type: "alias", run: command },
         timestamp: Date.now()
       });
-      await saveMessageToChat("assistant", `✅ Got it. "${trigger}" will now trigger: ${command}`, ctx.uid);
+      await saveMessageToChat("assistant", `âœ… Got it. "${trigger}" will now trigger: ${command}`, ctx.uid);
       return true;
     }
   } catch (_) {}
 
-  // 3️⃣ Teach: "teach command X to reply/gpt Y"
+  // 3ï¸âƒ£ Teach new command (quotes optional)
   try {
-    const teachMatch = prompt.match(/^teach command\s+["']?(.+?)["']?\s+to\s+(reply|gpt)\s+["']?(.+?)["']?$/i);
+    const teachMatch = prompt.match(/^teach command\s+[""']?(.+?)[""']?\s+to\s+(reply|gpt)\s+[""']?(.+?)[""']?$/i);
     if (teachMatch) {
       const [, trigger, type, content] = teachMatch;
       const action = type === "reply"
@@ -53,14 +49,14 @@ export async function tryNatural(prompt, ctx) {
         action,
         timestamp: Date.now()
       });
-      await saveMessageToChat("assistant", `✅ Learned: "${trigger}"`, ctx.uid);
+      await saveMessageToChat("assistant", `âœ… Learned: "${trigger}"`, ctx.uid);
       return true;
     }
   } catch (_) {}
 
-  // 4️⃣ Update: "update command X to reply/gpt Y"
+  // 4ï¸âƒ£ Update existing command (quotes optional)
   try {
-    const updateMatch = prompt.match(/^update command\s+["']?(.+?)["']?\s+to\s+(reply|gpt)\s+["']?(.+?)["']?$/i);
+    const updateMatch = prompt.match(/^update command\s+[""']?(.+?)[""']?\s+to\s+(reply|gpt)\s+[""']?(.+?)[""']?$/i);
     if (updateMatch) {
       const [, trigger, type, content] = updateMatch;
       const snap = await get(ref(db, `commandPatterns/${ctx.uid}`));
@@ -78,17 +74,17 @@ export async function tryNatural(prompt, ctx) {
                 : { type: "gpt", prompt: content },
               updated: Date.now()
             });
-            await saveMessageToChat("assistant", `🔄 Updated: "${trigger}"`, ctx.uid);
+            await saveMessageToChat("assistant", `ðŸ"„ Updated: "${trigger}"`, ctx.uid);
             return true;
           }
         }
       }
-      await saveMessageToChat("assistant", `❌ Command not found to update.`, ctx.uid);
+      await saveMessageToChat("assistant", `âŒ Command not found to update.`, ctx.uid);
       return true;
     }
   } catch (_) {}
 
-  // 5️⃣ Load patterns
+  // 5ï¸âƒ£ Get all user patterns once
   let userPatterns = [];
   try {
     const patternSnap = await get(ref(db, `commandPatterns/${ctx.uid}`));
@@ -97,10 +93,11 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // 6️⃣ Wildcard alias patterns ("learn about *")
+  // 6ï¸âƒ£ Wildcard/parameter alias support ("learn about *" â†’ "/search *")
   if (!handled && userPatterns.length) {
     for (const entry of userPatterns) {
       if (entry.action?.type === "alias" && entry.match[0].includes('*')) {
+        // Build regex for wildcard
         const pattern = entry.match[0];
         const regex = new RegExp('^' + pattern.replace('*', '(.+)') + '$', 'i');
         const m = prompt.match(regex);
@@ -113,11 +110,12 @@ export async function tryNatural(prompt, ctx) {
     }
   }
 
-  // 7️⃣ System commands
+  // 7ï¸âƒ£ System commands: Always respond to natural phrases
   const sysCommands = [
     { triggers: ["clear chat", "/clearchat", "reset chat"], cmd: "/clearchat" },
     { triggers: ["time", "/time", "current time", "what time"], cmd: "/time" },
     { triggers: ["date", "/date", "today's date", "what date"], cmd: "/date" }
+    // Add more if needed
   ];
   for (const s of sysCommands) {
     if (s.triggers.some(t => lower.includes(t))) {
@@ -127,7 +125,7 @@ export async function tryNatural(prompt, ctx) {
     }
   }
 
-  // 8️⃣ Fuzzy match to taught commands
+  // 8ï¸âƒ£ User-taught fuzzy pattern matching
   if (!handled && userPatterns.length) {
     for (const entry of userPatterns) {
       const triggers = entry.match.map(t => t.toLowerCase());
@@ -155,23 +153,7 @@ export async function tryNatural(prompt, ctx) {
     }
   }
 
-  // 9️⃣ Drastic destructive intent check
-  if (!handled) {
-    const result = await handleDestructiveCommand(prompt, ctx.uid);
-    if (result === "confirming") {
-      handled = true;
-    }
-  }
-
-  // 🔟 Confirmation of deletion
-  if (!handled) {
-    const confirmed = await confirmDestructiveAction(prompt, ctx.uid);
-    if (confirmed) {
-      handled = true;
-    }
-  }
-
-  // 🔚 Final fallback: log as possible missed command
+  // 9ï¸âƒ£ Fallback GPT classifier: command vs dialog
   if (!handled) {
     try {
       const decision = await getAssistantReply([
@@ -182,10 +164,14 @@ export async function tryNatural(prompt, ctx) {
         { role: "user", content: prompt }
       ]);
       if (decision.trim().toLowerCase() === "command") {
-        await saveMessageToChat("assistant", "⚠️ That seems like a command, but I didn’t recognize it. Want to teach it?", ctx.uid);
+        await saveMessageToChat("assistant", "âš ï¸ That seems like a command, but I didnâ€™t recognize it. Want to teach it?", ctx.uid);
       }
+      // If dialog, no reply.
     } catch (_) {}
+  }
 
+  // ðŸ"Ÿ Log failure only if no command matched
+  if (!handled) {
     try {
       await push(ref(db, `commandFailures/${ctx.uid}`), {
         prompt,
