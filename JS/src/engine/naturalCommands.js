@@ -6,7 +6,7 @@
 // Imports
 // ────────────────────────────────────────────────────────────────────────────
 import { ref, push, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { db } from "../config/firebaseConfig.js";          // ← path reflects /config/ move
+import { db } from "../config/firebaseConfig.js";
 
 import { webSearchBrave } from "./search.js";
 import { getAssistantReply, saveMessageToChat } from "./backgpt.js";
@@ -29,6 +29,7 @@ import {
 // ────────────────────────────────────────────────────────────────────────────
 export async function tryNatural(prompt, ctx) {
   const lower = prompt.toLowerCase().trim();
+  let handled = false;
 
   // 1️⃣  Check for user-defined fixes first with recursion prevention
   try {
@@ -42,7 +43,7 @@ export async function tryNatural(prompt, ctx) {
         }
       }
     }
-  } catch (_) {/* swallow */}
+  } catch (_) {}
 
   // 2️⃣  Handle alias teaching: when I say "X" do "Y"
   try {
@@ -57,7 +58,7 @@ export async function tryNatural(prompt, ctx) {
       await saveMessageToChat("assistant", `✅ Got it. "${trigger}" will now trigger: ${command}`, ctx.uid);
       return true;
     }
-  } catch (_) {/* swallow */}
+  } catch (_) {}
 
   // 3️⃣  Teach new commands: static or GPT
   try {
@@ -75,7 +76,7 @@ export async function tryNatural(prompt, ctx) {
       await saveMessageToChat("assistant", `✅ Learned: "${trigger}"`, ctx.uid);
       return true;
     }
-  } catch (_) {/* swallow */}
+  } catch (_) {}
 
   // 4️⃣  Update existing command
   try {
@@ -105,7 +106,7 @@ export async function tryNatural(prompt, ctx) {
       await saveMessageToChat("assistant", `❌ Command not found to update.`, ctx.uid);
       return true;
     }
-  } catch (_) {/* swallow */}
+  } catch (_) {}
 
   // 5️⃣  Standard pattern loop with fuzzy includes() matching
   try {
@@ -118,7 +119,8 @@ export async function tryNatural(prompt, ctx) {
           const action = entry.action;
           if (action.type === "static") {
             await saveMessageToChat("assistant", action.response, ctx.uid);
-            return true;
+            handled = true;
+            break;
           }
           if (action.type === "gpt") {
             const reply = await getAssistantReply([
@@ -126,48 +128,53 @@ export async function tryNatural(prompt, ctx) {
               { role: "user", content: action.prompt }
             ]);
             await saveMessageToChat("assistant", reply, ctx.uid);
-            return true;
+            handled = true;
+            break;
           }
           if (action.type === "alias") {
-            return await tryNatural(action.run, ctx);
+            handled = await tryNatural(action.run, ctx);
+            break;
           }
         }
       }
     }
-  } catch (_) {/* swallow */}
+  } catch (_) {}
 
-  // 6️⃣  GPT fallback classifier: command vs dialog
-  try {
-    const decision = await getAssistantReply([
-      {
-        role: "system",
-        content: "Decide if this message is a user instruction (command) or just regular dialog. Reply only with 'command' or 'dialog'."
-      },
-      { role: "user", content: prompt }
-    ]);
-    const result = decision.trim().toLowerCase();
+  // 6️⃣  Fallback GPT classifier: command vs dialog
+  if (!handled) {
+    try {
+      const decision = await getAssistantReply([
+        {
+          role: "system",
+          content: "Decide if this message is a user instruction (command) or just regular dialog. Reply only with 'command' or 'dialog'."
+        },
+        { role: "user", content: prompt }
+      ]);
+      const result = decision.trim().toLowerCase();
 
-    if (result === "command") {
-      await saveMessageToChat("assistant", "⚠️ That seems like a command, but I didn’t recognize it. Want to teach it?", ctx.uid);
-    } else {
-      await saveMessageToChat("assistant", "💬 Got it. Just casual conversation.", ctx.uid);
-    }
-  } catch (_) {/* swallow */}
+      if (result === "command") {
+        await saveMessageToChat("assistant", "⚠️ That seems like a command, but I didn’t recognize it. Want to teach it?", ctx.uid);
+      }
+      // no reply for dialog
+    } catch (_) {}
+  }
 
-  // 7️⃣  Log failure
-  try {
-    await push(ref(db, `commandFailures/${ctx.uid}`), {
-      prompt,
-      timestamp: Date.now()
-    });
-  } catch (_) {/* swallow */}
+  // 7️⃣  Log failure only if no command matched
+  if (!handled) {
+    try {
+      await push(ref(db, `commandFailures/${ctx.uid}`), {
+        prompt,
+        timestamp: Date.now()
+      });
+    } catch (_) {}
+  }
 
-  return false;
+  return handled;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
 // Pattern registry (legacy, minimal, if needed; you can remove or disable)
 // ────────────────────────────────────────────────────────────────────────────
 const patterns = [
-  // You can keep minimal fallback commands here if desired.
+  // Minimal or fallback patterns if you want
 ];
