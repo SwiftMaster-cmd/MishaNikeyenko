@@ -1,4 +1,4 @@
-import { ref, push, get, child, remove, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { ref, push, get, child, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db, auth } from "../config/firebaseConfig.js";
 import {
   getMemory,
@@ -15,7 +15,7 @@ const ASSISTANT_MODEL = "gpt-4o";
 const CHEAP_MODEL     = "gpt-3.5-turbo";
 const LOW_TEMP        = 0.3;
 
-// Save a message to Firebase chat
+// ✅ Save chat messages
 export async function saveMessageToChat(role, content, uid) {
   await push(ref(db, `chatHistory/${uid}`), {
     role,
@@ -24,7 +24,7 @@ export async function saveMessageToChat(role, content, uid) {
   });
 }
 
-// Get last 20 messages
+// ✅ Get last 20 chat messages
 export async function fetchLast20Messages(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return [];
@@ -38,7 +38,7 @@ export async function fetchLast20Messages(uid) {
     .slice(-20);
 }
 
-// Fetch all contextual memory
+// ✅ Get all context data
 export async function getAllContext(uid) {
   const today = todayStr();
   const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
@@ -52,7 +52,7 @@ export async function getAllContext(uid) {
   return { memory, dayLog, notes, calendar, reminders, calc };
 }
 
-// Call OpenAI API and get response
+// ✅ Call GPT for replies
 export async function getAssistantReply(fullMessages) {
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
@@ -67,7 +67,7 @@ export async function getAssistantReply(fullMessages) {
   return data.choices?.[0]?.message?.content || "[No reply]";
 }
 
-// Extract and save multiple memory entries
+// ✅ Extract + save multiple memory items from input
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
 
@@ -81,12 +81,15 @@ export async function extractMemoryFromPrompt(prompt, uid) {
         {
           role: "system",
           content: `
-You are a memory extractor. From this user input, return a JSON array of memory actions.
+You're a memory extractor. Convert this user input into an array of memory entries.
+
 Each must include:
 - "type": "note" | "reminder" | "calendar" | "log"
 - "content": string
+
 Optional: "date", "time", "recurrence", "mood"
-Example:
+
+Respond only with JSON:
 [
   { "type": "reminder", "content": "Cancel Prime", "date": "2025-06-14" },
   { "type": "log", "content": "Felt burnt out", "mood": "tired" }
@@ -98,19 +101,23 @@ Example:
   });
 
   const raw = await extractionRes.json();
-  const choices = raw.choices?.[0]?.message?.content || "[]";
-  const memories = extractJson(choices) || [];
+  const gptReply = raw.choices?.[0]?.message?.content || "[]";
+  console.log("[extractMemoryFromPrompt] GPT reply:", gptReply);
+
+  const memories = extractJson(gptReply);
+  if (!Array.isArray(memories) || !memories.length) {
+    await saveMessageToChat("assistant", "⚠️ I couldn't extract any memory from that.", uid);
+    return [];
+  }
 
   const promises = memories.map(entry => {
     const { type, content, date, time, recurrence, mood } = entry;
-    let path;
-
-    switch (type) {
-      case "calendar": path = `calendarEvents/${uid}`; break;
-      case "reminder": path = `reminders/${uid}`;      break;
-      case "log":      path = `dayLog/${uid}/${today}`;break;
-      default:         path = `notes/${uid}/${today}`; break;
-    }
+    const path = (
+      type === "calendar" ? `calendarEvents/${uid}` :
+      type === "reminder" ? `reminders/${uid}` :
+      type === "log"      ? `dayLog/${uid}/${today}` :
+                           `notes/${uid}/${today}`
+    );
 
     const payload = {
       content,
@@ -125,10 +132,11 @@ Example:
   });
 
   await Promise.all(promises);
+  await saveMessageToChat("assistant", `✅ Saved ${memories.length} memory item(s).`, uid);
   return memories;
 }
 
-// Summary every 20 messages
+// ✅ Summarize every 20 messages
 export async function summarizeChatIfNeeded(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return;
@@ -155,12 +163,13 @@ export async function summarizeChatIfNeeded(uid) {
       ]
     })
   });
+
   const summaryData = await summaryRes.json();
   const summary = summaryData.choices?.[0]?.message?.content || "[No summary]";
   await push(ref(db, `memory/${uid}`), { summary, timestamp: Date.now() });
 }
 
-// 🔥 Drastic Firebase actions (with confirmation system)
+// ✅ Detect if user wants a destructive action
 export async function handleDestructiveCommand(prompt, uid) {
   const intentRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
@@ -171,13 +180,9 @@ export async function handleDestructiveCommand(prompt, uid) {
       messages: [
         {
           role: "system",
-          content: `You're an intent recognizer. From this prompt, decide if the user wants to DELETE large sections of memory.
-If yes, return JSON like:
-{ "action": "delete", "target": "reminders" }
-
-If not, return: { "action": "none" }
-
-Only respond with JSON.`
+          content: `You're an intent recognizer. Return:
+{ "action": "delete", "target": "reminders" } for deletion requests.
+Or: { "action": "none" } if it's not destructive. Only JSON.`
         },
         { role: "user", content: prompt }
       ]
@@ -189,13 +194,14 @@ Only respond with JSON.`
 
   if (intent?.action === "delete" && intent.target) {
     const node = intent.target;
-    await saveMessageToChat("assistant", `⚠️ Are you sure you want to permanently delete all data from /${node}? Reply: "Yes, delete ${node}" to confirm.`, uid);
+    await saveMessageToChat("assistant", `⚠️ Are you sure you want to delete all data from /${node}? Reply: "Yes, delete ${node}" to confirm.`, uid);
     return "confirming";
   }
 
   return "no-action";
 }
 
+// ✅ Confirm deletion if user says yes
 export async function confirmDestructiveAction(confirmPrompt, uid) {
   const match = confirmPrompt.match(/^yes, delete (\w+)/i);
   if (!match) return false;
