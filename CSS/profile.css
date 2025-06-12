@@ -1,16 +1,33 @@
 /* imports tokens + reset from variables.css */
 @import url('variables.css');
 
-/* -- header -- */
-.header-bar{
-  position:fixed; top:0; left:0; width:100%; height:var(--nav-h);
-  display:flex; align-items:center; justify-content:space-between;
-  padding:0 1.6rem;
-  backdrop-filter:blur(18px) saturate(1.3);
-  background:var(--clr-glass);
-  border-bottom:1px solid var(--clr-border);
-  z-index:1000;
+
+
+.header-bar {
+  position: -webkit-sticky; /* Safari-specific sticky */
+  position: sticky;
+  top: 0;
+  z-index: 100; /* Higher than 10 to guarantee it stays above content */
+
+  height: var(--nav-h);
+  background: rgba(30, 30, 48, 0.6); /* Replace var with fixed semi-transparent bg if var fails */
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3); /* For Safari */
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.6rem;
+  box-sizing: border-box;
+
+  pointer-events: auto;
+  transform: translateZ(0);
+  
 }
+
+
+
+
 .header-title{
   position:absolute; left:50%; transform:translateX(-50%);
   font:600 1.1rem/1 'Inter',sans-serif; pointer-events:none;

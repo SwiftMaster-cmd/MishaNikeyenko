@@ -1,0 +1,132 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Console</title>
+
+  <!-- Existing Styles -->
+  <link rel="stylesheet" href="../CSS/calculator.css">
+  <link rel="stylesheet" href="../CSS/calendar.css">
+  <link rel="stylesheet" href="../CSS/chatgpt.css">
+  <link rel="stylesheet" href="../CSS/index.css">
+  <link rel="stylesheet" href="../CSS/jsloader.css">
+  <link rel="stylesheet" href="../CSS/links.css">
+  <link rel="stylesheet" href="../CSS/notes.css">
+  <link rel="stylesheet" href="../CSS/profile.css">
+  <link rel="stylesheet" href="../CSS/register.css">
+  <link rel="stylesheet" href="../CSS/variables.css">
+    <link rel="stylesheet" href="../CSS/console.css">
+        <link rel="stylesheet" href="../CSS/background.css">
+
+</head>
+<body>
+  <!-- 🔮 Animated Blob Background -->
+  <!-- 1) Static Gradient Layer -->
+  <div class="bg-gradient-layer"></div>
+
+  <!-- 2) Canvas Particle Layer -->
+  <canvas id="bg-canvas"></canvas>
+  <!-- HEADER
+  <!-- HEADER -->
+  <header class="header-bar">
+    <button id="menu-toggle" class="burger" aria-label="Menu">☰</button>
+
+<div id="chat-status-bar"></div>
+    <button id="profile-toggle-btn" class="profile-toggle-btn"
+            aria-haspopup="true" aria-controls="profile-card">
+      Profile
+    </button>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav id="side-nav" class="side-nav" aria-hidden="true">
+    <button id="toggle-form-btn" class="nav-item">➕ Add bookmark</button>
+    <div id="links-list" class="sidebar-links"></div>
+    <a href="welcome.html"    class="nav-item">Dashboard</a>
+    <a href="notes.html"      class="nav-item">Notes</a>
+    <a href="es-module.html"  class="nav-item">ES-Module</a>
+    <a href="calculator.html" class="nav-item active">Calculator</a>
+    <a href="calendar.html"   class="nav-item active">Calendar</a>
+  </nav>
+
+  <!-- PROFILE CARD -->
+  <aside id="profile-card" class="profile-card" aria-hidden="true">
+    <div id="user-info"></div>
+    <div id="config-status"></div>
+    <button id="logout-btn" type="button">Sign Out</button>
+  </aside>
+
+  <!-- MAIN DASHBOARD -->
+<!-- Status indicator (can be anywhere in the <body>) -->
+<div id="status-indicator" style="position:fixed;top:16px;right:24px;z-index:99999;display:flex;align-items:center;">
+  <span id="status-icon" style="font-size:2rem;"></span>
+  <span id="status-tooltip" style="margin-left:6px;font-size:1rem;color:#fff;opacity:0.8;display:none;background:rgba(30,30,50,0.8);padding:2px 8px;border-radius:6px;"></span>
+</div>
+
+<main>
+  <!-- Onscreen Console -->
+<div id="onscreen-console" style="display: block;">
+    <div id="onscreen-console-messages"></div>
+    <div style="margin-top: 10px;">
+      <button onclick="window.clearDebugLog()">Clear Logs</button>
+      <button onclick="window.exportDebugLog()">Export Logs</button>
+      <button onclick="window.showDebugOverlay()">Full View</button>
+      <button id="mini-autoscroll-btn" onclick="
+        window.miniAutoscroll = !window.miniAutoscroll;
+        this.style.opacity = window.miniAutoscroll ? '1' : '0.5';
+      ">AutoScroll</button>
+    </div>
+  </div>
+
+  <!-- Debug Overlay -->
+  <div id="debug-overlay" >
+    <!-- Overlay markup is injected by console.js -->
+  </div>
+</main>
+
+  <!-- MODULE SCRIPTS -->
+  <script type="module" src="../JS/profile.js"></script>
+  <script type="module" src="../JS/links.js"></script>
+
+  <!-- Firebase & Chat Modules -->
+  <script type="module" src="../JS/src/firebaseConfig.js"></script>
+  <script type="module" src="../JS/src/firebaseHelpers.js"></script>
+  <script type="module" src="../JS/src/storageDebug.js"></script>
+  <script type="module" src="../JS/src/console.js"></script>
+  <script type="module" src="../JS/src/chatUtils.js"></script>
+  <script type="module" src="../JS/src/commandHandlers.js"></script>
+  <script type="module" src="../JS/src/memoryManager.js"></script>
+      <script type="module" src="../JS/src/backgpt.js"></script>
+            <script type="module" src="../JS/src/uiShell.js"></script>
+    <script type="module" src="../JS/src/chat.js"></script>
+        <script type="module" src="../JS/src/background.js"></script>
+        <script type="module" src="../JS/src/selfEvolve.js"></script>
+  
+  
+
+  <!-- Controls for Sidebar and Add‐link Form -->
+  <script type="module">
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebar = document.getElementById('side-nav');
+      const burger  = document.getElementById('menu-toggle');
+      const addBtn  = document.getElementById('toggle-form-btn');
+      const form    = document.getElementById('add-link-form');
+
+      burger.onclick = () => {
+        const open = sidebar.classList.toggle('open');
+        document.body.classList.toggle('sidebar-open', open);
+      };
+
+      addBtn.onclick = () => {
+        const collapsed = form.classList.toggle('collapsed');
+        addBtn.classList.toggle('active', !collapsed);
+        if (!collapsed) document.getElementById('link-title').focus();
+      };
+    });
+  </script>
+</body>
+</html>
