@@ -1,6 +1,6 @@
 // naturalCommands.js
 // Centralizes all natural-language command patterns, auto-learns fixes,
-// logs failures, and re-routes corrected commands.
+// logs failures, supports aliasing, and re-routes corrected commands.
 
 // ────────────────────────────────────────────────────────────────────────────
 // Imports
@@ -25,19 +25,18 @@ import {
 // ────────────────────────────────────────────────────────────────────────────
 // tryNatural -- master dispatcher
 // Returns true if a pattern handled the prompt, else false.
-// Adds self-healing: applies saved fixes; logs failures.
+// Adds self-healing: applies saved fixes; logs failures; supports aliasing and teaching.
 // ────────────────────────────────────────────────────────────────────────────
 export async function tryNatural(prompt, ctx) {
   const lower = prompt.toLowerCase().trim();
 
-  // 1️⃣  Check for user-defined fixes first
+  // 1️⃣  Check for user-defined fixes first with recursion prevention
   try {
     const fixSnap = await get(ref(db, `commandFixes/${ctx.uid}`));
     if (fixSnap.exists()) {
       const fixes = Object.values(fixSnap.val());
       const found = fixes.find(f => f.bad.toLowerCase() === lower);
       if (found) {
-        // Prevent infinite recursion
         if (found.fixed.toLowerCase().trim() !== lower) {
           return await tryNatural(found.fixed, ctx);
         }
@@ -45,15 +44,117 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {/* swallow */}
 
-  // 2️⃣  Standard pattern loop
-  for (const { match, handler } of patterns) {
-    if (match(lower, prompt)) {
-      await handler(prompt, ctx);
+  // 2️⃣  Handle alias teaching: when I say "X" do "Y"
+  try {
+    const aliasMatch = prompt.match(/^when i say\s+[""](.+?)[""]\s+do\s+[""](.+?)[""]$/i);
+    if (aliasMatch) {
+      const [, trigger, command] = aliasMatch;
+      await push(ref(db, `commandPatterns/${ctx.uid}`), {
+        match: [trigger],
+        action: { type: "alias", run: command },
+        timestamp: Date.now()
+      });
+      await saveMessageToChat("assistant", `✅ Got it. "${trigger}" will now trigger: ${command}`, ctx.uid);
       return true;
     }
-  }
+  } catch (_) {/* swallow */}
 
-  // 3️⃣  Log failure for future teaching
+  // 3️⃣  Teach new commands: static or GPT
+  try {
+    const teachMatch = prompt.match(/^teach command\s+[""](.+?)[""]\s+to\s+(reply|gpt)\s+[""](.+?)[""]$/i);
+    if (teachMatch) {
+      const [, trigger, type, content] = teachMatch;
+      const action = type === "reply"
+        ? { type: "static", response: content }
+        : { type: "gpt", prompt: content };
+      await push(ref(db, `commandPatterns/${ctx.uid}`), {
+        match: [trigger],
+        action,
+        timestamp: Date.now()
+      });
+      await saveMessageToChat("assistant", `✅ Learned: "${trigger}"`, ctx.uid);
+      return true;
+    }
+  } catch (_) {/* swallow */}
+
+  // 4️⃣  Update existing command
+  try {
+    const updateMatch = prompt.match(/^update command\s+[""](.+?)[""]\s+to\s+(reply|gpt)\s+[""](.+?)[""]$/i);
+    if (updateMatch) {
+      const [, trigger, type, content] = updateMatch;
+      const snap = await get(ref(db, `commandPatterns/${ctx.uid}`));
+      if (snap.exists()) {
+        const all = snap.val();
+        for (const key in all) {
+          const entry = all[key];
+          const triggers = entry.match.map(t => t.toLowerCase());
+          if (triggers.includes(trigger.toLowerCase())) {
+            const updateRef = ref(db, `commandPatterns/${ctx.uid}/${key}`);
+            await push(updateRef, {
+              match: [trigger],
+              action: type === "reply"
+                ? { type: "static", response: content }
+                : { type: "gpt", prompt: content },
+              updated: Date.now()
+            });
+            await saveMessageToChat("assistant", `🔄 Updated: "${trigger}"`, ctx.uid);
+            return true;
+          }
+        }
+      }
+      await saveMessageToChat("assistant", `❌ Command not found to update.`, ctx.uid);
+      return true;
+    }
+  } catch (_) {/* swallow */}
+
+  // 5️⃣  Standard pattern loop with fuzzy includes() matching
+  try {
+    const patternSnap = await get(ref(db, `commandPatterns/${ctx.uid}`));
+    if (patternSnap.exists()) {
+      const patterns = Object.values(patternSnap.val());
+      for (const entry of patterns) {
+        const triggers = entry.match.map(t => t.toLowerCase());
+        if (triggers.some(t => lower.includes(t))) {
+          const action = entry.action;
+          if (action.type === "static") {
+            await saveMessageToChat("assistant", action.response, ctx.uid);
+            return true;
+          }
+          if (action.type === "gpt") {
+            const reply = await getAssistantReply([
+              { role: "system", content: action.system || "Respond appropriately." },
+              { role: "user", content: action.prompt }
+            ]);
+            await saveMessageToChat("assistant", reply, ctx.uid);
+            return true;
+          }
+          if (action.type === "alias") {
+            return await tryNatural(action.run, ctx);
+          }
+        }
+      }
+    }
+  } catch (_) {/* swallow */}
+
+  // 6️⃣  GPT fallback classifier: command vs dialog
+  try {
+    const decision = await getAssistantReply([
+      {
+        role: "system",
+        content: "Decide if this message is a user instruction (command) or just regular dialog. Reply only with 'command' or 'dialog'."
+      },
+      { role: "user", content: prompt }
+    ]);
+    const result = decision.trim().toLowerCase();
+
+    if (result === "command") {
+      await saveMessageToChat("assistant", "⚠️ That seems like a command, but I didn’t recognize it. Want to teach it?", ctx.uid);
+    } else {
+      await saveMessageToChat("assistant", "💬 Got it. Just casual conversation.", ctx.uid);
+    }
+  } catch (_) {/* swallow */}
+
+  // 7️⃣  Log failure
   try {
     await push(ref(db, `commandFailures/${ctx.uid}`), {
       prompt,
@@ -65,186 +166,8 @@ export async function tryNatural(prompt, ctx) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Pattern registry
+// Pattern registry (legacy, minimal, if needed; you can remove or disable)
 // ────────────────────────────────────────────────────────────────────────────
 const patterns = [
-  // --- Core CRUD commands ---------------------------------------------------
-  {
-    match: (l) => /^\/?note\s+|^remember this/.test(l),
-    handler: async (p, { uid, chatRef }) =>
-      handleStaticCommand(`/note ${p.replace(/^\/?note\s+/i, "")}`, chatRef, uid)
-  },
-  {
-    match: (l) => /^\/?reminder\s+|remind me\b/.test(l),
-    handler: async (p, { uid, chatRef }) =>
-      handleStaticCommand(`/reminder ${p.replace(/^\/?reminder\s+/i, "")}`, chatRef, uid)
-  },
-  {
-    match: (l) => /^\/?calendar\s+|add to calendar|schedule\b/.test(l),
-    handler: async (p, { uid, chatRef }) =>
-      handleStaticCommand(`/calendar ${p.replace(/^\/?calendar\s+/i, "")}`, chatRef, uid)
-  },
-  {
-    match: (l) => /^\/?log\s+|log this\b/.test(l),
-    handler: async (p, { uid, chatRef }) =>
-      handleStaticCommand(`/log ${p.replace(/^\/?log\s+/i, "")}`, chatRef, uid)
-  },
-
-  // --- System utilities -----------------------------------------------------
-  {
-    match: (l) => ["/summary", "summarize", "give summary"].includes(l),
-    handler: async (_, { uid, chatRef }) => handleStaticCommand("/summary", chatRef, uid)
-  },
-  {
-    match: (l) => ["/clearchat", "clear chat", "reset chat"].includes(l),
-    handler: async (_, { uid, chatRef }) => handleStaticCommand("/clearchat", chatRef, uid)
-  },
-  {
-    match: (l) => ["/time", "what time is it", "current time"].includes(l),
-    handler: async (_, { uid, chatRef }) => handleStaticCommand("/time", chatRef, uid)
-  },
-  {
-    match: (l) => ["/date", "what date is it", "today's date"].includes(l),
-    handler: async (_, { uid, chatRef }) => handleStaticCommand("/date", chatRef, uid)
-  },
-  {
-    match: (l) => ["/uid", "what is my uid", "show my id"].includes(l),
-    handler: async (_, { uid, chatRef }) => handleStaticCommand("/uid", chatRef, uid)
-  },
-
-  // --- Web search -----------------------------------------------------------
-  {
-    match: (l) => /^(\/?search)( for)?\s+/.test(l) || l.startsWith("find "),
-    handler: async (p, { uid, chatRef, state }) => {
-      const term = p.replace(/^(\/?search)( for)?\s+/i, "").replace(/^find\s+/i, "").trim();
-      if (!term) return saveMessageToChat("assistant", "❌ Search query empty.", uid);
-
-      const { results } = await webSearchBrave(term, { uid, count: 5 });
-      const summary = await getAssistantReply([
-        { role: "system", content: "Summarize these results in one paragraph:" },
-        { role: "user", content: JSON.stringify(results) }
-      ]);
-
-      await saveMessageToChat("user", p, uid);
-      await saveMessageToChat("assistant", summary, uid);
-      state.lastSearchData = { term, results };
-    }
-  },
-  {
-    match: (l) => ["/searchresults", "show results", "show search results",
-                   "what were the search results"].includes(l),
-    handler: async (_, { uid, state }) => {
-      const d = state.lastSearchData;
-      if (!d) return saveMessageToChat("assistant", "❌ No previous search found.", uid);
-
-      const html = [
-        `<div class="search-results"><div class="results-title">Results for "${d.term}"</div><ul>`,
-        ...d.results.map(r =>
-          `<li><a href="${r.url}" target="_blank">${r.title}</a>` +
-          (r.snippet ? `<div class="snippet">${r.snippet}</div>` : "") +
-          `<div class="result-url">${r.url}</div></li>`
-        ),
-        "</ul></div>"
-      ].join("");
-      await saveMessageToChat("assistant", html, uid);
-    }
-  },
-
-  // --- Memory helpers -------------------------------------------------------
-  {
-    match: (l) => ["/savesummary", "save that", "save summary", "save that summary"].includes(l),
-    handler: async (_, { uid }) => {
-      const ok = await saveLastSummaryToMemory(uid);
-      await saveMessageToChat("assistant", ok ? "✅ Last summary saved." : "❌ Nothing to save.", uid);
-    }
-  },
-  {
-    match: (l) => /^\/?learn about\s+|tell me about\b/.test(l),
-    handler: async (p, { uid }) => {
-      const topic = p.replace(/^\/?learn about\s+/i, "").replace(/^tell me about\s+/i, "").trim();
-      if (!topic) return saveMessageToChat("assistant", "❌ No topic provided.", uid);
-
-      await saveMessageToChat("user", p, uid);
-      const summary = await learnAboutTopic(topic, uid);
-      await saveMessageToChat("assistant", `📚 Learned about "${topic}":\n\n${summary}`, uid);
-    }
-  },
-  {
-    match: (l) => ["past searches", "show past searches", "/pastsearches"].includes(l),
-    handler: async (_, { uid }) => {
-      const h = await getPastSearches(uid);
-      if (!h.length) return saveMessageToChat("assistant", "No past learned topics found.", uid);
-
-      const lines = h.map(i =>
-        `• **${i.topic}** (${new Date(i.timestamp).toLocaleDateString()})`
-      ).join("\n");
-      await saveMessageToChat("assistant", `📂 Recent learned topics:\n${lines}`, uid);
-    }
-  },
-
-  // --- Lists & overviews ----------------------------------------------------
-  { match: (l) => ["list commands", "show commands", "/commands"].includes(l),
-    handler: async (_, { uid, chatRef }) => handleStaticCommand("/commands", chatRef, uid) },
-  { match: (l) => ["list notes", "show notes", "my notes"].includes(l),
-    handler: async (_, { chatRef }) => listNotes(chatRef) },
-  { match: (l) => ["list reminders", "show reminders", "my reminders"].includes(l),
-    handler: async (_, { chatRef }) => listReminders(chatRef) },
-  { match: (l) => ["list events", "show events", "my calendar"].includes(l),
-    handler: async (_, { chatRef }) => listEvents(chatRef) },
-
-  // --- Fun & utility extras -------------------------------------------------
-  { match: (l) => ["tell me a joke", "/joke", "make me laugh"].includes(l),
-    handler: async (_, { uid }) => {
-      const r = await getAssistantReply([
-        { role: "system", content: "You are a funny assistant." },
-        { role: "user", content: "Tell me a good short joke." }
-      ]);
-      await saveMessageToChat("assistant", r, uid);
-    }},
-
-  { match: (l) => ["motivate me", "/motivate", "i need motivation"].includes(l),
-    handler: async (_, { uid }) => {
-      const r = await getAssistantReply([
-        { role: "system", content: "You are an encouraging coach." },
-        { role: "user", content: "Give me a quick motivation boost." }
-      ]);
-      await saveMessageToChat("assistant", r, uid);
-    }},
-
-  { match: (l) => ["clear memory", "/clearmemory", "delete memory"].includes(l),
-    handler: async (_, { uid }) =>
-      saveMessageToChat("assistant", "⚠️ Memory clearing is not enabled yet.", uid)
-  },
-
-  { match: (l) => ["what's new", "latest news", "/news"].includes(l),
-    handler: async (_, { uid }) => {
-      const { results } = await webSearchBrave("latest news", { uid, count: 5 });
-      const r = await getAssistantReply([
-        { role: "system", content: "Summarize the latest news headlines in 3 sentences." },
-        { role: "user", content: JSON.stringify(results) }
-      ]);
-      await saveMessageToChat("assistant", r, uid);
-    }},
-
-  { match: (l) => ["weather", "what's the weather", "/weather"].includes(l),
-    handler: async (_, { uid }) =>
-      saveMessageToChat("assistant", "☁️ Weather feature not yet available.", uid)
-  },
-
-  { match: (l) => ["daily summary", "today's summary", "/daily"].includes(l),
-    handler: async (_, { uid, chatRef }) =>
-      handleStaticCommand("/daily", chatRef, uid)
-  },
-
-  // --- Teach command fix ----------------------------------------------------
-  {
-    match: (l) => /^fix command\s+[""](.+?)[""]\s+should\s+run\s+[""](.+?)[""]$/.test(l),
-    handler: async (p, { uid }) => {
-      const [, bad, fixed] = p.match(/^fix command\s+[""](.+?)[""]\s+should\s+run\s+[""](.+?)[""]$/);
-      if (!bad || !fixed) return;
-      await push(ref(db, `commandFixes/${uid}`), { bad, fixed, timestamp: Date.now() });
-      await saveMessageToChat("assistant",
-        `✅ Got it. Next time "${bad}" will trigger "${fixed}".`, uid);
-    }
-  }
+  // You can keep minimal fallback commands here if desired.
 ];
