@@ -1,3 +1,0 @@
-await handleStaticCommand(syntheticCommand, chatRef, uid);
-await saveMessageToChat("user", prompt, uid);
-await saveMessageToChat("assistant", `Saved ${type}: "${trimmed}"`, uid);
