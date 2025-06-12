@@ -123,10 +123,10 @@ export async function handleStaticCommand(cmd, chatRef, uid) {
 // Renders a full HTML commands container
 async function listCommands(chatRef, uid) {
   const commandList = [
-    { cmd: "/note",       desc: "Save a note (e.g. /note call Mom later)" },
-    { cmd: "/reminder",   desc: "Set a reminder (e.g. /reminder pay bill tomorrow)" },
-    { cmd: "/calendar",   desc: "Create a calendar event (e.g. /calendar dinner Friday)" },
-    { cmd: "/log",        desc: "Add to your day log (e.g. /log felt great after run)" },
+    { cmd: "/note",       desc: "Save a note" },
+    { cmd: "/reminder",   desc: "Set a reminder" },
+    { cmd: "/calendar",   desc: "Create a calendar event" },
+    { cmd: "/log",        desc: "Add to your day log" },
     { cmd: "/notes",      desc: "List all notes saved today" },
     { cmd: "/reminders",  desc: "List all reminders" },
     { cmd: "/events",     desc: "List all calendar events" },
