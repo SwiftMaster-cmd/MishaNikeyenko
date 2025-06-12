@@ -1,6 +1,6 @@
 // naturalCommands.js
 // Centralizes all natural-language command patterns, auto-learns fixes,
-// logs failures, supports aliasing, and re-routes corrected commands.
+// logs failures, supports aliasing and teaching.
 
 // ────────────────────────────────────────────────────────────────────────────
 // Imports
@@ -155,7 +155,7 @@ export async function tryNatural(prompt, ctx) {
       if (result === "command") {
         await saveMessageToChat("assistant", "⚠️ That seems like a command, but I didn’t recognize it. Want to teach it?", ctx.uid);
       }
-      // no reply for dialog
+      // No reply if dialog
     } catch (_) {}
   }
 
