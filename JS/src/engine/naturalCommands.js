@@ -45,9 +45,9 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // 2️⃣  Handle alias teaching: when I say "X" do "Y"
+  // 2️⃣  Handle alias teaching: when I say X do Y (quotes optional)
   try {
-    const aliasMatch = prompt.match(/^when i say\s+[""](.+?)[""]\s+do\s+[""](.+?)[""]$/i);
+    const aliasMatch = prompt.match(/^when i say\s+[""]?(.+?)[""]?\s+do\s+[""]?(.+?)[""]?$/i);
     if (aliasMatch) {
       const [, trigger, command] = aliasMatch;
       await push(ref(db, `commandPatterns/${ctx.uid}`), {
@@ -60,9 +60,9 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // 3️⃣  Teach new commands: static or GPT
+  // 3️⃣  Teach new commands: static or GPT (quotes optional)
   try {
-    const teachMatch = prompt.match(/^teach command\s+[""](.+?)[""]\s+to\s+(reply|gpt)\s+[""](.+?)[""]$/i);
+    const teachMatch = prompt.match(/^teach command\s+[""]?(.+?)[""]?\s+to\s+(reply|gpt)\s+[""]?(.+?)[""]?$/i);
     if (teachMatch) {
       const [, trigger, type, content] = teachMatch;
       const action = type === "reply"
@@ -78,9 +78,9 @@ export async function tryNatural(prompt, ctx) {
     }
   } catch (_) {}
 
-  // 4️⃣  Update existing command
+  // 4️⃣  Update existing command (quotes optional)
   try {
-    const updateMatch = prompt.match(/^update command\s+[""](.+?)[""]\s+to\s+(reply|gpt)\s+[""](.+?)[""]$/i);
+    const updateMatch = prompt.match(/^update command\s+[""]?(.+?)[""]?\s+to\s+(reply|gpt)\s+[""]?(.+?)[""]?$/i);
     if (updateMatch) {
       const [, trigger, type, content] = updateMatch;
       const snap = await get(ref(db, `commandPatterns/${ctx.uid}`));
