@@ -1,6 +1,4 @@
-// ðŸ"¹ backgpt.js â€" Handles assistant replies, memory context, saving, summaries
-
-import { ref, push, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { ref, push, get, child, remove, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { db, auth } from "../config/firebaseConfig.js";
 import {
   getMemory,
@@ -13,13 +11,11 @@ import {
 import { extractJson, detectMemoryType } from "./chatUtils.js";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
-
-// choose models for cost vs. quality
-const ASSISTANT_MODEL = "gpt-4o";        // high-value chats
-const CHEAP_MODEL     = "gpt-3.5-turbo"; // cheaper extraction & summaries
+const ASSISTANT_MODEL = "gpt-4o";
+const CHEAP_MODEL     = "gpt-3.5-turbo";
 const LOW_TEMP        = 0.3;
 
-// â"€â"€â"€ 1. Save a message to Firebase â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// Save a message to Firebase chat
 export async function saveMessageToChat(role, content, uid) {
   await push(ref(db, `chatHistory/${uid}`), {
     role,
@@ -28,7 +24,7 @@ export async function saveMessageToChat(role, content, uid) {
   });
 }
 
-// â"€â"€â"€ 2. Get last 20 messages â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// Get last 20 messages
 export async function fetchLast20Messages(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return [];
@@ -42,7 +38,7 @@ export async function fetchLast20Messages(uid) {
     .slice(-20);
 }
 
-// â"€â"€â"€ 3. Fetch all contextual memory â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// Fetch all contextual memory
 export async function getAllContext(uid) {
   const today = todayStr();
   const [memory, dayLog, notes, calendar, reminders, calc] = await Promise.all([
@@ -56,7 +52,7 @@ export async function getAllContext(uid) {
   return { memory, dayLog, notes, calendar, reminders, calc };
 }
 
-// â"€â"€â"€ 4. Generate assistant reply via GPT â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// Call OpenAI API and get response
 export async function getAssistantReply(fullMessages) {
   const res = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
@@ -68,38 +64,12 @@ export async function getAssistantReply(fullMessages) {
     })
   });
   const data = await res.json();
-
-  // log usage for assistant reply
-  if (data.usage && window.debugLog) {
-    const { prompt_tokens, completion_tokens, total_tokens } = data.usage;
-    window.debugLog(
-      `[USAGE][AssistantReply] prompt:${prompt_tokens}` +
-      ` completion:${completion_tokens}` +
-      ` total:${total_tokens}`
-    );
-  }
-
   return data.choices?.[0]?.message?.content || "[No reply]";
 }
 
-// â"€â"€â"€ New parsing helpers (unchanged) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-const weekdayMap = {
-  sunday: "SU", monday: "MO", tuesday: "TU", wednesday: "WE",
-  thursday: "TH", friday: "FR", saturday: "SA"
-};
-function parseNaturalDate(text) { /* â€¦same as beforeâ€¦ */ }
-function parseTime(text)        { /* â€¦same as beforeâ€¦ */ }
-function parseRecurrence(text)  { /* â€¦same as beforeâ€¦ */ }
-
-// â"€â"€â"€ 5. Extract memory from prompt â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-//    uses cheap model for fallback extraction
+// Extract and save multiple memory entries
 export async function extractMemoryFromPrompt(prompt, uid) {
   const today = todayStr();
-  // (a) explicit calendar & reminders, (b) preferencesâ€¦ omitted for brevity
-
-  // (d) Fallback: use cheap model for extraction
-  const { memoryType, rawPrompt } = detectMemoryType(prompt);
-  if (!memoryType) return null;
 
   const extractionRes = await fetch("/.netlify/functions/chatgpt", {
     method: "POST",
@@ -111,56 +81,54 @@ export async function extractMemoryFromPrompt(prompt, uid) {
         {
           role: "system",
           content: `
-You are a memory extraction engine. Return exactly one JSON object:
-{ "type":"note"|"reminder"|"calendar"|"log", "content":"string",
-  "date":"optional YYYY-MM-DD", "time":"optional HH:MM", "recurrence":"optional RRULE" }
-Rules:
-1. "/note" â†’ note
-2. "/reminder"/"remind me" â†’ reminder
-3. Date/time â†’ calendar
-4. "/log"/"journal" â†’ log
-5. Otherwise â†’ note
-Return ONLY JSON.`
+You are a memory extractor. From this user input, return a JSON array of memory actions.
+Each must include:
+- "type": "note" | "reminder" | "calendar" | "log"
+- "content": string
+Optional: "date", "time", "recurrence", "mood"
+Example:
+[
+  { "type": "reminder", "content": "Cancel Prime", "date": "2025-06-14" },
+  { "type": "log", "content": "Felt burnt out", "mood": "tired" }
+]`
         },
-        { role: "user", content: memoryType.startsWith("/") ? rawPrompt : prompt }
+        { role: "user", content: prompt }
       ]
     })
   });
-  const extractionData = await extractionRes.json();
 
-  // log usage for memory extraction
-  if (extractionData.usage && window.debugLog) {
-    const { prompt_tokens, completion_tokens, total_tokens } = extractionData.usage;
-    window.debugLog(
-      `[USAGE][Extraction] prompt:${prompt_tokens}` +
-      ` completion:${completion_tokens}` +
-      ` total:${total_tokens}`
-    );
-  }
+  const raw = await extractionRes.json();
+  const choices = raw.choices?.[0]?.message?.content || "[]";
+  const memories = extractJson(choices) || [];
 
-  const parsed = extractJson(JSON.stringify(extractionData.choices?.[0]?.message?.content ?? extractionData.choices?.[0]));
-  if (!parsed?.type || !parsed?.content) return null;
+  const promises = memories.map(entry => {
+    const { type, content, date, time, recurrence, mood } = entry;
+    let path;
 
-  // determine path and save
-  let path;
-  switch (parsed.type) {
-    case "calendar": path = `calendarEvents/${uid}`; break;
-    case "reminder": path = `reminders/${uid}`;      break;
-    case "log":      path = `dayLog/${uid}/${today}`;break;
-    default:         path = `notes/${uid}/${today}`; break;
-  }
-  await push(ref(db, path), {
-    content: parsed.content,
-    ...(parsed.date ? { date: parsed.date } : {}),
-    ...(parsed.time ? { time: parsed.time } : {}),
-    ...(parsed.recurrence ? { recurrence: parsed.recurrence } : {}),
-    timestamp: Date.now()
+    switch (type) {
+      case "calendar": path = `calendarEvents/${uid}`; break;
+      case "reminder": path = `reminders/${uid}`;      break;
+      case "log":      path = `dayLog/${uid}/${today}`;break;
+      default:         path = `notes/${uid}/${today}`; break;
+    }
+
+    const payload = {
+      content,
+      timestamp: Date.now(),
+      ...(date ? { date } : {}),
+      ...(time ? { time } : {}),
+      ...(recurrence ? { recurrence } : {}),
+      ...(mood ? { mood } : {})
+    };
+
+    return push(ref(db, path), payload);
   });
-  return parsed;
+
+  await Promise.all(promises);
+  return memories;
 }
 
-// â"€â"€â"€ 6. Run summary every 20 messages â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-//    uses cheap model for summarization
+// Summary every 20 messages
 export async function summarizeChatIfNeeded(uid) {
   const snap = await get(child(ref(db), `chatHistory/${uid}`));
   if (!snap.exists()) return;
@@ -188,17 +156,52 @@ export async function summarizeChatIfNeeded(uid) {
     })
   });
   const summaryData = await summaryRes.json();
-
-  // log usage for summarization
-  if (summaryData.usage && window.debugLog) {
-    const { prompt_tokens, completion_tokens, total_tokens } = summaryData.usage;
-    window.debugLog(
-      `[USAGE][Summary] prompt:${prompt_tokens}` +
-      ` completion:${completion_tokens}` +
-      ` total:${total_tokens}`
-    );
-  }
-
   const summary = summaryData.choices?.[0]?.message?.content || "[No summary]";
   await push(ref(db, `memory/${uid}`), { summary, timestamp: Date.now() });
+}
+
+// 🔥 Drastic Firebase actions (with confirmation system)
+export async function handleDestructiveCommand(prompt, uid) {
+  const intentRes = await fetch("/.netlify/functions/chatgpt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: CHEAP_MODEL,
+      temperature: LOW_TEMP,
+      messages: [
+        {
+          role: "system",
+          content: `You're an intent recognizer. From this prompt, decide if the user wants to DELETE large sections of memory.
+If yes, return JSON like:
+{ "action": "delete", "target": "reminders" }
+
+If not, return: { "action": "none" }
+
+Only respond with JSON.`
+        },
+        { role: "user", content: prompt }
+      ]
+    })
+  });
+
+  const intentRaw = await intentRes.json();
+  const intent = extractJson(intentRaw.choices?.[0]?.message?.content || "{}");
+
+  if (intent?.action === "delete" && intent.target) {
+    const node = intent.target;
+    await saveMessageToChat("assistant", `⚠️ Are you sure you want to permanently delete all data from /${node}? Reply: "Yes, delete ${node}" to confirm.`, uid);
+    return "confirming";
+  }
+
+  return "no-action";
+}
+
+export async function confirmDestructiveAction(confirmPrompt, uid) {
+  const match = confirmPrompt.match(/^yes, delete (\w+)/i);
+  if (!match) return false;
+
+  const node = match[1];
+  await remove(ref(db, `${node}/${uid}`));
+  await saveMessageToChat("assistant", `✅ All data under /${node} has been deleted.`, uid);
+  return true;
 }
