@@ -33,7 +33,7 @@ import { tryNatural } from "../engine/naturalCommands.js";
 import { trackedChat } from "../engine/tokenTracker.js";
 
 // ---- EPISODE LINK IMPORT ----
-import { getRandomWCOEpisodeLink, getWCOTVEpisodeLink } from "./episodeLinks.js";
+import { getRandomWCOEpisodeLink, getWCOTVEpisodeLink } from "../engine/episodeLinks.js";
 
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("chat-form");
