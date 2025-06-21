@@ -1,4 +1,4 @@
-// chat.js â€" input & flow control only; UI in uiShell.js; natural-language commands delegated to naturalCommands.js
+// chat.js – input & flow control only; UI in uiShell.js; episode links in episodeLinks.js
 
 import { onValue, ref } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
@@ -30,7 +30,10 @@ import {
   initScrollTracking
 } from "./uiShell.js";
 import { tryNatural } from "../engine/naturalCommands.js";
-import { trackedChat } from "../engine/tokenTracker.js";  // <-- new
+import { trackedChat } from "../engine/tokenTracker.js";
+
+// ---- EPISODE LINK IMPORT ----
+import { getRandomWCOEpisodeLink, getWCOTVEpisodeLink } from "./episodeLinks.js";
 
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("chat-form");
@@ -85,10 +88,49 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setStatusFeedback?.("loading", "Thinking...");
 
     try {
+      // -------- AMERICAN DAD NATURAL EPISODE COMMANDS --------
+      const playRandomEp = prompt.match(/play (?:a )?random episode of season (\d+).*american dad/i);
+      const playSpecificEp = prompt.match(/play (?:season )?(\d+)[\s\-]?episode[\s\-]?(\d+).*american dad/i);
+
+      if (playRandomEp) {
+        const season = Number(playRandomEp[1]);
+        const ep = await getRandomWCOEpisodeLink(season);
+        if (ep) {
+          const reply = `🎬 Random American Dad S${ep.season}E${ep.episode}: "${ep.title}" (${ep.airDate})\n[Watch here](${ep.url})`;
+          await saveMessageToChat("user", prompt, uid);
+          await saveMessageToChat("assistant", reply, uid);
+          updateHeaderWithAssistantReply(reply);
+        } else {
+          await saveMessageToChat("assistant", "Sorry, I couldn't find episodes for that season.", uid);
+        }
+        showChatInputSpinner(false);
+        input.focus();
+        return;
+      }
+
+      if (playSpecificEp) {
+        const season = Number(playSpecificEp[1]);
+        const episode = Number(playSpecificEp[2]);
+        const ep = await getWCOTVEpisodeLink(season, episode);
+        if (ep) {
+          const reply = `🎬 American Dad S${ep.season}E${ep.episode}: "${ep.title}" (${ep.airDate})\n[Watch here](${ep.url})`;
+          await saveMessageToChat("user", prompt, uid);
+          await saveMessageToChat("assistant", reply, uid);
+          updateHeaderWithAssistantReply(reply);
+        } else {
+          await saveMessageToChat("assistant", "Sorry, I couldn't find that episode.", uid);
+        }
+        showChatInputSpinner(false);
+        input.focus();
+        return;
+      }
+
+      // Try other natural commands first (custom ai logic, e.g. /note, /log, /reminder, etc.)
       if (await tryNatural(prompt, { uid, chatRef, state })) {
         return;
       }
 
+      // ---- Static commands ----
       const staticCommands = new Set([
         "/time", "/date", "/uid",
         "/clearchat", "/summary", "/commands",
@@ -109,21 +151,22 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // ---- Memory extraction (notes, logs, etc.) ----
       const memory = await extractMemoryFromPrompt(prompt, uid);
       if (memory) {
         await saveMessageToChat("user", prompt, uid);
         switch (memory.type) {
           case "preference":
-            await saveMessageToChat("assistant", `âœ… Saved preference: "${memory.content}"`, uid);
+            await saveMessageToChat("assistant", `✅ Saved preference: "${memory.content}"`, uid);
             break;
           case "reminder":
-            await saveMessageToChat("assistant", `âœ… Saved reminder: "${memory.content}"`, uid);
+            await saveMessageToChat("assistant", `✅ Saved reminder: "${memory.content}"`, uid);
             break;
           case "calendar": {
             const on = memory.date ? ` on ${memory.date}` : "";
             const at = memory.time ? ` at ${memory.time}` : "";
             await saveMessageToChat("assistant",
-              `âœ… Saved event: "${memory.content}"${on}${at}`, uid);
+              `✅ Saved event: "${memory.content}"${on}${at}`, uid);
             break;
           }
           case "note":
@@ -138,7 +181,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       await saveMessageToChat("user", prompt, uid);
 
-      // fetch full 20 for UI, but only send 5 to GPT
+      // fetch full 20 for UI, only send 5 to GPT
       const [all20, ctx] = await Promise.all([
         fetchLast20Messages(uid),
         getAllContext(uid)
@@ -155,7 +198,7 @@ window.addEventListener("DOMContentLoaded", () => {
         date: new Date().toISOString().slice(0, 10)
       });
 
-      // --- use trackedChat instead of getAssistantReply ---
+      // --- use trackedChat for LLM reply ---
       const apiResponse = await trackedChat("/.netlify/functions/chatgpt", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
