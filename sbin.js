@@ -1,6 +1,6 @@
 (function () {
   if (window.__sbinOverlay) return;
-  const SBIN_VERSION = "3.3";
+  const SBIN_VERSION = "3.5";
   let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
     activeTopic = d.activeTopic || "Default",
     active = d.topics?.[activeTopic] || { s: "", b: "", i: "", n: "" },
@@ -69,7 +69,7 @@
     if (e) rippleEffect(e, btn);
   }
 
-  // === Wide, Graceful, Whole Header Drag Handler, Forcing Fixed Position Always ===
+  // --- Drag Handler ---
   function forceFixed(el) {
     if (!el) return;
     el.style.position = "fixed";
@@ -159,7 +159,10 @@
     }, { passive: false });
     window.addEventListener("touchend", (e) => { if (dragging) endDrag(); });
     window.addEventListener("resize", ()=>{ snap(isTop, false); });
+
     setTimeout(()=>snap(false, false),10);
+    // Allow scroll/resize to keep perfect pin
+    box._sbinSnap = function () { snap(isTop, false); };
 
     // Paranoid: every second, re-apply forced fixed positioning
     setInterval(() => { forceFixed(box); }, 1000);
@@ -278,7 +281,7 @@
       "display:flex;flex-direction:column;align-items:stretch;padding:18px 18px 2px 18px;gap:12px;transition:all 0.22s;"
     );
 
-    // MAIN VIEW
+    // MAIN VIEW (unchanged) ...
     if (view === "main") {
       let row = create(
         "div",
@@ -366,21 +369,16 @@
       contentArea.appendChild(controlRow);
     }
 
-    // NAMES VIEW
+    // NAMES VIEW (scrollable list)
     if (view === "names") {
       let scrollWrap = create(
         "div",
-        "max-height:140px;overflow:hidden;border-radius:13px;margin-bottom:5px;background:rgba(28,32,54,0.97);"
+        "max-height:140px;overflow-y:auto;border-radius:13px;margin-bottom:5px;background:rgba(28,32,54,0.97);-webkit-overflow-scrolling:touch;"
       );
       let list = create(
         "div",
-        "display:grid;grid-template-columns:1fr 1fr;gap:9px;transition:transform 0.18s;padding:7px 0;"
+        "display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:7px 0;"
       );
-      let rowHeight = 44;
-      let visibleRows = 3;
-      let totalRows = Math.ceil(d.names.length / 2);
-      let maxOffset = Math.max(0, (totalRows - visibleRows) * rowHeight);
-      list.style.transform = `translateY(${-nameScrollOffset}px)`;
 
       d.names.forEach((n, i) => {
         let btn = makeBtn(
@@ -395,37 +393,12 @@
         list.appendChild(btn);
       });
 
+      // Prevent page from scrolling when using the list
+      scrollWrap.addEventListener('touchmove', function(e){
+        if (this.scrollHeight > this.clientHeight) e.stopPropagation();
+      }, {passive:false});
       scrollWrap.appendChild(list);
       contentArea.appendChild(scrollWrap);
-
-      let scrollBtns = create(
-        "div",
-        "display:flex;gap:10px;justify-content:center;margin-top:2px;"
-      );
-      [
-        { icon: icons.up, dir: "⬆️" },
-        { icon: icons.down, dir: "⬇️" },
-      ].forEach((item, idx) => {
-        let btn = makeBtn(
-          item.icon,
-          item.dir === "⬆️" ? "Scroll Up" : "Scroll Down",
-          function () {
-            let step = 44;
-            if (item.dir === "⬆️")
-              nameScrollOffset = Math.max(0, nameScrollOffset - step);
-            else
-              nameScrollOffset = Math.min(nameScrollOffset + step, maxOffset);
-            render();
-          },
-          "padding:0 9px;"
-        );
-        btn.disabled =
-          (item.dir === "⬆️" && nameScrollOffset <= 0) ||
-          (item.dir === "⬇️" && nameScrollOffset >= maxOffset);
-        if (btn.disabled) btn.style.opacity = "0.6";
-        scrollBtns.appendChild(btn);
-      });
-      contentArea.appendChild(scrollBtns);
 
       let namesCtrl = create(
         "div",
@@ -472,7 +445,7 @@
       contentArea.appendChild(namesCtrl);
     }
 
-    // TOPICS VIEW
+    // TOPICS VIEW (unchanged) ...
     if (view === "topics") {
       let list = create(
         "div",
@@ -485,7 +458,7 @@
           function () {
             activeTopic = key;
             active = d.topics[key];
-            d.activeTopic = key;
+            d.activeTopic = name;
             save();
             view = "main";
             render();
@@ -541,6 +514,15 @@
 
     dragHandler(box);
     forceFixed(box);
+
+    // KEEP SNAPPED on any scroll (mobile, desktop, toolbars etc)
+    window.addEventListener('scroll', function () {
+      if (box && typeof box._sbinSnap === 'function') box._sbinSnap();
+    });
+    // Also on resize for mobile orientation changes or toolbar transitions
+    window.addEventListener('resize', function () {
+      if (box && typeof box._sbinSnap === 'function') box._sbinSnap();
+    });
   }
 
   // ---- CSS Injection ----
