@@ -1,13 +1,12 @@
 (function () {
   if (window.__sbinOverlay) return;
-  const SBIN_VERSION = "3.7";
+  const SBIN_VERSION = "3.9";
   let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
     activeTopic = d.activeTopic || "Default",
     active = d.topics?.[activeTopic] || { s: "", b: "", i: "", n: "" },
     editing = false,
     view = "main",
-    editNames = false,
-    nameScrollOffset = 0;
+    editNames = false;
 
   if (!d.topics) d.topics = { Default: active };
   if (!d.names) d.names = [];
@@ -20,17 +19,15 @@
     return el;
   }
 
-  // ICONS
   const icons = {
+    autofill: '<svg width="18" height="18" viewBox="0 0 20 20"><rect x="3" y="7" width="14" height="8" rx="2" fill="#2196f3"/><path d="M10 8v4m2-2H8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
     edit: '<svg width="18" height="18" viewBox="0 0 20 20"><path d="M14.7 2.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-9.8 9.8-2.8.8.8-2.8 9.8-9.8zM3 17h14a1 1 0 1 1 0 2H3a1 1 0 1 1 0-2z" fill="#2196f3"/></svg>',
     save: '<svg width="18" height="18" viewBox="0 0 20 20"><path d="M7 13l-4-4 1.4-1.4L7 10.2l8.6-8.6L17 3l-10 10z" fill="#fff"/></svg>',
     close: '<svg width="18" height="18" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="rgba(255,70,70,0.10)"/><path d="M7 7l6 6M13 7l-6 6" stroke="#f33" stroke-width="2.3" stroke-linecap="round"/></svg>',
-    add: '<svg width="18" height="18" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#2196f3"/><path d="M10 6v8M6 10h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
     people: '<svg width="18" height="18" viewBox="0 0 20 20"><circle cx="10" cy="6" r="4" fill="#2196f3"/><path d="M2 18c0-3 4-5 8-5s8 2 8 5" fill="#2196f3"/></svg>',
     topic: '<svg width="18" height="18" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="3" rx="1.5" fill="#2196f3"/><rect x="3" y="9" width="14" height="3" rx="1.5" fill="#2196f3"/><rect x="3" y="14" width="10" height="3" rx="1.5" fill="#2196f3"/></svg>',
     back: '<svg width="18" height="18" viewBox="0 0 20 20"><circle cx="9" cy="10" r="7" fill="#e5f3ff"/><path d="M12 17l-5-5 5-5" stroke="#2196f3" stroke-width="2" stroke-linecap="round" fill="none"/></svg>',
-    up: '<svg width="16" height="16" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#e5f3ff"/><path d="M5 12l5-5 5 5" stroke="#2196f3" stroke-width="2" fill="none"/></svg>',
-    down: '<svg width="16" height="16" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#e5f3ff"/><path d="M5 8l5 5 5-5" stroke="#2196f3" stroke-width="2" fill="none"/></svg>',
+    add: '<svg width="18" height="18" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#2196f3"/><path d="M10 6v8M6 10h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
     eye: '<svg width="18" height="18" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3" fill="#2196f3"/><path d="M1 10c2.7-5 14.3-5 17 0-2.7 5-14.3 5-17 0z" stroke="#2196f3" stroke-width="1.5" fill="none"/></svg>',
     check: '<svg width="18" height="18" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="#2196f3"/><path d="M6 11l3 3 5-5" stroke="#fff" stroke-width="2" fill="none"/></svg>',
   };
@@ -69,7 +66,6 @@
     if (e) rippleEffect(e, btn);
   }
 
-  // --- Drag Handler ---
   function forceFixed(el) {
     if (!el) return;
     el.style.position = "fixed";
@@ -248,21 +244,13 @@
       let b = create(
         "button",
         `display:inline-flex;align-items:center;justify-content:center;min-width:0;` +
-        `background:rgba(255,255,255,0.79);border:none;border-radius:15px;` +
-        `padding:0 20px;height:42px;box-shadow:0 1.5px 7px rgba(0,0,0,0.04);` +
+        `background:#2196f3;border:none;border-radius:15px;` +
+        `padding:0 24px;height:44px;box-shadow:0 1.5px 7px rgba(0,0,0,0.04);` +
         `transition:filter 0.16s,background 0.19s;outline:none;cursor:pointer;` +
-        `font-size:17px;font-weight:700;letter-spacing:0.01em;${style||""}`
+        `font-size:17px;font-weight:700;letter-spacing:0.01em;color:#fff;${style||""}`
       );
       b.innerHTML = html;
       b.title = title || "";
-      if (/Names|Topics|Edit|Save|Main|Mode|Add/i.test(title)) {
-        b.style.background = "#2196f3";
-        b.style.color = "#fff";
-      }
-      if (/Close/i.test(title)) {
-        b.style.background = "rgba(255,70,70,0.17)";
-        b.style.color = "#f33";
-      }
       if (cb)
         b.addEventListener("click", function (e) {
           e.stopPropagation();
@@ -297,43 +285,85 @@
       "display:flex;flex-direction:column;align-items:stretch;padding:22px 18px 2px 18px;gap:15px;background:none;transition:all 0.18s;"
     );
 
-    // MAIN VIEW: All 4 buttons on a single row (with flex wrap off)
+    // --- MAIN VIEW: Autofill + Edit + Names + Topics ---
     if (view === "main") {
-      let row = create(
-        "div",
-        "display:flex;flex-direction:row;flex-wrap:nowrap;gap:14px;justify-content:space-between;"
+      let topRow = create("div", "display:flex;flex-direction:row;gap:14px;justify-content:center;");
+      topRow.appendChild(
+        makeBtn(
+          icons.autofill + ' <span style="margin-left:7px;">Autofill</span>',
+          "Autofill SBIN fields from page",
+          function () {
+            // Your provided IDs:
+            let map = {
+              s: "5a9d0dce-be65-4d33-b0b9-5f642d86649c",
+              b: "b166711b-2f42-4188-858f-dbdcc45c1314",
+              i: "d29d3620-ed3c-4dfd-8c94-64f65bea926f",
+              n: "a7a74f46-24b4-43bc-a7a3-88d0c9d428ab"
+            };
+            ["s", "b", "i", "n"].forEach(k => {
+              let el = document.getElementById(map[k]);
+              active[k] = el ? el.value : "";
+            });
+            d.topics[activeTopic] = active;
+            save();
+            render();
+          }
+        )
       );
-      if (editing) {
-        ["s", "b", "i", "n"].forEach((k) => {
-          let ta = create(
-            "textarea",
-            "flex:1 1 120px;min-width:92px;max-width:190px;height:78px;padding:14px 10px;border:1.5px solid #222;border-radius:17px;font-size:16px;font-family:inherit;background:rgba(240,244,248,0.93);margin-bottom:2px;outline:none;resize:vertical;box-shadow:0 2px 8px rgba(32,40,60,0.07);color:#23262d;"
-          );
-          ta.id = "sbin_" + k;
-          ta.placeholder = { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k];
-          ta.value = active[k] || "";
-          row.appendChild(ta);
-        });
-      } else {
-        ["s", "b", "i", "n"].forEach((k) => {
-          let btn = makeBtn(
-            { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k],
-            "Tap to copy",
-            function (e, b) {
-              copyToClipboard(active[k] || "", b, e);
-            },
-            "background:rgba(255,255,255,0.91);color:#202733;flex:1 1 0;"
-          );
-          row.appendChild(btn);
-        });
-      }
-      contentArea.appendChild(row);
+      contentArea.appendChild(topRow);
+
+      let sbinsRow = create(
+        "div",
+        "display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;"
+      );
+
+      // Display values (with copy) – Next Steps as 2x height
+      ["s", "b", "i"].forEach((k) => {
+        let btn = makeBtn(
+          { s: "Situation", b: "Behavior", i: "Impact" }[k],
+          "Tap to copy",
+          function (e, b) {
+            copyToClipboard(active[k] || "", b, e);
+          },
+          "background:rgba(255,255,255,0.91);color:#202733;flex:1 1 0;"
+        );
+        btn.style.minHeight = "48px";
+        btn.style.marginBottom = "0";
+        btn.innerHTML += "<div style='font-size:15px;font-weight:600;margin-top:7px;color:#1e2230;'>" + (active[k] ? active[k].replace(/</g, "&lt;").replace(/\n/g,"<br>") : "<span style='color:#b5bed4;'>Empty</span>") + "</div>";
+        sbinsRow.appendChild(btn);
+      });
+
+      // Next Steps - bigger
+      let nBtn = makeBtn(
+        "Next Steps",
+        "Tap to copy",
+        function (e, b) {
+          copyToClipboard(active.n || "", b, e);
+        },
+        "background:rgba(255,255,255,0.91);color:#202733;flex:2 1 100%;min-height:86px;"
+      );
+      nBtn.innerHTML += "<div style='font-size:15px;font-weight:600;margin-top:7px;white-space:pre-line;color:#1e2230;'>" + (active.n ? active.n.replace(/</g, "&lt;").replace(/\n/g,"<br>") : "<span style='color:#b5bed4;'>Empty</span>") + "</div>";
+      sbinsRow.appendChild(nBtn);
+
+      contentArea.appendChild(sbinsRow);
 
       let controlRow = create(
         "div",
         "display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;"
       );
       if (editing) {
+        ["s", "b", "i", "n"].forEach((k, idx) => {
+          let ta = create(
+            "textarea",
+            "flex:1 1 120px;min-width:92px;max-width:190px;" +
+            (k === "n" ? "height:84px;" : "height:56px;") +
+            "padding:14px 10px;border:1.5px solid #222;border-radius:17px;font-size:16px;font-family:inherit;background:rgba(240,244,248,0.93);margin-bottom:2px;outline:none;resize:vertical;box-shadow:0 2px 8px rgba(32,40,60,0.07);color:#23262d;",
+          );
+          ta.id = "sbin_" + k;
+          ta.placeholder = { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k];
+          ta.value = active[k] || "";
+          controlRow.appendChild(ta);
+        });
         controlRow.appendChild(
           makeBtn(
             icons.save + ' <span style="margin-left:4px;">Save</span>',
@@ -360,27 +390,27 @@
             }
           )
         );
+        controlRow.appendChild(
+          makeBtn(
+            icons.people + ' <span style="margin-left:4px;">Names</span>',
+            "Names",
+            function () {
+              view = "names";
+              render();
+            }
+          )
+        );
+        controlRow.appendChild(
+          makeBtn(
+            icons.topic + ' <span style="margin-left:4px;">Topics</span>',
+            "Topics",
+            function () {
+              view = "topics";
+              render();
+            }
+          )
+        );
       }
-      controlRow.appendChild(
-        makeBtn(
-          icons.people + ' <span style="margin-left:4px;">Names</span>',
-          "Names",
-          function () {
-            view = "names";
-            render();
-          }
-        )
-      );
-      controlRow.appendChild(
-        makeBtn(
-          icons.topic + ' <span style="margin-left:4px;">Topics</span>',
-          "Topics",
-          function () {
-            view = "topics";
-            render();
-          }
-        )
-      );
       contentArea.appendChild(controlRow);
     }
 
