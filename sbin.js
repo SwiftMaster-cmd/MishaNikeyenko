@@ -3,7 +3,7 @@
   if (window.__sbinOverlay) return;
 
   // Version
-  const SBIN_VERSION = "2.1";
+  const SBIN_VERSION = "2.2";
 
   // ---- Data Layer ----
   let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
@@ -49,7 +49,6 @@
     btn.classList.add("sbin-flash");
     setTimeout(() => btn.classList.remove("sbin-flash"), 450);
   }
-
   function rippleEffect(e, btn) {
     let circle = create("span");
     circle.className = "sbin-ripple";
@@ -84,21 +83,13 @@
 
   // ---- Robust Drag/Fling Handler ----
   function dragHandler(container, header) {
-    let dragging = false,
-      startY = 0,
-      startTop = 0,
-      velocity = 0,
-      lastY = 0,
-      lastTime = 0,
-      moved = false;
+    let dragging = false, startY = 0, startTop = 0, velocity = 0, lastY = 0, lastTime = 0;
 
     function snap(to) {
       container.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1)";
       container.style.top = to;
       container.style.bottom = "auto";
-      setTimeout(() => {
-        container.style.transition = "";
-      }, 330);
+      setTimeout(() => { container.style.transition = ""; }, 330);
     }
 
     function onMove(clientY) {
@@ -111,7 +102,13 @@
       lastY = ny;
       container.style.top = Math.max(8, startTop + dy) + "px";
       container.style.bottom = "auto";
-      moved = true;
+    }
+
+    // Disable scroll on body/html during drag
+    function setNoScroll(val) {
+      document.documentElement.style.overflow = val ? "hidden" : "";
+      document.body.style.overscrollBehavior = val ? "none" : "";
+      document.body.style.touchAction = val ? "none" : "";
     }
 
     // Mouse
@@ -122,35 +119,26 @@
       startTop = container.getBoundingClientRect().top;
       lastY = startY;
       lastTime = Date.now();
-      moved = false;
+      setNoScroll(true);
       container.style.transition = "none";
       document.body.style.userSelect = "none";
       window.addEventListener("mousemove", mousemove);
       window.addEventListener("mouseup", mouseup);
       e.preventDefault();
     });
-
-    function mousemove(e) {
-      onMove(e.clientY);
-    }
+    function mousemove(e) { if (dragging) onMove(e.clientY); }
     function mouseup(e) {
       if (!dragging) return;
       dragging = false;
+      setNoScroll(false);
       document.body.style.userSelect = "";
       window.removeEventListener("mousemove", mousemove);
       window.removeEventListener("mouseup", mouseup);
-      // Snap logic
       const currentTop = container.getBoundingClientRect().top;
       const mid = window.innerHeight / 2;
-      if (velocity < -0.5 || currentTop < mid) {
-        snap("16px");
-      } else {
-        snap("");
-        container.style.top = "";
-        container.style.bottom = "env(safe-area-inset-bottom,16px)";
-      }
+      if (velocity < -0.5 || currentTop < mid) { snap("16px"); }
+      else { snap(""); container.style.top = ""; container.style.bottom = "env(safe-area-inset-bottom,16px)"; }
     }
-
     // Touch
     header.addEventListener("touchstart", (e) => {
       dragging = true;
@@ -158,29 +146,20 @@
       startTop = container.getBoundingClientRect().top;
       lastY = startY;
       lastTime = Date.now();
-      moved = false;
+      setNoScroll(true);
       container.style.transition = "none";
       document.body.style.userSelect = "none";
     }, { passive: true });
-
-    header.addEventListener("touchmove", (e) => {
-      if (!dragging) return;
-      onMove(e.touches[0].clientY);
-    }, { passive: true });
-
+    header.addEventListener("touchmove", (e) => { if (dragging) onMove(e.touches[0].clientY); }, { passive: false });
     header.addEventListener("touchend", () => {
       if (!dragging) return;
       dragging = false;
+      setNoScroll(false);
       document.body.style.userSelect = "";
       const currentTop = container.getBoundingClientRect().top;
       const mid = window.innerHeight / 2;
-      if (velocity < -0.5 || currentTop < mid) {
-        snap("16px");
-      } else {
-        snap("");
-        container.style.top = "";
-        container.style.bottom = "env(safe-area-inset-bottom,16px)";
-      }
+      if (velocity < -0.5 || currentTop < mid) { snap("16px"); }
+      else { snap(""); container.style.top = ""; container.style.bottom = "env(safe-area-inset-bottom,16px)"; }
     });
   }
 
@@ -192,7 +171,7 @@
     );
     let box = create(
       "div",
-      "background:rgba(255,255,255,0.85);backdrop-filter:blur(15px);padding:26px 24px 20px 24px;border-radius:20px;max-width:96vw;width:400px;display:flex;flex-direction:column;gap:15px;box-shadow:0 8px 32px rgba(0,0,0,0.18);font-family:-apple-system,BlinkMacSystemFont,sans-serif;align-items:stretch;"
+      "background:rgba(255,255,255,0.89);backdrop-filter:blur(15px);padding:26px 24px 20px 24px;border-radius:20px;max-width:96vw;width:400px;display:flex;flex-direction:column;gap:15px;box-shadow:0 8px 32px rgba(0,0,0,0.18);font-family:-apple-system,BlinkMacSystemFont,sans-serif;align-items:stretch;"
     );
     let label = create(
       "div",
@@ -206,7 +185,7 @@
     textarea.rows = 9;
     let save = create(
       "button",
-      "background:#007aff;color:#fff;font-weight:600;border-radius:13px;border:none;padding:10px 0;margin-top:8px;font-size:16px;box-shadow:0 2px 8px rgba(0,122,255,0.07);cursor:pointer;letter-spacing:0.01em;transition:filter 0.18s;",
+      "background:#007aff;color:#fff;font-weight:600;border-radius:13px;border:none;padding:10px 0;margin-top:8px;font-size:16px;box-shadow:0 2px 8px rgba(0,122,255,0.07);cursor:pointer;letter-spacing:0.01em;transition:filter 0.18s;min-width:96px;",
       icons.save + " &nbsp;Add"
     );
     save.onclick = function () {
@@ -223,11 +202,9 @@
 
   // ---- Main Render ----
   function render() {
-    // Remove existing overlay
     if (window.__sbinContainer)
       document.body.removeChild(window.__sbinContainer);
 
-    // Main overlay container
     let c = create(
       "div",
       "position:fixed;left:0;right:0;top:auto;bottom:env(safe-area-inset-bottom,16px);max-width:500px;margin:0 auto;z-index:2147483645;box-sizing:border-box;pointer-events:auto;user-select:none;"
@@ -235,13 +212,11 @@
     window.__sbinOverlay = true;
     window.__sbinContainer = c;
 
-    // GLASSY BG + CARD
     let card = create(
       "div",
       "background:rgba(255,255,255,0.75);backdrop-filter:blur(22px) saturate(1.12);border-radius:26px;box-shadow:0 10px 44px 0 rgba(52,62,90,0.18),0 2px 6px 0 rgba(52,62,90,0.07);border:1.2px solid rgba(120,140,170,0.13);padding:0 0 14px 0;overflow:hidden;max-width:100vw;"
     );
 
-    // ---- Draggable Glassy Header ----
     let header = create(
       "div",
       "width:100%;height:42px;display:flex;align-items:center;gap:9px;justify-content:space-between;background:rgba(240,244,250,0.83);backdrop-filter:blur(10px) saturate(1.03);border-bottom:1px solid rgba(120,140,170,0.09);cursor:grab;box-shadow:0 2px 8px rgba(90,120,180,0.04);"
@@ -263,7 +238,6 @@
     );
     versionTag.textContent = "SBIN v" + SBIN_VERSION;
 
-    // --- Control row (top right) ---
     let ctrlRow = create(
       "div",
       "display:flex;align-items:center;gap:8px;margin-right:8px;"
@@ -272,8 +246,7 @@
     function makeBtn(html, title, cb, style, more) {
       let b = create(
         "button",
-        "display:flex;align-items:center;justify-content:center;width:34px;height:34px;background:rgba(255,255,255,0.5);border:none;border-radius:10px;box-shadow:0 1.5px 8px rgba(0,0,0,0.06);transition:filter 0.19s;outline:none;cursor:pointer;" +
-          (style || "")
+        `display:inline-flex;align-items:center;justify-content:center;min-width:0;background:rgba(255,255,255,0.8);border:none;border-radius:10px;padding:0 16px;height:36px;box-shadow:0 1.5px 8px rgba(0,0,0,0.06);transition:filter 0.19s,background 0.2s;outline:none;cursor:pointer;font-size:15px;font-weight:600;${style||""}`
       );
       b.innerHTML = html;
       b.title = title || "";
@@ -283,16 +256,11 @@
           cb(e, b);
         });
       if (more) more(b);
-      b.addEventListener("pointerdown", (e) => {
-        b.style.filter = "brightness(0.91)";
-      });
-      b.addEventListener("pointerup", (e) => {
-        b.style.filter = "";
-      });
+      b.addEventListener("pointerdown", (e) => { b.style.filter = "brightness(0.91)"; });
+      b.addEventListener("pointerup", (e) => { b.style.filter = ""; });
       return b;
     }
 
-    // --- Close Button ---
     ctrlRow.appendChild(
       makeBtn(
         icons.close,
@@ -302,26 +270,21 @@
           window.__sbinOverlay = false;
           window.__sbinContainer = null;
         },
-        "background:rgba(255,70,70,0.09);"
+        "background:rgba(255,70,70,0.11);padding:0;"
       )
     );
 
     header.appendChild(handle);
     header.appendChild(versionTag);
     header.appendChild(ctrlRow);
-
     card.appendChild(header);
 
-    // ---- Main View / Names / Topics ----
-
-    // Main Content Area
     let contentArea = create(
       "div",
       "display:flex;flex-direction:column;align-items:stretch;padding:18px 18px 2px 18px;gap:12px;transition:all 0.22s;"
     );
 
     if (view === "main") {
-      // SBIN Button Row or Editor
       let row = create(
         "div",
         "display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;"
@@ -340,11 +303,8 @@
       } else {
         ["s", "b", "i", "n"].forEach((k) => {
           let btn = makeBtn(
-            '<span style="font-weight:600;font-size:15px;padding-left:2px;">' +
-              { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k] +
-              "</span>",
-            "Tap to copy " +
-              { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k],
+            { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k],
+            "Tap to copy",
             function (e, b) {
               copyToClipboard(active[k] || "", b, e);
             }
@@ -354,7 +314,6 @@
       }
       contentArea.appendChild(row);
 
-      // --- Controls ---
       let controlRow = create(
         "div",
         "display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;"
@@ -362,7 +321,7 @@
       if (editing) {
         controlRow.appendChild(
           makeBtn(
-            icons.save,
+            icons.save + ' <span style="margin-left:4px;">Save</span>',
             "Save",
             function () {
               ["s", "b", "i", "n"].forEach(function (k) {
@@ -379,7 +338,7 @@
       } else {
         controlRow.appendChild(
           makeBtn(
-            icons.edit,
+            icons.edit + ' <span style="margin-left:4px;">Edit</span>',
             "Edit SBIN",
             function () {
               editing = true;
@@ -391,7 +350,7 @@
 
       controlRow.appendChild(
         makeBtn(
-          icons.people,
+          icons.people + ' <span style="margin-left:4px;">Names</span>',
           "Names",
           function () {
             view = "names";
@@ -401,7 +360,7 @@
       );
       controlRow.appendChild(
         makeBtn(
-          icons.topic,
+          icons.topic + ' <span style="margin-left:4px;">Topics</span>',
           "Topics",
           function () {
             view = "topics";
@@ -417,11 +376,11 @@
     if (view === "names") {
       let scrollWrap = create(
         "div",
-        "max-height:134px;overflow:hidden;border-radius:10px;margin-bottom:5px;"
+        "max-height:140px;overflow:hidden;border-radius:13px;margin-bottom:5px;background:rgba(255,255,255,0.81);"
       );
       let list = create(
         "div",
-        "display:grid;grid-template-columns:1fr 1fr;gap:10px;transition:transform 0.18s;"
+        "display:grid;grid-template-columns:1fr 1fr;gap:9px;transition:transform 0.18s;padding:7px 0;"
       );
       let rowHeight = 44;
       let visibleRows = 3;
@@ -436,10 +395,9 @@
           function (e, b) {
             copyToClipboard(n, b, e);
           },
-          "background:rgba(255,255,255,0.67);min-width:0;flex:1;"
+          "background:rgba(240,248,255,0.94);font-size:15px;min-width:0;flex:1;height:38px;border-radius:9px;"
         );
         btn.style.fontWeight = "600";
-        btn.style.fontSize = "15px";
         list.appendChild(btn);
       });
 
@@ -464,7 +422,8 @@
             else
               nameScrollOffset = Math.min(nameScrollOffset + step, maxOffset);
             render();
-          }
+          },
+          "padding:0 9px;"
         );
         btn.disabled =
           (item.dir === "⬆️" && nameScrollOffset <= 0) ||
@@ -479,7 +438,7 @@
         "display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"
       );
       let toggle = makeBtn(
-        editNames ? icons.eye : icons.edit,
+        editNames ? icons.eye + " Hide Edit" : icons.edit + " Edit Mode",
         editNames ? "Hide Edit" : "Edit Mode",
         function () {
           editNames = !editNames;
@@ -489,7 +448,7 @@
       namesCtrl.appendChild(toggle);
 
       let add = makeBtn(
-        icons.add,
+        icons.add + ' <span style="margin-left:4px;">Add Name(s)</span>',
         "Add Name(s)",
         function () {
           showTextareaModal("Enter names (one per line):", (input) => {
@@ -507,7 +466,7 @@
       namesCtrl.appendChild(add);
 
       let back = makeBtn(
-        icons.back,
+        icons.back + ' <span style="margin-left:4px;">Main</span>',
         "Back to main",
         function () {
           view = "main";
@@ -539,7 +498,7 @@
           },
           key === activeTopic
             ? "background:#007aff;color:#fff;"
-            : "background:rgba(255,255,255,0.82);"
+            : "background:rgba(255,255,255,0.92);"
         );
         btn.style.fontWeight = "600";
         btn.style.fontSize = "15px";
@@ -548,7 +507,7 @@
       contentArea.appendChild(list);
 
       let add = makeBtn(
-        icons.add,
+        icons.add + ' <span style="margin-left:4px;">Add Topic</span>',
         "Add Topic",
         function () {
           let name = prompt("New topic name:");
@@ -565,7 +524,7 @@
         "background:#007aff;color:#fff;"
       );
       let back = makeBtn(
-        icons.back,
+        icons.back + ' <span style="margin-left:4px;">Main</span>',
         "Back to main",
         function () {
           view = "main";
@@ -628,6 +587,7 @@
       @keyframes sbin-rip {
         to { transform: scale(2.1); opacity: 0; }
       }
+      button[disabled] { opacity: 0.6 !important; pointer-events: none; }
     `;
     let style = document.createElement("style");
     style.id = "__sbin-css";
