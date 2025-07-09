@@ -1,6 +1,6 @@
 (function () {
   if (window.__sbinOverlay) return;
-  const SBIN_VERSION = "3.6";
+  const SBIN_VERSION = "3.7";
   let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
     activeTopic = d.activeTopic || "Default",
     active = d.topics?.[activeTopic] || { s: "", b: "", i: "", n: "" },
@@ -170,15 +170,15 @@
   function showTextareaModal(title, callback) {
     let overlay = create(
       "div",
-      "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(28,30,40,0.22);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);"
+      "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(28,30,40,0.20);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);"
     );
     let box = create(
       "div",
-      "background:rgba(24,34,50,0.88);backdrop-filter:blur(19px);padding:26px 24px 20px 24px;border-radius:20px;max-width:96vw;width:400px;display:flex;flex-direction:column;gap:15px;box-shadow:0 12px 40px rgba(20,20,35,0.13);font-family:-apple-system,BlinkMacSystemFont,sans-serif;align-items:stretch;"
+      "background:rgba(26,30,44,0.38);backdrop-filter:blur(18px);padding:26px 24px 20px 24px;border-radius:20px;max-width:96vw;width:400px;display:flex;flex-direction:column;gap:15px;box-shadow:0 10px 40px rgba(33,150,243,0.09);font-family:-apple-system,BlinkMacSystemFont,sans-serif;align-items:stretch;"
     );
     let label = create(
       "div",
-      "font-weight:700;font-size:18px;color:#fff;letter-spacing:0.1px;text-shadow:0 2px 8px rgba(0,0,0,0.17);margin-bottom:6px;",
+      "font-weight:700;font-size:18px;color:#fff;letter-spacing:0.1px;text-shadow:0 2px 8px rgba(0,0,0,0.13);margin-bottom:6px;",
       title
     );
     let textarea = create(
@@ -215,22 +215,22 @@
     let box = create(
       "div",
       "position:fixed;top:auto;left:50%;transform:translateX(-50%);max-width:500px;width:94vw;" +
-      "background:rgba(26,30,44,0.40);backdrop-filter:blur(24px) saturate(1.08);" +
-      "border-radius:28px;box-shadow:0 12px 44px 0 rgba(33,150,243,0.13),0 1.5px 10px rgba(32,40,60,0.12);" +
-      "border:1.5px solid rgba(120,140,170,0.09);padding:0 0 16px 0;overflow:hidden;pointer-events:auto;"
+      "background:rgba(26,30,44,0.38);backdrop-filter:blur(18px) saturate(1.06);" +
+      "border-radius:28px;box-shadow:0 10px 34px 0 rgba(33,150,243,0.10),0 1.5px 10px rgba(32,40,60,0.11);" +
+      "border:1.5px solid rgba(120,140,170,0.09);padding:0 0 18px 0;overflow:hidden;pointer-events:auto;"
     );
     forceFixed(box);
 
     let header = create(
       "div",
       "width:100%;height:54px;display:flex;align-items:center;gap:9px;justify-content:space-between;" +
-      "background:rgba(22,26,36,0.59);backdrop-filter:blur(13px) saturate(1.08);" +
-      "border-bottom:1.2px solid rgba(120,140,170,0.11);cursor:grab;" +
-      "box-shadow:0 2px 13px rgba(22,30,44,0.10);padding:0 0.5em;"
+      "background:rgba(22,26,36,0.53);backdrop-filter:blur(12px) saturate(1.06);" +
+      "border-bottom:1.2px solid rgba(120,140,170,0.10);cursor:grab;" +
+      "box-shadow:0 2px 10px rgba(22,30,44,0.08);padding:0 0.5em;"
     );
     let handle = create(
       "div",
-      "height:19px;width:70px;background:rgba(180,200,230,0.20);border-radius:9px;margin:0 19px;align-self:center;cursor:grab;display:block;",
+      "height:19px;width:70px;background:rgba(180,200,230,0.17);border-radius:9px;margin:0 19px;align-self:center;cursor:grab;display:block;",
       ""
     );
     handle.className = "sbin-handle";
@@ -284,7 +284,7 @@
           window.__sbinOverlay = false;
           window.__sbinContainer = null;
         },
-        "background:rgba(255,70,70,0.12);padding:0;width:44px;height:44px;border-radius:100px;"
+        "background:rgba(255,70,70,0.13);padding:0;width:44px;height:44px;border-radius:100px;"
       )
     );
     header.appendChild(handle);
@@ -294,14 +294,14 @@
 
     let contentArea = create(
       "div",
-      "display:flex;flex-direction:column;align-items:stretch;padding:22px 18px 2px 18px;gap:14px;transition:all 0.18s;"
+      "display:flex;flex-direction:column;align-items:stretch;padding:22px 18px 2px 18px;gap:15px;background:none;transition:all 0.18s;"
     );
 
-    // MAIN VIEW
+    // MAIN VIEW: All 4 buttons on a single row (with flex wrap off)
     if (view === "main") {
       let row = create(
         "div",
-        "display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;"
+        "display:flex;flex-direction:row;flex-wrap:nowrap;gap:14px;justify-content:space-between;"
       );
       if (editing) {
         ["s", "b", "i", "n"].forEach((k) => {
@@ -322,7 +322,7 @@
             function (e, b) {
               copyToClipboard(active[k] || "", b, e);
             },
-            "background:rgba(255,255,255,0.91);color:#202733;"
+            "background:rgba(255,255,255,0.91);color:#202733;flex:1 1 0;"
           );
           row.appendChild(btn);
         });
@@ -388,7 +388,7 @@
     if (view === "names") {
       let scrollWrap = create(
         "div",
-        "max-height:160px;overflow-y:auto;border-radius:14px;margin-bottom:7px;background:rgba(28,32,54,0.97);-webkit-overflow-scrolling:touch;"
+        "max-height:160px;overflow-y:auto;border-radius:14px;margin-bottom:7px;background:rgba(26,30,44,0.38);-webkit-overflow-scrolling:touch;"
       );
       let list = create(
         "div",
