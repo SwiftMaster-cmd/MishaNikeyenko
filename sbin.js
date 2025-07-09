@@ -1,7 +1,6 @@
 (function () {
   if (window.__sbinOverlay) return;
-  const SBIN_VERSION = "2.3";
-
+  const SBIN_VERSION = "2.4";
   let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
     activeTopic = d.activeTopic || "Default",
     active = d.topics?.[activeTopic] || { s: "", b: "", i: "", n: "" },
@@ -12,7 +11,6 @@
 
   if (!d.topics) d.topics = { Default: active };
   if (!d.names) d.names = [];
-
   function save() { localStorage.setItem("sbinData", JSON.stringify(d)); }
   function create(tag, style, html) {
     const el = document.createElement(tag);
@@ -21,7 +19,7 @@
     return el;
   }
 
-  // Icons
+  // ICONS
   const icons = {
     edit: '<svg width="18" height="18" viewBox="0 0 20 20"><path d="M14.7 2.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-9.8 9.8-2.8.8.8-2.8 9.8-9.8zM3 17h14a1 1 0 1 1 0 2H3a1 1 0 1 1 0-2z" fill="#007AFF"/></svg>',
     save: '<svg width="18" height="18" viewBox="0 0 20 20"><path d="M7 13l-4-4 1.4-1.4L7 10.2l8.6-8.6L17 3l-10 10z" fill="#fff"/></svg>',
@@ -70,124 +68,94 @@
     if (e) rippleEffect(e, btn);
   }
 
-  // ---- Enhanced Drag: disables scroll, snaps center, fixes contrast ----
-  function dragHandler(container, header) {
-    let dragging = false, startY = 0, startTop = 0, velocity = 0, lastY = 0, lastTime = 0, startLeft = 0, startX = 0;
+  // === Overlay Container for viewport-fixed drag ===
+  function dragHandler(box, overlay) {
+    let dragging = false, startY = 0, startBoxY = 0, velocity = 0, lastY = 0, lastTime = 0;
 
-    function setNoScroll(val) {
-      document.documentElement.style.overflow = val ? "hidden" : "";
-      document.body.style.overscrollBehavior = val ? "none" : "";
-      document.body.style.touchAction = val ? "none" : "";
+    // Set limits for top/bottom sticking
+    const topStick = 20, bottomStick = 20;
+    // default to bottom
+    let currentTop = "", isTop = false;
+    function snap(toTop) {
+      let h = box.offsetHeight;
+      if (toTop) {
+        box.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1)";
+        box.style.top = topStick + "px";
+        box.style.bottom = "";
+        isTop = true;
+      } else {
+        box.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1)";
+        box.style.top = (overlay.offsetHeight - h - bottomStick) + "px";
+        box.style.bottom = "";
+        isTop = false;
+      }
+      // Always center horizontally
+      box.style.left = "50%";
+      box.style.transform = "translateX(-50%)";
+      setTimeout(() => { box.style.transition = ""; }, 340);
     }
-    function centerContainer() {
-      container.style.left = "";
-      container.style.right = "";
-      container.style.marginLeft = "auto";
-      container.style.marginRight = "auto";
-      container.style.transform = "";
-    }
-    // Mouse
-    header.addEventListener("mousedown", (e) => {
-      if (e.button !== 0) return;
+
+    function startDrag(y) {
       dragging = true;
-      startY = e.clientY;
-      startX = e.clientX;
-      startTop = container.getBoundingClientRect().top;
-      startLeft = container.getBoundingClientRect().left;
+      startY = y;
+      startBoxY = box.offsetTop;
       lastY = startY;
       lastTime = Date.now();
-      setNoScroll(true);
-      container.style.transition = "none";
-      container.style.marginLeft = container.style.marginRight = "";
-      container.style.left = startLeft + "px";
-      container.style.right = "";
-      container.style.transform = "";
-      document.body.style.userSelect = "none";
+      box.style.transition = "none";
+      // Prevent background scroll
+      overlay.style.touchAction = "none";
+      overlay.style.overscrollBehavior = "none";
+      document.body.style.overflow = "hidden";
+    }
+    function doDrag(y) {
+      let now = Date.now(),
+        dy = y - startY,
+        ny = y,
+        dt = now - lastTime;
+      velocity = (ny - lastY) / (dt || 1);
+      lastTime = now;
+      lastY = ny;
+      let newTop = Math.min(
+        overlay.offsetHeight - box.offsetHeight - bottomStick,
+        Math.max(topStick, startBoxY + dy)
+      );
+      box.style.top = newTop + "px";
+      box.style.left = "50%";
+      box.style.transform = "translateX(-50%)";
+      box.style.bottom = "";
+    }
+    function endDrag() {
+      dragging = false;
+      document.body.style.overflow = "";
+      overlay.style.touchAction = "";
+      overlay.style.overscrollBehavior = "";
+      // Snap to top or bottom based on drag/flick direction or position
+      let mid = overlay.offsetHeight / 2;
+      let boxMid = box.offsetTop + box.offsetHeight/2;
+      snap(boxMid < mid || velocity < -0.5);
+    }
+
+    // Mouse events
+    box.querySelector(".sbin-handle").addEventListener("mousedown", (e) => {
+      startDrag(e.clientY);
       window.addEventListener("mousemove", mousemove);
       window.addEventListener("mouseup", mouseup);
       e.preventDefault();
     });
-    function mousemove(e) {
-      let now = Date.now(),
-        dy = e.clientY - startY,
-        dx = e.clientX - startX,
-        ny = e.clientY,
-        dt = now - lastTime;
-      velocity = (ny - lastY) / (dt || 1);
-      lastTime = now;
-      lastY = ny;
-      container.style.top = Math.max(8, startTop + dy) + "px";
-      container.style.left = startLeft + dx + "px";
-      container.style.bottom = "auto";
-      container.style.right = "";
-      container.style.marginLeft = container.style.marginRight = "";
-      container.style.transform = "";
-    }
-    function mouseup(e) {
-      if (!dragging) return;
-      dragging = false;
-      setNoScroll(false);
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", mousemove);
-      window.removeEventListener("mouseup", mouseup);
-      // Snap top, then center horizontally
-      const currentTop = container.getBoundingClientRect().top;
-      const mid = window.innerHeight / 2;
-      container.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1),left 0.33s cubic-bezier(.4,1.8,.6,1)";
-      container.style.top = (velocity < -0.5 || currentTop < mid) ? "16px" : "";
-      container.style.bottom = (velocity < -0.5 || currentTop < mid) ? "auto" : "env(safe-area-inset-bottom,16px)";
-      // Smooth center horizontally
-      setTimeout(centerContainer, 350);
-    }
-    // Touch
-    header.addEventListener("touchstart", (e) => {
-      dragging = true;
-      startY = e.touches[0].clientY;
-      startX = e.touches[0].clientX;
-      startTop = container.getBoundingClientRect().top;
-      startLeft = container.getBoundingClientRect().left;
-      lastY = startY;
-      lastTime = Date.now();
-      setNoScroll(true);
-      container.style.transition = "none";
-      container.style.marginLeft = container.style.marginRight = "";
-      container.style.left = startLeft + "px";
-      container.style.right = "";
-      container.style.transform = "";
-      document.body.style.userSelect = "none";
+    function mousemove(e) { if (dragging) doDrag(e.clientY); }
+    function mouseup(e) { if (dragging) { endDrag(); window.removeEventListener("mousemove", mousemove); window.removeEventListener("mouseup", mouseup);} }
+    // Touch events
+    box.querySelector(".sbin-handle").addEventListener("touchstart", (e) => {
+      startDrag(e.touches[0].clientY);
     }, { passive: true });
-    header.addEventListener("touchmove", (e) => {
-      if (!dragging) return;
-      let now = Date.now(),
-        dy = e.touches[0].clientY - startY,
-        dx = e.touches[0].clientX - startX,
-        ny = e.touches[0].clientY,
-        dt = now - lastTime;
-      velocity = (ny - lastY) / (dt || 1);
-      lastTime = now;
-      lastY = ny;
-      container.style.top = Math.max(8, startTop + dy) + "px";
-      container.style.left = startLeft + dx + "px";
-      container.style.bottom = "auto";
-      container.style.right = "";
-      container.style.marginLeft = container.style.marginRight = "";
-      container.style.transform = "";
+    overlay.addEventListener("touchmove", (e) => {
+      if (dragging) { doDrag(e.touches[0].clientY); e.preventDefault(); }
     }, { passive: false });
-    header.addEventListener("touchend", () => {
-      if (!dragging) return;
-      dragging = false;
-      setNoScroll(false);
-      document.body.style.userSelect = "";
-      const currentTop = container.getBoundingClientRect().top;
-      const mid = window.innerHeight / 2;
-      container.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1),left 0.33s cubic-bezier(.4,1.8,.6,1)";
-      container.style.top = (velocity < -0.5 || currentTop < mid) ? "16px" : "";
-      container.style.bottom = (velocity < -0.5 || currentTop < mid) ? "auto" : "env(safe-area-inset-bottom,16px)";
-      setTimeout(centerContainer, 350);
-    });
-    // Always re-center on window resize
-    window.addEventListener("resize", centerContainer);
-    centerContainer();
+    overlay.addEventListener("touchend", (e) => { if (dragging) endDrag(); });
+    // On resize, always recenter
+    window.addEventListener("resize", ()=>{ snap(isTop); });
+    // Snap to bottom by default on open
+    setTimeout(()=>snap(false),10);
   }
 
   function showTextareaModal(title, callback) {
@@ -226,19 +194,21 @@
     textarea.focus();
   }
 
+  // MAIN RENDER
   function render() {
     if (window.__sbinContainer) document.body.removeChild(window.__sbinContainer);
-
-    let c = create(
+    // Overlay always fills viewport, blocks scroll/pointer
+    let overlay = create(
       "div",
-      "position:fixed;left:0;right:0;top:auto;bottom:env(safe-area-inset-bottom,16px);max-width:500px;margin:0 auto;z-index:2147483645;box-sizing:border-box;pointer-events:auto;user-select:none;"
+      "position:fixed;inset:0;z-index:2147483646;pointer-events:auto;user-select:none;background:rgba(0,0,0,0.0);touch-action:none;"
     );
     window.__sbinOverlay = true;
-    window.__sbinContainer = c;
+    window.__sbinContainer = overlay;
 
-    let card = create(
+    // Card/box floats inside overlay (position absolute)
+    let box = create(
       "div",
-      "background:rgba(26,30,44,0.93);backdrop-filter:blur(24px) saturate(1.10);border-radius:26px;box-shadow:0 14px 44px 0 rgba(22,30,44,0.39),0 2px 6px 0 rgba(22,30,44,0.17);border:1.8px solid rgba(120,140,170,0.16);padding:0 0 14px 0;overflow:hidden;max-width:100vw;"
+      "position:absolute;top:auto;left:50%;transform:translateX(-50%);max-width:500px;width:94vw;background:rgba(26,30,44,0.93);backdrop-filter:blur(24px) saturate(1.10);border-radius:26px;box-shadow:0 14px 44px 0 rgba(22,30,44,0.39),0 2px 6px 0 rgba(22,30,44,0.17);border:1.8px solid rgba(120,140,170,0.16);padding:0 0 14px 0;overflow:hidden;"
     );
 
     let header = create(
@@ -247,12 +217,10 @@
     );
     let handle = create(
       "div",
-      "height:7px;width:40px;background:rgba(190,210,225,0.16);border-radius:4px;margin:0 auto;align-self:center;"
+      "height:7px;width:40px;background:rgba(190,210,225,0.16);border-radius:4px;margin:0 auto;align-self:center;cursor:grab;",
+      ""
     );
-    handle.style.marginTop = "7px";
-    handle.style.marginBottom = "7px";
-    handle.style.marginLeft = "auto";
-    handle.style.marginRight = "auto";
+    handle.className = "sbin-handle";
     handle.title = "Drag to move";
 
     let versionTag = create(
@@ -294,17 +262,15 @@
         "background:rgba(255,70,70,0.13);padding:0;"
       )
     );
-
     header.appendChild(handle);
     header.appendChild(versionTag);
     header.appendChild(ctrlRow);
-    card.appendChild(header);
+    box.appendChild(header);
 
     let contentArea = create(
       "div",
       "display:flex;flex-direction:column;align-items:stretch;padding:18px 18px 2px 18px;gap:12px;transition:all 0.22s;"
     );
-
     if (view === "main") {
       let row = create(
         "div",
@@ -389,10 +355,8 @@
           }
         )
       );
-
       contentArea.appendChild(controlRow);
     }
-
     // --- Names View ---
     if (view === "names") {
       let scrollWrap = create(
@@ -562,32 +526,18 @@
       contentArea.appendChild(topicsCtrl);
     }
 
-    card.appendChild(contentArea);
-    c.appendChild(card);
-    document.body.appendChild(c);
+    box.appendChild(contentArea);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 
-    c.style.maxWidth = "96vw";
-    dragHandler(c, header);
-
-    window.addEventListener(
-      "resize",
-      () => {
-        const a = document.activeElement;
-        if (a && a.tagName === "TEXTAREA") {
-          setTimeout(() => {
-            a.scrollIntoView({ behavior: "smooth", block: "center" });
-          }, 100);
-        }
-      },
-      { passive: true }
-    );
+    // Enable true viewport-drag and snap
+    dragHandler(box, overlay);
   }
 
   // ---- CSS Injection ----
   (function injectCSS() {
     if (document.getElementById("__sbin-css")) return;
     let css = `
-      @media (max-width:600px){.sbin-card{max-width:97vw !important;}}
       .sbin-flash { animation:sbin-fade 0.4s; }
       @keyframes sbin-fade { 0%{background:#def;color:#283045;} 60%{background:#8ecbff;color:#fff;} 100%{background:inherit;color:inherit;} }
       .sbin-ripple {
