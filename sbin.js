@@ -1,11 +1,7 @@
 (function () {
-  // Prevent duplicate overlays
   if (window.__sbinOverlay) return;
+  const SBIN_VERSION = "2.3";
 
-  // Version
-  const SBIN_VERSION = "2.2";
-
-  // ---- Data Layer ----
   let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
     activeTopic = d.activeTopic || "Default",
     active = d.topics?.[activeTopic] || { s: "", b: "", i: "", n: "" },
@@ -17,11 +13,7 @@
   if (!d.topics) d.topics = { Default: active };
   if (!d.names) d.names = [];
 
-  function save() {
-    localStorage.setItem("sbinData", JSON.stringify(d));
-  }
-
-  // ---- DOM UTILS ----
+  function save() { localStorage.setItem("sbinData", JSON.stringify(d)); }
   function create(tag, style, html) {
     const el = document.createElement(tag);
     if (style) el.style.cssText = style;
@@ -29,7 +21,7 @@
     return el;
   }
 
-  // ---- Icon Library ----
+  // Icons
   const icons = {
     edit: '<svg width="18" height="18" viewBox="0 0 20 20"><path d="M14.7 2.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-9.8 9.8-2.8.8.8-2.8 9.8-9.8zM3 17h14a1 1 0 1 1 0 2H3a1 1 0 1 1 0-2z" fill="#007AFF"/></svg>',
     save: '<svg width="18" height="18" viewBox="0 0 20 20"><path d="M7 13l-4-4 1.4-1.4L7 10.2l8.6-8.6L17 3l-10 10z" fill="#fff"/></svg>',
@@ -44,7 +36,6 @@
     check: '<svg width="18" height="18" viewBox="0 0 20 20"><path d="M6 11l3 3 5-5" stroke="#fff" stroke-width="2" fill="none"/></svg>',
   };
 
-  // ---- Feedback ----
   function flash(btn) {
     btn.classList.add("sbin-flash");
     setTimeout(() => btn.classList.remove("sbin-flash"), 450);
@@ -59,8 +50,6 @@
     circle.style.top = (e?.offsetY ?? d/2) - d / 2 + "px";
     setTimeout(() => circle.remove(), 650);
   }
-
-  // ---- Clipboard ----
   function copyToClipboard(text, btn, e) {
     try {
       if (navigator.clipboard?.writeText) {
@@ -81,52 +70,59 @@
     if (e) rippleEffect(e, btn);
   }
 
-  // ---- Robust Drag/Fling Handler ----
+  // ---- Enhanced Drag: disables scroll, snaps center, fixes contrast ----
   function dragHandler(container, header) {
-    let dragging = false, startY = 0, startTop = 0, velocity = 0, lastY = 0, lastTime = 0;
+    let dragging = false, startY = 0, startTop = 0, velocity = 0, lastY = 0, lastTime = 0, startLeft = 0, startX = 0;
 
-    function snap(to) {
-      container.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1)";
-      container.style.top = to;
-      container.style.bottom = "auto";
-      setTimeout(() => { container.style.transition = ""; }, 330);
-    }
-
-    function onMove(clientY) {
-      let now = Date.now(),
-        dy = clientY - startY,
-        ny = clientY,
-        dt = now - lastTime;
-      velocity = (ny - lastY) / (dt || 1);
-      lastTime = now;
-      lastY = ny;
-      container.style.top = Math.max(8, startTop + dy) + "px";
-      container.style.bottom = "auto";
-    }
-
-    // Disable scroll on body/html during drag
     function setNoScroll(val) {
       document.documentElement.style.overflow = val ? "hidden" : "";
       document.body.style.overscrollBehavior = val ? "none" : "";
       document.body.style.touchAction = val ? "none" : "";
     }
-
+    function centerContainer() {
+      container.style.left = "";
+      container.style.right = "";
+      container.style.marginLeft = "auto";
+      container.style.marginRight = "auto";
+      container.style.transform = "";
+    }
     // Mouse
     header.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
       dragging = true;
       startY = e.clientY;
+      startX = e.clientX;
       startTop = container.getBoundingClientRect().top;
+      startLeft = container.getBoundingClientRect().left;
       lastY = startY;
       lastTime = Date.now();
       setNoScroll(true);
       container.style.transition = "none";
+      container.style.marginLeft = container.style.marginRight = "";
+      container.style.left = startLeft + "px";
+      container.style.right = "";
+      container.style.transform = "";
       document.body.style.userSelect = "none";
       window.addEventListener("mousemove", mousemove);
       window.addEventListener("mouseup", mouseup);
       e.preventDefault();
     });
-    function mousemove(e) { if (dragging) onMove(e.clientY); }
+    function mousemove(e) {
+      let now = Date.now(),
+        dy = e.clientY - startY,
+        dx = e.clientX - startX,
+        ny = e.clientY,
+        dt = now - lastTime;
+      velocity = (ny - lastY) / (dt || 1);
+      lastTime = now;
+      lastY = ny;
+      container.style.top = Math.max(8, startTop + dy) + "px";
+      container.style.left = startLeft + dx + "px";
+      container.style.bottom = "auto";
+      container.style.right = "";
+      container.style.marginLeft = container.style.marginRight = "";
+      container.style.transform = "";
+    }
     function mouseup(e) {
       if (!dragging) return;
       dragging = false;
@@ -134,23 +130,49 @@
       document.body.style.userSelect = "";
       window.removeEventListener("mousemove", mousemove);
       window.removeEventListener("mouseup", mouseup);
+      // Snap top, then center horizontally
       const currentTop = container.getBoundingClientRect().top;
       const mid = window.innerHeight / 2;
-      if (velocity < -0.5 || currentTop < mid) { snap("16px"); }
-      else { snap(""); container.style.top = ""; container.style.bottom = "env(safe-area-inset-bottom,16px)"; }
+      container.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1),left 0.33s cubic-bezier(.4,1.8,.6,1)";
+      container.style.top = (velocity < -0.5 || currentTop < mid) ? "16px" : "";
+      container.style.bottom = (velocity < -0.5 || currentTop < mid) ? "auto" : "env(safe-area-inset-bottom,16px)";
+      // Smooth center horizontally
+      setTimeout(centerContainer, 350);
     }
     // Touch
     header.addEventListener("touchstart", (e) => {
       dragging = true;
       startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
       startTop = container.getBoundingClientRect().top;
+      startLeft = container.getBoundingClientRect().left;
       lastY = startY;
       lastTime = Date.now();
       setNoScroll(true);
       container.style.transition = "none";
+      container.style.marginLeft = container.style.marginRight = "";
+      container.style.left = startLeft + "px";
+      container.style.right = "";
+      container.style.transform = "";
       document.body.style.userSelect = "none";
     }, { passive: true });
-    header.addEventListener("touchmove", (e) => { if (dragging) onMove(e.touches[0].clientY); }, { passive: false });
+    header.addEventListener("touchmove", (e) => {
+      if (!dragging) return;
+      let now = Date.now(),
+        dy = e.touches[0].clientY - startY,
+        dx = e.touches[0].clientX - startX,
+        ny = e.touches[0].clientY,
+        dt = now - lastTime;
+      velocity = (ny - lastY) / (dt || 1);
+      lastTime = now;
+      lastY = ny;
+      container.style.top = Math.max(8, startTop + dy) + "px";
+      container.style.left = startLeft + dx + "px";
+      container.style.bottom = "auto";
+      container.style.right = "";
+      container.style.marginLeft = container.style.marginRight = "";
+      container.style.transform = "";
+    }, { passive: false });
     header.addEventListener("touchend", () => {
       if (!dragging) return;
       dragging = false;
@@ -158,34 +180,38 @@
       document.body.style.userSelect = "";
       const currentTop = container.getBoundingClientRect().top;
       const mid = window.innerHeight / 2;
-      if (velocity < -0.5 || currentTop < mid) { snap("16px"); }
-      else { snap(""); container.style.top = ""; container.style.bottom = "env(safe-area-inset-bottom,16px)"; }
+      container.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1),left 0.33s cubic-bezier(.4,1.8,.6,1)";
+      container.style.top = (velocity < -0.5 || currentTop < mid) ? "16px" : "";
+      container.style.bottom = (velocity < -0.5 || currentTop < mid) ? "auto" : "env(safe-area-inset-bottom,16px)";
+      setTimeout(centerContainer, 350);
     });
+    // Always re-center on window resize
+    window.addEventListener("resize", centerContainer);
+    centerContainer();
   }
 
-  // ---- Modal/Prompt ----
   function showTextareaModal(title, callback) {
     let overlay = create(
       "div",
-      "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(24,28,36,0.33);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);"
+      "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(28,30,40,0.46);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);"
     );
     let box = create(
       "div",
-      "background:rgba(255,255,255,0.89);backdrop-filter:blur(15px);padding:26px 24px 20px 24px;border-radius:20px;max-width:96vw;width:400px;display:flex;flex-direction:column;gap:15px;box-shadow:0 8px 32px rgba(0,0,0,0.18);font-family:-apple-system,BlinkMacSystemFont,sans-serif;align-items:stretch;"
+      "background:rgba(22,28,38,0.92);backdrop-filter:blur(19px);padding:26px 24px 20px 24px;border-radius:20px;max-width:96vw;width:400px;display:flex;flex-direction:column;gap:15px;box-shadow:0 12px 40px rgba(20,20,35,0.22);font-family:-apple-system,BlinkMacSystemFont,sans-serif;align-items:stretch;"
     );
     let label = create(
       "div",
-      "font-weight:700;font-size:17px;color:#222;letter-spacing:0.1px;text-shadow:0 2px 4px rgba(255,255,255,0.15);margin-bottom:6px;",
+      "font-weight:700;font-size:17px;color:#fff;letter-spacing:0.1px;text-shadow:0 2px 8px rgba(0,0,0,0.23);margin-bottom:6px;",
       title
     );
     let textarea = create(
       "textarea",
-      "width:100%;padding:11px 12px;font-size:15px;border-radius:13px;border:1.5px solid #ccd;outline:none;font-family:inherit;resize:vertical;background:rgba(240,244,248,0.9);color:#222;"
+      "width:100%;padding:11px 12px;font-size:15px;border-radius:13px;border:1.5px solid #222;outline:none;font-family:inherit;resize:vertical;background:rgba(250,252,254,0.95);color:#111;"
     );
     textarea.rows = 9;
     let save = create(
       "button",
-      "background:#007aff;color:#fff;font-weight:600;border-radius:13px;border:none;padding:10px 0;margin-top:8px;font-size:16px;box-shadow:0 2px 8px rgba(0,122,255,0.07);cursor:pointer;letter-spacing:0.01em;transition:filter 0.18s;min-width:96px;",
+      "background:#007aff;color:#fff;font-weight:600;border-radius:13px;border:none;padding:10px 0;margin-top:8px;font-size:16px;box-shadow:0 2px 8px rgba(0,122,255,0.09);cursor:pointer;letter-spacing:0.01em;transition:filter 0.18s;min-width:96px;",
       icons.save + " &nbsp;Add"
     );
     save.onclick = function () {
@@ -200,10 +226,8 @@
     textarea.focus();
   }
 
-  // ---- Main Render ----
   function render() {
-    if (window.__sbinContainer)
-      document.body.removeChild(window.__sbinContainer);
+    if (window.__sbinContainer) document.body.removeChild(window.__sbinContainer);
 
     let c = create(
       "div",
@@ -214,17 +238,16 @@
 
     let card = create(
       "div",
-      "background:rgba(255,255,255,0.75);backdrop-filter:blur(22px) saturate(1.12);border-radius:26px;box-shadow:0 10px 44px 0 rgba(52,62,90,0.18),0 2px 6px 0 rgba(52,62,90,0.07);border:1.2px solid rgba(120,140,170,0.13);padding:0 0 14px 0;overflow:hidden;max-width:100vw;"
+      "background:rgba(26,30,44,0.93);backdrop-filter:blur(24px) saturate(1.10);border-radius:26px;box-shadow:0 14px 44px 0 rgba(22,30,44,0.39),0 2px 6px 0 rgba(22,30,44,0.17);border:1.8px solid rgba(120,140,170,0.16);padding:0 0 14px 0;overflow:hidden;max-width:100vw;"
     );
 
     let header = create(
       "div",
-      "width:100%;height:42px;display:flex;align-items:center;gap:9px;justify-content:space-between;background:rgba(240,244,250,0.83);backdrop-filter:blur(10px) saturate(1.03);border-bottom:1px solid rgba(120,140,170,0.09);cursor:grab;box-shadow:0 2px 8px rgba(90,120,180,0.04);"
+      "width:100%;height:42px;display:flex;align-items:center;gap:9px;justify-content:space-between;background:rgba(22,26,36,0.99);backdrop-filter:blur(16px) saturate(1.02);border-bottom:1px solid rgba(120,140,170,0.13);cursor:grab;box-shadow:0 2px 16px rgba(22,30,44,0.13);"
     );
-
     let handle = create(
       "div",
-      "height:6px;width:38px;background:rgba(180,190,205,0.23);border-radius:4px;margin:0 auto;align-self:center;"
+      "height:7px;width:40px;background:rgba(190,210,225,0.16);border-radius:4px;margin:0 auto;align-self:center;"
     );
     handle.style.marginTop = "7px";
     handle.style.marginBottom = "7px";
@@ -242,11 +265,10 @@
       "div",
       "display:flex;align-items:center;gap:8px;margin-right:8px;"
     );
-
     function makeBtn(html, title, cb, style, more) {
       let b = create(
         "button",
-        `display:inline-flex;align-items:center;justify-content:center;min-width:0;background:rgba(255,255,255,0.8);border:none;border-radius:10px;padding:0 16px;height:36px;box-shadow:0 1.5px 8px rgba(0,0,0,0.06);transition:filter 0.19s,background 0.2s;outline:none;cursor:pointer;font-size:15px;font-weight:600;${style||""}`
+        `display:inline-flex;align-items:center;justify-content:center;min-width:0;background:rgba(255,255,255,0.86);border:none;border-radius:11px;padding:0 18px;height:36px;box-shadow:0 1.5px 12px rgba(0,0,0,0.08);transition:filter 0.19s,background 0.2s;outline:none;cursor:pointer;font-size:15px;font-weight:600;${style||""}`
       );
       b.innerHTML = html;
       b.title = title || "";
@@ -260,7 +282,6 @@
       b.addEventListener("pointerup", (e) => { b.style.filter = ""; });
       return b;
     }
-
     ctrlRow.appendChild(
       makeBtn(
         icons.close,
@@ -270,7 +291,7 @@
           window.__sbinOverlay = false;
           window.__sbinContainer = null;
         },
-        "background:rgba(255,70,70,0.11);padding:0;"
+        "background:rgba(255,70,70,0.13);padding:0;"
       )
     );
 
@@ -293,7 +314,7 @@
         ["s", "b", "i", "n"].forEach((k) => {
           let ta = create(
             "textarea",
-            "flex:1 1 120px;min-width:86px;max-width:180px;height:74px;padding:12px 10px;border:1.5px solid #ccd;border-radius:15px;font-size:15px;font-family:inherit;background:rgba(250,252,254,0.9);margin-bottom:2px;outline:none;resize:vertical;box-shadow:0 2px 8px rgba(180,200,220,0.03);color:#283045;"
+            "flex:1 1 120px;min-width:86px;max-width:180px;height:74px;padding:12px 10px;border:1.5px solid #222;border-radius:15px;font-size:15px;font-family:inherit;background:rgba(240,244,248,0.93);margin-bottom:2px;outline:none;resize:vertical;box-shadow:0 2px 8px rgba(32,40,60,0.08);color:#23262d;"
           );
           ta.id = "sbin_" + k;
           ta.placeholder = { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k];
@@ -307,7 +328,8 @@
             "Tap to copy",
             function (e, b) {
               copyToClipboard(active[k] || "", b, e);
-            }
+            },
+            "background:rgba(255,255,255,0.93);color:#202733;"
           );
           row.appendChild(btn);
         });
@@ -347,7 +369,6 @@
           )
         );
       }
-
       controlRow.appendChild(
         makeBtn(
           icons.people + ' <span style="margin-left:4px;">Names</span>',
@@ -376,7 +397,7 @@
     if (view === "names") {
       let scrollWrap = create(
         "div",
-        "max-height:140px;overflow:hidden;border-radius:13px;margin-bottom:5px;background:rgba(255,255,255,0.81);"
+        "max-height:140px;overflow:hidden;border-radius:13px;margin-bottom:5px;background:rgba(28,32,54,0.97);"
       );
       let list = create(
         "div",
@@ -395,7 +416,7 @@
           function (e, b) {
             copyToClipboard(n, b, e);
           },
-          "background:rgba(240,248,255,0.94);font-size:15px;min-width:0;flex:1;height:38px;border-radius:9px;"
+          "background:rgba(255,255,255,0.98);color:#1b2230;font-size:15px;min-width:0;flex:1;height:38px;border-radius:9px;"
         );
         btn.style.fontWeight = "600";
         list.appendChild(btn);
@@ -545,24 +566,17 @@
     c.appendChild(card);
     document.body.appendChild(c);
 
-    // Responsive max width
     c.style.maxWidth = "96vw";
-
-    // Drag handler
     dragHandler(c, header);
 
-    // Keyboard layout fixes (for mobile)
     window.addEventListener(
       "resize",
       () => {
         const a = document.activeElement;
         if (a && a.tagName === "TEXTAREA") {
-          setTimeout(
-            () => {
-              a.scrollIntoView({ behavior: "smooth", block: "center" });
-            },
-            100
-          );
+          setTimeout(() => {
+            a.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 100);
         }
       },
       { passive: true }
@@ -573,9 +587,7 @@
   (function injectCSS() {
     if (document.getElementById("__sbin-css")) return;
     let css = `
-      @media (max-width:600px){
-        .sbin-card{max-width:97vw !important;}
-      }
+      @media (max-width:600px){.sbin-card{max-width:97vw !important;}}
       .sbin-flash { animation:sbin-fade 0.4s; }
       @keyframes sbin-fade { 0%{background:#def;color:#283045;} 60%{background:#8ecbff;color:#fff;} 100%{background:inherit;color:inherit;} }
       .sbin-ripple {
@@ -595,6 +607,5 @@
     document.head.appendChild(style);
   })();
 
-  // ---- Init Render ----
   render();
 })();
