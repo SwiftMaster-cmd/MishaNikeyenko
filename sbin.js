@@ -1,6 +1,6 @@
 (function () {
   if (window.__sbinOverlay) return;
-  const SBIN_VERSION = "3.1";
+  const SBIN_VERSION = "3.3";
   let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
     activeTopic = d.activeTopic || "Default",
     active = d.topics?.[activeTopic] || { s: "", b: "", i: "", n: "" },
@@ -69,7 +69,15 @@
     if (e) rippleEffect(e, btn);
   }
 
-  // === VIEWPORT-FIXED, FLING-TO-TOP/BOTTOM Drag Handler ===
+  // === Wide, Graceful, Whole Header Drag Handler, Forcing Fixed Position Always ===
+  function forceFixed(el) {
+    if (!el) return;
+    el.style.position = "fixed";
+    el.style.zIndex = "2147483647";
+    el.style.left = "50%";
+    el.style.transform = "translateX(-50%)";
+  }
+
   function dragHandler(box) {
     let dragging = false, startY = 0, startBoxY = 0, velocity = 0, lastY = 0, lastTime = 0;
     const topStick = 20, bottomStick = 20;
@@ -77,6 +85,7 @@
 
     function snap(toTop, animate = true) {
       let vh = window.innerHeight, h = box.offsetHeight;
+      forceFixed(box);
       if (animate) box.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1)";
       if (toTop) {
         box.style.top = topStick + "px";
@@ -111,6 +120,7 @@
         vh - bh - bottomStick,
         Math.max(topStick, startBoxY + dy)
       );
+      forceFixed(box);
       box.style.top = newTop + "px";
       box.style.left = "50%";
       box.style.transform = "translateX(-50%)";
@@ -120,7 +130,7 @@
       document.body.style.overflow = "";
       let vh = window.innerHeight, bh = box.offsetHeight;
       let top = parseFloat(box.style.top) || 0;
-      let snapThreshold = vh * 0.23; // top 23% or bottom 23%
+      let snapThreshold = vh * 0.23;
       let mid = vh / 2;
       let boxMid = top + bh / 2;
       if (velocity < -0.7 || boxMid < snapThreshold) {
@@ -131,23 +141,31 @@
         snap(boxMid < mid);
       }
     }
-    box.querySelector(".sbin-handle").addEventListener("mousedown", (e) => {
+    let dragArea = box.querySelector(".sbin-handle").parentNode;
+    dragArea.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
       startDrag(e.clientY);
       window.addEventListener("mousemove", mousemove);
       window.addEventListener("mouseup", mouseup);
       e.preventDefault();
     });
-    function mousemove(e) { if (dragging) doDrag(e.clientY); }
-    function mouseup(e) { if (dragging) { endDrag(); window.removeEventListener("mousemove", mousemove); window.removeEventListener("mouseup", mouseup);} }
-    box.querySelector(".sbin-handle").addEventListener("touchstart", (e) => {
+    dragArea.addEventListener("touchstart", (e) => {
       startDrag(e.touches[0].clientY);
     }, { passive: true });
+    function mousemove(e) { if (dragging) doDrag(e.clientY); }
+    function mouseup(e) { if (dragging) { endDrag(); window.removeEventListener("mousemove", mousemove); window.removeEventListener("mouseup", mouseup);} }
     window.addEventListener("touchmove", (e) => {
       if (dragging) { doDrag(e.touches[0].clientY); e.preventDefault(); }
     }, { passive: false });
     window.addEventListener("touchend", (e) => { if (dragging) endDrag(); });
     window.addEventListener("resize", ()=>{ snap(isTop, false); });
-    setTimeout(()=>snap(false, false),10); // Start at bottom, no animation
+    setTimeout(()=>snap(false, false),10);
+
+    // Paranoid: every second, re-apply forced fixed positioning
+    setInterval(() => { forceFixed(box); }, 1000);
+    // Extra paranoid: mutation observer for forced position
+    const observer = new MutationObserver(() => forceFixed(box));
+    observer.observe(box, { attributes: true, attributeFilter: ["style"] });
   }
 
   function showTextareaModal(title, callback) {
@@ -199,14 +217,15 @@
       "div",
       "position:fixed;top:auto;left:50%;transform:translateX(-50%);max-width:500px;width:94vw;background:rgba(26,30,44,0.93);backdrop-filter:blur(24px) saturate(1.10);border-radius:26px;box-shadow:0 14px 44px 0 rgba(22,30,44,0.39),0 2px 6px 0 rgba(22,30,44,0.17);border:1.8px solid rgba(120,140,170,0.16);padding:0 0 14px 0;overflow:hidden;pointer-events:auto;"
     );
+    forceFixed(box);
 
     let header = create(
       "div",
-      "width:100%;height:42px;display:flex;align-items:center;gap:9px;justify-content:space-between;background:rgba(22,26,36,0.99);backdrop-filter:blur(16px) saturate(1.02);border-bottom:1px solid rgba(120,140,170,0.13);cursor:grab;box-shadow:0 2px 16px rgba(22,30,44,0.13);"
+      "width:100%;height:52px;display:flex;align-items:center;gap:9px;justify-content:space-between;background:rgba(22,26,36,0.99);backdrop-filter:blur(16px) saturate(1.02);border-bottom:1px solid rgba(120,140,170,0.13);cursor:grab;box-shadow:0 2px 16px rgba(22,30,44,0.13);padding:0 0.5em;"
     );
     let handle = create(
       "div",
-      "height:7px;width:40px;background:rgba(190,210,225,0.16);border-radius:4px;margin:0 auto;align-self:center;cursor:grab;",
+      "height:18px;width:66px;background:rgba(190,210,225,0.23);border-radius:7px;margin:0 18px;align-self:center;cursor:grab;display:block;",
       ""
     );
     handle.className = "sbin-handle";
@@ -521,6 +540,7 @@
     document.body.appendChild(overlay);
 
     dragHandler(box);
+    forceFixed(box);
   }
 
   // ---- CSS Injection ----
