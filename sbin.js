@@ -2,8 +2,8 @@
   // Prevent duplicate overlays
   if (window.__sbinOverlay) return;
 
-  // Version (for future reference)
-  const SBIN_VERSION = "2.0";
+  // Version
+  const SBIN_VERSION = "2.1";
 
   // ---- Data Layer ----
   let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
@@ -56,15 +56,17 @@
     btn.appendChild(circle);
     let d = Math.max(btn.offsetWidth, btn.offsetHeight);
     circle.style.width = circle.style.height = d + "px";
-    circle.style.left = e.offsetX - d / 2 + "px";
-    circle.style.top = e.offsetY - d / 2 + "px";
+    circle.style.left = (e?.offsetX ?? d/2) - d / 2 + "px";
+    circle.style.top = (e?.offsetY ?? d/2) - d / 2 + "px";
     setTimeout(() => circle.remove(), 650);
   }
 
   // ---- Clipboard ----
   function copyToClipboard(text, btn, e) {
-    navigator.clipboard?.writeText?.(text) ??
-      (function () {
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
         let x = document.createElement("textarea");
         x.value = text;
         x.style.position = "fixed";
@@ -72,57 +74,101 @@
         document.body.appendChild(x);
         x.focus();
         x.select();
-        try {
-          document.execCommand("copy");
-        } catch (e) {}
+        document.execCommand("copy");
         document.body.removeChild(x);
-      })();
+      }
+    } catch {}
     flash(btn);
     if (e) rippleEffect(e, btn);
   }
 
-  // ---- Drag/Fling Handler ----
+  // ---- Robust Drag/Fling Handler ----
   function dragHandler(container, header) {
     let dragging = false,
       startY = 0,
       startTop = 0,
       velocity = 0,
       lastY = 0,
-      lastTime = 0;
+      lastTime = 0,
+      moved = false;
 
-    const snap = (to) => {
+    function snap(to) {
       container.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1)";
       container.style.top = to;
       container.style.bottom = "auto";
       setTimeout(() => {
         container.style.transition = "";
       }, 330);
-    };
+    }
 
-    header.addEventListener("pointerdown", (e) => {
+    function onMove(clientY) {
+      let now = Date.now(),
+        dy = clientY - startY,
+        ny = clientY,
+        dt = now - lastTime;
+      velocity = (ny - lastY) / (dt || 1);
+      lastTime = now;
+      lastY = ny;
+      container.style.top = Math.max(8, startTop + dy) + "px";
+      container.style.bottom = "auto";
+      moved = true;
+    }
+
+    // Mouse
+    header.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
       dragging = true;
       startY = e.clientY;
       startTop = container.getBoundingClientRect().top;
       lastY = startY;
       lastTime = Date.now();
+      moved = false;
       container.style.transition = "none";
       document.body.style.userSelect = "none";
+      window.addEventListener("mousemove", mousemove);
+      window.addEventListener("mouseup", mouseup);
+      e.preventDefault();
     });
 
-    window.addEventListener("pointermove", (e) => {
+    function mousemove(e) {
+      onMove(e.clientY);
+    }
+    function mouseup(e) {
       if (!dragging) return;
-      let now = Date.now(),
-        dy = e.clientY - startY,
-        ny = e.clientY,
-        dt = now - lastTime;
-      velocity = (ny - lastY) / dt;
-      lastTime = now;
-      lastY = ny;
-      container.style.top = startTop + dy + "px";
-      container.style.bottom = "auto";
-    });
+      dragging = false;
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", mousemove);
+      window.removeEventListener("mouseup", mouseup);
+      // Snap logic
+      const currentTop = container.getBoundingClientRect().top;
+      const mid = window.innerHeight / 2;
+      if (velocity < -0.5 || currentTop < mid) {
+        snap("16px");
+      } else {
+        snap("");
+        container.style.top = "";
+        container.style.bottom = "env(safe-area-inset-bottom,16px)";
+      }
+    }
 
-    window.addEventListener("pointerup", () => {
+    // Touch
+    header.addEventListener("touchstart", (e) => {
+      dragging = true;
+      startY = e.touches[0].clientY;
+      startTop = container.getBoundingClientRect().top;
+      lastY = startY;
+      lastTime = Date.now();
+      moved = false;
+      container.style.transition = "none";
+      document.body.style.userSelect = "none";
+    }, { passive: true });
+
+    header.addEventListener("touchmove", (e) => {
+      if (!dragging) return;
+      onMove(e.touches[0].clientY);
+    }, { passive: true });
+
+    header.addEventListener("touchend", () => {
       if (!dragging) return;
       dragging = false;
       document.body.style.userSelect = "";
