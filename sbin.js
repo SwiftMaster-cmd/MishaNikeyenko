@@ -1,6 +1,6 @@
 (function () {
   if (window.__sbinOverlay) return;
-  const SBIN_VERSION = "3.0";
+  const SBIN_VERSION = "3.1";
   let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
     activeTopic = d.activeTopic || "Default",
     active = d.topics?.[activeTopic] || { s: "", b: "", i: "", n: "" },
@@ -69,25 +69,25 @@
     if (e) rippleEffect(e, btn);
   }
 
-  // === TRUE VIEWPORT-FIXED Drag Handler ===
+  // === VIEWPORT-FIXED, FLING-TO-TOP/BOTTOM Drag Handler ===
   function dragHandler(box) {
     let dragging = false, startY = 0, startBoxY = 0, velocity = 0, lastY = 0, lastTime = 0;
     const topStick = 20, bottomStick = 20;
     let isTop = false;
-    function snap(toTop) {
+
+    function snap(toTop, animate = true) {
       let vh = window.innerHeight, h = box.offsetHeight;
+      if (animate) box.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1)";
       if (toTop) {
-        box.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1)";
         box.style.top = topStick + "px";
         isTop = true;
       } else {
-        box.style.transition = "top 0.33s cubic-bezier(.4,1.8,.6,1)";
         box.style.top = (vh - h - bottomStick) + "px";
         isTop = false;
       }
       box.style.left = "50%";
       box.style.transform = "translateX(-50%)";
-      setTimeout(() => { box.style.transition = ""; }, 340);
+      if (animate) setTimeout(() => { box.style.transition = ""; }, 350);
     }
     function startDrag(y) {
       dragging = true;
@@ -118,9 +118,18 @@
     function endDrag() {
       dragging = false;
       document.body.style.overflow = "";
-      let mid = window.innerHeight / 2;
-      let boxMid = (parseFloat(box.style.top) || 0) + box.offsetHeight/2;
-      snap(boxMid < mid || velocity < -0.5);
+      let vh = window.innerHeight, bh = box.offsetHeight;
+      let top = parseFloat(box.style.top) || 0;
+      let snapThreshold = vh * 0.23; // top 23% or bottom 23%
+      let mid = vh / 2;
+      let boxMid = top + bh / 2;
+      if (velocity < -0.7 || boxMid < snapThreshold) {
+        snap(true);
+      } else if (velocity > 0.7 || boxMid > vh - snapThreshold) {
+        snap(false);
+      } else {
+        snap(boxMid < mid);
+      }
     }
     box.querySelector(".sbin-handle").addEventListener("mousedown", (e) => {
       startDrag(e.clientY);
@@ -137,8 +146,8 @@
       if (dragging) { doDrag(e.touches[0].clientY); e.preventDefault(); }
     }, { passive: false });
     window.addEventListener("touchend", (e) => { if (dragging) endDrag(); });
-    window.addEventListener("resize", ()=>{ snap(isTop); });
-    setTimeout(()=>snap(false),10); // Snap to bottom by default
+    window.addEventListener("resize", ()=>{ snap(isTop, false); });
+    setTimeout(()=>snap(false, false),10); // Start at bottom, no animation
   }
 
   function showTextareaModal(title, callback) {
@@ -177,7 +186,6 @@
     textarea.focus();
   }
 
-  // MAIN RENDER
   function render() {
     if (window.__sbinContainer) document.body.removeChild(window.__sbinContainer);
     let overlay = create(
@@ -187,7 +195,6 @@
     window.__sbinOverlay = true;
     window.__sbinContainer = overlay;
 
-    // The draggable SBIN card - fixed to viewport!
     let box = create(
       "div",
       "position:fixed;top:auto;left:50%;transform:translateX(-50%);max-width:500px;width:94vw;background:rgba(26,30,44,0.93);backdrop-filter:blur(24px) saturate(1.10);border-radius:26px;box-shadow:0 14px 44px 0 rgba(22,30,44,0.39),0 2px 6px 0 rgba(22,30,44,0.17);border:1.8px solid rgba(120,140,170,0.16);padding:0 0 14px 0;overflow:hidden;pointer-events:auto;"
