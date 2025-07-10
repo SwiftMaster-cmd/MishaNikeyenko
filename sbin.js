@@ -203,6 +203,35 @@
     textarea.focus();
   }
 
+  // --- Autofill core logic ---
+  function autofillSBINFields() {
+    let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
+        activeTopic = d.activeTopic || "Default",
+        active = d.topics?.[activeTopic] || { s: "", b: "", i: "", n: "" };
+    const values = [
+      active.s || "",
+      active.b || "",
+      active.i || "",
+      active.n || "",
+      active.n || ""
+    ];
+    const ids = [
+      "5a9d0dce-be65-4d33-b0b9-5f642d86649c",
+      "b166711b-2f42-4188-858f-dbdcc45c1314",
+      "d29d3620-ed3c-4dfd-8c94-64f65bea926f",
+      "a7a74f46-24b4-43bc-a7a3-88d0c9d428ab",
+      "a79ed052-d42c-4c93-acad-5699975fe30f"
+    ];
+    ids.forEach((id, i) => {
+      let el = document.getElementById(id) || document.querySelector('[name="'+id+'"]');
+      if (el) {
+        el.value = values[i];
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  }
+
   function render() {
     if (window.__sbinContainer) document.body.removeChild(window.__sbinContainer);
     let overlay = create(
@@ -293,23 +322,7 @@
         icons.save + ' <span style="margin-left:4px;">Autofill Form</span>',
         "Autofill external form",
         function () {
-          // SBIN Autofill for 5 exact fields:
-          const fieldMap = [
-            { val: active.s, sel: '5a9d0dce-be65-4d33-b0b9-5f642d86649c' }, // Situation
-            { val: active.b, sel: 'b166711b-2f42-4188-858f-dbdcc45c1314' }, // Behavior
-            { val: active.i, sel: 'd29d3620-ed3c-4dfd-8c94-64f65bea926f' }, // Impact
-            { val: active.n, sel: 'a7a74f46-24b4-43bc-a7a3-88d0c9d428ab' }, // Next Steps
-            { val: active.n, sel: 'a79ed052-d42c-4c93-acad-5699975fe30f' }, // Next Steps (duplicate)
-          ];
-          fieldMap.forEach(({val, sel}) => {
-            let el = document.getElementById(sel) || document.querySelector('[name="'+sel+'"]');
-            if (el) {
-              el.focus();
-              el.value = val || "";
-              el.dispatchEvent(new Event('input', { bubbles: true }));
-              el.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-          });
+          autofillSBINFields();
         }
       )
     );
