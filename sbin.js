@@ -326,23 +326,41 @@
       "display:flex;flex-direction:column;align-items:stretch;padding:22px 18px 2px 18px;gap:15px;background:none;transition:all 0.18s;"
     );
 
-    // MAIN VIEW: Only Autofill (no SBIN copy buttons)
+    // MAIN VIEW: Show only Autofill (unless editing, then show SBIN textareas)
     if (view === "main") {
-      let autofillRow = create(
-        "div",
-        "display:flex;flex-direction:row;flex-wrap:nowrap;gap:14px;justify-content:center;"
-      );
-      autofillRow.appendChild(
-        makeBtn(
-          icons.save + ' <span style="margin-left:9px;font-size:18px;">Autofill Form</span>',
-          "Autofill external form",
-          function () {
-            autofillSBINFields();
-          },
-          "flex:1 1 0;padding:18px 0;font-size:19px;height:60px;background:#2196f3;color:#fff;border-radius:18px;box-shadow:0 2px 12px rgba(33,150,243,0.13);"
-        )
-      );
-      contentArea.appendChild(autofillRow);
+      if (editing) {
+        let row = create(
+          "div",
+          "display:flex;flex-direction:row;flex-wrap:nowrap;gap:14px;justify-content:space-between;"
+        );
+        ["s", "b", "i", "n"].forEach((k) => {
+          let ta = create(
+            "textarea",
+            "flex:1 1 120px;min-width:92px;max-width:190px;height:78px;padding:14px 10px;border:1.5px solid #222;border-radius:17px;font-size:16px;font-family:inherit;background:rgba(240,244,248,0.93);margin-bottom:2px;outline:none;resize:vertical;box-shadow:0 2px 8px rgba(32,40,60,0.07);color:#23262d;"
+          );
+          ta.id = "sbin_" + k;
+          ta.placeholder = { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k];
+          ta.value = active[k] || "";
+          row.appendChild(ta);
+        });
+        contentArea.appendChild(row);
+      } else {
+        let autofillRow = create(
+          "div",
+          "display:flex;flex-direction:row;flex-wrap:nowrap;gap:14px;justify-content:center;"
+        );
+        autofillRow.appendChild(
+          makeBtn(
+            icons.save + ' <span style="margin-left:9px;font-size:18px;">Autofill Form</span>',
+            "Autofill external form",
+            function () {
+              autofillSBINFields();
+            },
+            "flex:1 1 0;padding:18px 0;font-size:19px;height:60px;background:#2196f3;color:#fff;border-radius:18px;box-shadow:0 2px 12px rgba(33,150,243,0.13);"
+          )
+        );
+        contentArea.appendChild(autofillRow);
+      }
 
       let controlRow = create(
         "div",
