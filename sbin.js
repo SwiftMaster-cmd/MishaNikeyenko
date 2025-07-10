@@ -306,36 +306,45 @@
       "display:flex;align-items:center;gap:8px;margin-right:8px;"
     );
     function makeBtn(html, title, cb, style, more) {
-      let b = create(
-        "button",
-        `display:inline-flex;align-items:center;justify-content:center;min-width:0;` +
-        `background:rgba(255,255,255,0.79);border:none;border-radius:15px;` +
-        `padding:0 20px;height:42px;box-shadow:0 1.5px 7px rgba(0,0,0,0.04);` +
-        `transition:filter 0.16s,background 0.19s;outline:none;cursor:pointer;` +
-        `font-size:17px;font-weight:700;letter-spacing:0.01em;${style||""}`
-      );
-      b.innerHTML = html;
-      b.title = title || "";
-      if (/Names|Topics|Edit|Save|Main|Mode|Add|Autofill/i.test(title)) {
-        b.style.background = "#2196f3";
-        b.style.color = "#fff";
-      }
-      if (/Close/i.test(title)) {
-        b.style.background = "rgba(255,70,70,0.13)";
-        b.style.color = "#f33";
-      }
-      if (cb)
-        b.addEventListener("click", function (e, b) {
-          e.stopPropagation();
-          cb(e, b);
-        });
-      if (more) more(b);
-      b.addEventListener("pointerdown", (e) => { b.style.filter = "brightness(0.93)"; });
-      b.addEventListener("pointerup", (e) => { b.style.filter = ""; });
-      b.addEventListener("mouseenter", e => b.style.filter = "brightness(0.98)");
-      b.addEventListener("mouseleave", e => b.style.filter = "");
-      return b;
-    }
+  let b = create(
+    "button",
+    `display:inline-flex;align-items:center;justify-content:center;min-width:0;` +
+    `background:rgba(33, 150, 243, 0.23);color:#eaf6ff;border:1px solid rgba(33, 150, 243, 0.2);` +
+    `border-radius:15px;padding:0 20px;height:42px;font-size:17px;font-weight:700;letter-spacing:0.01em;` +
+    `box-shadow:0 2px 6px rgba(33,150,243,0.15), inset 0 0 1px rgba(255,255,255,0.3);` +
+    `backdrop-filter:blur(3px) saturate(1.2);transition:all 0.2s ease;cursor:pointer;outline:none;${style||""}`
+  );
+  b.innerHTML = html;
+  b.title = title || "";
+
+  if (/Close/i.test(title)) {
+    b.style.background = "rgba(255,70,70,0.13)";
+    b.style.color = "#f33";
+  }
+
+  if (cb)
+    b.addEventListener("click", function (e, b) {
+      e.stopPropagation();
+      cb(e, b);
+    });
+
+  if (more) more(b);
+
+  b.addEventListener("pointerdown", () => {
+    b.style.filter = "brightness(0.94)";
+  });
+  b.addEventListener("pointerup", () => {
+    b.style.filter = "";
+  });
+  b.addEventListener("mouseenter", () => {
+    b.style.background = "rgba(33, 150, 243, 0.33)";
+  });
+  b.addEventListener("mouseleave", () => {
+    b.style.background = "rgba(33, 150, 243, 0.23)";
+  });
+
+  return b;
+}
     ctrlRow.appendChild(
       makeBtn(
         icons.close,
