@@ -255,12 +255,12 @@
       );
       b.innerHTML = html;
       b.title = title || "";
-      if (/Names|Topics|Edit|Save|Main|Mode|Add/i.test(title)) {
+      if (/Names|Topics|Edit|Save|Main|Mode|Add|Autofill/i.test(title)) {
         b.style.background = "#2196f3";
         b.style.color = "#fff";
       }
       if (/Close/i.test(title)) {
-        b.style.background = "rgba(255,70,70,0.17)";
+        b.style.background = "rgba(255,70,70,0.13)";
         b.style.color = "#f33";
       }
       if (cb)
@@ -285,6 +285,28 @@
           window.__sbinContainer = null;
         },
         "background:rgba(255,70,70,0.13);padding:0;width:44px;height:44px;border-radius:100px;"
+      )
+    );
+    // --- Autofill Button ---
+    ctrlRow.appendChild(
+      makeBtn(
+        icons.save + ' <span style="margin-left:4px;">Autofill Form</span>',
+        "Autofill external form",
+        function () {
+          // Replace these with your actual textarea names:
+          var fieldNames = [
+            "5a9d0dce-be65-4d33-b0b9-5f642d86649c",
+            "field2",
+            "field3",
+            "field4",
+            "field5"
+          ];
+          var values = [active.s, active.b, active.i, active.n, ""];
+          fieldNames.forEach(function(name, i) {
+            var el = document.querySelector('[name="'+name+'"]');
+            if (el) el.value = values[i] || "";
+          });
+        }
       )
     );
     header.appendChild(handle);
