@@ -12,6 +12,38 @@
   if (!d.topics) d.topics = { Default: active };
   if (!d.names) d.names = [];
 
+  // --- Minimized controls ---
+  function showMiniBar() {
+    if (window.__sbinMiniBar) return;
+    let miniBar = document.createElement('div');
+    miniBar.id = '__sbinMiniBar';
+    miniBar.style.cssText =
+      "position:fixed;bottom:26px;left:24px;z-index:2147483647;display:flex;gap:10px;pointer-events:auto;";
+    let openBtn = document.createElement('button');
+    openBtn.innerHTML = '<b style="font-size:20px;line-height:0.7;">＋</b>';
+    openBtn.title = "Open SBIN";
+    openBtn.style.cssText = "height:45px;width:45px;border-radius:50%;background:#2196f3;color:#fff;font-size:28px;font-weight:700;box-shadow:0 2px 8px rgba(33,150,243,0.18);border:none;cursor:pointer;";
+    openBtn.onclick = function () {
+      document.body.removeChild(miniBar);
+      window.__sbinMiniBar = null;
+      render();
+    };
+    let closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '<b style="font-size:19px;line-height:0.6;">×</b>';
+    closeBtn.title = "Hide SBIN mini";
+    closeBtn.style.cssText = "height:45px;width:45px;border-radius:50%;background:rgba(255,70,70,0.16);color:#f33;font-size:28px;font-weight:700;box-shadow:0 2px 8px rgba(33,33,33,0.14);border:none;cursor:pointer;";
+    closeBtn.onclick = function () {
+      document.body.removeChild(miniBar);
+      window.__sbinMiniBar = null;
+      window.__sbinOverlay = false;
+      window.__sbinContainer = null;
+    };
+    miniBar.appendChild(openBtn);
+    miniBar.appendChild(closeBtn);
+    document.body.appendChild(miniBar);
+    window.__sbinMiniBar = miniBar;
+  }
+
   function save() { localStorage.setItem("sbinData", JSON.stringify(d)); }
   function create(tag, style, html) {
     const el = document.createElement(tag);
@@ -309,9 +341,11 @@
         icons.close,
         "Close",
         function () {
+          // Minimize to left mini bar, not close
           document.body.removeChild(window.__sbinContainer);
           window.__sbinOverlay = false;
           window.__sbinContainer = null;
+          showMiniBar();
         },
         "background:rgba(255,70,70,0.13);padding:0;width:44px;height:44px;border-radius:100px;"
       )
