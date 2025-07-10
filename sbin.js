@@ -316,16 +316,6 @@
         "background:rgba(255,70,70,0.13);padding:0;width:44px;height:44px;border-radius:100px;"
       )
     );
-    // --- Autofill Button ---
-    ctrlRow.appendChild(
-      makeBtn(
-        icons.save + ' <span style="margin-left:4px;">Autofill Form</span>',
-        "Autofill external form",
-        function () {
-          autofillSBINFields();
-        }
-      )
-    );
     header.appendChild(handle);
     header.appendChild(versionTag);
     header.appendChild(ctrlRow);
@@ -336,41 +326,27 @@
       "display:flex;flex-direction:column;align-items:stretch;padding:22px 18px 2px 18px;gap:15px;background:none;transition:all 0.18s;"
     );
 
-    // MAIN VIEW: All 4 buttons on a single row (with flex wrap off)
+    // MAIN VIEW: Only Autofill (no SBIN copy buttons)
     if (view === "main") {
-      let row = create(
+      let autofillRow = create(
         "div",
-        "display:flex;flex-direction:row;flex-wrap:nowrap;gap:14px;justify-content:space-between;"
+        "display:flex;flex-direction:row;flex-wrap:nowrap;gap:14px;justify-content:center;"
       );
-      if (editing) {
-        ["s", "b", "i", "n"].forEach((k) => {
-          let ta = create(
-            "textarea",
-            "flex:1 1 120px;min-width:92px;max-width:190px;height:78px;padding:14px 10px;border:1.5px solid #222;border-radius:17px;font-size:16px;font-family:inherit;background:rgba(240,244,248,0.93);margin-bottom:2px;outline:none;resize:vertical;box-shadow:0 2px 8px rgba(32,40,60,0.07);color:#23262d;"
-          );
-          ta.id = "sbin_" + k;
-          ta.placeholder = { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k];
-          ta.value = active[k] || "";
-          row.appendChild(ta);
-        });
-      } else {
-        ["s", "b", "i", "n"].forEach((k) => {
-          let btn = makeBtn(
-            { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k],
-            "Tap to copy",
-            function (e, b) {
-              copyToClipboard(active[k] || "", b, e);
-            },
-            "background:rgba(255,255,255,0.91);color:#202733;flex:1 1 0;"
-          );
-          row.appendChild(btn);
-        });
-      }
-      contentArea.appendChild(row);
+      autofillRow.appendChild(
+        makeBtn(
+          icons.save + ' <span style="margin-left:9px;font-size:18px;">Autofill Form</span>',
+          "Autofill external form",
+          function () {
+            autofillSBINFields();
+          },
+          "flex:1 1 0;padding:18px 0;font-size:19px;height:60px;background:#2196f3;color:#fff;border-radius:18px;box-shadow:0 2px 12px rgba(33,150,243,0.13);"
+        )
+      );
+      contentArea.appendChild(autofillRow);
 
       let controlRow = create(
         "div",
-        "display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;"
+        "display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;justify-content:center;"
       );
       if (editing) {
         controlRow.appendChild(
@@ -423,7 +399,7 @@
       contentArea.appendChild(controlRow);
     }
 
-    // NAMES VIEW
+    // NAMES VIEW (unchanged)
     if (view === "names") {
       let scrollWrap = create(
         "div",
@@ -497,7 +473,7 @@
       contentArea.appendChild(namesCtrl);
     }
 
-    // TOPICS VIEW
+    // TOPICS VIEW (unchanged)
     if (view === "topics") {
       let list = create(
         "div",
