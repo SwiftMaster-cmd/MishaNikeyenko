@@ -1,12 +1,13 @@
 (function () {
   if (window.__sbinOverlay) return;
-  const SBIN_VERSION = "4.0";
+  const SBIN_VERSION = "3.7";
   let d = JSON.parse(localStorage.getItem("sbinData") || "{}"),
     activeTopic = d.activeTopic || "Default",
     active = d.topics?.[activeTopic] || { s: "", b: "", i: "", n: "" },
     editing = false,
     view = "main",
-    editNames = false;
+    editNames = false,
+    nameScrollOffset = 0;
 
   if (!d.topics) d.topics = { Default: active };
   if (!d.names) d.names = [];
@@ -19,8 +20,8 @@
     return el;
   }
 
+  // ICONS
   const icons = {
-    autofill: '<svg width="18" height="18" viewBox="0 0 20 20"><rect x="3" y="7" width="14" height="8" rx="2" fill="#2196f3"/><path d="M10 8v4m2-2H8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
     edit: '<svg width="18" height="18" viewBox="0 0 20 20"><path d="M14.7 2.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-9.8 9.8-2.8.8.8-2.8 9.8-9.8zM3 17h14a1 1 0 1 1 0 2H3a1 1 0 1 1 0-2z" fill="#2196f3"/></svg>',
     save: '<svg width="18" height="18" viewBox="0 0 20 20"><path d="M7 13l-4-4 1.4-1.4L7 10.2l8.6-8.6L17 3l-10 10z" fill="#fff"/></svg>',
     close: '<svg width="18" height="18" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="rgba(255,70,70,0.10)"/><path d="M7 7l6 6M13 7l-6 6" stroke="#f33" stroke-width="2.3" stroke-linecap="round"/></svg>',
@@ -48,7 +49,27 @@
     circle.style.top = (e?.offsetY ?? d/2) - d / 2 + "px";
     setTimeout(() => circle.remove(), 650);
   }
+  function copyToClipboard(text, btn, e) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        let x = document.createElement("textarea");
+        x.value = text;
+        x.style.position = "fixed";
+        x.style.opacity = 0;
+        document.body.appendChild(x);
+        x.focus();
+        x.select();
+        document.execCommand("copy");
+        document.body.removeChild(x);
+      }
+    } catch {}
+    flash(btn);
+    if (e) rippleEffect(e, btn);
+  }
 
+  // --- Drag Handler ---
   function forceFixed(el) {
     if (!el) return;
     el.style.position = "fixed";
@@ -61,6 +82,7 @@
     let dragging = false, startY = 0, startBoxY = 0, velocity = 0, lastY = 0, lastTime = 0;
     const topStick = 16, bottomStick = 16;
     let isTop = false;
+
     function snap(toTop, animate = true) {
       let vh = window.innerHeight, h = box.offsetHeight;
       forceFixed(box);
@@ -226,13 +248,21 @@
       let b = create(
         "button",
         `display:inline-flex;align-items:center;justify-content:center;min-width:0;` +
-        `background:#2196f3;border:none;border-radius:15px;` +
-        `padding:0 24px;height:44px;box-shadow:0 1.5px 7px rgba(0,0,0,0.04);` +
+        `background:rgba(255,255,255,0.79);border:none;border-radius:15px;` +
+        `padding:0 20px;height:42px;box-shadow:0 1.5px 7px rgba(0,0,0,0.04);` +
         `transition:filter 0.16s,background 0.19s;outline:none;cursor:pointer;` +
-        `font-size:17px;font-weight:700;letter-spacing:0.01em;color:#fff;${style||""}`
+        `font-size:17px;font-weight:700;letter-spacing:0.01em;${style||""}`
       );
       b.innerHTML = html;
       b.title = title || "";
+      if (/Names|Topics|Edit|Save|Main|Mode|Add/i.test(title)) {
+        b.style.background = "#2196f3";
+        b.style.color = "#fff";
+      }
+      if (/Close/i.test(title)) {
+        b.style.background = "rgba(255,70,70,0.17)";
+        b.style.color = "#f33";
+      }
       if (cb)
         b.addEventListener("click", function (e) {
           e.stopPropagation();
@@ -267,36 +297,91 @@
       "display:flex;flex-direction:column;align-items:stretch;padding:22px 18px 2px 18px;gap:15px;background:none;transition:all 0.18s;"
     );
 
-    // --- MAIN VIEW: Only Autofill Button ---
+    // MAIN VIEW: All 4 buttons on a single row (with flex wrap off)
     if (view === "main") {
       let row = create(
         "div",
-        "display:flex;flex-direction:row;flex-wrap:nowrap;gap:14px;justify-content:center;"
+        "display:flex;flex-direction:row;flex-wrap:nowrap;gap:14px;justify-content:space-between;"
       );
-      row.appendChild(
+      if (editing) {
+        ["s", "b", "i", "n"].forEach((k) => {
+          let ta = create(
+            "textarea",
+            "flex:1 1 120px;min-width:92px;max-width:190px;height:78px;padding:14px 10px;border:1.5px solid #222;border-radius:17px;font-size:16px;font-family:inherit;background:rgba(240,244,248,0.93);margin-bottom:2px;outline:none;resize:vertical;box-shadow:0 2px 8px rgba(32,40,60,0.07);color:#23262d;"
+          );
+          ta.id = "sbin_" + k;
+          ta.placeholder = { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k];
+          ta.value = active[k] || "";
+          row.appendChild(ta);
+        });
+      } else {
+        ["s", "b", "i", "n"].forEach((k) => {
+          let btn = makeBtn(
+            { s: "Situation", b: "Behavior", i: "Impact", n: "Next Steps" }[k],
+            "Tap to copy",
+            function (e, b) {
+              copyToClipboard(active[k] || "", b, e);
+            },
+            "background:rgba(255,255,255,0.91);color:#202733;flex:1 1 0;"
+          );
+          row.appendChild(btn);
+        });
+      }
+      contentArea.appendChild(row);
+
+      let controlRow = create(
+        "div",
+        "display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;"
+      );
+      if (editing) {
+        controlRow.appendChild(
+          makeBtn(
+            icons.save + ' <span style="margin-left:4px;">Save</span>',
+            "Save",
+            function () {
+              ["s", "b", "i", "n"].forEach(function (k) {
+                active[k] = document.getElementById("sbin_" + k).value;
+              });
+              d.topics[activeTopic] = active;
+              editing = false;
+              save();
+              render();
+            }
+          )
+        );
+      } else {
+        controlRow.appendChild(
+          makeBtn(
+            icons.edit + ' <span style="margin-left:4px;">Edit</span>',
+            "Edit SBIN",
+            function () {
+              editing = true;
+              render();
+            }
+          )
+        );
+      }
+      controlRow.appendChild(
         makeBtn(
-          icons.autofill + ' <span style="margin-left:7px;">Autofill</span>',
-          "Paste SBIN fields into page textareas",
+          icons.people + ' <span style="margin-left:4px;">Names</span>',
+          "Names",
           function () {
-            let ids = {
-              s: "5a9d0dce-be65-4d33-b0b9-5f642d86649c",
-              b: "b166711b-2f42-4188-858f-dbdcc45c1314",
-              i: "d29d3620-ed3c-4dfd-8c94-64f65bea926f",
-              n1: "a7a74f46-24b4-43bc-a7a3-88d0c9d428ab",
-              n2: "a79ed052-d42c-4c93-acad-5699975fe30f"
-            };
-            if (document.getElementById(ids.s)) document.getElementById(ids.s).value = active.s || "";
-            if (document.getElementById(ids.b)) document.getElementById(ids.b).value = active.b || "";
-            if (document.getElementById(ids.i)) document.getElementById(ids.i).value = active.i || "";
-            if (document.getElementById(ids.n1)) document.getElementById(ids.n1).value = active.n || "";
-            if (document.getElementById(ids.n2)) document.getElementById(ids.n2).value = active.n || "";
+            view = "names";
+            render();
           }
         )
       );
-      contentArea.appendChild(row);
-
-      // No SBIN field copy buttons displayed here.
-      // You can add a simple display below if you want, just for review.
+      controlRow.appendChild(
+        makeBtn(
+          icons.topic + ' <span style="margin-left:4px;">Topics</span>',
+          "Topics",
+          function () {
+            view = "topics";
+            render();
+          }
+        )
+      );
+      contentArea.appendChild(controlRow);
     }
 
     // NAMES VIEW
@@ -315,14 +400,7 @@
           n,
           "Tap to copy name",
           function (e, b) {
-            // Copy to clipboard
-            try {
-              if (navigator.clipboard?.writeText) {
-                navigator.clipboard.writeText(n);
-              }
-            } catch {}
-            flash(b);
-            rippleEffect(e, b);
+            copyToClipboard(n, b, e);
           },
           "background:rgba(255,255,255,0.97);color:#1b2230;font-size:16px;min-width:0;flex:1;height:40px;border-radius:10px;"
         );
@@ -449,6 +527,7 @@
     dragHandler(box);
     forceFixed(box);
 
+    // KEEP SNAPPED on any scroll/resize/chrome shift
     window.addEventListener('scroll', function () {
       if (box && typeof box._sbinSnap === 'function') box._sbinSnap();
     });
@@ -457,6 +536,7 @@
     });
   }
 
+  // ---- CSS Injection ----
   (function injectCSS() {
     if (document.getElementById("__sbin-css")) return;
     let css = `
