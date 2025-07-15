@@ -1,65 +1,93 @@
-import { auth } from "./firebaseConfig.js";
-import {
-  editNoteWithHistory,
-  deleteNoteWithHistory,
-  writeNode,
-  appendNode,
-} from "./firebaseHelpers.js";
+// Firebase config (assumes you already loaded Firebase scripts in HTML)
+const firebaseConfig = {
+  apiKey: "AIzaSyCf_se10RUg8i_u8pdowHlQvrFViJ4jh_Q",
+  authDomain: "mishanikeyenko.firebaseapp.com",
+  databaseURL: "https://mishanikeyenko-default-rtdb.firebaseio.com",
+  projectId: "mishanikeyenko",
+  storageBucket: "mishanikeyenko.firebasestorage.app",
+  messagingSenderId: "1089190937368",
+  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
+};
 
-// 📌 Add a new note
-export async function addNoteUI(content) {
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+
+// 🔐 Optional: force anonymous sign-in
+auth.onAuthStateChanged(user => {
+  if (!user) auth.signInAnonymously();
+});
+
+// ➕ Add customer logic
+function addCustomer() {
   const user = auth.currentUser;
   if (!user) return alert("You're not logged in.");
 
-  if (!content || content.trim() === "") {
-    return alert("Note content cannot be empty.");
+  const fullName = document.getElementById("fullName").value.trim();
+  const phone = document.getElementById("phoneInput").value.trim();
+  const carrier = document.getElementById("carrier").value.trim();
+  const lineCount = document.getElementById("lineCount").value.trim();
+  const monthlyCost = document.getElementById("monthlyCost").value.trim();
+  const openToSwitch = document.getElementById("openToSwitch").value;
+
+  if (!fullName || !phone) {
+    alert("Full name and phone number are required.");
+    return;
   }
 
-  try {
-    const note = {
-      content: content.trim(),
-      timestamp: Date.now(),
-    };
-    await appendNode(`notes/${user.uid}`, note);
-    alert("Note added successfully.");
-  } catch (err) {
-    console.error("Add note failed:", err);
-    alert("Error adding note. Please try again.");
-  }
+  const data = {
+    fullName,
+    phone,
+    carrier,
+    lineCount,
+    monthlyCost,
+    openToSwitch,
+    timestamp: Date.now()
+  };
+
+  const path = `notes/${user.uid}`;
+  db.ref(path).push(data).then(() => {
+    alert("Customer added.");
+    clearFields();
+    fetchAndDisplayCustomers();
+  }).catch(err => {
+    console.error("Error adding:", err);
+    alert("Failed to add. Try again.");
+  });
 }
 
-// 📝 Edit an existing note with history
-export async function editNoteUI(noteId, newContent) {
+function clearFields() {
+  ["fullName", "phoneInput", "carrier", "lineCount", "monthlyCost"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+}
+
+// 🧾 Display all customers
+function fetchAndDisplayCustomers() {
   const user = auth.currentUser;
-  if (!user) return alert("You're not logged in.");
+  if (!user) return;
 
-  if (!noteId || !newContent || newContent.trim() === "") {
-    return alert("Invalid edit. Note ID and new content required.");
-  }
+  const path = `notes/${user.uid}`;
+  db.ref(path).once("value", snapshot => {
+    const list = document.getElementById("customerList");
+    list.innerHTML = "";
 
-  try {
-    await editNoteWithHistory(user.uid, noteId, newContent.trim());
-    alert("Note updated successfully.");
-  } catch (err) {
-    console.error("Edit failed:", err);
-    alert("Failed to update note. Try again.");
-  }
+    const data = snapshot.val();
+    if (!data) return;
+
+    Object.entries(data).forEach(([key, entry]) => {
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <strong>${entry.fullName}</strong> (${entry.phone})<br>
+        ${entry.carrier || "Unknown"} – ${entry.lineCount || "?"} lines @ $${entry.monthlyCost || "?"}/mo<br>
+        Open to switch: ${entry.openToSwitch || "?"}
+      `;
+      list.appendChild(li);
+    });
+  });
 }
 
-// 🗑️ Delete a note with history
-export async function deleteNoteUI(noteId) {
-  const user = auth.currentUser;
-  if (!user) return alert("You're not logged in.");
-  if (!noteId) return alert("Note ID is missing.");
-
-  const confirmed = confirm("Are you sure you want to delete this note?");
-  if (!confirmed) return;
-
-  try {
-    await deleteNoteWithHistory(user.uid, noteId);
-    alert("Note deleted.");
-  } catch (err) {
-    console.error("Delete failed:", err);
-    alert("Could not delete note. Please retry.");
-  }
-}
+// Initial fetch once user is authenticated
+auth.onAuthStateChanged(user => {
+  if (user) fetchAndDisplayCustomers();
+});
