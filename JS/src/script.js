@@ -1,6 +1,14 @@
 import { getDatabase, ref, set, push, update, remove, onValue } from "firebase/database";
 import { getAuth } from "firebase/auth";
+import { auth } from './firebaseConfig.js';
+import { editNoteWithHistory, deleteNoteWithHistory } from './firebaseHelpers.js';
 
+// Example usage:
+const user = auth.currentUser;
+if (user) {
+  await editNoteWithHistory(user.uid, "note123", "Updated content here");
+  await deleteNoteWithHistory(user.uid, "note456");
+}
 const db = getDatabase();
 const auth = getAuth();
 
