@@ -206,7 +206,7 @@
     );
     let box = create(
       "div",
-      "background:rgba(26,30,44,0.38);backdrop-filter:blur(18px);padding:26px 24px 20px 24px;border-radius:20px;max-width:96vw;width:400px;display:flex;flex-direction:column;gap:15px;box-shadow:0 10px 40px rgba(33,150,243,0.09);font-family:-apple-system,BlinkMacSystemFont,sans-serif;align-items:stretch;"
+      "background:rgba(26,30,44,0.38);backdrop-filter:blur(6px);padding:26px 24px 20px 24px;border-radius:20px;max-width:96vw;width:400px;display:flex;flex-direction:column;gap:15px;box-shadow:0 10px 40px rgba(33,150,243,0.09);font-family:-apple-system,BlinkMacSystemFont,sans-serif;align-items:stretch;"
     );
     let label = create(
       "div",
@@ -276,7 +276,7 @@
     let box = create(
       "div",
       "position:fixed;top:auto;left:50%;transform:translateX(-50%);max-width:500px;width:94vw;" +
-      "background:rgba(26,30,44,0.38);backdrop-filter:blur(18px) saturate(1.06);" +
+      "background:rgba(26,30,44,0.38);backdrop-filter:blur(6px ) saturate(1.06);" +
       "border-radius:28px;box-shadow:0 10px 34px 0 rgba(33,150,243,0.10),0 1.5px 10px rgba(32,40,60,0.11);" +
       "border:1.5px solid rgba(120,140,170,0.09);padding:0 0 18px 0;overflow:hidden;pointer-events:auto;"
     );
@@ -285,7 +285,7 @@
     let header = create(
       "div",
       "width:100%;height:54px;display:flex;align-items:center;gap:9px;justify-content:space-between;" +
-      "background:rgba(22,26,36,0.53);backdrop-filter:blur(12px) saturate(1.06);" +
+      "background:rgba(22,26,36,0.53);backdrop-filter:blur( 6px) saturate(1.06);" +
       "border-bottom:1.2px solid rgba(120,140,170,0.10);cursor:grab;" +
       "box-shadow:0 2px 10px rgba(22,30,44,0.08);padding:0 0.5em;"
     );
