@@ -1,76 +1,65 @@
-import { getDatabase, ref, set, push, update, remove, onValue } from "firebase/database";
-import { getAuth } from "firebase/auth";
-import { auth } from './firebaseConfig.js';
-import { editNoteWithHistory, deleteNoteWithHistory } from './firebaseHelpers.js';
+import { auth } from "./firebaseConfig.js";
+import {
+  editNoteWithHistory,
+  deleteNoteWithHistory,
+  writeNode,
+  appendNode,
+} from "./firebaseHelpers.js";
 
-// Example usage:
-const user = auth.currentUser;
-if (user) {
-  await editNoteWithHistory(user.uid, "note123", "Updated content here");
-  await deleteNoteWithHistory(user.uid, "note456");
-}
-const db = getDatabase();
-const auth = getAuth();
-
-function addNote(content) {
+// 📌 Add a new note
+export async function addNoteUI(content) {
   const user = auth.currentUser;
-  if (!user) return alert("Not logged in");
+  if (!user) return alert("You're not logged in.");
 
-  const noteRef = ref(db, `notes/${user.uid}`);
-  const newNoteRef = push(noteRef);
-  set(newNoteRef, {
-    content,
-    timestamp: Date.now()
-  });
-}
+  if (!content || content.trim() === "") {
+    return alert("Note content cannot be empty.");
+  }
 
-function editNote(noteId, newContent) {
-  const user = auth.currentUser;
-  if (!user) return;
-
-  const notePath = `notes/${user.uid}/${noteId}`;
-  const noteRef = ref(db, notePath);
-
-  // Save old content to history before updating
-  onValue(noteRef, (snapshot) => {
-    const existing = snapshot.val();
-    if (!existing) return;
-
-    const historyRef = ref(db, `${notePath}/history`);
-    const editEntry = {
-      content: existing.content,
-      editedAt: Date.now()
+  try {
+    const note = {
+      content: content.trim(),
+      timestamp: Date.now(),
     };
-
-    push(historyRef, editEntry); // Save edit to history
-
-    update(noteRef, {
-      content: newContent,
-      lastEdited: Date.now()
-    });
-  }, { onlyOnce: true });
+    await appendNode(`notes/${user.uid}`, note);
+    alert("Note added successfully.");
+  } catch (err) {
+    console.error("Add note failed:", err);
+    alert("Error adding note. Please try again.");
+  }
 }
 
-function deleteNote(noteId) {
+// 📝 Edit an existing note with history
+export async function editNoteUI(noteId, newContent) {
   const user = auth.currentUser;
-  if (!user) return;
+  if (!user) return alert("You're not logged in.");
 
-  const notePath = `notes/${user.uid}/${noteId}`;
-  const noteRef = ref(db, notePath);
+  if (!noteId || !newContent || newContent.trim() === "") {
+    return alert("Invalid edit. Note ID and new content required.");
+  }
 
-  // Save to history before delete
-  onValue(noteRef, (snapshot) => {
-    const existing = snapshot.val();
-    if (!existing) return;
+  try {
+    await editNoteWithHistory(user.uid, noteId, newContent.trim());
+    alert("Note updated successfully.");
+  } catch (err) {
+    console.error("Edit failed:", err);
+    alert("Failed to update note. Try again.");
+  }
+}
 
-    const historyRef = ref(db, `${notePath}/history`);
-    const deleteEntry = {
-      content: existing.content,
-      deletedAt: Date.now()
-    };
+// 🗑️ Delete a note with history
+export async function deleteNoteUI(noteId) {
+  const user = auth.currentUser;
+  if (!user) return alert("You're not logged in.");
+  if (!noteId) return alert("Note ID is missing.");
 
-    push(historyRef, deleteEntry).then(() => {
-      remove(noteRef);
-    });
-  }, { onlyOnce: true });
+  const confirmed = confirm("Are you sure you want to delete this note?");
+  if (!confirmed) return;
+
+  try {
+    await deleteNoteWithHistory(user.uid, noteId);
+    alert("Note deleted.");
+  } catch (err) {
+    console.error("Delete failed:", err);
+    alert("Could not delete note. Please retry.");
+  }
 }
