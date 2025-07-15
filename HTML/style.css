@@ -1,13 +1,10 @@
-/* Full height layout */
 html, body {
   height: 100%;
   margin: 0;
-  padding: 0;
   font-family: sans-serif;
   background: #f4f4f4;
 }
 
-/* Main container fills the screen */
 .container {
   display: flex;
   flex-direction: column;
@@ -15,29 +12,24 @@ html, body {
   max-width: 600px;
   margin: auto;
   background: #fff;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
   border-radius: 10px;
   overflow: hidden;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
-/* Fixed header */
-.container h2 {
-  padding: 20px;
-  margin: 0;
+.header {
   background: #007bff;
   color: white;
+  padding: 16px;
   text-align: center;
 }
 
-/* Scrollable form + list */
 .content {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
-  box-sizing: border-box;
 }
 
-/* Form elements */
 input, select {
   width: 100%;
   padding: 10px;
@@ -48,12 +40,13 @@ input, select {
 }
 
 button {
-  padding: 12px;
   width: 100%;
+  padding: 12px;
   background: #007bff;
   color: white;
   border: none;
   border-radius: 5px;
+  margin-top: 10px;
   cursor: pointer;
 }
 
@@ -61,14 +54,18 @@ button:hover {
   background: #0056b3;
 }
 
-/* Notes list */
 ul {
-  list-style: none;
   padding: 0;
+  list-style: none;
   margin-top: 20px;
 }
 
 li {
   padding: 12px;
   border-bottom: 1px solid #eee;
+}
+
+#status {
+  font-size: 14px;
+  margin-top: 5px;
 }
