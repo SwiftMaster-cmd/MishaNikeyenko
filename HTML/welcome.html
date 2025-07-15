@@ -8,25 +8,22 @@
 </head>
 <body>
   <div class="container">
-    <h2>📞 Customer Contact & Carrier Info</h2>
-    
-    <input type="text" id="fullName" placeholder="Full Name" />
-    <input type="text" id="phoneInput" placeholder="Phone Number" />
-    <input type="text" id="carrier" placeholder="Current Carrier (e.g., T-Mobile)" />
-    <input type="number" id="lineCount" placeholder="How many lines?" />
-    <input type="number" id="monthlyCost" placeholder="Current monthly cost ($)" />
-    
-    <label>
-      Open to switching?
+    <h2>📞 Customer Info</h2>
+
+    <div class="content">
+      <input type="text" id="fullName" placeholder="Full Name" />
+      <input type="text" id="phoneInput" placeholder="Phone Number" />
+      <input type="text" id="carrier" placeholder="Current Carrier" />
+      <input type="number" id="lineCount" placeholder="How many lines?" />
+      <input type="number" id="monthlyCost" placeholder="Monthly Cost ($)" />
       <select id="openToSwitch">
-        <option value="Yes">Yes</option>
-        <option value="No">No</option>
+        <option value="Yes">Open to Switching</option>
+        <option value="No">Not Open</option>
       </select>
-    </label>
+      <button onclick="addCustomer()">Add</button>
 
-    <button onclick="addCustomer()">Add Customer</button>
-
-    <ul id="customerList"></ul>
+      <ul id="customerList"></ul>
+    </div>
   </div>
 
   <script src="./JS/src/script.js"></script>
