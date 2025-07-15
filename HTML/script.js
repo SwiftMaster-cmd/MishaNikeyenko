@@ -5,8 +5,10 @@ const firebaseConfig = {
   projectId: "mishanikeyenko",
   storageBucket: "mishanikeyenko.firebasestorage.app",
   messagingSenderId: "1089190937368",
-  appId: "1:1089190937368:web:959c825fc596a5e3ae946d"
+  appId: "1:1089190937368:web:5fd3ddc2e275b8b1ae946d",
+  measurementId: "G-PEL3S1GC9B"
 };
+
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
