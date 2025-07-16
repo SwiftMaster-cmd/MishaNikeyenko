@@ -5,43 +5,39 @@
   <title>OSL Admin Dashboard</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="dashboard.css" />
+  <!-- Firebase compat scripts -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
-  <div class="admin-header" style="display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 8px 18px;">
-    <h2 style="margin:0;">OSL Admin Dashboard</h2>
-    <button id="logoutBtn" style="background:#eee; border:none; padding:9px 16px; border-radius:8px; font-weight:bold; cursor:pointer;">
+  <div
+    class="admin-header"
+    style="display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 8px 18px;"
+  >
+    <h2 style="margin: 0;">OSL Admin Dashboard</h2>
+    <button
+      id="logoutBtn"
+      style="background: #eee; border: none; padding: 9px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;"
+    >
       Logout
     </button>
   </div>
 
-  <main id="adminApp" style="padding: 0 16px 40px 16px; max-width: 1400px; margin: auto;">
+  <div
+    id="adminApp"
+    style="padding: 0 16px 40px 16px; max-width: 1400px; margin: auto;"
+  >
     <!-- Admin dashboard UI renders here -->
-  </main>
+  </div>
 
-  <!-- Module scripts -->
-  <script type="module" src="firebaseConfig.js"></script>
-  <script type="module" src="guest.js"></script>
-  <script type="module" src="user.js"></script>
-  <script type="module" src="review.js"></script>
-  <script type="module" src="store.js"></script>
-  <script type="module" src="ui.js"></script>
-
-  <script type="module">
-    import { auth } from './firebaseConfig.js';
-    import { renderAdminApp } from './ui.js';
-
-    document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
-
-    auth.onAuthStateChanged(user => {
-      if (!user) {
-        window.location.href = "index.html";
-        return;
-      }
-      renderAdminApp();
-    });
-  </script>
+  <!-- Your app JS files, no ES module imports, using global firebase -->
+  <script src="firebase-config.js"></script> <!-- your firebaseConfig & firebase.initializeApp here -->
+  <script src="guest.js"></script>
+  <script src="user.js"></script>
+  <script src="review.js"></script>
+  <script src="store.js"></script>
+  <script src="ui.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>

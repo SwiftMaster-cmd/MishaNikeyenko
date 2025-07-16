@@ -1,7 +1,7 @@
+// guest.js
 const db = firebase.database();
 
-// Fetch and render guest info assigned to a lead or DM
-export async function fetchGuestInfo(currentUser, users) {
+async function fetchGuestInfo(currentUser, users) {
   try {
     const guestinfoSnap = await db.ref('guestinfo').get();
     const guestinfo = guestinfoSnap.val() || {};
@@ -15,7 +15,6 @@ export async function fetchGuestInfo(currentUser, users) {
     if (currentRole === 'dm') {
       filteredGuests = guestinfo; // DM sees all guest info
     } else if (currentRole === 'lead') {
-      // Lead sees guestinfo of assigned guests only
       const assignedGuests = Object.entries(users)
         .filter(([uid, user]) => user.assignedLead === currentUser.uid)
         .map(([uid]) => uid);
@@ -32,3 +31,6 @@ export async function fetchGuestInfo(currentUser, users) {
     throw error;
   }
 }
+
+// Expose to global
+window.fetchGuestInfo = fetchGuestInfo;
