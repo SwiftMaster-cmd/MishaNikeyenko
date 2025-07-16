@@ -13,34 +13,47 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 
-// --- Auth check ---
+const adminAppDiv = document.getElementById('adminApp');
+
+// --- Auth check & Load ---
 auth.onAuthStateChanged(async user => {
   if (!user) {
     window.location.href = "login.html";
     return;
   }
-  const userSnap = await db.ref('users/' + user.uid).get();
-  const profile = userSnap.val() || {};
-  if (profile.role !== 'dm') {
-    document.getElementById('adminApp').innerHTML = "<h3>Access denied: DM only</h3>";
-    return;
+  adminAppDiv.innerHTML = "<div>Loading admin dashboard...</div>";
+  try {
+    const userSnap = await db.ref('users/' + user.uid).get();
+    const profile = userSnap.val() || {};
+    if (profile.role !== 'dm') {
+      adminAppDiv.innerHTML = "<h3>Access denied: DM only</h3>";
+      return;
+    }
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+    await renderAdminApp();
+  } catch (e) {
+    adminAppDiv.innerHTML = `<div>Error loading dashboard: ${e.message}</div>`;
+    console.error(e);
   }
-  document.getElementById('logoutBtn').onclick = () => auth.signOut();
-  renderAdminApp();
 });
 
+// --- Render Admin App ---
 async function renderAdminApp() {
-  // Fetch data
-  const [storesSnap, usersSnap, reviewsSnap] = await Promise.all([
+  adminAppDiv.innerHTML = "<div>Loading data...</div>";
+
+  let [storesSnap, usersSnap, reviewsSnap] = await Promise.all([
     db.ref('stores').get(), db.ref('users').get(), db.ref('reviews').get()
   ]);
-  const stores = storesSnap.val() || {};
-  const users = usersSnap.val() || {};
-  const reviews = reviewsSnap.val() || {};
+  let stores = storesSnap.val() || {};
+  let users = usersSnap.val() || {};
+  let reviews = reviewsSnap.val() || {};
 
   // --- Store Management Section ---
   let storesHtml = `<table class="store-table"><tr>
     <th>Store #</th><th>Assigned TL</th><th>Edit</th><th>Delete</th></tr>`;
+  if (Object.keys(stores).length === 0) {
+    storesHtml += `<tr><td colspan="4"><em>No stores added yet.</em></td></tr>`;
+  }
   for (const storeId in stores) {
     const store = stores[storeId];
     const tl = store.teamLeadUid && users[store.teamLeadUid] ? users[store.teamLeadUid].name || users[store.teamLeadUid].email : '';
@@ -64,7 +77,10 @@ async function renderAdminApp() {
 
   // --- User Management Section ---
   let usersHtml = `<table class="user-table"><tr>
-    <th>Name</th><th>Email</th><th>Role</th><th>Store</th><th>Change Role</th><th>Assign Store</th></tr>`;
+    <th>Name</th><th>Email</th><th>Role</th><th>Store</th><th>Change Role</th><th>Assign Store</th><th>Delete</th></tr>`;
+  if (Object.keys(users).length === 0) {
+    usersHtml += `<tr><td colspan="7"><em>No users found.</em></td></tr>`;
+  }
   for (const uid in users) {
     const u = users[uid];
     usersHtml += `<tr>
@@ -86,7 +102,11 @@ async function renderAdminApp() {
 
   // --- Reviews Section ---
   let reviewsHtml = `<div class="review-cards">`;
-  Object.entries(reviews).sort((a,b) => (b[1].timestamp||0)-(a[1].timestamp||0)).forEach(([id, r]) => {
+  const reviewEntries = Object.entries(reviews).sort((a,b) => (b[1].timestamp||0)-(a[1].timestamp||0));
+  if (reviewEntries.length === 0) {
+    reviewsHtml += `<div style="padding:18px;"><em>No reviews submitted yet.</em></div>`;
+  }
+  for (const [id, r] of reviewEntries) {
     reviewsHtml += `
       <div class="review-card">
         <span class="review-star ${r.starred ? '' : 'inactive'}" title="Star/unstar" onclick="toggleStar('${id}', ${!!r.starred})">
@@ -99,11 +119,11 @@ async function renderAdminApp() {
         <div class="review-meta"><b>Referral:</b> ${r.refName?`${r.refName} / ${r.refPhone}`:'-'}</div>
         <button onclick="deleteReview('${id}')" style="margin-top:8px;font-size:0.96em;">Delete Review</button>
       </div>`;
-  });
+  }
   reviewsHtml += `</div>`;
 
   // --- Render all sections ---
-  document.getElementById('adminApp').innerHTML = `
+  adminAppDiv.innerHTML = `
     <div class="admin-section">
       <div class="section-title">Store Management</div>
       ${storesHtml}
@@ -114,6 +134,7 @@ async function renderAdminApp() {
     </div>
     <div class="admin-section">
       <div class="section-title">All Reviews</div>
+      <button onclick="renderAdminApp()" style="float:right;margin-bottom:8px;">Reload</button>
       ${reviewsHtml}
     </div>
   `;
@@ -132,8 +153,20 @@ window.updateStoreNumber = async function(storeId, val) {
 };
 window.assignTL = async function(storeId, uid) {
   await db.ref('stores/'+storeId+'/teamLeadUid').set(uid);
-  if (uid) await db.ref('users/'+uid+'/store').set((await db.ref('stores/'+storeId+'/storeNumber').get()).val());
+  if (uid) {
+    const storeNum = (await db.ref('stores/'+storeId+'/storeNumber').get()).val();
+    await db.ref('users/'+uid+'/store').set(storeNum);
+  }
   renderAdminApp();
+};
+window.editStorePrompt = async function(storeId) {
+  const store = await db.ref('stores/'+storeId).get();
+  const oldNum = store.val()?.storeNumber || '';
+  const newNum = prompt("Edit store number:", oldNum);
+  if (newNum && newNum !== oldNum) {
+    await db.ref('stores/'+storeId+'/storeNumber').set(newNum);
+    renderAdminApp();
+  }
 };
 window.deleteStore = async function(storeId) {
   if (!confirm("Delete this store?")) return;
