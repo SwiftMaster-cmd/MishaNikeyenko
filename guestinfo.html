@@ -9,7 +9,7 @@
 <body>
   <div class="guest-box">
 
-    <!-- Step 1 -->
+    <!-- Step 1: only name & phone -->
     <form id="step1Form" autocomplete="off">
       <div class="guest-title">Step 1: Customer Info</div>
 
@@ -19,6 +19,15 @@
       <label class="glabel">Customer Phone
         <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" required />
       </label>
+
+      <button class="guest-btn" type="submit">Submit Step 1</button>
+      <div class="g-status" id="status1"></div>
+    </form>
+
+    <!-- Step 2: evaluate now includes serviceType & situation -->
+    <form id="step2Form" class="hidden">
+      <div class="guest-title">Step 2: Evaluate</div>
+
       <label class="glabel">Service Type
         <select class="gfield" id="serviceType" required>
           <option value="">Select...</option>
@@ -30,17 +39,10 @@
           <option>Other</option>
         </select>
       </label>
+
       <label class="glabel">Situation / Notes
-        <textarea class="gfield" id="situation" rows="2" placeholder="Short notes…"></textarea>
+        <textarea class="gfield" id="situation" rows="2" placeholder="Short notes…" required></textarea>
       </label>
-
-      <button class="guest-btn" type="submit">Submit Step 1</button>
-      <div class="g-status" id="status1"></div>
-    </form>
-
-    <!-- Step 2 (hidden until Step 1 done) -->
-    <form id="step2Form" class="hidden">
-      <div class="guest-title">Step 2: Evaluate</div>
 
       <label class="glabel">Carrier Info
         <textarea class="gfield" id="evalCarrier" rows="2" placeholder="Current carrier details…"></textarea>
@@ -53,12 +55,12 @@
       <div class="g-status" id="status2"></div>
     </form>
 
-    <!-- Step 3 (hidden until Step 2 done) -->
+    <!-- Step 3: solution unchanged -->
     <form id="step3Form" class="hidden">
       <div class="guest-title">Step 3: Solution</div>
 
       <label class="glabel">Proposed Solution
-        <textarea class="gfield" id="solutionText" rows="3" placeholder="What we’ll offer…"></textarea>
+        <textarea class="gfield" id="solutionText" rows="3" placeholder="What we’ll offer…" required></textarea>
       </label>
 
       <button class="guest-btn" type="submit">Submit Step 3</button>
@@ -72,7 +74,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-  <!-- your logic -->
   <script src="guest-portal.js"></script>
 </body>
 </html>
