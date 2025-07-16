@@ -63,7 +63,7 @@ function renderTable(data) {
   `;
 }
 
-// --- NEW: Guest info render function ---
+// --- Guest info render function ---
 function renderGuestInfoTable(data) {
   if (!data || Object.keys(data).length === 0) {
     document.getElementById('guestInfoTable').innerHTML = 'No guest info found.';
@@ -96,60 +96,60 @@ function renderGuestInfoTable(data) {
   `;
 }
 
-// --- Auth state and main logic ---
-let currentUser = null;
+// --- Main Auth state and dashboard logic ---
 auth.onAuthStateChanged(user => {
-  currentUser = user;
   renderAuth(user);
-  if (user) {
-    db.ref('users/' + user.uid).once('value').then(snap => {
-      const profile = snap.val();
-      if (!profile) {
-        document.getElementById('reviewTable').innerHTML = 'Not authorized.';
-        document.getElementById('guestInfoTable').innerHTML = '';
-        return;
-      }
-      if (profile.role === 'dm') {
-        // DM: see all reviews
-        db.ref('reviews').on('value', snap => {
-          renderTable(snap.val());
-        });
-        // DM: see all guest info
-        db.ref('guestinfo').on('value', snap => {
-          renderGuestInfoTable(snap.val());
-        });
-      } else if (profile.role === 'lead' && profile.store) {
-        // Team Lead: only their store's reviews
-        db.ref('reviews').on('value', snap => {
-          const all = snap.val() || {};
-          const filtered = {};
-          Object.entries(all).forEach(([id, r]) => {
-            if (r.store && r.store.trim() === profile.store.trim()) filtered[id] = r;
-          });
-          renderTable(filtered);
-        });
-        // Team Lead: guest info for guests assigned to them
-        db.ref('users').once('value').then(usersSnap => {
-          const users = usersSnap.val() || {};
-          const assignedGuests = Object.keys(users).filter(uid =>
-            users[uid].assignedLead === user.uid
-          );
-          db.ref('guestinfo').on('value', snap => {
-            const allGuestInfo = snap.val() || {};
-            const relevant = {};
-            Object.entries(allGuestInfo).forEach(([gid, g]) => {
-              if (g.userUid && assignedGuests.includes(g.userUid)) relevant[gid] = g;
-            });
-            renderGuestInfoTable(relevant);
-          });
-        });
-      } else {
-        document.getElementById('reviewTable').innerHTML = 'No store assigned to your account.';
-        document.getElementById('guestInfoTable').innerHTML = '';
-      }
-    });
-  } else {
+  if (!user) {
     document.getElementById('reviewTable').innerHTML = '';
     document.getElementById('guestInfoTable').innerHTML = '';
+    return;
   }
+
+  db.ref('users/' + user.uid).once('value').then(profileSnap => {
+    const profile = profileSnap.val();
+    if (!profile) {
+      document.getElementById('reviewTable').innerHTML = 'Not authorized.';
+      document.getElementById('guestInfoTable').innerHTML = '';
+      return;
+    }
+
+    // --- DM: See all reviews and all guestinfo ---
+    if (profile.role === 'dm') {
+      db.ref('reviews').on('value', snap => renderTable(snap.val()));
+      db.ref('guestinfo').on('value', snap => renderGuestInfoTable(snap.val()));
+      return;
+    }
+
+    // --- Lead: See reviews for their store, guestinfo for their assigned guests ---
+    if (profile.role === 'lead' && profile.store) {
+      // Reviews for this lead's store
+      db.ref('reviews').on('value', snap => {
+        const all = snap.val() || {};
+        const filtered = {};
+        Object.entries(all).forEach(([id, r]) => {
+          if (r.store && r.store.trim() === profile.store.trim()) filtered[id] = r;
+        });
+        renderTable(filtered);
+      });
+
+      // Guest info for guests assigned to this lead
+      db.ref('users').once('value').then(usersSnap => {
+        const users = usersSnap.val() || {};
+        const assignedGuests = Object.keys(users).filter(uid => users[uid].assignedLead === user.uid);
+        db.ref('guestinfo').on('value', snap => {
+          const allGuestInfo = snap.val() || {};
+          const relevant = {};
+          Object.entries(allGuestInfo).forEach(([gid, g]) => {
+            if (g.userUid && assignedGuests.includes(g.userUid)) relevant[gid] = g;
+          });
+          renderGuestInfoTable(relevant);
+        });
+      });
+      return;
+    }
+
+    // --- Fallback: No store assigned, not authorized ---
+    document.getElementById('reviewTable').innerHTML = 'No store assigned to your account.';
+    document.getElementById('guestInfoTable').innerHTML = '';
+  });
 });
