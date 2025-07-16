@@ -134,18 +134,29 @@
           await db.ref('users/' + user.uid).set({ email, role: 'guest' });
           statusDiv.style.color = "#2c7a13";
           statusDiv.textContent = "Account created! Redirecting...";
-          setTimeout(() => window.location.href = "dashboard.html", 800);
         } else {
           // Sign in existing user
           await auth.signInWithEmailAndPassword(email, password);
           statusDiv.style.color = "#2c7a13";
           statusDiv.textContent = "Sign-in successful! Redirecting...";
-          setTimeout(() => window.location.href = "dashboard.html", 800);
         }
       } catch (err) {
         statusDiv.style.color = "#a00";
         statusDiv.textContent = err.message.replace("Firebase:", "");
+        return;
       }
+      // After login/register, auto-redirect by role
+      setTimeout(async () => {
+        const user = auth.currentUser;
+        if (!user) return;
+        const snap = await db.ref('users/' + user.uid).get();
+        const profile = snap.val();
+        if (profile && profile.role === 'dm') {
+          window.location.href = "admin.html";
+        } else {
+          window.location.href = "dashboard.html";
+        }
+      }, 800);
     };
 
     document.getElementById('registerLink').onclick = function() {
@@ -172,8 +183,16 @@
     };
 
     // Auto-redirect if already logged in
-    auth.onAuthStateChanged(user => {
-      if (user) window.location.href = "dashboard.html";
+    auth.onAuthStateChanged(async user => {
+      if (user) {
+        const snap = await db.ref('users/' + user.uid).get();
+        const profile = snap.val();
+        if (profile && profile.role === 'dm') {
+          window.location.href = "admin.html";
+        } else {
+          window.location.href = "dashboard.html";
+        }
+      }
     });
   </script>
 </body>
