@@ -25,13 +25,12 @@ auth.onAuthStateChanged(async user => {
   try {
     const userSnap = await db.ref('users/' + user.uid).get();
     const profile = userSnap.val() || {};
-    // DM-only override (password or assigned)
     if (profile.role !== 'dm') {
       showDmUnlock();
       return;
     }
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
-    await renderAdminApp();
+    await renderAdminApp(user.uid);
   } catch (e) {
     showDmUnlock(e);
     console.error(e);
@@ -77,19 +76,16 @@ function roleBadge(role) {
 }
 
 // --- Render Admin App ---
-async function renderAdminApp() {
+async function renderAdminApp(dmUid) {
   adminAppDiv.innerHTML = "<div>Loading data...</div>";
 
   let [storesSnap, usersSnap, reviewsSnap, guestinfoSnap] = await Promise.all([
-    db.ref('stores').get(),
-    db.ref('users').get(),
-    db.ref('reviews').get(),
-    db.ref('guestinfo').get()
+    db.ref('stores').get(), db.ref('users').get(), db.ref('reviews').get(), db.ref('guestinfo').get()
   ]);
   let stores = storesSnap.val() || {};
   let users = usersSnap.val() || {};
   let reviews = reviewsSnap.val() || {};
-  let guestinfoTree = guestinfoSnap.val() || {};
+  let guestinfo = guestinfoSnap.val() || {};
 
   // --- Store Management Section ---
   let storesHtml = `<table class="store-table"><tr>
@@ -121,7 +117,7 @@ async function renderAdminApp() {
     <input id="newStoreNum" placeholder="New Store #" style="width:120px;">
     <button onclick="addStore()">Add Store</button>`;
 
-  // --- User Management Section (with all assignments) ---
+  // --- User Management Section (with TL/DM assignment) ---
   let usersHtml = `<table class="user-table"><tr>
     <th>Name</th><th>Email</th><th>Role</th><th>Store</th><th>Assigned Lead</th><th>Assign Lead</th><th>Assigned DM</th><th>Assign DM</th><th>Delete</th></tr>`;
   if (Object.keys(users).length === 0) {
@@ -193,51 +189,28 @@ async function renderAdminApp() {
   }
   reviewsHtml += `</div>`;
 
-  // --- Guest Info Section: flatten and show all ---
-  let allGuestInfos = [];
-  for (const leadUid in guestinfoTree) {
-    const guestEntries = guestinfoTree[leadUid];
-    for (const gid in guestEntries) {
-      allGuestInfos.push({
-        ...guestEntries[gid],
-        _gid: gid,
-        _leadUid: leadUid
-      });
-    }
+  // --- Guestinfo Section ---
+  let guestInfoHtml = `<div class="guestinfo-cards">`;
+  // Gather all users and their guests/TLs, so DM sees everything
+  let allGuestEntries = [];
+  for (const gid in guestinfo) {
+    const entry = guestinfo[gid];
+    allGuestEntries.push({ ...entry, _gid: gid });
   }
-  allGuestInfos.sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
-  let guestInfoHtml = `<div class="guestinfo-section"><div style="font-weight:bold;margin-bottom:8px;">All Guest Info Submissions</div>`;
-  if (!allGuestInfos.length) {
-    guestInfoHtml += `<div style="padding:18px;"><em>No guest info submissions found.</em></div>`;
+  if (allGuestEntries.length === 0) {
+    guestInfoHtml += `<div style="padding:18px;"><em>No guest info submitted yet.</em></div>`;
   } else {
-    guestInfoHtml += `
-      <table class="guestinfo-table" style="width:100%;margin-top:12px;">
-        <thead>
-          <tr>
-            <th>Lead</th>
-            <th>Employee</th>
-            <th>Customer Name</th>
-            <th>Customer Phone</th>
-            <th>Service Type</th>
-            <th>Situation</th>
-            <th>Submitted At</th>
-          </tr>
-        </thead>
-        <tbody>
-        ${allGuestInfos.map(g => `
-          <tr>
-            <td>${users[g._leadUid]?.name || users[g._leadUid]?.email || g._leadUid}</td>
-            <td>${users[g.userUid]?.name || users[g.userUid]?.email || g.userUid}</td>
-            <td>${g.custName || ''}</td>
-            <td>${g.custPhone || ''}</td>
-            <td>${g.serviceType || ''}</td>
-            <td>${g.situation || ''}</td>
-            <td>${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : ''}</td>
-          </tr>
-        `).join('')}
-        </tbody>
-      </table>
-    `;
+    allGuestEntries.sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+    for (const g of allGuestEntries) {
+      guestInfoHtml += `
+        <div class="review-card">
+          <div class="review-meta"><b>Submitted by:</b> ${users[g.userUid]?.name || users[g.userUid]?.email || g.userUid || '-'}</div>
+          <div class="review-meta"><b>Customer:</b> ${g.custName || '-'} <b>Phone:</b> ${g.custPhone || '-'}</div>
+          <div class="review-meta"><b>Type:</b> ${g.serviceType || '-'}</div>
+          <div class="review-meta"><b>Situation:</b> ${g.situation || '-'}</div>
+          <div class="review-meta"><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : '-'}</div>
+        </div>`;
+    }
   }
   guestInfoHtml += `</div>`;
 
@@ -252,8 +225,7 @@ async function renderAdminApp() {
       .review-card {border-radius:18px;background:#f7faff;box-shadow:0 2px 8px #b8d1ff26;padding:16px;margin:10px 0;}
       .review-star {font-size:1.4em;cursor:pointer;}
       .review-star.inactive {color:#b5b5b5;}
-      .guestinfo-section {margin-top:30px;}
-      .guestinfo-table th, .guestinfo-table td {padding:8px 6px;}
+      .guestinfo-cards {display: flex; flex-wrap: wrap; gap: 18px;}
     </style>
     <div class="admin-section">
       <div class="section-title">Store Management</div>
@@ -270,6 +242,7 @@ async function renderAdminApp() {
       <div id="filteredReviews">${reviewsHtml}</div>
     </div>
     <div class="admin-section">
+      <div class="section-title">All Guest Info</div>
       ${guestInfoHtml}
     </div>
   `;
@@ -328,7 +301,6 @@ function reviewsToHtml(entries) {
 
 // --- Interconnected Store/TL assignment ---
 window.assignTL = async function(storeId, uid) {
-  // Remove this TL from any previous stores
   const storesSnap = await db.ref('stores').get();
   const stores = storesSnap.val() || {};
   for (const sId in stores) {
@@ -336,9 +308,7 @@ window.assignTL = async function(storeId, uid) {
       await db.ref('stores/' + sId + '/teamLeadUid').set('');
     }
   }
-  // Set new TL for this store
   await db.ref('stores/' + storeId + '/teamLeadUid').set(uid);
-  // Update user's assigned store and role
   if (uid) {
     const storeNum = (await db.ref('stores/' + storeId + '/storeNumber').get()).val();
     await db.ref('users/' + uid + '/store').set(storeNum);
@@ -351,7 +321,6 @@ window.assignTL = async function(storeId, uid) {
 window.editUserStore = async function(uid) {
   const storeNum = prompt("Enter store number for this user:");
   if (!storeNum) return;
-  // Find the storeId with this store number
   const storesSnap = await db.ref('stores').get();
   const stores = storesSnap.val() || {};
   let matchedStoreId = null;
@@ -363,9 +332,8 @@ window.editUserStore = async function(uid) {
     await db.ref('users/' + uid + '/store').set(storeNum);
     await db.ref('users/' + uid + '/role').set('lead');
   } else {
-    // Optionally create new store
     if (confirm("Store not found. Create it?")) {
-      const newRef = await db.ref('stores').push({ storeNumber: storeNum, teamLeadUid: uid });
+      await db.ref('stores').push({ storeNumber: storeNum, teamLeadUid: uid });
       await db.ref('users/' + uid + '/store').set(storeNum);
       await db.ref('users/' + uid + '/role').set('lead');
     }
