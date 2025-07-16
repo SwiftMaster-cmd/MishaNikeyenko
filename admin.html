@@ -10,12 +10,12 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
-  <div class="admin-header">
-    <h2>OSL Admin Dashboard</h2>
-    <button id="logoutBtn" style="float:right;">Logout</button>
+  <div class="admin-header" style="display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 8px 18px;">
+    <h2 style="margin:0;">OSL Admin Dashboard</h2>
+    <button id="logoutBtn" style="background:#eee;border:none;padding:9px 16px;border-radius:8px;font-weight:bold;cursor:pointer;">Logout</button>
   </div>
-  <div id="adminApp">
-    <!-- Stores and users will be rendered here -->
+  <div id="adminApp" style="padding:0 16px 40px 16px; max-width:1400px; margin:auto;">
+    <!-- Admin dashboard UI renders here -->
   </div>
   <script src="admin.js"></script>
 </body>
