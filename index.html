@@ -2,74 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>OSL Store Review & Referral</title>
+  <title>OSL Review & Referral</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="review-box">
-    <h2>Leave a Review for OSL Wireless</h2>
-    
-    <label>Store Location
-      <input type="text" id="store" placeholder="Walmart #3273, etc.">
-    </label>
-    
-    <label>Associate Name
-      <input type="text" id="associate" placeholder="Who helped you?">
-    </label>
-    
-    <label>Service Type
-      <select id="serviceType">
-        <option value="">Select...</option>
-        <option>Verizon</option>
-        <option>AT&T</option>
-        <option>T-Mobile</option>
-        <option>Prepaid</option>
-        <option>Accessories</option>
-        <option>Other</option>
-      </select>
-    </label>
-    
-    <label>What Did You Buy?
-      <input type="text" id="purchase" placeholder="Phone, Tablet, SIM, etc.">
-    </label>
-    
-    <label>Star Rating
-      <div class="stars" id="starRating">★★★★★</div>
-    </label>
-    
-    <label>Your Review
-      <textarea id="comment" placeholder="How did we do?"></textarea>
-    </label>
-    
-    <label>Would you recommend us?
-      <select id="recommend">
-        <option value="">Select...</option>
-        <option>Yes</option>
-        <option>No</option>
-      </select>
-    </label>
-    
-    <label>Your Name
-      <input type="text" id="yourName" placeholder="Your name">
-    </label>
-    
-    <label>Your Contact (optional)
-      <input type="text" id="yourContact" placeholder="Phone or email">
-    </label>
-    
-    <hr>
-    <h3>Referral (Optional)</h3>
-    <label>Referral Name
-      <input type="text" id="refName" placeholder="Friend or family">
-    </label>
-    <label>Referral Phone
-      <input type="text" id="refPhone" placeholder="Their phone number">
-    </label>
-    
-    <button id="submitBtn">Submit Review</button>
-    <p id="thanksMsg" style="display: none;">Thanks for your review & referral!</p>
+  <div class="glassy-container">
+    <div id="stepper"></div>
   </div>
-
   <script src="script.js"></script>
 </body>
 </html>
