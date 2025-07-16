@@ -18,7 +18,7 @@ const adminAppDiv = document.getElementById('adminApp');
 // --- Auth check & Load ---
 auth.onAuthStateChanged(async user => {
   if (!user) {
-    window.location.href = "login.html";
+    window.location.href = "index.html";
     return;
   }
   adminAppDiv.innerHTML = "<div>Loading admin dashboard...</div>";
@@ -48,7 +48,6 @@ function showDmUnlock(error) {
     ${error ? `<div style="color:#b00;margin-top:8px;">${error.message || error.code}</div>` : ""}
   `;
 }
-
 window.trySelfPromote = async function() {
   const pass = document.getElementById('adminPass').value;
   if (pass !== '159896') {
@@ -117,11 +116,11 @@ async function renderAdminApp() {
     <input id="newStoreNum" placeholder="New Store #" style="width:120px;">
     <button onclick="addStore()">Add Store</button>`;
 
-  // --- User Management Section ---
+  // --- User Management Section (NOW with assigned lead select for guests) ---
   let usersHtml = `<table class="user-table"><tr>
-    <th>Name</th><th>Email</th><th>Role</th><th>Store</th><th>Assign Store</th><th>Delete</th></tr>`;
+    <th>Name</th><th>Email</th><th>Role</th><th>Store</th><th>Assigned Lead</th><th>Assign Lead</th><th>Assign Store</th><th>Delete</th></tr>`;
   if (Object.keys(users).length === 0) {
-    usersHtml += `<tr><td colspan="6"><em>No users found.</em></td></tr>`;
+    usersHtml += `<tr><td colspan="8"><em>No users found.</em></td></tr>`;
   }
   for (const uid in users) {
     const u = users[uid];
@@ -137,6 +136,17 @@ async function renderAdminApp() {
         </select>
       </td>
       <td>${u.store || '-'}</td>
+      <td>${u.assignedLead ? (users[u.assignedLead]?.name || users[u.assignedLead]?.email || '-') : '-'}</td>
+      <td>
+        <select onchange="assignLeadToGuest('${uid}', this.value)">
+          <option value="">-- None --</option>
+          ${Object.entries(users)
+            .filter(([leadUid, user]) => user.role === 'lead')
+            .map(([leadUid, user]) =>
+              `<option value="${leadUid}" ${u.assignedLead === leadUid ? 'selected' : ''}>${user.name || user.email}</option>`
+            ).join('')}
+        </select>
+      </td>
       <td><button onclick="editUserStore('${uid}')">Assign Store</button></td>
       <td><button onclick="deleteUser('${uid}')">Delete User</button></td>
     </tr>`;
@@ -200,6 +210,12 @@ async function renderAdminApp() {
   window._users = users;
   window._stores = stores;
 }
+
+// --- Assign guest to lead ---
+window.assignLeadToGuest = async function(guestUid, leadUid) {
+  await db.ref('users/' + guestUid + '/assignedLead').set(leadUid || null);
+  renderAdminApp();
+};
 
 // --- Filtering reviews ---
 window.filterReviewsByStore = function(store) {
