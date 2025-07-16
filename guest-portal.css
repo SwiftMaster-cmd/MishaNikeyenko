@@ -1,0 +1,117 @@
+:root {
+  --bg-start: #0f1117;
+  --bg-end: #1c1f29;
+  --card-bg: rgba(25, 26, 32, 0.7);
+  --card-border: rgba(255, 255, 255, 0.1);
+  --accent: #1e90ff;
+  --accent-light: #4daaff;
+  --accent-dark: #1768c8;
+  --text-primary: #e2e2e8;
+  --text-secondary: #a0a8b7;
+  --error: #e35b5b;
+  --success: #47c971;
+  --radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+  font-family: system-ui, 'Segoe UI', 'SF Pro', Arial, sans-serif;
+  color: var(--text-primary);
+}
+
+.guest-box {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.guest-title {
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.glabel {
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.gfield {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-top: 0.25rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+.gfield:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.guest-btn {
+  padding: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(90deg, var(--accent) 30%, var(--accent-light) 100%);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  box-shadow: 0 4px 16px rgba(30, 144, 255, 0.4);
+}
+
+.guest-btn:hover {
+  background: linear-gradient(90deg, var(--accent-dark) 30%, var(--accent) 100%);
+  transform: translateY(-1px);
+}
+
+.guest-btn:active {
+  transform: translateY(0);
+}
+
+.g-status {
+  min-height: 1.25rem;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.g-status.error {
+  color: var(--error);
+}
+
+.g-status.success {
+  color: var(--success);
+}
+
+/* Mobile tweak */
+@media (max-width: 480px) {
+  .guest-box {
+    padding: 1rem;
+  }
+}
