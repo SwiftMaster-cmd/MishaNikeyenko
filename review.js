@@ -1,4 +1,4 @@
-// Review handling and filtering
+const db = firebase.database();  // Use the already initialized firebase app
 
 window.toggleStar = async function(reviewId, starred) {
   await db.ref('reviews/' + reviewId + '/starred').set(!starred);

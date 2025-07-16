@@ -1,4 +1,5 @@
-// Rendering UI main function, shared by all modules
+const db = firebase.database();
+const auth = firebase.auth();
 
 window.renderAdminApp = async function(dmUid) {
   const adminAppDiv = document.getElementById('adminApp');

@@ -1,4 +1,5 @@
-// User management functions
+const db = firebase.database();
+const auth = firebase.auth();
 
 window.changeUserRole = async function(uid, role) {
   await db.ref('users/' + uid + '/role').set(role);
