@@ -13,7 +13,6 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 
-// renderAuth now adds a Guest Info button when signed in
 function renderAuth(user) {
   const el = document.getElementById('authDiv');
   if (!user) {
@@ -24,22 +23,80 @@ function renderAuth(user) {
   } else {
     el.innerHTML = `
       <span>Signed in as <b>${user.email}</b></span>
-      <button id="guestInfoBtn">Guest Info</button>
       <button id="logoutBtn">Sign out</button>
     `;
-    // navigate to guestinfo.html
-    document.getElementById('guestInfoBtn').onclick = () => {
-      window.location.href = 'guestinfo.html';
-    };
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
   }
 }
 
-// ... rest of your code remains unchanged ...
+function renderTable(data) {
+  if (!data || Object.keys(data).length === 0) {
+    document.getElementById('reviewTable').innerHTML = 'No reviews found.';
+    return;
+  }
+  const reviews = Object.values(data).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  document.getElementById('reviewTable').innerHTML = `
+    <table border="0" cellpadding="7" class="review-table">
+      <thead>
+        <tr>
+          <th>Store</th>
+          <th>Associate</th>
+          <th>Rating</th>
+          <th>Review</th>
+          <th>Referral</th>
+          <th>When</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${reviews.map(r => `
+          <tr>
+            <td>${r.store || ''}</td>
+            <td>${r.associate || ''}</td>
+            <td>${'★'.repeat(r.rating || 0)}</td>
+            <td>${r.comment || ''}</td>
+            <td>${r.refName ? r.refName + ' / ' + r.refPhone : ''}</td>
+            <td>${r.timestamp ? new Date(r.timestamp).toLocaleString() : ''}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
 
-function renderTable(data) { /* ... */ }
-function renderGuestInfoTable(data) { /* ... */ }
+// --- Guest info render function ---
+function renderGuestInfoTable(data) {
+  if (!data || Object.keys(data).length === 0) {
+    document.getElementById('guestInfoTable').innerHTML = 'No guest info found.';
+    return;
+  }
+  const infos = Object.values(data).sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+  document.getElementById('guestInfoTable').innerHTML = `
+    <table border="0" cellpadding="7" class="guestinfo-table">
+      <thead>
+        <tr>
+          <th>Customer Name</th>
+          <th>Customer Phone</th>
+          <th>Service Type</th>
+          <th>Situation</th>
+          <th>When</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${infos.map(g => `
+          <tr>
+            <td>${g.custName || ''}</td>
+            <td>${g.custPhone || ''}</td>
+            <td>${g.serviceType || ''}</td>
+            <td>${g.situation || ''}</td>
+            <td>${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : ''}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
 
+// --- Main Auth state and dashboard logic ---
 auth.onAuthStateChanged(user => {
   renderAuth(user);
   if (!user) {
@@ -56,38 +113,34 @@ auth.onAuthStateChanged(user => {
       return;
     }
 
-    // DM sees everything
+    // --- DM: See all reviews and all guestinfo ---
     if (profile.role === 'dm') {
       db.ref('reviews').on('value', snap => renderTable(snap.val()));
       db.ref('guestinfo').on('value', snap => renderGuestInfoTable(snap.val()));
       return;
     }
 
-    // Lead sees only their store's reviews + assigned guests' info
+    // --- Lead: See reviews for their store, guestinfo for their assigned guests ---
     if (profile.role === 'lead' && profile.store) {
+      // Reviews for this lead's store
       db.ref('reviews').on('value', snap => {
         const all = snap.val() || {};
         const filtered = {};
         Object.entries(all).forEach(([id, r]) => {
-          if (r.store && r.store.trim() === profile.store.trim()) {
-            filtered[id] = r;
-          }
+          if (r.store && r.store.trim() === profile.store.trim()) filtered[id] = r;
         });
         renderTable(filtered);
       });
 
+      // Guest info for guests assigned to this lead
       db.ref('users').once('value').then(usersSnap => {
         const users = usersSnap.val() || {};
-        const assignedGuests = Object.keys(users)
-          .filter(uid => users[uid].assignedLead === user.uid);
-
+        const assignedGuests = Object.keys(users).filter(uid => users[uid].assignedLead === user.uid);
         db.ref('guestinfo').on('value', snap => {
           const allGuestInfo = snap.val() || {};
           const relevant = {};
           Object.entries(allGuestInfo).forEach(([gid, g]) => {
-            if (g.userUid && assignedGuests.includes(g.userUid)) {
-              relevant[gid] = g;
-            }
+            if (g.userUid && assignedGuests.includes(g.userUid)) relevant[gid] = g;
           });
           renderGuestInfoTable(relevant);
         });
@@ -95,7 +148,7 @@ auth.onAuthStateChanged(user => {
       return;
     }
 
-    // Fallback
+    // --- Fallback: No store assigned, not authorized ---
     document.getElementById('reviewTable').innerHTML = 'No store assigned to your account.';
     document.getElementById('guestInfoTable').innerHTML = '';
   });
