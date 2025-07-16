@@ -1,175 +1,210 @@
-/* Reset & Base */
+/* Enhanced Reset & Base */
 * {
   box-sizing: border-box;
 }
+
 body {
-  font-family: 'Inter', 'Segoe UI', 'SF Pro', Arial, sans-serif;
-  background: #f4f6f9;
-  color: #1f2d3d;
+  font-family: 'Segoe UI', 'SF Pro', Arial, sans-serif;
+  background: linear-gradient(135deg, #f3f7ff 0%, #e6ecff 100%);
+  color: #1f2a47;
   margin: 0;
-  padding: 0 0 60px 0;
+  padding-bottom: 80px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Admin Container */
-#adminApp {
-  max-width: 1280px;
-  margin: 50px auto;
-  padding: 0 20px;
-  display: grid;
-  gap: 36px;
-  grid-template-columns: 1fr;
-}
-
-/* Section Container */
-.admin-section {
-  background: #ffffff;
-  border-radius: 20px;
-  padding: 36px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e0e6f0;
-}
-.admin-section h2 {
-  font-size: 1.6rem;
-  font-weight: 700;
-  margin-bottom: 28px;
-  color: #202b3c;
-}
-
-/* Store Table */
-.store-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 20px;
-}
-.store-table th {
-  background: #1c54ff;
-  color: white;
-  padding: 14px;
-  text-align: left;
-}
-.store-table td {
-  background: #fff;
-  padding: 14px;
-  border-bottom: 1px solid #e2e8f0;
-}
-.store-add {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-}
-.store-add input {
-  flex: 1;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-}
-
-/* Users Section */
-.users-container {
-  display: grid;
-  gap: 24px;
-}
-.user-card {
-  background: #fff;
-  border-radius: 18px;
-  padding: 24px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.user-card-header {
+/* Improved Header */
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255 255 255 / 0.95);
+  padding: 20px 36px;
+  box-shadow: 0 8px 24px rgb(170 190 255 / 0.4);
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-.user-name {
-  font-size: 1.2rem;
-  font-weight: 700;
-}
-.user-email {
-  font-size: 0.95rem;
-  color: #6b7280;
-}
-.user-card-info {
-  font-size: 1rem;
-  color: #374151;
-  display: grid;
-  gap: 4px;
-}
-.user-card-actions {
-  display: grid;
-  gap: 14px;
-}
-.user-card-actions label {
-  font-weight: 600;
-  display: flex;
-  flex-direction: column;
-  font-size: 0.95rem;
-}
-select {
-  margin-top: 4px;
-  padding: 8px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  font-size: 1rem;
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #c9d8f7;
 }
 
-/* Danger Outline Button */
-button.btn-danger-outline {
-  border: 2px solid #ef4444;
-  color: #ef4444;
-  background: transparent;
-  padding: 10px 14px;
+.admin-header h2 {
+  font-weight: 700;
+  font-size: 1.75rem;
+  color: #1f2a47;
+  margin: 0;
+}
+
+.admin-header button {
+  background: linear-gradient(90deg, #1877f2, #4a9bff);
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
   border-radius: 12px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s ease;
-}
-button.btn-danger-outline:hover {
-  background: #fee2e2;
+  box-shadow: 0 4px 16px rgba(24, 119, 242, 0.3);
+  transition: box-shadow 0.25s ease;
 }
 
-/* Role Badges */
-.role-badge {
-  font-size: 0.85rem;
+.admin-header button:hover {
+  box-shadow: 0 6px 20px rgba(24, 119, 242, 0.5);
+}
+
+/* Main Container Optimization */
+#adminApp {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 0 16px;
+  display: grid;
+  gap: 24px;
+}
+
+/* Section Refinements */
+.admin-section {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 8px 20px rgba(130, 160, 255, 0.15);
+  padding: 30px;
+  border: 1px solid #d8e2f9;
+  transition: box-shadow 0.3s ease;
+}
+
+.admin-section:hover {
+  box-shadow: 0 12px 30px rgba(130, 160, 255, 0.25);
+}
+
+.section-title {
+  font-size: 1.4rem;
   font-weight: 700;
-  padding: 4px 10px;
+  margin-bottom: 24px;
+  color: #1f2a47;
+}
+
+/* Enhanced User Table Styling */
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(100, 130, 255, 0.12);
   border-radius: 14px;
 }
-.role-dm {
-  background: #1e40af;
-  color: white;
-}
-.role-lead {
-  background: #16a34a;
-  color: white;
-}
-.role-guest {
-  background: #e5e7eb;
-  color: #374151;
-}
 
-/* Clickable Links */
-.clickable {
-  color: #1a52ff;
+.user-table th {
+  background: linear-gradient(90deg, #1a73e8, #569aff);
+  color: #ffffff;
   font-weight: 600;
-  text-decoration: underline;
-  cursor: pointer;
-}
-.clickable:hover {
-  color: #1e3a8a;
+  padding: 12px;
+  text-align: left;
 }
 
-/* Responsive */
+.user-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5ecff;
+  transition: background-color 0.3s;
+}
+
+.user-table tbody tr:hover td {
+  background-color: #f5f8ff;
+}
+
+/* Table Inputs & Selects Improvements */
+input,
+select {
+  border-radius: 8px;
+  border: 1px solid #b4c9ff;
+  padding: 8px 12px;
+  font-size: 0.98rem;
+  background: #f8fbff;
+  transition: border 0.3s ease;
+}
+
+input:focus,
+select:focus {
+  border-color: #4b85ff;
+  outline: none;
+}
+
+/* Role Badge Enhancement */
+.role-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: 0 2px 6px rgba(100, 130, 255, 0.2);
+}
+
+.role-dm {
+  background: linear-gradient(90deg, #1351cc, #3b7cff);
+  color: #fff;
+}
+
+.role-lead {
+  background: linear-gradient(90deg, #17a34a, #4acf83);
+  color: #fff;
+}
+
+.role-guest {
+  background: linear-gradient(90deg, #bbc4d0, #e6ebf1);
+  color: #4a5461;
+}
+
+/* Clickable Link Optimization */
+.clickable {
+  color: #165ad8;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.clickable:hover {
+  color: #1248aa;
+}
+
+/* Button Improvements */
+button,
+.login-btn {
+  background: linear-gradient(90deg, #176bef, #4b9cff);
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 600;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+  box-shadow: 0 4px 14px rgba(23, 107, 239, 0.35);
+}
+
+button:hover,
+.login-btn:hover {
+  box-shadow: 0 6px 18px rgba(23, 107, 239, 0.5);
+}
+
+/* Review Card Fine-tuning */
+.review-card {
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 10px 22px rgba(130, 160, 255, 0.15);
+  padding: 24px;
+  transition: box-shadow 0.3s ease;
+}
+
+.review-card:hover {
+  box-shadow: 0 14px 28px rgba(130, 160, 255, 0.25);
+}
+
+/* Responsive Tweaks */
 @media (max-width: 992px) {
   #adminApp {
-    max-width: 95vw;
+    padding: 0 12px;
   }
-  .user-card {
-    padding: 20px;
+
+  .admin-header {
+    padding: 16px;
+  }
+
+  .user-table th,
+  .user-table td {
+    padding: 8px;
+    font-size: 0.88rem;
   }
 }
