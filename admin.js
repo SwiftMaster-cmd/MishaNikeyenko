@@ -80,7 +80,10 @@ async function renderAdminApp(dmUid) {
   adminAppDiv.innerHTML = "<div>Loading data...</div>";
 
   let [storesSnap, usersSnap, reviewsSnap, guestinfoSnap] = await Promise.all([
-    db.ref('stores').get(), db.ref('users').get(), db.ref('reviews').get(), db.ref('guestinfo').get()
+    db.ref('stores').get(),
+    db.ref('users').get(),
+    db.ref('reviews').get(),
+    db.ref('guestinfo').get()
   ]);
   let stores = storesSnap.val() || {};
   let users = usersSnap.val() || {};
@@ -191,17 +194,27 @@ async function renderAdminApp(dmUid) {
 
   // --- Guestinfo Section ---
   let guestInfoHtml = `<div class="guestinfo-cards">`;
-  // Gather all users and their guests/TLs, so DM sees everything
-  let allGuestEntries = [];
-  for (const gid in guestinfo) {
-    const entry = guestinfo[gid];
-    allGuestEntries.push({ ...entry, _gid: gid });
-  }
-  if (allGuestEntries.length === 0) {
-    guestInfoHtml += `<div style="padding:18px;"><em>No guest info submitted yet.</em></div>`;
+  // Show guest info only for guests assigned under this DM or their TLs
+  // Build set of user UIDs assigned to this DM: TLs and guests under those TLs
+  const leadUids = Object.entries(users)
+    .filter(([uid, u]) => u.assignedDM === dmUid && u.role === 'lead')
+    .map(([uid]) => uid);
+
+  const guestUids = Object.entries(users)
+    .filter(([uid, u]) => leadUids.includes(u.assignedLead) && u.role === 'guest')
+    .map(([uid]) => uid);
+
+  // Include leads and guests for guest info display
+  const allowedUserUids = new Set([...leadUids, ...guestUids]);
+
+  const guestEntries = Object.entries(guestinfo)
+    .filter(([gid, g]) => g.userUid && allowedUserUids.has(g.userUid))
+    .sort((a, b) => (b[1].submittedAt || 0) - (a[1].submittedAt || 0));
+
+  if (guestEntries.length === 0) {
+    guestInfoHtml += `<div style="padding:18px;"><em>No guest info submitted yet for your team.</em></div>`;
   } else {
-    allGuestEntries.sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
-    for (const g of allGuestEntries) {
+    for (const [gid, g] of guestEntries) {
       guestInfoHtml += `
         <div class="review-card">
           <div class="review-meta"><b>Submitted by:</b> ${users[g.userUid]?.name || users[g.userUid]?.email || g.userUid || '-'}</div>
@@ -242,7 +255,7 @@ async function renderAdminApp(dmUid) {
       <div id="filteredReviews">${reviewsHtml}</div>
     </div>
     <div class="admin-section">
-      <div class="section-title">All Guest Info</div>
+      <div class="section-title">Guest Info Submissions</div>
       ${guestInfoHtml}
     </div>
   `;
