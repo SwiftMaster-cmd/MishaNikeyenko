@@ -14,13 +14,8 @@
     <h2>OSL Admin Dashboard</h2>
     <button id="logoutBtn" style="float:right;">Logout</button>
   </div>
-  <div id="adminApp"></div>
-  <div id="unlockDiv" style="margin:44px auto;max-width:350px;text-align:center;display:none;">
-    <h3>Permission Denied</h3>
-    <p>If you’re the admin, enter the setup code below to make yourself DM:</p>
-    <input id="adminPass" placeholder="Enter code" style="padding:10px;width:160px;border-radius:8px;">
-    <button onclick="trySelfPromote()" style="padding:10px 18px;border-radius:8px;font-weight:bold;margin-left:6px;">Unlock DM</button>
-    <div id="unlockMsg" style="color:#b00;margin-top:8px;"></div>
+  <div id="adminApp">
+    <!-- Stores and users will be rendered here -->
   </div>
   <script src="admin.js"></script>
 </body>
