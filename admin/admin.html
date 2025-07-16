@@ -3,54 +3,38 @@
 <head>
   <meta charset="UTF-8" />
   <title>OSL Admin Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="dashboard.css" />
-
-  <!-- Firebase (compat) -->
+  <!-- Firebase compat scripts -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-
-  <script>
-    /* Firebase init – available globally as `firebase` (compat style) */
-    const firebaseConfig = {
-      apiKey:            "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
-      authDomain:        "osls-644fd.firebaseapp.com",
-      databaseURL:       "https://osls-644fd-default-rtdb.firebaseio.com",
-      projectId:         "osls-644fd",
-      storageBucket:     "osls-644fd.appspot.com",
-      messagingSenderId: "798578046321",
-      appId:             "1:798578046321:web:8758776701786a2fccf2d0",
-      measurementId:     "G-9HWXNSBE1T"
-    };
-    firebase.initializeApp(firebaseConfig);
-
-    /* Convenience globals */
-    window.db   = firebase.database();
-    window.auth = firebase.auth();
-  </script>
-
-  <!-- App helpers (no import/export, each file attaches to `window.*`) -->
-  <script src="rbac.js"></script>      <!-- defines window.ROLES, window.Rules -->
-  <script src="api.js"></script>       <!-- window.Api -->
-  <script src="ui.js"></script>        <!-- window.Ui  -->
-  <script src="actions.js"></script>   <!-- window.Actions (uses Ui + Api) -->
-  <script src="admin.js"></script>     <!-- bootstraps dashboard, uses everything above -->
 </head>
-
 <body>
-  <!-- Header -->
-  <header class="admin-header" style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px 8px;">
-    <h2 style="margin:0;">OSL Admin Dashboard</h2>
-    <button id="logoutBtn"
-            style="background:#eee;border:none;padding:9px 16px;border-radius:8px;font-weight:bold;cursor:pointer;">
+  <div
+    class="admin-header"
+    style="display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 8px 18px;"
+  >
+    <h2 style="margin: 0;">OSL Admin Dashboard</h2>
+    <button
+      id="logoutBtn"
+      style="background: #eee; border: none; padding: 9px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;"
+    >
       Logout
     </button>
-  </header>
-
-  <!-- Main mount -->
-  <div id="adminApp" style="padding:0 16px 40px;max-width:1400px;margin:auto;">
-    <!-- Dashboard UI renders here -->
   </div>
+
+  <div
+    id="adminApp"
+    style="padding: 0 16px 40px 16px; max-width: 1400px; margin: auto;"
+  >
+    <!-- Admin dashboard UI renders here -->
+  </div>
+
+  <!-- Your app JS files, no ES module imports, using global firebase -->
+
+ 
+  <script src="admin.js"></script>
+
 </body>
 </html>
