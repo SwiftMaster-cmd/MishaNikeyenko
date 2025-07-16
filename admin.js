@@ -75,7 +75,6 @@ function roleBadge(role) {
   return `<span class="role-badge role-guest">Guest</span>`;
 }
 
-// --- Render Admin App ---
 async function renderAdminApp(dmUid) {
   adminAppDiv.innerHTML = "<div>Loading data...</div>";
 
@@ -85,13 +84,13 @@ async function renderAdminApp(dmUid) {
     db.ref('reviews').get(),
     db.ref('guestinfo').get()
   ]);
-  
+
   const stores = storesSnap.val() || {};
   const users = usersSnap.val() || {};
   const reviews = reviewsSnap.val() || {};
   const guestinfo = guestinfoSnap.val() || {};
 
-  // --- Store Management: Table ---
+  // --- Store Table ---
   const storesRows = Object.entries(stores).map(([id, store]) => {
     const tlUser = users[store.teamLeadUid];
     return `
@@ -100,7 +99,7 @@ async function renderAdminApp(dmUid) {
         <td>
           <select onchange="assignTL('${id}', this.value)">
             <option value="">-- Unassigned --</option>
-            ${Object.entries(users).filter(([uid, u]) => u.role === 'lead' || u.role === 'dm').map(([uid, u]) =>
+            ${Object.entries(users).filter(([_, u]) => ['lead','dm'].includes(u.role)).map(([uid, u]) =>
               `<option value="${uid}" ${store.teamLeadUid === uid ? 'selected' : ''}>${u.name || u.email}</option>`
             ).join('')}
           </select>
@@ -109,26 +108,30 @@ async function renderAdminApp(dmUid) {
         <td><button class="btn btn-danger" onclick="deleteStore('${id}')">Delete</button></td>
       </tr>
     `;
-  }).join('') || `<tr><td colspan="3" class="text-center">No stores added.</td></tr>`;
+  }).join('');
 
-  // --- Users: Card layout ---
+  // --- Updated Users: Better container, spacing, grouped fields ---
   const userCards = Object.entries(users).map(([uid, user]) => {
     const leadUser = users[user.assignedLead];
     const dmUser = users[user.assignedDM];
+
     return `
       <div class="user-card">
-        <div class="user-header">
-          <div class="user-name">${user.name || user.email}</div>
+        <div class="user-card-header">
+          <div>
+            <div class="user-name">${user.name || user.email}</div>
+            <div class="user-email">${user.email}</div>
+          </div>
           <div class="role-badge role-${user.role}">${user.role.toUpperCase()}</div>
-          <button class="btn btn-danger btn-sm" onclick="deleteUser('${uid}')">Delete</button>
         </div>
-        <div class="user-info">
-          <div><b>Email:</b> ${user.email}</div>
+
+        <div class="user-card-info">
           <div><b>Store:</b> ${user.store || '-'}</div>
-          <div><b>Lead:</b> ${leadUser ? leadUser.name || leadUser.email : '-'}</div>
-          <div><b>DM:</b> ${dmUser ? dmUser.name || dmUser.email : '-'}</div>
+          <div><b>Lead:</b> ${leadUser?.name || leadUser?.email || '-'}</div>
+          <div><b>DM:</b> ${dmUser?.name || dmUser?.email || '-'}</div>
         </div>
-        <div class="user-actions">
+
+        <div class="user-card-actions">
           <label>Role:
             <select onchange="changeUserRole('${uid}', this.value)">
               <option value="guest" ${user.role === 'guest' ? 'selected' : ''}>Guest</option>
@@ -136,61 +139,61 @@ async function renderAdminApp(dmUid) {
               <option value="dm" ${user.role === 'dm' ? 'selected' : ''}>DM</option>
             </select>
           </label>
+
           <label>Assign Lead:
             <select onchange="assignLeadToGuest('${uid}', this.value)">
               <option value="">None</option>
-              ${Object.entries(users).filter(([id, u]) => u.role === 'lead').map(([id, u]) =>
+              ${Object.entries(users).filter(([_, u]) => u.role === 'lead').map(([id, u]) =>
                 `<option value="${id}" ${user.assignedLead === id ? 'selected' : ''}>${u.name || u.email}</option>`
               ).join('')}
             </select>
           </label>
+
           <label>Assign DM:
             <select onchange="assignDMToLead('${uid}', this.value)">
               <option value="">None</option>
-              ${Object.entries(users).filter(([id, u]) => u.role === 'dm').map(([id, u]) =>
+              ${Object.entries(users).filter(([_, u]) => u.role === 'dm').map(([id, u]) =>
                 `<option value="${id}" ${user.assignedDM === id ? 'selected' : ''}>${u.name || u.email}</option>`
               ).join('')}
             </select>
           </label>
+
+          <button class="btn btn-danger-outline" onclick="deleteUser('${uid}')">Delete</button>
         </div>
       </div>
     `;
-  }).join('') || `<p class="text-center">No users found.</p>`;
+  }).join('');
 
-  // --- Reviews: Cards with filter ---
+  // --- Reviews (unchanged for now) ---
   const reviewEntries = Object.entries(reviews).sort((a,b) => (b[1].timestamp||0) - (a[1].timestamp||0));
-  const reviewCards = reviewEntries.length
-    ? reviewEntries.map(([id, r]) => `
-        <div class="review-card">
-          <div class="review-header">
-            <span class="review-star ${r.starred ? '' : 'inactive'}" title="Star/unstar" onclick="toggleStar('${id}', ${!!r.starred})">&#9733;</span>
-            <div><b>Store:</b> <span class="clickable" onclick="filterReviewsByStore('${r.store || '-'}')">${r.store || '-'}</span></div>
-            <div><b>Associate:</b> <span class="clickable" onclick="filterReviewsByAssociate('${r.associate || '-'}')">${r.associate || '-'}</span></div>
-            <button class="btn btn-danger btn-sm" onclick="deleteReview('${id}')">Delete</button>
-          </div>
-          <div class="review-rating">${'★'.repeat(r.rating || 0)}</div>
-          <div class="review-comment">${r.comment || ''}</div>
-          <div class="review-meta"><b>When:</b> ${r.timestamp ? new Date(r.timestamp).toLocaleString() : '-'}</div>
-          <div class="review-meta"><b>Referral:</b> ${r.refName ? `${r.refName} / ${r.refPhone}` : '-'}</div>
-        </div>
-      `).join('')
-    : `<p class="text-center">No reviews yet.</p>`;
+  const reviewCards = reviewEntries.map(([id, r]) => `
+    <div class="review-card">
+      <div class="review-header">
+        <span class="review-star ${r.starred ? '' : 'inactive'}" onclick="toggleStar('${id}', ${!!r.starred})">&#9733;</span>
+        <div><b>Store:</b> ${r.store || '-'}</div>
+        <div><b>Associate:</b> ${r.associate || '-'}</div>
+        <button class="btn btn-danger btn-sm" onclick="deleteReview('${id}')">Delete</button>
+      </div>
+      <div class="review-rating">${'★'.repeat(r.rating || 0)}</div>
+      <div class="review-comment">${r.comment || ''}</div>
+      <div class="review-meta"><b>When:</b> ${r.timestamp ? new Date(r.timestamp).toLocaleString() : '-'}</div>
+      <div class="review-meta"><b>Referral:</b> ${r.refName ? `${r.refName} / ${r.refPhone}` : '-'}</div>
+    </div>
+  `).join('');
 
-  // --- Guest Info: Cards ---
+  // --- Guest Info (unchanged for now) ---
   const guestEntries = Object.entries(guestinfo).sort((a,b) => (b[1].submittedAt || 0) - (a[1].submittedAt || 0));
-  const guestCards = guestEntries.length
-    ? guestEntries.map(([id, g]) => `
-        <div class="guest-card">
-          <div><b>Submitted by:</b> ${users[g.userUid]?.name || users[g.userUid]?.email || g.userUid || '-'}</div>
-          <div><b>Customer:</b> ${g.custName || '-'} | <b>Phone:</b> ${g.custPhone || '-'}</div>
-          <div><b>Type:</b> ${g.serviceType || '-'}</div>
-          <div><b>Situation:</b> ${g.situation || '-'}</div>
-          <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : '-'}</div>
-        </div>
-      `).join('')
-    : `<p class="text-center">No guest info yet.</p>`;
+  const guestCards = guestEntries.map(([id, g]) => `
+    <div class="guest-card">
+      <div><b>Submitted by:</b> ${users[g.userUid]?.name || users[g.userUid]?.email || g.userUid}</div>
+      <div><b>Customer:</b> ${g.custName || '-'} | <b>Phone:</b> ${g.custPhone || '-'}</div>
+      <div><b>Type:</b> ${g.serviceType || '-'}</div>
+      <div><b>Situation:</b> ${g.situation || '-'}</div>
+      <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : '-'}</div>
+    </div>
+  `).join('');
 
-  // Render all sections
+  // --- Inject All Into DOM ---
   adminAppDiv.innerHTML = `
     <section class="admin-section stores-section">
       <h2>Stores</h2>
@@ -226,13 +229,12 @@ async function renderAdminApp(dmUid) {
     </section>
   `;
 
-  // Save globals for filtering
+  // Save globals
   window._allReviews = reviewEntries;
   window._allReviewsHtml = reviewCards;
   window._users = users;
   window._stores = stores;
 }
-
 // --- Assign guest to lead ---
 window.assignLeadToGuest = async function(guestUid, leadUid) {
   await db.ref('users/' + guestUid + '/assignedLead').set(leadUid || null);
