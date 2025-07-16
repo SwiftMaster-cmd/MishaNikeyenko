@@ -1,52 +1,45 @@
-const db = firebase.database();
+// User management functions
 
-// Fetch all users
-export async function fetchUsers() {
-  try {
-    const usersSnap = await db.ref('users').get();
-    return usersSnap.val() || {};
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    throw error;
-  }
-}
+window.changeUserRole = async function(uid, role) {
+  await db.ref('users/' + uid + '/role').set(role);
+  window.renderAdminApp();
+};
 
-// Change user role
-export async function changeUserRole(uid, role) {
-  try {
-    await db.ref(`users/${uid}/role`).set(role);
-  } catch (error) {
-    console.error(`Error changing role for user ${uid}:`, error);
-    throw error;
-  }
-}
+window.deleteUser = async function(uid) {
+  if (!confirm("Delete this user?")) return;
+  await db.ref('users/' + uid).remove();
+  window.renderAdminApp();
+};
 
-// Assign lead to guest
-export async function assignLeadToGuest(guestUid, leadUid) {
-  try {
-    await db.ref(`users/${guestUid}/assignedLead`).set(leadUid || null);
-  } catch (error) {
-    console.error(`Error assigning lead ${leadUid} to guest ${guestUid}:`, error);
-    throw error;
-  }
-}
+window.assignLeadToGuest = async function(guestUid, leadUid) {
+  await db.ref('users/' + guestUid + '/assignedLead').set(leadUid || null);
+  window.renderAdminApp();
+};
 
-// Assign DM to lead
-export async function assignDMToLead(leadUid, dmUid) {
-  try {
-    await db.ref(`users/${leadUid}/assignedDM`).set(dmUid || null);
-  } catch (error) {
-    console.error(`Error assigning DM ${dmUid} to lead ${leadUid}:`, error);
-    throw error;
-  }
-}
+window.assignDMToLead = async function(leadUid, dmUid) {
+  await db.ref('users/' + leadUid + '/assignedDM').set(dmUid || null);
+  window.renderAdminApp();
+};
 
-// Delete user
-export async function deleteUser(uid) {
-  try {
-    await db.ref(`users/${uid}`).remove();
-  } catch (error) {
-    console.error(`Error deleting user ${uid}:`, error);
-    throw error;
+window.editUserStore = async function(uid) {
+  const storeNum = prompt("Enter store number for this user:");
+  if (!storeNum) return;
+  const storesSnap = await db.ref('stores').once('value');
+  const stores = storesSnap.val() || {};
+  let matchedStoreId = null;
+  for (const sId in stores) {
+    if (stores[sId].storeNumber == storeNum) matchedStoreId = sId;
   }
-}
+  if (matchedStoreId) {
+    await db.ref('stores/' + matchedStoreId + '/teamLeadUid').set(uid);
+    await db.ref('users/' + uid + '/store').set(storeNum);
+    await db.ref('users/' + uid + '/role').set('lead');
+  } else {
+    if (confirm("Store not found. Create it?")) {
+      await db.ref('stores').push({ storeNumber: storeNum, teamLeadUid: uid });
+      await db.ref('users/' + uid + '/store').set(storeNum);
+      await db.ref('users/' + uid + '/role').set('lead');
+    }
+  }
+  window.renderAdminApp();
+};

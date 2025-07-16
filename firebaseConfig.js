@@ -1,8 +1,4 @@
-// firebaseConfig.js
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
-import "firebase/compat/database";
-
+// Initialize Firebase once globally for all other scripts
 const firebaseConfig = {
   apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
@@ -15,6 +11,5 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-
-export const db = firebase.database();
-export const auth = firebase.auth();
+window.db = firebase.database();
+window.auth = firebase.auth();
