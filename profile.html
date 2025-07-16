@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Team Profile Management</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head>
+<body>
+  <h2>Assign Store Numbers to Team Leads</h2>
+  <div id="authDiv"></div>
+  <div id="userTable"></div>
+  <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+      authDomain: "osls-644fd.firebaseapp.com",
+      databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
+      projectId: "osls-644fd",
+      storageBucket: "osls-644fd.appspot.com",
+      messagingSenderId: "798578046321",
+      appId: "1:798578046321:web:8758776701786a2fccf2d0",
+      measurementId: "G-9HWXNSBE1T"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    // Auth UI
+    function renderAuth(user) {
+      const el = document.getElementById('authDiv');
+      if (!user) {
+        el.innerHTML = `<button id="loginBtn">Sign in with Google</button>`;
+        document.getElementById('loginBtn').onclick = () => {
+          auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        };
+      } else {
+        el.innerHTML = `
+          <span>Signed in as <b>${user.email}</b></span>
+          <button id="logoutBtn">Sign out</button>
+        `;
+        document.getElementById('logoutBtn').onclick = () => auth.signOut();
+      }
+    }
+
+    // Render users and allow DM to assign stores
+    function renderUserTable(users) {
+      const el = document.getElementById('userTable');
+      el.innerHTML = `
+        <table border="1" cellpadding="6" style="border-collapse:collapse">
+          <thead><tr>
+            <th>Email</th><th>Role</th><th>Store #</th><th>Assign</th>
+          </tr></thead>
+          <tbody>
+          ${Object.entries(users).map(([uid, u]) => `
+            <tr>
+              <td>${u.email || ''}</td>
+              <td>${u.role}</td>
+              <td>
+                ${u.role === 'lead' ? `<input type="text" value="${u.store || ''}" id="store-${uid}" placeholder="Store #">` : ''}
+              </td>
+              <td>
+                ${u.role === 'lead' ? `<button onclick="updateStore('${uid}')">Save</button>` : ''}
+              </td>
+            </tr>
+          `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // Update store for user
+    window.updateStore = function(uid) {
+      const val = document.getElementById('store-' + uid).value;
+      db.ref('users/' + uid + '/store').set(val);
+      alert('Store updated!');
+    };
+
+    let currentUser = null;
+    auth.onAuthStateChanged(user => {
+      currentUser = user;
+      renderAuth(user);
+      if (user) {
+        // Check if DM (should check "role" in production)
+        db.ref('users/' + user.uid).once('value').then(snap => {
+          if (snap.val() && snap.val().role === 'dm') {
+            // Load all users
+            db.ref('users').on('value', snap => {
+              renderUserTable(snap.val() || {});
+            });
+          } else {
+            document.getElementById('userTable').innerHTML = 'You are not authorized.';
+          }
+        });
+      } else {
+        document.getElementById('userTable').innerHTML = '';
+      }
+    });
+  </script>
+</body>
+</html>

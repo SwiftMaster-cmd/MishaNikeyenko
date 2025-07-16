@@ -2,16 +2,130 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>OSL Review & Referral</title>
+  <title>OSL Portal Login</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(120deg, #eef2fb 0%, #d1d9e6 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'SF Pro', 'Segoe UI', 'Roboto', Arial, sans-serif;
+    }
+    .login-box {
+      background: rgba(255,255,255,0.9);
+      padding: 44px 36px 36px 36px;
+      border-radius: 22px;
+      box-shadow: 0 10px 38px #a0b2d8b7;
+      text-align: center;
+      max-width: 340px;
+      width: 94vw;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .login-title {
+      font-size: 1.6em;
+      font-weight: bold;
+      color: #225;
+      margin-bottom: 6px;
+    }
+    .login-btn {
+      background: linear-gradient(90deg, #388fff 30%, #8eafff 100%);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: bold;
+      font-size: 1.11em;
+      padding: 15px;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: background .14s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 2px 7px rgba(30,44,70,0.09);
+    }
+    .login-btn:active {
+      background: linear-gradient(90deg, #2770d2 40%, #7396e8 100%);
+    }
+    .google-icon {
+      width: 22px;
+      height: 22px;
+      vertical-align: middle;
+    }
+    .desc {
+      font-size: 1.04em;
+      color: #486;
+      margin-bottom: 2px;
+      margin-top: 0;
+      opacity: 0.74;
+    }
+    @media (max-width: 500px) {
+      .login-box { padding: 24px 4vw; }
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
-  <div class="glassy-container">
-    <div id="progressBar"></div>
-    <div id="stepIndicator"></div>
-    <div id="stepper"></div>
+  <div class="login-box">
+    <div class="login-title">OSL Team Portal</div>
+    <div class="desc">Sign in with your work Google account</div>
+    <button class="login-btn" id="loginBtn">
+      <img class="google-icon" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">Sign in with Google
+    </button>
+    <div id="loginStatus"></div>
   </div>
-  <script src="script.js"></script>
+  <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+      authDomain: "osls-644fd.firebaseapp.com",
+      databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
+      projectId: "osls-644fd",
+      storageBucket: "osls-644fd.appspot.com",
+      messagingSenderId: "798578046321",
+      appId: "1:798578046321:web:8758776701786a2fccf2d0",
+      measurementId: "G-9HWXNSBE1T"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    document.getElementById('loginBtn').onclick = () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider)
+        .then(async result => {
+          // Check if user exists in DB, if not add as "guest" role
+          const user = result.user;
+          const ref = db.ref('users/' + user.uid);
+          const snap = await ref.get();
+          if (!snap.exists()) {
+            await ref.set({
+              email: user.email,
+              role: 'guest'
+            });
+          }
+          // Redirect to dashboard/profile as needed
+          document.getElementById('loginStatus').innerHTML = "Login successful! Redirecting...";
+          setTimeout(() => {
+            window.location.href = "dashboard.html";
+          }, 800);
+        })
+        .catch(err => {
+          document.getElementById('loginStatus').innerHTML = "Login failed: " + err.message;
+        });
+    };
+
+    // Optional: Auto-redirect if already logged in
+    auth.onAuthStateChanged(user => {
+      if (user) window.location.href = "dashboard.html";
+    });
+  </script>
 </body>
 </html>
