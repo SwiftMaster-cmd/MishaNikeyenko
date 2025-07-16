@@ -15,62 +15,126 @@ firebase.initializeApp(firebaseConfig);
 
 const db = firebase.database();
 const auth = firebase.auth();
-const gStatus = document.getElementById('gStatus');
-const form = document.getElementById('guestInfoForm');
 
-// Redirect based on explicit role
+let currentEntryKey = null;
+
+// redirect logic (unchanged)
 auth.onAuthStateChanged(async user => {
   if (!user) {
-    // not signed in → go to login
     window.location.href = "login.html";
     return;
   }
-
   try {
     const snap = await db.ref(`users/${user.uid}`).get();
     const profile = snap.val() || {};
-    // only send DMs/Leads to dashboard
     if (profile.role === 'dm' || profile.role === 'lead') {
       window.location.href = "dashboard.html";
     }
-    // otherwise stay on guest portal
   } catch (err) {
-    console.error("Role check error:", err);
-    // allow guest to continue even if we can't fetch profile
+    console.error("Role check failed:", err);
   }
 });
 
-// Handle form submission
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  gStatus.textContent = "";
-  gStatus.className = "";
+// STEP 1
+document.getElementById('step1Form')
+  .addEventListener('submit', async e => {
+    e.preventDefault();
+    const s1 = document.getElementById('status1');
+    s1.textContent = '';
+    const custName    = document.getElementById('custName').value.trim();
+    const custPhone   = document.getElementById('custPhone').value.trim();
+    const serviceType = document.getElementById('serviceType').value;
+    const situation   = document.getElementById('situation').value.trim();
 
-  const custName    = document.getElementById('custName').value.trim();
-  const custPhone   = document.getElementById('custPhone').value.trim();
-  const serviceType = document.getElementById('serviceType').value;
-  const situation   = document.getElementById('situation').value.trim();
+    if (!custName || !custPhone || !serviceType) {
+      s1.textContent = 'Please fill all required fields.';
+      s1.classList.add('error');
+      return;
+    }
 
-  if (!custName || !custPhone || !serviceType) {
-    gStatus.classList.add("error");
-    gStatus.textContent = "Please fill all required fields.";
-    return;
-  }
+    try {
+      const pushRef = await db.ref('guestinfo').push({
+        custName,
+        custPhone,
+        serviceType,
+        situation,
+        submittedAt: Date.now(),
+        userUid: auth.currentUser.uid
+      });
+      currentEntryKey = pushRef.key;
+      s1.textContent = 'Step 1 saved!';
+      s1.classList.remove('error');
+      s1.classList.add('success');
 
-  try {
-    await db.ref('guestinfo').push({
-      custName,
-      custPhone,
-      serviceType,
-      situation,
-      submittedAt: Date.now(),
-      userUid: auth.currentUser.uid
-    });
-    gStatus.classList.add("success");
-    gStatus.textContent = "Info submitted! You may now assist your customer.";
-    form.reset();
-  } catch (err) {
-    gStatus.classList.add("error");
-    gStatus.textContent = "Error: " + err.message;
-  }
-});
+      // show Step 2
+      document.getElementById('step1Form').classList.add('hidden');
+      document.getElementById('step2Form').classList.remove('hidden');
+    } catch (err) {
+      s1.textContent = 'Error: ' + err.message;
+      s1.classList.add('error');
+    }
+  });
+
+// STEP 2
+document.getElementById('step2Form')
+  .addEventListener('submit', async e => {
+    e.preventDefault();
+    const s2 = document.getElementById('status2');
+    s2.textContent = '';
+    const carrierInfo  = document.getElementById('evalCarrier').value.trim();
+    const requirements = document.getElementById('evalRequirements').value.trim();
+
+    if (!carrierInfo && !requirements) {
+      s2.textContent = 'Enter at least one evaluation detail.';
+      s2.classList.add('error');
+      return;
+    }
+
+    try {
+      await db.ref(`guestinfo/${currentEntryKey}/evaluate`).set({
+        carrierInfo,
+        requirements
+      });
+      s2.textContent = 'Step 2 saved!';
+      s2.classList.remove('error');
+      s2.classList.add('success');
+
+      // show Step 3
+      document.getElementById('step2Form').classList.add('hidden');
+      document.getElementById('step3Form').classList.remove('hidden');
+    } catch (err) {
+      s2.textContent = 'Error: ' + err.message;
+      s2.classList.add('error');
+    }
+  });
+
+// STEP 3
+document.getElementById('step3Form')
+  .addEventListener('submit', async e => {
+    e.preventDefault();
+    const s3 = document.getElementById('status3');
+    s3.textContent = '';
+    const solution = document.getElementById('solutionText').value.trim();
+
+    if (!solution) {
+      s3.textContent = 'Please describe the solution.';
+      s3.classList.add('error');
+      return;
+    }
+
+    try {
+      await db.ref(`guestinfo/${currentEntryKey}/solution`).set({
+        text: solution,
+        completedAt: Date.now()
+      });
+      s3.textContent = 'All steps completed! Thank you.';
+      s3.classList.remove('error');
+      s3.classList.add('success');
+
+      // optionally hide the form
+      // document.getElementById('step3Form').classList.add('hidden');
+    } catch (err) {
+      s3.textContent = 'Error: ' + err.message;
+      s3.classList.add('error');
+    }
+  });

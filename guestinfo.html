@@ -4,14 +4,15 @@
   <meta charset="UTF-8" />
   <title>Customer Info – OSL Guest Portal</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-
-  <!-- external CSS -->
   <link rel="stylesheet" href="guest-portal.css" />
 </head>
 <body>
   <div class="guest-box">
-    <div class="guest-title">Enter Customer Info</div>
-    <form id="guestInfoForm" autocomplete="off">
+
+    <!-- Step 1 -->
+    <form id="step1Form" autocomplete="off">
+      <div class="guest-title">Step 1: Customer Info</div>
+
       <label class="glabel">Customer Name
         <input class="gfield" type="text" id="custName" placeholder="Full name" required />
       </label>
@@ -29,13 +30,41 @@
           <option>Other</option>
         </select>
       </label>
-      <label class="glabel">Notes / Situation
-        <textarea class="gfield" id="situation" placeholder="Short notes, needs, situation" rows="2"></textarea>
+      <label class="glabel">Situation / Notes
+        <textarea class="gfield" id="situation" rows="2" placeholder="Short notes…"></textarea>
       </label>
 
-      <button class="guest-btn" type="submit">Submit Info</button>
-      <div class="g-status" id="gStatus"></div>
+      <button class="guest-btn" type="submit">Submit Step 1</button>
+      <div class="g-status" id="status1"></div>
     </form>
+
+    <!-- Step 2 (hidden until Step 1 done) -->
+    <form id="step2Form" class="hidden">
+      <div class="guest-title">Step 2: Evaluate</div>
+
+      <label class="glabel">Carrier Info
+        <textarea class="gfield" id="evalCarrier" rows="2" placeholder="Current carrier details…"></textarea>
+      </label>
+      <label class="glabel">Requirements
+        <textarea class="gfield" id="evalRequirements" rows="2" placeholder="What is needed…"></textarea>
+      </label>
+
+      <button class="guest-btn" type="submit">Submit Step 2</button>
+      <div class="g-status" id="status2"></div>
+    </form>
+
+    <!-- Step 3 (hidden until Step 2 done) -->
+    <form id="step3Form" class="hidden">
+      <div class="guest-title">Step 3: Solution</div>
+
+      <label class="glabel">Proposed Solution
+        <textarea class="gfield" id="solutionText" rows="3" placeholder="What we’ll offer…"></textarea>
+      </label>
+
+      <button class="guest-btn" type="submit">Submit Step 3</button>
+      <div class="g-status" id="status3"></div>
+    </form>
+
   </div>
 
   <!-- Firebase SDKs -->
@@ -43,7 +72,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-  <!-- your custom JS -->
+  <!-- your logic -->
   <script src="guest-portal.js"></script>
 </body>
 </html>

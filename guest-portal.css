@@ -113,7 +113,10 @@ body {
   background: linear-gradient(90deg, var(--accent-dark) 30%, var(--accent) 100%);
   transform: translateY(-1px);
 }
-
+/* hide inactive steps */
+.hidden {
+  display: none;
+}
 .guest-btn:active {
   transform: translateY(0);
 }
