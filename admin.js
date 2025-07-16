@@ -25,6 +25,7 @@ auth.onAuthStateChanged(async user => {
   try {
     const userSnap = await db.ref('users/' + user.uid).get();
     const profile = userSnap.val() || {};
+    // DM-only override (password or assigned)
     if (profile.role !== 'dm') {
       showDmUnlock();
       return;
@@ -79,17 +80,16 @@ function roleBadge(role) {
 async function renderAdminApp() {
   adminAppDiv.innerHTML = "<div>Loading data...</div>";
 
-  // Load all needed data
   let [storesSnap, usersSnap, reviewsSnap, guestinfoSnap] = await Promise.all([
-    db.ref('stores').get(), 
-    db.ref('users').get(), 
+    db.ref('stores').get(),
+    db.ref('users').get(),
     db.ref('reviews').get(),
     db.ref('guestinfo').get()
   ]);
   let stores = storesSnap.val() || {};
   let users = usersSnap.val() || {};
   let reviews = reviewsSnap.val() || {};
-  let guestinfo = guestinfoSnap.val() || {};
+  let guestinfoTree = guestinfoSnap.val() || {};
 
   // --- Store Management Section ---
   let storesHtml = `<table class="store-table"><tr>
@@ -193,39 +193,48 @@ async function renderAdminApp() {
   }
   reviewsHtml += `</div>`;
 
-  // --- Guest Info Section (all for users/TLs under this DM) ---
-  let guestInfoHtml = `<div class="guestinfo-cards"><h3>All Guest Info Submissions</h3>`;
-  const currentDmUid = auth.currentUser.uid;
-  const allUserUidsUnderDM = Object.keys(users).filter(
-    uid => users[uid].assignedDM === currentDmUid || uid === currentDmUid
-  );
-  const filteredGuestInfo = Object.entries(guestinfo).filter(([gid, g]) => g.userUid && allUserUidsUnderDM.includes(g.userUid));
-  if (filteredGuestInfo.length === 0) {
-    guestInfoHtml += `<div style="padding:18px;"><em>No guest info submitted yet.</em></div>`;
+  // --- Guest Info Section: flatten and show all ---
+  let allGuestInfos = [];
+  for (const leadUid in guestinfoTree) {
+    const guestEntries = guestinfoTree[leadUid];
+    for (const gid in guestEntries) {
+      allGuestInfos.push({
+        ...guestEntries[gid],
+        _gid: gid,
+        _leadUid: leadUid
+      });
+    }
+  }
+  allGuestInfos.sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+  let guestInfoHtml = `<div class="guestinfo-section"><div style="font-weight:bold;margin-bottom:8px;">All Guest Info Submissions</div>`;
+  if (!allGuestInfos.length) {
+    guestInfoHtml += `<div style="padding:18px;"><em>No guest info submissions found.</em></div>`;
   } else {
     guestInfoHtml += `
-      <table border="0" cellpadding="7" class="guestinfo-table">
+      <table class="guestinfo-table" style="width:100%;margin-top:12px;">
         <thead>
           <tr>
-            <th>User</th>
+            <th>Lead</th>
+            <th>Employee</th>
             <th>Customer Name</th>
             <th>Customer Phone</th>
             <th>Service Type</th>
             <th>Situation</th>
-            <th>When</th>
+            <th>Submitted At</th>
           </tr>
         </thead>
         <tbody>
-          ${filteredGuestInfo.map(([gid, g]) => `
-            <tr>
-              <td>${users[g.userUid]?.email || g.userUid}</td>
-              <td>${g.custName || ''}</td>
-              <td>${g.custPhone || ''}</td>
-              <td>${g.serviceType || ''}</td>
-              <td>${g.situation || ''}</td>
-              <td>${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : ''}</td>
-            </tr>
-          `).join('')}
+        ${allGuestInfos.map(g => `
+          <tr>
+            <td>${users[g._leadUid]?.name || users[g._leadUid]?.email || g._leadUid}</td>
+            <td>${users[g.userUid]?.name || users[g.userUid]?.email || g.userUid}</td>
+            <td>${g.custName || ''}</td>
+            <td>${g.custPhone || ''}</td>
+            <td>${g.serviceType || ''}</td>
+            <td>${g.situation || ''}</td>
+            <td>${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : ''}</td>
+          </tr>
+        `).join('')}
         </tbody>
       </table>
     `;
@@ -243,8 +252,8 @@ async function renderAdminApp() {
       .review-card {border-radius:18px;background:#f7faff;box-shadow:0 2px 8px #b8d1ff26;padding:16px;margin:10px 0;}
       .review-star {font-size:1.4em;cursor:pointer;}
       .review-star.inactive {color:#b5b5b5;}
-      .guestinfo-cards {margin-top:36px;}
-      .guestinfo-table {margin-top:8px;}
+      .guestinfo-section {margin-top:30px;}
+      .guestinfo-table th, .guestinfo-table td {padding:8px 6px;}
     </style>
     <div class="admin-section">
       <div class="section-title">Store Management</div>
@@ -261,7 +270,6 @@ async function renderAdminApp() {
       <div id="filteredReviews">${reviewsHtml}</div>
     </div>
     <div class="admin-section">
-      <div class="section-title">All Guest Info</div>
       ${guestInfoHtml}
     </div>
   `;
