@@ -116,11 +116,11 @@ async function renderAdminApp() {
     <input id="newStoreNum" placeholder="New Store #" style="width:120px;">
     <button onclick="addStore()">Add Store</button>`;
 
-  // --- User Management Section (NOW with assigned lead select for guests) ---
+  // --- User Management Section (with all assignments) ---
   let usersHtml = `<table class="user-table"><tr>
-    <th>Name</th><th>Email</th><th>Role</th><th>Store</th><th>Assigned Lead</th><th>Assign Lead</th><th>Assign Store</th><th>Delete</th></tr>`;
+    <th>Name</th><th>Email</th><th>Role</th><th>Store</th><th>Assigned Lead</th><th>Assign Lead</th><th>Assigned DM</th><th>Assign DM</th><th>Delete</th></tr>`;
   if (Object.keys(users).length === 0) {
-    usersHtml += `<tr><td colspan="8"><em>No users found.</em></td></tr>`;
+    usersHtml += `<tr><td colspan="9"><em>No users found.</em></td></tr>`;
   }
   for (const uid in users) {
     const u = users[uid];
@@ -147,7 +147,17 @@ async function renderAdminApp() {
             ).join('')}
         </select>
       </td>
-      <td><button onclick="editUserStore('${uid}')">Assign Store</button></td>
+      <td>${u.assignedDM ? (users[u.assignedDM]?.name || users[u.assignedDM]?.email || '-') : '-'}</td>
+      <td>
+        <select onchange="assignDMToLead('${uid}', this.value)">
+          <option value="">-- None --</option>
+          ${Object.entries(users)
+            .filter(([dmUid, user]) => user.role === 'dm')
+            .map(([dmUid, user]) =>
+              `<option value="${dmUid}" ${u.assignedDM === dmUid ? 'selected' : ''}>${user.name || user.email}</option>`
+            ).join('')}
+        </select>
+      </td>
       <td><button onclick="deleteUser('${uid}')">Delete User</button></td>
     </tr>`;
   }
@@ -214,6 +224,12 @@ async function renderAdminApp() {
 // --- Assign guest to lead ---
 window.assignLeadToGuest = async function(guestUid, leadUid) {
   await db.ref('users/' + guestUid + '/assignedLead').set(leadUid || null);
+  renderAdminApp();
+};
+
+// --- Assign DM to TL ---
+window.assignDMToLead = async function(leadUid, dmUid) {
+  await db.ref('users/' + leadUid + '/assignedDM').set(dmUid || null);
   renderAdminApp();
 };
 
