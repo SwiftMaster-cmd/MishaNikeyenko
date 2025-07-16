@@ -1,22 +1,21 @@
 /* ==========================================================================
-   Reset & New Base
+   Reset & Dark Base
    ========================================================================== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
-html, body { height: 100%; }
+html, body {
+  height: 100%;
+}
 body {
-  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-  background: linear-gradient(120deg, #17181c 0%, #23242c 100%);
-  color: #e2e7ef;
+  font-family: 'Segoe UI', 'SF Pro', Arial, sans-serif;
+  background: linear-gradient(135deg, #14151a 0%, #1e2027 100%);
+  color: #e2e8f0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   padding-bottom: 80px;
-  font-size: 1.07rem;
-  letter-spacing: 0.01em;
 }
 
 /* ==========================================================================
@@ -27,274 +26,447 @@ body {
   top: 0;
   z-index: 100;
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 24px;
-  padding: 26px 36px 18px 36px;
-  background: rgba(30, 32, 39, 0.62);
-  backdrop-filter: blur(10px) saturate(130%);
-  border-bottom: 1.5px solid rgba(255,255,255,0.08);
+  padding: 20px 36px;
+  background: rgba(30, 32, 39, 0.6);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 .admin-header h2 {
-  font-size: 2.05rem;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-  color: #fff;
-}
-.admin-header button,
-#logoutBtn {
-  padding: 12px 30px;
-  border: none;
-  border-radius: 18px;
-  background: linear-gradient(90deg, #4fa0f7 0%, #6ec3f5 100%);
-  color: #fff;
+  font-size: 1.75rem;
   font-weight: 700;
-  font-size: 1.02rem;
-  cursor: pointer;
-  box-shadow: 0 4px 18px rgba(65,130,200,0.16);
-  transition: background .16s, transform .14s;
-}
-.admin-header button:hover,
-#logoutBtn:hover {
-  background: linear-gradient(90deg, #22263a 0%, #4fa0f7 100%);
   color: #fff;
-  transform: scale(1.04);
+}
+.admin-header button {
+  padding: 10px 22px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(30,144,255,0.8);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 16px rgba(30,144,255,0.4);
+  transition: box-shadow .25s;
+}
+.admin-header button:hover {
+  box-shadow: 0 6px 20px rgba(30,144,255,0.6);
 }
 
 /* ==========================================================================
-   Main Container – True Horizontal Grid
+   Main Container
    ========================================================================== */
 #adminApp {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 0 16px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Always three cards side by side if possible */
-  gap: 36px;
-  max-width: 1380px;
-  margin: 52px auto 0 auto;
-  padding: 0 18px;
+  gap: 24px;
 }
 
 /* ==========================================================================
-   Cards/Sections (Simple Glassy/Bubbly)
+   Generic Glassy Section
    ========================================================================== */
-.admin-section,
-.user-card,
-.review-card,
-.guest-card {
-  background: rgba(34,37,48,0.82);
-  border: 1.5px solid rgba(255,255,255,0.07);
-  border-radius: 26px;
-  padding: 38px 28px 32px 28px;
-  box-shadow: 0 6px 28px rgba(30,38,56,0.15);
-  backdrop-filter: blur(10px) saturate(110%);
-  transition: box-shadow .16s, transform .13s;
+.admin-section {
+  background: rgba(25,26,32,0.6);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  padding: 30px;
+  backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  transition: box-shadow .3s;
 }
-.admin-section:hover,
-.user-card:hover,
-.review-card:hover,
-.guest-card:hover {
-  box-shadow: 0 10px 36px rgba(30,38,56,0.23);
-  transform: translateY(-2px) scale(1.012);
+.admin-section:hover {
+  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
 }
-.admin-section h2, .section-title {
-  font-size: 1.35rem;
+.admin-section h2,
+.section-title {
+  font-size: 1.4rem;
   font-weight: 700;
-  color: #6ec3f5;
-  margin-bottom: 20px;
-  letter-spacing: 0.01em;
+  color: #fff;
+  margin-bottom: 16px;
 }
 
 /* ==========================================================================
-   BUTTONS (Flat & Bubbly)
+   Logout Button
    ========================================================================== */
-button,
-.login-btn,
-.store-add button,
-.review-controls button,
-.user-card-actions .btn-danger {
-  padding: 11px 22px;
-  font-weight: 700;
-  background: linear-gradient(90deg, #4fa0f7 0%, #6ec3f5 100%);
+#logoutBtn {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 8px 16px;
+  font-size: .9rem;
+  border-radius: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+  transition: background .3s, transform .2s;
+}
+#logoutBtn:hover {
+  background: rgba(255,255,255,0.2);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Stores Section
+   ========================================================================== */
+.stores-section { margin-bottom: 32px; }
+.store-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+.store-table th,
+.store-table td {
+  padding: 12px;
+  color: #ddd;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.store-table th {
+  font-weight: 600;
+  font-size: .95rem;
+}
+.store-table input,
+.store-table select {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(30,32,39,0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #e2e8f0;
+  backdrop-filter: blur(8px);
+  transition: border .3s;
+}
+.store-table input:focus,
+.store-table select:focus {
+  border-color: rgba(30,144,255,0.8);
+  outline: none;
+}
+.store-add {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.store-add input {
+  flex: 1;
+}
+.store-add button {
+  padding: 10px 20px;
+  font-weight: 600;
+  background: rgba(30,144,255,0.8);
   color: #fff;
   border: none;
-  border-radius: 16px;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 1rem;
-  box-shadow: 0 4px 12px rgba(65,130,200,0.09);
-  transition: background .15s, color .15s, transform .12s;
-  margin-top: 4px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(30,144,255,0.4);
+  transition: box-shadow .3s;
 }
-button:hover,
-.login-btn:hover,
-.store-add button:hover,
-.review-controls button:hover,
-.user-card-actions .btn-danger:hover {
-  background: linear-gradient(90deg, #263563 0%, #4fa0f7 100%);
-  color: #fff;
-  transform: scale(1.045);
+.store-add button:hover {
+  box-shadow: 0 6px 18px rgba(30,144,255,0.6);
+}
+@media (max-width: 600px) {
+  .store-add { flex-direction: column; }
 }
 
 /* ==========================================================================
-   INPUTS
+   Inputs & Selects (Fallback)
    ========================================================================== */
 input,
 select {
-  border-radius: 13px;
-  border: 1.5px solid rgba(255,255,255,0.08);
-  padding: 12px 14px;
-  font-size: 1.06rem;
-  background: rgba(37,40,52,0.88);
-  color: #f3f6fb;
-  margin-bottom: 10px;
-  transition: border .15s, box-shadow .12s;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 8px 12px;
+  font-size: .98rem;
+  background: rgba(30,32,39,0.6);
+  color: #e2e8f0;
+  backdrop-filter: blur(8px);
+  transition: border .3s;
 }
-input:focus, select:focus {
-  border-color: #4fa0f7;
+input:focus,
+select:focus {
+  border-color: rgba(30,144,255,0.8);
   outline: none;
-  box-shadow: 0 0 0 2px #4fa0f770;
 }
 
 /* ==========================================================================
-   TABLE (Stores)
-   ========================================================================== */
-.table-wrapper {
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-  margin-bottom: 18px;
-}
-.store-table {
-  width: 100%; min-width: 600px;
-  border-collapse: separate;
-  border-spacing: 0;
-  background: transparent;
-}
-.store-table th, .store-table td {
-  padding: 13px 10px;
-  color: #c9d2e3;
-  border-bottom: 1.5px solid rgba(255,255,255,0.06);
-  font-size: 1.01rem;
-  background: transparent;
-}
-.store-table th {
-  font-weight: 700; color: #4fa0f7; text-align: left;
-}
-
-/* ==========================================================================
-   ROLE BADGES (Bubbly)
+   Role Badges
    ========================================================================== */
 .role-badge {
   display: inline-block;
-  padding: 5px 17px;
-  font-weight: 700;
-  font-size: 1rem;
-  border-radius: 15px;
-  background: #202437;
-  color: #4fa0f7;
-  letter-spacing: 0.03em;
-  box-shadow: 0 1px 7px rgba(65,130,200,0.09);
-  margin-bottom: 2px;
+  padding: 3px 12px;
+  font-weight: 600;
+  font-size: .95rem;
+  border-radius: 14px;
+  text-transform: uppercase;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+.role-dm    { background: rgba(60,120,255,0.8); color: #fff; }
+.role-lead  { background: rgba(30,200,120,0.8); color: #fff; }
+.role-guest { background: rgba(180,180,200,0.5); color: #e2e8f0; }
+
+/* ==========================================================================
+   Buttons (Generic)
+   ========================================================================== */
+button,
+.login-btn {
+  padding: 12px 20px;
+  font-weight: 600;
+  background: rgba(30,144,255,0.8);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(30,144,255,0.4);
+  transition: box-shadow .3s;
+}
+button:hover,
+.login-btn:hover {
+  box-shadow: 0 6px 18px rgba(30,144,255,0.6);
 }
 
 /* ==========================================================================
-   USERS SECTION -- NEW
+   Clickable Links/Filters
+   ========================================================================== */
+.clickable {
+  color: #5ebaff;
+  cursor: pointer;
+  transition: color .2s;
+}
+.clickable:hover {
+  color: #82caff;
+}
+
+/* ==========================================================================
+   Users Section -- Glassy Cards
    ========================================================================== */
 .users-section .users-container {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px,1fr));
+  gap: 24px;
+}
+.user-card {
+  background: rgba(25,26,32,0.6);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  transition: box-shadow .3s;
+}
+.user-card:hover {
+  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
 }
 .user-card-header {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
 }
 .user-name {
-  font-size: 1.13rem; font-weight: 800; color: #6ec3f5;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
 }
 .user-email {
-  font-size: .99rem; color: #b9bfc7;
+  font-size: .9rem;
+  color: #ccc;
 }
 .user-card-info {
   display: grid;
   grid-template-columns: repeat(2,1fr);
-  gap: 9px 17px;
-  margin-bottom: 18px;
-  color: #ced3de;
+  gap: 8px 16px;
+  margin-bottom: 20px;
+  color: #ddd;
 }
-.user-card-info b { color: #4fa0f7; }
+.user-card-info b {
+  color: #fff;
+}
 .user-card-actions {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 14px;
+  gap: 12px;
   align-items: start;
 }
 .user-card-actions label {
   display: flex;
   flex-direction: column;
-  font-size: 1rem;
-  color: #b6bac7;
+  font-size: .9rem;
+  color: #ddd;
 }
 .user-card-actions select {
   margin-top: 6px;
-  padding: 11px 12px;
-  background: #24283a;
-  border: 1.5px solid rgba(255,255,255,0.09);
-  border-radius: 13px;
-  color: #4fa0f7;
-  font-weight: 700;
+  padding: 8px 12px;
+  background: rgba(30,32,39,0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  color: #e2e8f0;
+  transition: border .3s;
 }
-.user-card-actions select:focus { border-color: #4fa0f7; }
+.user-card-actions select:focus {
+  border-color: rgba(30,144,255,0.8);
+  outline: none;
+}
+.user-card-actions .btn-danger,
+.user-card-actions .btn-danger-outline {
+  padding: 8px 16px;
+  font-size: .9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,80,80,0.8);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(255,80,80,0.4);
+  transition: background .25s, box-shadow .3s;
+}
+.user-card-actions .btn-danger:hover,
+.user-card-actions .btn-danger-outline:hover {
+  background: rgba(255,80,80,1);
+  box-shadow: 0 6px 18px rgba(255,80,80,0.6);
+}
+@media (max-width: 600px) {
+  .user-card-actions { grid-template-columns: 1fr; }
+  .user-card-info { grid-template-columns: 1fr; }
+}
 
 /* ==========================================================================
-   REVIEWS & GUESTS (Simple Modern)
+   Reviews Section -- Glassy Cards
    ========================================================================== */
-.review-header, .guest-card-header {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+.reviews-section h2 {
+  margin-bottom: 16px;
+}
+.review-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.review-controls button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(30,144,255,0.8);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(30,144,255,0.4);
+  transition: box-shadow .25s;
+}
+.review-controls button:hover {
+  box-shadow: 0 6px 18px rgba(30,144,255,0.6);
+}
+.reviews-container {
+  display: grid;
+  gap: 20px;
+}
+.review-card {
+  background: rgba(25,26,32,0.6);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  transition: box-shadow .3s;
+}
+.review-card:hover {
+  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+}
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.review-header .left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .review-star {
-  font-size: 1.3rem;
-  color: #f3d26b;
+  font-size: 1.2rem;
+  color: gold;
   cursor: pointer;
-  transition: color .18s;
+  transition: color .2s;
 }
-.review-star.inactive { color: #5c5f73; }
-.review-header .info, .guest-card .info {
-  font-size: 1.02rem; color: #4fa0f7;
+.review-star.inactive {
+  color: rgba(255,255,255,0.3);
+}
+.review-header .info {
+  font-size: .95rem;
+  color: #ddd;
+}
+.review-header .info b {
+  color: #fff;
+}
+.review-header .btn-danger {
+  padding: 6px 14px;
+  font-size: .9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,80,80,0.8);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(255,80,80,0.4);
+  transition: background .25s, box-shadow .3s;
+}
+.review-header .btn-danger:hover {
+  background: rgba(255,80,80,1);
+  box-shadow: 0 6px 18px rgba(255,80,80,0.6);
+}
+.review-rating {
+  display: inline-block;
+  margin-bottom: 16px;
+  font-size: 1.1rem;
+  color: gold;
 }
 .review-comment {
-  font-size: 1.04rem;
-  line-height: 1.6;
-  color: #f2f3fa;
-  margin-bottom: 11px;
+  font-size: .96rem;
+  line-height: 1.5;
+  color: #e2e8f0;
+  margin-bottom: 16px;
 }
-.review-meta, .guest-meta {
-  display: flex; flex-wrap: wrap; gap: 20px;
-  font-size: .95rem; color: #b6bac7;
+.review-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  font-size: .85rem;
+  color: #aaa;
 }
-.review-meta b, .guest-meta b { color: #4fa0f7; }
+.review-meta b {
+  color: #fff;
+}
+@media (max-width: 600px) {
+  .review-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .review-meta {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
 
 /* ==========================================================================
-   CLICKABLE LINKS
+   Guest Info Cards
    ========================================================================== */
-.clickable {
-  color: #4fa0f7;
-  cursor: pointer;
-  font-weight: 700;
-  transition: color .13s;
+.guest-card {
+  background: rgba(25,26,32,0.6);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  transition: box-shadow .3s;
 }
-.clickable:hover {
-  color: #6ec3f5;
-  text-decoration: underline;
+.guest-card:hover {
+  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
 }
-
-/* ==========================================================================
-   RESPONSIVE -- TRUE MOBILE SUPPORT
-   ========================================================================== */
-@media (max-width: 1100px) {
-  #adminApp { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 700px) {
-  #adminApp { grid-template-columns: 1fr; gap: 20px; }
-  .admin-header { flex-direction: column; align-items: stretch; gap: 10px; padding: 18px 5px 14px 5px; }
-  .admin-section, .user-card, .review-card, .guest-card { padding: 15px 6px 15px 8px; }
-  .user-card-info, .user-card-actions { grid-template-columns: 1fr; }
-  .store-table th, .store-table td { padding: 7px 4px; }
-  .review-meta, .guest-meta { flex-direction: column; gap: 7px; }
-}
+/* You can style .guest-card content similarly to .review-meta */ css overhaul things are overlapping and doesn’t fit mobile well 
