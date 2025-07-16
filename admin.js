@@ -61,7 +61,6 @@ window.trySelfPromote = async function() {
     return;
   }
   try {
-    // Set own role to 'dm'
     await firebase.database().ref('users/' + user.uid + '/role').set('dm');
     document.getElementById('unlockMsg').innerText = 'DM access granted! Reloading...';
     setTimeout(() => window.location.reload(), 1200);
@@ -69,6 +68,13 @@ window.trySelfPromote = async function() {
     document.getElementById('unlockMsg').innerText = 'Upgrade failed: ' + (e.message || e.code);
   }
 };
+
+// --- Helper: Badge for roles ---
+function roleBadge(role) {
+  if (role === "dm") return `<span class="role-badge role-dm">DM</span>`;
+  if (role === "lead") return `<span class="role-badge role-lead">Lead</span>`;
+  return `<span class="role-badge role-guest">Guest</span>`;
+}
 
 // --- Render Admin App ---
 async function renderAdminApp() {
@@ -89,16 +95,19 @@ async function renderAdminApp() {
   }
   for (const storeId in stores) {
     const store = stores[storeId];
-    const tl = store.teamLeadUid && users[store.teamLeadUid] ? users[store.teamLeadUid].name || users[store.teamLeadUid].email : '';
+    const tl = store.teamLeadUid && users[store.teamLeadUid]
+      ? (users[store.teamLeadUid].name || users[store.teamLeadUid].email)
+      : '';
     storesHtml += `<tr>
       <td><input value="${store.storeNumber}" onchange="updateStoreNumber('${storeId}', this.value)" style="width:110px"></td>
       <td>
         <select onchange="assignTL('${storeId}', this.value)">
           <option value="">-- Unassigned --</option>
-          ${Object.entries(users).filter(([uid, u]) => u.role === 'lead').map(([uid, u]) =>
+          ${Object.entries(users).filter(([uid, u]) => u.role === 'lead' || u.role === 'dm').map(([uid, u]) =>
             `<option value="${uid}" ${store.teamLeadUid === uid ? 'selected' : ''}>${u.name || u.email}</option>`
           ).join('')}
         </select>
+        ${tl ? `<span class="role-badge role-lead">${tl}</span>` : `<span class="role-badge role-guest">No TL</span>`}
       </td>
       <td><button onclick="editStorePrompt('${storeId}')">Edit</button></td>
       <td><button onclick="deleteStore('${storeId}')">Delete</button></td>
@@ -110,23 +119,24 @@ async function renderAdminApp() {
 
   // --- User Management Section ---
   let usersHtml = `<table class="user-table"><tr>
-    <th>Name</th><th>Email</th><th>Role</th><th>Store</th><th>Change Role</th><th>Assign Store</th><th>Delete</th></tr>`;
+    <th>Name</th><th>Email</th><th>Role</th><th>Store</th><th>Assign Store</th><th>Delete</th></tr>`;
   if (Object.keys(users).length === 0) {
-    usersHtml += `<tr><td colspan="7"><em>No users found.</em></td></tr>`;
+    usersHtml += `<tr><td colspan="6"><em>No users found.</em></td></tr>`;
   }
   for (const uid in users) {
     const u = users[uid];
     usersHtml += `<tr>
-      <td>${u.name||''}</td>
-      <td>${u.email||''}</td>
+      <td>${u.name || ''}</td>
+      <td>${u.email || ''}</td>
       <td>
+        ${roleBadge(u.role)}
         <select onchange="changeUserRole('${uid}', this.value)">
-          <option value="guest" ${u.role==="guest"?"selected":""}>Guest</option>
-          <option value="lead" ${u.role==="lead"?"selected":""}>Lead</option>
-          <option value="dm" ${u.role==="dm"?"selected":""}>DM</option>
+          <option value="guest" ${u.role === "guest" ? "selected" : ""}>Guest</option>
+          <option value="lead" ${u.role === "lead" ? "selected" : ""}>Lead</option>
+          <option value="dm" ${u.role === "dm" ? "selected" : ""}>DM</option>
         </select>
       </td>
-      <td>${u.store||''}</td>
+      <td>${u.store || '-'}</td>
       <td><button onclick="editUserStore('${uid}')">Assign Store</button></td>
       <td><button onclick="deleteUser('${uid}')">Delete User</button></td>
     </tr>`;
@@ -145,7 +155,10 @@ async function renderAdminApp() {
         <span class="review-star ${r.starred ? '' : 'inactive'}" title="Star/unstar" onclick="toggleStar('${id}', ${!!r.starred})">
           &#9733;
         </span>
-        <div class="review-meta"><b>Store:</b> ${r.store||'-'} | <b>Associate:</b> ${r.associate||'-'}</div>
+        <div class="review-meta">
+          <b>Store:</b> <span class="clickable" onclick="filterReviewsByStore('${r.store||'-'}')">${r.store||'-'}</span>
+           | <b>Associate:</b> <span class="clickable" onclick="filterReviewsByAssociate('${r.associate||'-'}')">${r.associate||'-'}</span>
+        </div>
         <div class="review-rating"><b>Rating:</b> ${'★'.repeat(r.rating||0)}</div>
         <div class="review-comment">${r.comment||''}</div>
         <div class="review-meta"><b>When:</b> ${r.timestamp ? new Date(r.timestamp).toLocaleString() : '-'}</div>
@@ -157,6 +170,16 @@ async function renderAdminApp() {
 
   // --- Render all sections ---
   adminAppDiv.innerHTML = `
+    <style>
+      .role-badge {display:inline-block;padding:3px 8px;border-radius:12px;font-size:0.95em;margin-right:5px;}
+      .role-dm {background:#388fff;color:#fff;}
+      .role-lead {background:#43d77f;color:#fff;}
+      .role-guest {background:#ccd1db;color:#223;}
+      .clickable {color:#388fff;text-decoration:underline;cursor:pointer;}
+      .review-card {border-radius:18px;background:#f7faff;box-shadow:0 2px 8px #b8d1ff26;padding:16px;margin:10px 0;}
+      .review-star {font-size:1.4em;cursor:pointer;}
+      .review-star.inactive {color:#b5b5b5;}
+    </style>
     <div class="admin-section">
       <div class="section-title">Store Management</div>
       ${storesHtml}
@@ -168,10 +191,97 @@ async function renderAdminApp() {
     <div class="admin-section">
       <div class="section-title">All Reviews</div>
       <button onclick="renderAdminApp()" style="float:right;margin-bottom:8px;">Reload</button>
-      ${reviewsHtml}
+      <button onclick="clearReviewFilter()" style="float:right;margin-bottom:8px;margin-right:10px;">Clear Filter</button>
+      <div id="filteredReviews">${reviewsHtml}</div>
     </div>
   `;
+  window._allReviews = reviewEntries; // Save for filtering
+  window._allReviewsHtml = reviewsHtml;
+  window._users = users;
+  window._stores = stores;
 }
+
+// --- Filtering reviews ---
+window.filterReviewsByStore = function(store) {
+  const filtered = (window._allReviews || []).filter(([id, r]) => r.store === store);
+  document.getElementById('filteredReviews').innerHTML = reviewsToHtml(filtered);
+};
+window.filterReviewsByAssociate = function(associate) {
+  const filtered = (window._allReviews || []).filter(([id, r]) => r.associate === associate);
+  document.getElementById('filteredReviews').innerHTML = reviewsToHtml(filtered);
+};
+window.clearReviewFilter = function() {
+  document.getElementById('filteredReviews').innerHTML = window._allReviewsHtml;
+};
+function reviewsToHtml(entries) {
+  if (!entries.length) return `<div style="padding:18px;"><em>No reviews found for this filter.</em></div>`;
+  let html = '';
+  for (const [id, r] of entries) {
+    html += `
+      <div class="review-card">
+        <span class="review-star ${r.starred ? '' : 'inactive'}" title="Star/unstar" onclick="toggleStar('${id}', ${!!r.starred})">
+          &#9733;
+        </span>
+        <div class="review-meta">
+          <b>Store:</b> <span class="clickable" onclick="filterReviewsByStore('${r.store||'-'}')">${r.store||'-'}</span>
+           | <b>Associate:</b> <span class="clickable" onclick="filterReviewsByAssociate('${r.associate||'-'}')">${r.associate||'-'}</span>
+        </div>
+        <div class="review-rating"><b>Rating:</b> ${'★'.repeat(r.rating||0)}</div>
+        <div class="review-comment">${r.comment||''}</div>
+        <div class="review-meta"><b>When:</b> ${r.timestamp ? new Date(r.timestamp).toLocaleString() : '-'}</div>
+        <div class="review-meta"><b>Referral:</b> ${r.refName?`${r.refName} / ${r.refPhone}`:'-'}</div>
+        <button onclick="deleteReview('${id}')" style="margin-top:8px;font-size:0.96em;">Delete Review</button>
+      </div>`;
+  }
+  return html;
+}
+
+// --- Interconnected Store/TL assignment ---
+window.assignTL = async function(storeId, uid) {
+  // Remove this TL from any previous stores
+  const storesSnap = await db.ref('stores').get();
+  const stores = storesSnap.val() || {};
+  for (const sId in stores) {
+    if (stores[sId].teamLeadUid === uid && sId !== storeId) {
+      await db.ref('stores/' + sId + '/teamLeadUid').set('');
+    }
+  }
+  // Set new TL for this store
+  await db.ref('stores/' + storeId + '/teamLeadUid').set(uid);
+  // Update user's assigned store and role
+  if (uid) {
+    const storeNum = (await db.ref('stores/' + storeId + '/storeNumber').get()).val();
+    await db.ref('users/' + uid + '/store').set(storeNum);
+    await db.ref('users/' + uid + '/role').set('lead');
+  }
+  renderAdminApp();
+};
+
+// --- Assign Store to User (reverse assign, and sync store table) ---
+window.editUserStore = async function(uid) {
+  const storeNum = prompt("Enter store number for this user:");
+  if (!storeNum) return;
+  // Find the storeId with this store number
+  const storesSnap = await db.ref('stores').get();
+  const stores = storesSnap.val() || {};
+  let matchedStoreId = null;
+  for (const sId in stores) {
+    if (stores[sId].storeNumber == storeNum) matchedStoreId = sId;
+  }
+  if (matchedStoreId) {
+    await db.ref('stores/' + matchedStoreId + '/teamLeadUid').set(uid);
+    await db.ref('users/' + uid + '/store').set(storeNum);
+    await db.ref('users/' + uid + '/role').set('lead');
+  } else {
+    // Optionally create new store
+    if (confirm("Store not found. Create it?")) {
+      const newRef = await db.ref('stores').push({ storeNumber: storeNum, teamLeadUid: uid });
+      await db.ref('users/' + uid + '/store').set(storeNum);
+      await db.ref('users/' + uid + '/role').set('lead');
+    }
+  }
+  renderAdminApp();
+};
 
 // ---- Admin Actions (global so HTML can call) ----
 window.addStore = async function() {
@@ -182,14 +292,6 @@ window.addStore = async function() {
 };
 window.updateStoreNumber = async function(storeId, val) {
   await db.ref('stores/'+storeId+'/storeNumber').set(val);
-  renderAdminApp();
-};
-window.assignTL = async function(storeId, uid) {
-  await db.ref('stores/'+storeId+'/teamLeadUid').set(uid);
-  if (uid) {
-    const storeNum = (await db.ref('stores/'+storeId+'/storeNumber').get()).val();
-    await db.ref('users/'+uid+'/store').set(storeNum);
-  }
   renderAdminApp();
 };
 window.editStorePrompt = async function(storeId) {
@@ -208,11 +310,6 @@ window.deleteStore = async function(storeId) {
 };
 window.changeUserRole = async function(uid, role) {
   await db.ref('users/'+uid+'/role').set(role);
-  renderAdminApp();
-};
-window.editUserStore = async function(uid) {
-  const store = prompt("Enter store number for this user:");
-  if (store) await db.ref('users/'+uid+'/store').set(store);
   renderAdminApp();
 };
 window.deleteUser = async function(uid) {
