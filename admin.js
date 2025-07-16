@@ -79,12 +79,17 @@ function roleBadge(role) {
 async function renderAdminApp() {
   adminAppDiv.innerHTML = "<div>Loading data...</div>";
 
-  let [storesSnap, usersSnap, reviewsSnap] = await Promise.all([
-    db.ref('stores').get(), db.ref('users').get(), db.ref('reviews').get()
+  // Load all needed data
+  let [storesSnap, usersSnap, reviewsSnap, guestinfoSnap] = await Promise.all([
+    db.ref('stores').get(), 
+    db.ref('users').get(), 
+    db.ref('reviews').get(),
+    db.ref('guestinfo').get()
   ]);
   let stores = storesSnap.val() || {};
   let users = usersSnap.val() || {};
   let reviews = reviewsSnap.val() || {};
+  let guestinfo = guestinfoSnap.val() || {};
 
   // --- Store Management Section ---
   let storesHtml = `<table class="store-table"><tr>
@@ -188,6 +193,45 @@ async function renderAdminApp() {
   }
   reviewsHtml += `</div>`;
 
+  // --- Guest Info Section (all for users/TLs under this DM) ---
+  let guestInfoHtml = `<div class="guestinfo-cards"><h3>All Guest Info Submissions</h3>`;
+  const currentDmUid = auth.currentUser.uid;
+  const allUserUidsUnderDM = Object.keys(users).filter(
+    uid => users[uid].assignedDM === currentDmUid || uid === currentDmUid
+  );
+  const filteredGuestInfo = Object.entries(guestinfo).filter(([gid, g]) => g.userUid && allUserUidsUnderDM.includes(g.userUid));
+  if (filteredGuestInfo.length === 0) {
+    guestInfoHtml += `<div style="padding:18px;"><em>No guest info submitted yet.</em></div>`;
+  } else {
+    guestInfoHtml += `
+      <table border="0" cellpadding="7" class="guestinfo-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Customer Name</th>
+            <th>Customer Phone</th>
+            <th>Service Type</th>
+            <th>Situation</th>
+            <th>When</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filteredGuestInfo.map(([gid, g]) => `
+            <tr>
+              <td>${users[g.userUid]?.email || g.userUid}</td>
+              <td>${g.custName || ''}</td>
+              <td>${g.custPhone || ''}</td>
+              <td>${g.serviceType || ''}</td>
+              <td>${g.situation || ''}</td>
+              <td>${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : ''}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+  guestInfoHtml += `</div>`;
+
   // --- Render all sections ---
   adminAppDiv.innerHTML = `
     <style>
@@ -199,6 +243,8 @@ async function renderAdminApp() {
       .review-card {border-radius:18px;background:#f7faff;box-shadow:0 2px 8px #b8d1ff26;padding:16px;margin:10px 0;}
       .review-star {font-size:1.4em;cursor:pointer;}
       .review-star.inactive {color:#b5b5b5;}
+      .guestinfo-cards {margin-top:36px;}
+      .guestinfo-table {margin-top:8px;}
     </style>
     <div class="admin-section">
       <div class="section-title">Store Management</div>
@@ -213,6 +259,10 @@ async function renderAdminApp() {
       <button onclick="renderAdminApp()" style="float:right;margin-bottom:8px;">Reload</button>
       <button onclick="clearReviewFilter()" style="float:right;margin-bottom:8px;margin-right:10px;">Clear Filter</button>
       <div id="filteredReviews">${reviewsHtml}</div>
+    </div>
+    <div class="admin-section">
+      <div class="section-title">All Guest Info</div>
+      ${guestInfoHtml}
     </div>
   `;
   window._allReviews = reviewEntries; // Save for filtering
