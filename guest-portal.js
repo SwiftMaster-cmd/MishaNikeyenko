@@ -1,3 +1,5 @@
+// guest-portal.js
+
 // Initialize Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -14,32 +16,45 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 const gStatus = document.getElementById('gStatus');
+const form = document.getElementById('guestInfoForm');
 
-// Redirect based on auth/role
+// Redirect based on explicit role
 auth.onAuthStateChanged(async user => {
   if (!user) {
-    return void (window.location.href = "login.html");
+    // not signed in → go to login
+    window.location.href = "login.html";
+    return;
   }
-  const snap = await db.ref(`users/${user.uid}`).get();
-  const profile = snap.val();
-  // only true guests stay here
-  if (!profile || profile.role === 'dm' || profile.role === 'lead') {
-    window.location.href = "dashboard.html";
+
+  try {
+    const snap = await db.ref(`users/${user.uid}`).get();
+    const profile = snap.val() || {};
+    // only send DMs/Leads to dashboard
+    if (profile.role === 'dm' || profile.role === 'lead') {
+      window.location.href = "dashboard.html";
+    }
+    // otherwise stay on guest portal
+  } catch (err) {
+    console.error("Role check error:", err);
+    // allow guest to continue even if we can't fetch profile
   }
 });
 
 // Handle form submission
-document.getElementById('guestInfoForm').addEventListener('submit', async e => {
+form.addEventListener('submit', async e => {
   e.preventDefault();
-  gStatus.textContent = '';
+  gStatus.textContent = "";
+  gStatus.className = "";
+
   const custName    = document.getElementById('custName').value.trim();
   const custPhone   = document.getElementById('custPhone').value.trim();
   const serviceType = document.getElementById('serviceType').value;
   const situation   = document.getElementById('situation').value.trim();
 
   if (!custName || !custPhone || !serviceType) {
-    gStatus.style.color = "#b00";
-    return void (gStatus.textContent = 'Please fill all required fields.');
+    gStatus.classList.add("error");
+    gStatus.textContent = "Please fill all required fields.";
+    return;
   }
 
   try {
@@ -51,9 +66,11 @@ document.getElementById('guestInfoForm').addEventListener('submit', async e => {
       submittedAt: Date.now(),
       userUid: auth.currentUser.uid
     });
-    gStatus.style.color = "#2c7a13";
-    gStatus.textContent = 'Info submitted! You may now assist your customer.';
-    e.target.reset();
+    gStatus.classList.add("success");
+    gStatus.textContent = "Info submitted! You may now assist your customer.";
+    form.reset();
   } catch (err) {
-    gStatus.style.color = "#b00";
-   
+    gStatus.classList.add("error");
+    gStatus.textContent = "Error: " + err.message;
+  }
+});
