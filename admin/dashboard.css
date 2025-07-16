@@ -1,18 +1,38 @@
 /* ==========================================================================
-   Reset & Dark Base
-   ========================================================================== */
-* {
+   Theme Variables & Reset
+   ==========================================================================
+   (Don’t forget in your HTML <head> to add:
+   <meta name="viewport" content="width=device-width, initial-scale=1">)
+*/
+:root {
+  --font-sans: 'Segoe UI','SF Pro',Arial,sans-serif;
+  --bg-dark: #14151a;
+  --bg-light: #1e2027;
+  --text-light: #e2e8f0;
+  --glass-bg: rgba(25,26,32,0.6);
+  --glass-border: rgba(255,255,255,0.08);
+  --accent: rgba(30,144,255,0.8);
+  --accent-shadow: rgba(30,144,255,0.4);
+  --danger: rgba(255,80,80,0.8);
+  --radius: 12px;
+  --gap: 24px;
+  --shadow-base: 0 8px 24px rgba(0,0,0,0.6);
+  --shadow-hover: 0 12px 30px rgba(0,0,0,0.8);
+  --h2-size: clamp(1.2rem, 4vw, 1.75rem);
+}
+
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
-html, body {
-  height: 100%;
-}
+html, body { height: 100%; }
 body {
-  font-family: 'Segoe UI', 'SF Pro', Arial, sans-serif;
-  background: linear-gradient(135deg, #14151a 0%, #1e2027 100%);
-  color: #e2e8f0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  background: linear-gradient(135deg, var(--bg-dark), var(--bg-light));
+  color: var(--text-light);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   padding-bottom: 80px;
@@ -20,34 +40,37 @@ body {
 
 /* ==========================================================================
    Glassy Header
-   ========================================================================== */
+   ==========================================================================
+*/
 .admin-header {
   position: sticky;
   top: 0;
   z-index: 100;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   padding: 20px 36px;
-  background: rgba(30, 32, 39, 0.6);
+  background: rgba(30,32,39,0.6);
   backdrop-filter: saturate(180%) blur(12px);
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 .admin-header h2 {
-  font-size: 1.75rem;
+  flex: 1 1 auto;
+  font-size: var(--h2-size);
   font-weight: 700;
   color: #fff;
 }
 .admin-header button {
   padding: 10px 22px;
   border: none;
-  border-radius: 12px;
-  background: rgba(30,144,255,0.8);
+  border-radius: var(--radius);
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
   cursor: pointer;
   backdrop-filter: blur(6px);
-  box-shadow: 0 4px 16px rgba(30,144,255,0.4);
+  box-shadow: 0 4px 16px var(--accent-shadow);
   transition: box-shadow .25s;
 }
 .admin-header button:hover {
@@ -55,34 +78,37 @@ body {
 }
 
 /* ==========================================================================
-   Main Container
-   ========================================================================== */
+   Main Container: fluid grid
+   ==========================================================================
+*/
 #adminApp {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px,1fr));
+  gap: var(--gap);
   max-width: 1200px;
   margin: 40px auto;
   padding: 0 16px;
-  display: grid;
-  gap: 24px;
 }
 
 /* ==========================================================================
-   Generic Glassy Section
-   ========================================================================== */
+   Reusable Glassy Section
+   ==========================================================================
+*/
 .admin-section {
-  background: rgba(25,26,32,0.6);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
   padding: 30px;
   backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  box-shadow: var(--shadow-base);
   transition: box-shadow .3s;
 }
 .admin-section:hover {
-  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+  box-shadow: var(--shadow-hover);
 }
 .admin-section h2,
 .section-title {
-  font-size: 1.4rem;
+  font-size: var(--h2-size);
   font-weight: 700;
   color: #fff;
   margin-bottom: 16px;
@@ -90,14 +116,15 @@ body {
 
 /* ==========================================================================
    Logout Button
-   ========================================================================== */
+   ==========================================================================
+*/
 #logoutBtn {
   background: rgba(255,255,255,0.1);
   color: #fff;
   border: 1px solid rgba(255,255,255,0.3);
   padding: 8px 16px;
   font-size: .9rem;
-  border-radius: 12px;
+  border-radius: var(--radius);
   cursor: pointer;
   backdrop-filter: blur(8px);
   box-shadow: 0 4px 14px rgba(0,0,0,0.6);
@@ -109,19 +136,31 @@ body {
 }
 
 /* ==========================================================================
+   Table Wrapper for horizontal scrolling
+   ==========================================================================
+*/
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ==========================================================================
    Stores Section
-   ========================================================================== */
+   ==========================================================================
+*/
 .stores-section { margin-bottom: 32px; }
 .store-table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 16px;
+  min-width: 600px;
 }
 .store-table th,
 .store-table td {
   padding: 12px;
   color: #ddd;
   border-bottom: 1px solid rgba(255,255,255,0.1);
+  white-space: nowrap;
 }
 .store-table th {
   font-weight: 600;
@@ -131,16 +170,16 @@ body {
 .store-table select {
   width: 100%;
   padding: 8px 12px;
-  background: rgba(30,32,39,0.6);
+  background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  color: #e2e8f0;
+  border-radius: var(--radius);
+  color: var(--text-light);
   backdrop-filter: blur(8px);
   transition: border .3s;
 }
 .store-table input:focus,
 .store-table select:focus {
-  border-color: rgba(30,144,255,0.8);
+  border-color: var(--accent);
   outline: none;
 }
 .store-add {
@@ -148,51 +187,48 @@ body {
   gap: 12px;
   align-items: flex-start;
 }
-.store-add input {
-  flex: 1;
-}
+.store-add input { flex: 1; }
 .store-add button {
   padding: 10px 20px;
   font-weight: 600;
-  background: rgba(30,144,255,0.8);
+  background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius);
   cursor: pointer;
   backdrop-filter: blur(6px);
-  box-shadow: 0 4px 14px rgba(30,144,255,0.4);
+  box-shadow: 0 4px 14px var(--accent-shadow);
   transition: box-shadow .3s;
 }
 .store-add button:hover {
   box-shadow: 0 6px 18px rgba(30,144,255,0.6);
 }
-@media (max-width: 600px) {
-  .store-add { flex-direction: column; }
-}
 
 /* ==========================================================================
-   Inputs & Selects (Fallback)
-   ========================================================================== */
+   Inputs & Selects (Fallback styling)
+   ==========================================================================
+*/
 input,
 select {
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid rgba(255,255,255,0.1);
   padding: 8px 12px;
   font-size: .98rem;
-  background: rgba(30,32,39,0.6);
-  color: #e2e8f0;
+  background: var(--glass-bg);
+  color: var(--text-light);
   backdrop-filter: blur(8px);
   transition: border .3s;
 }
 input:focus,
 select:focus {
-  border-color: rgba(30,144,255,0.8);
+  border-color: var(--accent);
   outline: none;
 }
 
 /* ==========================================================================
    Role Badges
-   ========================================================================== */
+   ==========================================================================
+*/
 .role-badge {
   display: inline-block;
   padding: 3px 12px;
@@ -204,22 +240,23 @@ select:focus {
 }
 .role-dm    { background: rgba(60,120,255,0.8); color: #fff; }
 .role-lead  { background: rgba(30,200,120,0.8); color: #fff; }
-.role-guest { background: rgba(180,180,200,0.5); color: #e2e8f0; }
+.role-guest { background: rgba(180,180,200,0.5); color: var(--text-light); }
 
 /* ==========================================================================
-   Buttons (Generic)
-   ========================================================================== */
+   Generic Buttons
+   ==========================================================================
+*/
 button,
 .login-btn {
   padding: 12px 20px;
   font-weight: 600;
-  background: rgba(30,144,255,0.8);
+  background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius);
   cursor: pointer;
   backdrop-filter: blur(6px);
-  box-shadow: 0 4px 14px rgba(30,144,255,0.4);
+  box-shadow: 0 4px 14px var(--accent-shadow);
   transition: box-shadow .3s;
 }
 button:hover,
@@ -228,8 +265,9 @@ button:hover,
 }
 
 /* ==========================================================================
-   Clickable Links/Filters
-   ========================================================================== */
+   Clickable Links / Filters
+   ==========================================================================
+*/
 .clickable {
   color: #5ebaff;
   cursor: pointer;
@@ -241,23 +279,24 @@ button:hover,
 
 /* ==========================================================================
    Users Section -- Glassy Cards
-   ========================================================================== */
+   ==========================================================================
+*/
 .users-section .users-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px,1fr));
-  gap: 24px;
+  gap: var(--gap);
 }
 .user-card {
-  background: rgba(25,26,32,0.6);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 24px;
   backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  box-shadow: var(--shadow-base);
   transition: box-shadow .3s;
 }
 .user-card:hover {
-  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+  box-shadow: var(--shadow-hover);
 }
 .user-card-header {
   display: flex;
@@ -299,15 +338,15 @@ button:hover,
 .user-card-actions select {
   margin-top: 6px;
   padding: 8px 12px;
-  background: rgba(30,32,39,0.6);
+  background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
+  border-radius: var(--radius);
   backdrop-filter: blur(8px);
-  color: #e2e8f0;
+  color: var(--text-light);
   transition: border .3s;
 }
 .user-card-actions select:focus {
-  border-color: rgba(30,144,255,0.8);
+  border-color: var(--accent);
   outline: none;
 }
 .user-card-actions .btn-danger,
@@ -315,10 +354,10 @@ button:hover,
   padding: 8px 16px;
   font-size: .9rem;
   font-weight: 600;
+  background: var(--danger);
+  color: #fff;
   border: none;
   border-radius: 8px;
-  background: rgba(255,80,80,0.8);
-  color: #fff;
   cursor: pointer;
   backdrop-filter: blur(6px);
   box-shadow: 0 4px 14px rgba(255,80,80,0.4);
@@ -329,52 +368,35 @@ button:hover,
   background: rgba(255,80,80,1);
   box-shadow: 0 6px 18px rgba(255,80,80,0.6);
 }
-@media (max-width: 600px) {
-  .user-card-actions { grid-template-columns: 1fr; }
-  .user-card-info { grid-template-columns: 1fr; }
-}
 
 /* ==========================================================================
    Reviews Section -- Glassy Cards
-   ========================================================================== */
-.reviews-section h2 {
-  margin-bottom: 16px;
-}
+   ==========================================================================
+*/
+.reviews-section h2 { margin-bottom: 16px; }
 .review-controls {
   display: flex;
   gap: 12px;
   margin-bottom: 20px;
-}
-.review-controls button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 12px;
-  background: rgba(30,144,255,0.8);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 4px 14px rgba(30,144,255,0.4);
-  transition: box-shadow .25s;
 }
 .review-controls button:hover {
   box-shadow: 0 6px 18px rgba(30,144,255,0.6);
 }
 .reviews-container {
   display: grid;
-  gap: 20px;
+  gap: var(--gap);
 }
 .review-card {
-  background: rgba(25,26,32,0.6);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 24px;
   backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  box-shadow: var(--shadow-base);
   transition: box-shadow .3s;
 }
 .review-card:hover {
-  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+  box-shadow: var(--shadow-hover);
 }
 .review-header {
   display: flex;
@@ -400,17 +422,15 @@ button:hover,
   font-size: .95rem;
   color: #ddd;
 }
-.review-header .info b {
-  color: #fff;
-}
+.review-header .info b { color: #fff; }
 .review-header .btn-danger {
   padding: 6px 14px;
   font-size: .9rem;
   font-weight: 600;
+  background: var(--danger);
+  color: #fff;
   border: none;
   border-radius: 8px;
-  background: rgba(255,80,80,0.8);
-  color: #fff;
   cursor: pointer;
   backdrop-filter: blur(6px);
   box-shadow: 0 4px 14px rgba(255,80,80,0.4);
@@ -429,7 +449,7 @@ button:hover,
 .review-comment {
   font-size: .96rem;
   line-height: 1.5;
-  color: #e2e8f0;
+  color: var(--text-light);
   margin-bottom: 16px;
 }
 .review-meta {
@@ -439,34 +459,41 @@ button:hover,
   font-size: .85rem;
   color: #aaa;
 }
-.review-meta b {
-  color: #fff;
-}
-@media (max-width: 600px) {
-  .review-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .review-meta {
-    flex-direction: column;
-    gap: 8px;
-  }
-}
+.review-meta b { color: #fff; }
 
 /* ==========================================================================
    Guest Info Cards
-   ========================================================================== */
+   ==========================================================================
+*/
 .guest-card {
-  background: rgba(25,26,32,0.6);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 24px;
   backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  box-shadow: var(--shadow-base);
   transition: box-shadow .3s;
 }
 .guest-card:hover {
-  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+  box-shadow: var(--shadow-hover);
 }
-/* You can style .guest-card content similarly to .review-meta */
+
+/* ==========================================================================
+   Mobile Responsive Overrides
+   ==========================================================================
+*/
+@media (max-width: 768px) {
+  #adminApp { display: block; padding: 0 12px; }
+  .admin-section { padding: 20px; }
+  .admin-header h2,
+  .admin-header button { flex: 1 1 100%; }
+  .users-section .users-container,
+  .reviews-container { display: block; }
+  .user-card-info,
+  .user-card-actions { grid-template-columns: 1fr; }
+  .store-table th,
+  .store-table td { padding: 8px; white-space: nowrap; }
+}
+@media (max-width: 600px) {
+  .store-add { flex-direction: column; }
+}
