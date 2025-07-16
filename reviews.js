@@ -152,4 +152,4 @@ auth.onAuthStateChanged(user => {
     document.getElementById('reviewTable').innerHTML = 'No store assigned to your account.';
     document.getElementById('guestInfoTable').innerHTML = '';
   });
-});
+}); 
