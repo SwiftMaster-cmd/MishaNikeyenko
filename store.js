@@ -1,5 +1,5 @@
 // store.js
-const db = firebase.database();  // Use the already initialized firebase app
+
 
 window.addStore = async function() {
   const num = document.getElementById('newStoreNum').value.trim();

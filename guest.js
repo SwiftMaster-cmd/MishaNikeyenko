@@ -1,6 +1,4 @@
-// guest.js
-const db = firebase.database();
-const auth = firebase.auth();
+
 
 async function fetchGuestInfo(currentUser, users) {
   try {
