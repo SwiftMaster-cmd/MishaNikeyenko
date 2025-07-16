@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Customer Info – OSL Guest Portal</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {
+      background: linear-gradient(120deg, #eef2fb 0%, #d1d9e6 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'SF Pro', 'Segoe UI', 'Roboto', Arial, sans-serif;
+    }
+    .guest-box {
+      background: rgba(255,255,255,0.98);
+      padding: 36px 24px 28px 24px;
+      border-radius: 18px;
+      box-shadow: 0 6px 24px #a0b2d855;
+      max-width: 400px;
+      width: 96vw;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+    .guest-title {
+      font-size: 1.34em;
+      font-weight: bold;
+      color: #224;
+      margin-bottom: 3px;
+      text-align: center;
+    }
+    .gfield {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #c3cbe4;
+      margin-top: 5px;
+      margin-bottom: 2px;
+      font-size: 1.08em;
+      background: #f6f9fe;
+      box-sizing: border-box;
+    }
+    .glabel {
+      font-size: 1.01em;
+      color: #245;
+      margin-top: 8px;
+      font-weight: 500;
+      display: block;
+    }
+    .guest-btn {
+      background: linear-gradient(90deg, #388fff 30%, #8eafff 100%);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: bold;
+      font-size: 1.07em;
+      padding: 13px;
+      cursor: pointer;
+      margin-top: 18px;
+      transition: background .15s;
+      box-shadow: 0 2px 7px rgba(30,44,70,0.10);
+      width: 100%;
+    }
+    .guest-btn:active {
+      background: linear-gradient(90deg, #2770d2 40%, #7396e8 100%);
+    }
+    .g-status {
+      color: #357;
+      font-size: 1.03em;
+      margin-top: 8px;
+      min-height: 20px;
+      text-align: center;
+    }
+    @media (max-width: 600px) {
+      .guest-box { padding: 14vw 2vw; }
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head>
+<body>
+  <div class="guest-box">
+    <div class="guest-title">Enter Customer Info</div>
+    <form id="guestInfoForm" autocomplete="off">
+      <label class="glabel">Customer Name
+        <input class="gfield" type="text" id="custName" placeholder="Full name" required>
+      </label>
+      <label class="glabel">Customer Phone
+        <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" required>
+      </label>
+      <label class="glabel">Service Type
+        <select class="gfield" id="serviceType" required>
+          <option value="">Select...</option>
+          <option>Verizon</option>
+          <option>AT&T</option>
+          <option>T-Mobile</option>
+          <option>Prepaid</option>
+          <option>Accessories</option>
+          <option>Other</option>
+        </select>
+      </label>
+      <label class="glabel">Notes / Situation
+        <textarea class="gfield" id="situation" placeholder="Short notes, needs, situation" rows="2"></textarea>
+      </label>
+      <button class="guest-btn" type="submit">Submit Info</button>
+      <div class="g-status" id="gStatus"></div>
+    </form>
+  </div>
+  <script>
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+      authDomain: "osls-644fd.firebaseapp.com",
+      databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
+      projectId: "osls-644fd",
+      storageBucket: "osls-644fd.appspot.com",
+      messagingSenderId: "798578046321",
+      appId: "1:798578046321:web:8758776701786a2fccf2d0",
+      measurementId: "G-9HWXNSBE1T"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    // Only allow signed-in guests
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        window.location.href = "login.html";
+        return;
+      }
+      const snap = await db.ref('users/' + user.uid).get();
+      const profile = snap.val();
+      if (!profile || profile.role === 'dm' || profile.role === 'lead') {
+        window.location.href = "dashboard.html";
+      }
+    });
+
+    document.getElementById('guestInfoForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const gStatus = document.getElementById('gStatus');
+      gStatus.textContent = '';
+      const custName = document.getElementById('custName').value.trim();
+      const custPhone = document.getElementById('custPhone').value.trim();
+      const serviceType = document.getElementById('serviceType').value;
+      const situation = document.getElementById('situation').value.trim();
+      if (!custName || !custPhone || !serviceType) {
+        gStatus.textContent = 'Please fill all required fields.';
+        return;
+      }
+      try {
+        await db.ref('guestinfo').push({
+          custName, custPhone, serviceType, situation,
+          submittedAt: Date.now(),
+          userUid: (auth.currentUser ? auth.currentUser.uid : null)
+        });
+        gStatus.style.color = "#2c7a13";
+        gStatus.textContent = 'Info submitted! You may now assist your customer.';
+        document.getElementById('guestInfoForm').reset();
+      } catch (err) {
+        gStatus.style.color = "#b00";
+        gStatus.textContent = 'Error: ' + err.message;
+      }
+    };
+  </script>
+</body>
+</html>

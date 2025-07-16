@@ -153,8 +153,10 @@
         const profile = snap.val();
         if (profile && profile.role === 'dm') {
           window.location.href = "admin.html";
-        } else {
+        } else if (profile && profile.role === 'lead') {
           window.location.href = "dashboard.html";
+        } else {
+          window.location.href = "guestinfo.html";
         }
       }, 800);
     };
@@ -189,8 +191,10 @@
         const profile = snap.val();
         if (profile && profile.role === 'dm') {
           window.location.href = "admin.html";
-        } else {
+        } else if (profile && profile.role === 'lead') {
           window.location.href = "dashboard.html";
+        } else {
+          window.location.href = "guestinfo.html";
         }
       }
     });
