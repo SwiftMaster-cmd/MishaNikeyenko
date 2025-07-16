@@ -1,81 +1,94 @@
-// store.js
-import { db } from './firebaseConfig.js';
+const db = firebase.database();
 
-export async function getAllStores() {
-  const snapshot = await db.ref('stores').get();
-  return snapshot.val() || {};
+// Fetch all stores
+export async function fetchStores() {
+  try {
+    const storesSnap = await db.ref('stores').get();
+    return storesSnap.val() || {};
+  } catch (error) {
+    console.error("Error fetching stores:", error);
+    throw error;
+  }
 }
 
+// Assign team lead to store and update user accordingly
 export async function assignTL(storeId, uid) {
-  const storesSnap = await db.ref('stores').get();
-  const stores = storesSnap.val() || {};
-
-  for (const sId in stores) {
-    if (stores[sId].teamLeadUid === uid && sId !== storeId) {
-      await db.ref('stores/' + sId + '/teamLeadUid').set('');
+  try {
+    const storesSnap = await db.ref('stores').get();
+    const stores = storesSnap.val() || {};
+    for (const sId in stores) {
+      if (stores[sId].teamLeadUid === uid && sId !== storeId) {
+        await db.ref(`stores/${sId}/teamLeadUid`).set('');
+      }
     }
-  }
-  await db.ref('stores/' + storeId + '/teamLeadUid').set(uid);
-  if (uid) {
-    const storeNum = (await db.ref('stores/' + storeId + '/storeNumber').get()).val();
-    await db.ref('users/' + uid + '/store').set(storeNum);
-    await db.ref('users/' + uid + '/role').set('lead');
+    await db.ref(`stores/${storeId}/teamLeadUid`).set(uid);
+    if (uid) {
+      const storeNumSnap = await db.ref(`stores/${storeId}/storeNumber`).get();
+      const storeNum = storeNumSnap.val();
+      await db.ref(`users/${uid}/store`).set(storeNum);
+      await db.ref(`users/${uid}/role`).set('lead');
+    }
+  } catch (error) {
+    console.error(`Error assigning TL ${uid} to store ${storeId}:`, error);
+    throw error;
   }
 }
 
-export async function addStore(storeNumber) {
-  await db.ref('stores').push({ storeNumber, teamLeadUid: "" });
-}
-
+// Update store number
 export async function updateStoreNumber(storeId, val) {
-  await db.ref('stores/' + storeId + '/storeNumber').set(val);
+  try {
+    await db.ref(`stores/${storeId}/storeNumber`).set(val);
+  } catch (error) {
+    console.error(`Error updating store number for store ${storeId}:`, error);
+    throw error;
+  }
 }
 
+// Delete store
 export async function deleteStore(storeId) {
-  await db.ref('stores/' + storeId).remove();
-}
-
-export async function editStorePrompt(storeId) {
-  const store = await db.ref('stores/' + storeId).get();
-  const oldNum = store.val()?.storeNumber || '';
-  const newNum = prompt("Edit store number:", oldNum);
-  if (newNum && newNum !== oldNum) {
-    await updateStoreNumber(storeId, newNum);
+  try {
+    await db.ref(`stores/${storeId}`).remove();
+  } catch (error) {
+    console.error(`Error deleting store ${storeId}:`, error);
+    throw error;
   }
 }
 
-export function renderStores(stores, users) {
-  let storesHtml = `<table class="store-table"><tr>
-    <th>Store #</th><th>Assigned TL</th><th>Edit</th><th>Delete</th></tr>`;
-
-  if (!Object.keys(stores).length) {
-    storesHtml += `<tr><td colspan="4"><em>No stores added yet.</em></td></tr>`;
+// Add new store
+export async function addStore(storeNum) {
+  try {
+    if (!storeNum) throw new Error("Store number required");
+    await db.ref('stores').push({ storeNumber: storeNum, teamLeadUid: "" });
+  } catch (error) {
+    console.error("Error adding store:", error);
+    throw error;
   }
+}
 
-  for (const storeId in stores) {
-    const store = stores[storeId];
-    const tl = store.teamLeadUid && users[store.teamLeadUid]
-      ? (users[store.teamLeadUid].name || users[store.teamLeadUid].email)
-      : '';
-    storesHtml += `<tr>
-      <td><input value="${store.storeNumber}" onchange="window.updateStoreNumber('${storeId}', this.value)" style="width:110px"></td>
-      <td>
-        <select onchange="window.assignTL('${storeId}', this.value)">
-          <option value="">-- Unassigned --</option>
-          ${Object.entries(users).filter(([uid, u]) => u.role === 'lead' || u.role === 'dm').map(([uid, u]) =>
-            `<option value="${uid}" ${store.teamLeadUid === uid ? 'selected' : ''}>${u.name || u.email}</option>`
-          ).join('')}
-        </select>
-        ${tl ? `<span class="role-badge role-lead">${tl}</span>` : `<span class="role-badge role-guest">No TL</span>`}
-      </td>
-      <td><button onclick="window.editStorePrompt('${storeId}')">Edit</button></td>
-      <td><button onclick="window.deleteStore('${storeId}')">Delete</button></td>
-    </tr>`;
+// Edit user's assigned store and update role
+export async function editUserStore(uid, storeNum) {
+  try {
+    if (!storeNum) return;
+    const storesSnap = await db.ref('stores').get();
+    const stores = storesSnap.val() || {};
+    let matchedStoreId = null;
+    for (const sId in stores) {
+      if (stores[sId].storeNumber == storeNum) matchedStoreId = sId;
+    }
+    if (matchedStoreId) {
+      await db.ref(`stores/${matchedStoreId}/teamLeadUid`).set(uid);
+      await db.ref(`users/${uid}/store`).set(storeNum);
+      await db.ref(`users/${uid}/role`).set('lead');
+    } else {
+      const confirmCreate = confirm("Store not found. Create it?");
+      if (confirmCreate) {
+        await db.ref('stores').push({ storeNumber: storeNum, teamLeadUid: uid });
+        await db.ref(`users/${uid}/store`).set(storeNum);
+        await db.ref(`users/${uid}/role`).set('lead');
+      }
+    }
+  } catch (error) {
+    console.error(`Error editing store assignment for user ${uid}:`, error);
+    throw error;
   }
-  storesHtml += `</table>`;
-  storesHtml += `
-    <input id="newStoreNum" placeholder="New Store #" style="width:120px;">
-    <button onclick="window.addStore(document.getElementById('newStoreNum').value.trim())">Add Store</button>
-  `;
-  return storesHtml;
 }
