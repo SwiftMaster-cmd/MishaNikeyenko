@@ -18,7 +18,7 @@
   /* --------------------------------------------------------------
      Config: path to detailed guest workflow page
      -------------------------------------------------------------- */
-  window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guestinfo.html";
+  window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../html/guestinfo.html";
 
   /* --------------------------------------------------------------
      Local realtime caches (kept in sync)
