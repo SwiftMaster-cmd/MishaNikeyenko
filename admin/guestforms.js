@@ -1,23 +1,37 @@
 // ==============================
-// Guest Info Management Module
+// Guest Form Submission Handler
 // ==============================
 
-async function renderGuestInfoSection(guestinfo, users) {
-  const guestEntries = Object.entries(guestinfo).sort((a, b) => (b[1].submittedAt || 0) - (a[1].submittedAt || 0));
-  const guestCards = guestEntries.map(([id, g]) => `
-    <div class="guest-card">
-      <div><b>Submitted by:</b> ${users[g.userUid]?.name || users[g.userUid]?.email || g.userUid}</div>
-      <div><b>Customer:</b> ${g.custName || '-'} | <b>Phone:</b> ${g.custPhone || '-'}</div>
-      <div><b>Type:</b> ${g.serviceType || '-'}</div>
-      <div><b>Situation:</b> ${g.situation || '-'}</div>
-      <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : '-'}</div>
-    </div>
-  `).join('');
+firebase.initializeApp(firebaseConfig);
+const db   = firebase.database();
+const auth = firebase.auth();
 
-  return `
-    <section class="admin-section guestinfo-section">
-      <h2>Guest Info</h2>
-      <div class="guestinfo-container">${guestCards}</div>
-    </section>
-  `;
-}
+auth.onAuthStateChanged(async user => {
+  if (!user) {
+    window.location.href = "index.html";
+    return;
+  }
+
+  const form = document.getElementById("guestForm");
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const data = {
+      userUid: user.uid,
+      custName: document.getElementById("custName").value.trim(),
+      custPhone: document.getElementById("custPhone").value.trim(),
+      serviceType: document.getElementById("serviceType").value,
+      situation: document.getElementById("situation").value.trim(),
+      submittedAt: Date.now()
+    };
+
+    try {
+      await db.ref("guestinfo").push(data);
+      alert("Submitted successfully!");
+      form.reset();
+    } catch (err) {
+      alert("Error submitting form. Try again.");
+      console.error(err);
+    }
+  });
+});
