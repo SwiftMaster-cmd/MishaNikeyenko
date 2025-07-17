@@ -1,35 +1,17 @@
 /* ==========================================================================
-   OSL DASHBOARD vFINAL (Mobile-First, Safe-Area, Tight)
-   --------------------------------------------------------------------------
-   Load LAST so it overrides any legacy CSS.
-   Works with: admin.js, users.js, reviews.js, stores.js, guestinfo.js,
-   guestform.js, sales.js (optional).
-   --------------------------------------------------------------------------
-   QUICK INDEX
-     01: Tokens / root vars
-     02: Global reset & base
-     03: Safe-area helpers
-     04: Utilities (spacing, text, visibility)
-     05: Shared components (inputs, buttons, badges, responsive wrappers)
-     06: Layout: Header
-     07: Layout: Main Grid (#adminApp)
-     08: Section Card (.admin-section)
-     09: Tables (global + stackable)
-     10: Stores
-     11: Users
-     12: Reviews
-     13: Guest Form Submissions
-     14: Guest Info Cards + Sale tags
-     15: Sales Summary Badges (store lines)
-     16: Print tweaks
+   DASHBOARD v3.1 MOBILE-FIRST THEME (refined)
+   ========================================================================== *
+   * Preserves v3 spacing & look.
+   * Adds safe-area insets, hard no-repeat background, and mobile overflow fixes.
+   * Adds edit/view utility classes so modules can toggle cleanly (no forced show).
+   * Ensures form controls stay hidden unless JS or .is-editing reveals them.
+   * Minimal !important usage; respects module inline styles.
    ========================================================================== */
 
-
-/* ==========================================================================
-   01 TOKENS
-   ========================================================================== */
+/* --------------------------------------------------------------------------
+   Design Tokens
+   -------------------------------------------------------------------------- */
 :root {
-  /* Brand + UI colors */
   --brand:            #1e90ff;
   --brand-hover:      #4aa8ff;
   --brand-focus-ring: rgba(30,144,255,.6);
@@ -43,7 +25,6 @@
   --danger-bg:        rgba(255,82,82,.15);
   --info:             #82caff;
 
-  /* Background gradient stops */
   --bg-page-a:        #0f1117;
   --bg-page-b:        #1a1c24;
   --bg-card:          rgba(26,28,36,.75);
@@ -61,13 +42,12 @@
 
   --table-stripe:     rgba(255,255,255,.03);
 
-  /* Radii */
   --radius-sm:        4px;
   --radius-md:        8px;
   --radius-lg:        16px;
   --radius-xl:        20px;
 
-  /* Fluid spacing scale */
+  /* Spacing (mobile-first fluid) */
   --space-2xs: clamp(2px, .25vw, 4px);
   --space-xs:  clamp(4px, .5vw, 8px);
   --space-sm:  clamp(8px, 1vw, 12px);
@@ -75,7 +55,7 @@
   --space-lg:  clamp(24px, 4vw, 40px);
   --space-xl:  clamp(32px, 6vw, 64px);
 
-  /* Fluid type scale */
+  /* Type scale */
   --fs-2xs: clamp(.7rem, 1.5vw, .75rem);
   --fs-xs:  clamp(.8rem, 1.8vw, .85rem);
   --fs-sm:  clamp(.9rem, 2vw, .95rem);
@@ -84,11 +64,9 @@
   --fs-xl:  clamp(1.6rem, 5vw, 1.75rem);
   --fs-xxl: clamp(2rem, 7vw, 2.5rem);
 
-  /* Z layers */
   --z-header: 100;
   --z-modal:  1000;
 
-  /* Motion */
   --dur-fast: .12s;
   --dur-med:  .25s;
   --dur-slow: .4s;
@@ -96,33 +74,31 @@
   --ease-in:  cubic-bezier(.42,0,1,1);
   --ease-io:  cubic-bezier(.42,0,.58,1);
 
-  /* Shadows */
-  --shadow-card:     0 4px 12px rgba(0,0,0,.6);
-  --shadow-card-h:   0 8px 24px rgba(0,0,0,.8);
-  --shadow-btn:      0 4px 14px rgba(30,144,255,.4);
-  --shadow-btn-h:    0 6px 20px rgba(30,144,255,.6);
-  --shadow-danger:   0 4px 14px rgba(255,82,82,.4);
-  --shadow-success:  0 4px 14px rgba(0,200,83,.4);
+  --shadow-card:   0 4px 12px rgba(0,0,0,.6);
+  --shadow-card-h: 0 8px 24px rgba(0,0,0,.8);
+  --shadow-btn:    0 4px 14px rgba(30,144,255,.4);
+  --shadow-btn-h:  0 6px 20px rgba(30,144,255,.6);
+  --shadow-danger: 0 4px 14px rgba(255,82,82,.4);
+  --shadow-success:0 4px 14px rgba(0,200,83,.4);
 }
 
-/* Respect reduced motion */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce){
   :root { --dur-fast:0ms; --dur-med:0ms; --dur-slow:0ms; }
   *{transition:none!important;animation:none!important;}
 }
 
-
 /* ==========================================================================
-   02 GLOBAL RESET & BASE
+   Base / Reset Extensions
    ========================================================================== */
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{
   height:100%;
   min-height:100%;
-  color:var(--text-med);
   background:linear-gradient(135deg,var(--bg-page-a) 0%,var(--bg-page-b) 100%) no-repeat;
   background-size:cover;
-  background-attachment:scroll; /* change to fixed if you prefer parallax; scroll = safer mobile perf */
+  background-attachment:scroll; /* change to fixed if you prefer parallax */
+  color:var(--text-med);
   -webkit-text-size-adjust:100%;
   text-size-adjust:100%;
   max-width:100%;
@@ -130,7 +106,11 @@ html,body{
 }
 body{
   font-family:'Segoe UI','SF Pro',Arial,sans-serif;
-  padding-bottom:var(--space-xl);
+  /* Safe-area + bottom pad */
+  padding-top:calc(env(safe-area-inset-top,0px) + var(--space-sm));
+  padding-bottom:calc(env(safe-area-inset-bottom,0px) + var(--space-xl));
+  padding-left:5%;
+  padding-right:5%;
   font-size:var(--fs-md);
   line-height:1.4;
 }
@@ -145,159 +125,8 @@ a:hover{text-decoration:underline;}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:5px;}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);}
 
-
 /* ==========================================================================
-   03 SAFE-AREA HELPERS
-   (for iPhones with notch; viewport-fit=cover required in <meta>)
-   ========================================================================== */
-body{
-  padding-top:calc(env(safe-area-inset-top,0px) + var(--space-sm));
-  padding-bottom:calc(env(safe-area-inset-bottom,0px) + var(--space-xl));
-}
-.admin-header{
-  padding-top:calc(env(safe-area-inset-top,0px) + var(--space-sm));
-  padding-bottom:var(--space-sm);
-}
-@supports(padding:max(0px)){
-  body{
-    padding-left:max(2%,env(safe-area-inset-left));
-    padding-right:max(2%,env(safe-area-inset-right));
-  }
-}
-
-
-/* ==========================================================================
-   04 UTILITIES
-   ========================================================================== */
-.text-center{text-align:center!important;}
-.text-right{text-align:right!important;}
-.text-left{text-align:left!important;}
-
-.u-hide{display:none!important;}
-.u-show-inline{display:inline-block!important;}
-
-.mt-2xs{margin-top:var(--space-2xs)!important;}
-.mt-xs {margin-top:var(--space-xs)!important;}
-.mt-sm {margin-top:var(--space-sm)!important;}
-.mt-md {margin-top:var(--space-md)!important;}
-.mt-lg {margin-top:var(--space-lg)!important;}
-.mt-xl {margin-top:var(--space-xl)!important;}
-
-.mb-2xs{margin-bottom:var(--space-2xs)!important;}
-.mb-xs {margin-bottom:var(--space-xs)!important;}
-.mb-sm {margin-bottom:var(--space-sm)!important;}
-.mb-md {margin-bottom:var(--space-md)!important;}
-.mb-lg {margin-bottom:var(--space-lg)!important;}
-.mb-xl {margin-bottom:var(--space-xl)!important;}
-
-.w-100{width:100%!important;}
-.section-span-2{grid-column:span 2;}
-
-.overflow-wrap-anywhere{overflow-wrap:anywhere;word-break:break-word;}
-
-
-/* ==========================================================================
-   05 SHARED COMPONENTS
-   ========================================================================== */
-
-/* Inputs */
-input,select,textarea{
-  width:100%;
-  border-radius:var(--radius-md);
-  border:1px solid var(--border-color);
-  padding:var(--space-xs) var(--space-sm);
-  font-size:var(--fs-md);
-  background:rgba(255,255,255,.06);
-  color:var(--text-med);
-  transition:border var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out);
-}
-input:focus,select:focus,textarea:focus{
-  outline:none;
-  border-color:var(--brand);
-  background:rgba(255,255,255,.1);
-  box-shadow:0 0 0 2px var(--brand-focus-ring);
-}
-
-/* iOS zoom prevention: ensure tap targets >=16px */
-@media (max-width:600px){
-  input,select,textarea,button,.btn,.gfield{font-size:16px!important;line-height:1.2;}
-}
-
-/* Buttons */
-button,.btn,.login-btn{
-  border:none;
-  border-radius:var(--radius-md);
-  padding:var(--space-sm) var(--space-md);
-  font-weight:600;
-  cursor:pointer;
-  line-height:1.2;
-  transition:transform var(--dur-fast) var(--ease-out),
-             box-shadow var(--dur-fast) var(--ease-out),
-             background var(--dur-fast) var(--ease-out);
-}
-.btn-sm{padding:var(--space-xs) var(--space-sm);font-size:var(--fs-sm);}
-.btn-lg{padding:var(--space-md) var(--space-lg);font-size:var(--fs-md);}
-
-.btn-primary{background:var(--brand);color:var(--text-hi);box-shadow:var(--shadow-btn);}
-.btn-primary:hover{background:var(--brand-hover);box-shadow:var(--shadow-btn-h);}
-
-.btn-secondary{background:rgba(255,255,255,.15);color:var(--text-med);}
-.btn-secondary:hover{background:rgba(255,255,255,.25);}
-
-.btn-success{background:var(--success);color:var(--text-hi);box-shadow:var(--shadow-success);}
-.btn-success:hover{filter:brightness(1.1);}
-
-.btn-danger{background:var(--danger);color:var(--text-hi);box-shadow:var(--shadow-danger);}
-.btn-danger:hover{background:var(--danger-hover);}
-
-.btn-ghost{background:transparent;color:var(--brand);}
-.btn-ghost:hover{background:rgba(30,144,255,.15);}
-
-/* Small-screen full-width stacks */
-@media (max-width:480px){
-  .btn-responsive,
-  .user-card-actions button,
-  .review-controls button,
-  .guest-card .guest-edit-form button,
-  .guest-forms-table td button,
-  .store-add button{
-    width:100%!important;
-    margin-top:var(--space-xs)!important;
-  }
-  .guest-forms-table td button:first-child{margin-top:0!important;}
-}
-
-/* Role badges */
-.role-badge{
-  display:inline-block;
-  padding:2px 10px;
-  font-size:var(--fs-xs);
-  font-weight:600;
-  border-radius:999px;
-  line-height:1.2;
-  box-shadow:0 0 0 1px var(--border-color) inset;
-  vertical-align:middle;
-  white-space:nowrap;
-}
-.role-admin{background:var(--brand);color:var(--text-hi);}
-.role-dm{background:rgba(60,120,255,.8);color:#fff;}
-.role-lead{background:rgba(30,200,120,.8);color:#fff;}
-.role-me{background:rgba(180,180,200,.4);color:#fff;}
-.role-guest{background:rgba(180,180,200,.5);color:var(--text-med);}
-
-/* Responsive scroll wrappers for wide content */
-.table-responsive-wrapper,
-.guest-forms-table-wrap,
-.store-table-wrap{
-  width:100%!important;
-  max-width:100%!important;
-  overflow-x:auto!important;
-  -webkit-overflow-scrolling:touch;
-}
-
-
-/* ==========================================================================
-   06 HEADER
+   Header
    ========================================================================== */
 .admin-header{
   position:sticky;
@@ -307,8 +136,9 @@ button,.btn,.login-btn{
   justify-content:space-between;
   align-items:center;
   width:100%;
-  padding-left:5%;
-  padding-right:5%;
+  margin-left:auto;
+  margin-right:auto;
+  padding:var(--space-sm) 0;
   background:rgba(26,28,36,.65);
   backdrop-filter:saturate(180%) blur(12px);
   border-bottom:1px solid var(--border-color);
@@ -332,7 +162,7 @@ button,.btn,.login-btn{
 }
 .admin-header button:hover{box-shadow:var(--shadow-btn-h);}
 
-/* Header Logout override (if needed) */
+/* Logout */
 #logoutBtn{
   background:rgba(255,255,255,.1);
   color:var(--text-hi);
@@ -345,15 +175,14 @@ button,.btn,.login-btn{
 }
 #logoutBtn:hover{background:rgba(255,255,255,.2);transform:translateY(-1px);}
 
-
 /* ==========================================================================
-   07 MAIN GRID
+   Main Content Grid
    ========================================================================== */
 #adminApp{
   width:100%;
   max-width:100%;
   margin:var(--space-lg) auto;
-  padding:0 5%;
+  padding:0;
   display:grid;
   grid-template-columns:1fr;
   gap:var(--space-lg);
@@ -363,14 +192,13 @@ button,.btn,.login-btn{
 }
 @media (min-width:1200px){
   #adminApp{max-width:1200px;}
-  /* opt-in multi-col: uncomment if desired */
+  /* opt-in for 2-col: uncomment if desired */
   /* #adminApp{grid-template-columns:1fr 1fr;} */
   /* #adminApp>.admin-section.section-span-2{grid-column:span 2;} */
 }
 
-
 /* ==========================================================================
-   08 SECTION CARD
+   Section Card
    ========================================================================== */
 .admin-section{
   position:relative;
@@ -391,16 +219,113 @@ button,.btn,.login-btn{
   margin-bottom:var(--space-md);
 }
 
-/* Collapsible (opt-in; JS sets data-open) */
+/* Collapsible (opt-in) */
 .admin-section.collapsible>.section-header{
   display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;
 }
 .admin-section.collapsible[data-open="false"]>*:not(.section-header){display:none;}
 
+/* ==========================================================================
+   Inputs
+   ========================================================================== */
+input,select,textarea{
+  width:100%;
+  border-radius:var(--radius-md);
+  border:1px solid var(--border-color);
+  padding:var(--space-xs) var(--space-sm);
+  font-size:var(--fs-md);
+  background:rgba(255,255,255,.06);
+  color:var(--text-med);
+  transition:border var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out);
+}
+input:focus,select:focus,textarea:focus{
+  outline:none;
+  border-color:var(--brand);
+  background:rgba(255,255,255,.1);
+  box-shadow:0 0 0 2px var(--brand-focus-ring);
+}
+
+/* iOS zoom prevention: ensure tap targets >=16px */
+@media (max-width:600px){
+  input,select,textarea,button,.btn,.gfield{font-size:16px!important;line-height:1.2;}
+}
 
 /* ==========================================================================
-   09 TABLES (GLOBAL + STACKABLE)
+   Buttons
    ========================================================================== */
+button,.btn,.login-btn{
+  border:none;
+  border-radius:var(--radius-md);
+  padding:var(--space-sm) var(--space-md);
+  font-weight:600;
+  cursor:pointer;
+  line-height:1.2;
+  transition:transform var(--dur-fast) var(--ease-out),box-shadow var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out);
+}
+.btn-sm{padding:var(--space-xs) var(--space-sm);font-size:var(--fs-sm);}
+.btn-lg{padding:var(--space-md) var(--space-lg);font-size:var(--fs-md);}
+
+.btn-primary{background:var(--brand);color:var(--text-hi);box-shadow:var(--shadow-btn);}
+.btn-primary:hover{background:var(--brand-hover);box-shadow:var(--shadow-btn-h);}
+
+.btn-secondary{background:rgba(255,255,255,.15);color:var(--text-med);}
+.btn-secondary:hover{background:rgba(255,255,255,.25);}
+
+.btn-success{background:var(--success);color:var(--text-hi);box-shadow:var(--shadow-success);}
+.btn-success:hover{filter:brightness(1.1);}
+
+.btn-danger{background:var(--danger);color:var(--text-hi);box-shadow:var(--shadow-danger);}
+.btn-danger:hover{background:var(--danger-hover);}
+
+.btn-ghost{background:transparent;color:var(--brand);}
+.btn-ghost:hover{background:rgba(30,144,255,.15);}
+
+/* Make button stacks friendly on small screens */
+@media (max-width:480px){
+  .btn-responsive,
+  .user-card-actions button,
+  .review-controls button,
+  .guest-card .guest-edit-form button,
+  .guest-forms-table td button,
+  .store-add button{
+    width:100%;
+    margin-top:var(--space-xs);
+  }
+  .guest-forms-table td button:first-child{margin-top:0;}
+}
+
+/* ==========================================================================
+   Role Badges
+   ========================================================================== */
+.role-badge{
+  display:inline-block;
+  padding:2px 10px;
+  font-size:var(--fs-xs);
+  font-weight:600;
+  border-radius:999px;
+  line-height:1.2;
+  box-shadow:0 0 0 1px var(--border-color) inset;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+.role-admin{background:var(--brand);color:var(--text-hi);}
+.role-dm{background:rgba(60,120,255,.8);color:#fff;}
+.role-lead{background:rgba(30,200,120,.8);color:#fff;}
+.role-me{background:rgba(180,180,200,.4);color:#fff;}
+.role-guest{background:rgba(180,180,200,.5);color:var(--text-med);}
+
+/* ==========================================================================
+   Tables (Global)
+   ========================================================================== */
+.table-responsive-wrapper,
+.guest-forms-table-wrap,
+.store-table-wrap{
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+
 table{
   width:100%;
   border-collapse:collapse;
@@ -410,7 +335,6 @@ th,td{
   padding:var(--space-sm);
   border-bottom:1px solid var(--border-color);
   text-align:left;
-  vertical-align:middle;
   white-space:nowrap;
 }
 th{color:var(--text-hi);font-weight:600;}
@@ -418,13 +342,13 @@ td{color:var(--text-med);}
 tr:nth-child(odd){background:var(--table-stripe);}
 td:last-child{text-align:right;}
 
-/* small-screen safe: loosen nowrap so long emails wrap instead of widen */
+/* Allow wrapping on narrow viewports */
 @media (max-width:640px){
   th,td{white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
 }
 
-/* Auto-stack tables when .table-stackable present */
-@media (max-width:640px){
+/* Stackable tables (opt-in via .table-stackable) */
+@media (max-width:600px){
   .table-stackable,
   .table-stackable thead,
   .table-stackable tbody,
@@ -461,21 +385,14 @@ td:last-child{text-align:right;}
     justify-content:flex-start;
     flex-wrap:wrap;
     margin-top:var(--space-xs);
-  }
-  .table-stackable td button{
-    margin:0;
-    padding:var(--space-xs) var(--space-sm);
-    font-size:var(--fs-xs);
+    text-align:left;
   }
 }
 
-
 /* ==========================================================================
-   10 STORES
+   Stores Section
    ========================================================================== */
 .stores-section{margin-bottom:var(--space-lg);}
-.store-table-wrap{margin-top:var(--space-sm);}
-.store-table{width:100%;}
 .store-add{
   display:flex;
   gap:var(--space-sm);
@@ -489,12 +406,8 @@ td:last-child{text-align:right;}
   .store-add input,.store-add button{width:100%;}
 }
 
-/* store row sales metrics text shrink */
-.store-sales-metric{font-size:var(--fs-xs);color:var(--text-muted);}
-
-
 /* ==========================================================================
-   11 USERS
+   Users Section
    ========================================================================== */
 .users-section .users-container{
   display:grid;
@@ -544,9 +457,8 @@ td:last-child{text-align:right;}
   .user-card-info{grid-template-columns:1fr;}
 }
 
-
 /* ==========================================================================
-   12 REVIEWS
+   Reviews Section
    ========================================================================== */
 .reviews-section h2{margin-bottom:var(--space-md);}
 .review-controls{
@@ -597,191 +509,4 @@ td:last-child{text-align:right;}
   display:flex;
   flex-wrap:wrap;
   gap:var(--space-md);
-  font-size:var(--fs-xs);
-  color:var(--text-muted);
-}
-.review-meta b{color:var(--text-med);}
-@media (max-width:600px){
-  .review-header{flex-direction:column;align-items:flex-start;}
-  .review-meta{flex-direction:column;gap:var(--space-xs);}
-}
-
-
-/* ==========================================================================
-   13 GUEST FORM SUBMISSIONS
-   ========================================================================== */
-.guest-forms-section{margin-top:var(--space-sm);}
-.guest-forms-section h2{margin-bottom:var(--space-md);}
-
-.guest-forms-table-wrap{
-  width:100%;
-  max-width:100%;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
-}
-.guest-forms-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:var(--fs-sm);
-}
-.guest-forms-table th,
-.guest-forms-table td{
-  padding:var(--space-sm);
-  color:var(--text-med);
-  border-bottom:1px solid var(--border-color);
-  text-align:left;
-  vertical-align:middle;
-  white-space:nowrap;
-}
-.guest-forms-table th{color:var(--text-hi);font-weight:600;}
-.guest-forms-table td:last-child{text-align:right;}
-.guest-forms-table td button{margin-left:var(--space-xs);}
-.guest-forms-table tr.consumed td{opacity:.7;}
-.guest-forms-table tr.linked td{background:var(--success-bg);}
-
-@media (max-width:640px){
-  .guest-forms-table.table-stackable,
-  .guest-forms-table.table-stackable thead,
-  .guest-forms-table.table-stackable tbody,
-  .guest-forms-table.table-stackable tr,
-  .guest-forms-table.table-stackable th,
-  .guest-forms-table.table-stackable td{
-    display:block;
-    width:100%;
-  }
-  .guest-forms-table.table-stackable thead{display:none;}
-  .guest-forms-table.table-stackable tr{
-    margin-bottom:var(--space-md);
-    padding:var(--space-md);
-    border:1px solid var(--border-color);
-    border-radius:var(--radius-lg);
-    background:var(--bg-card-hover);
-    box-shadow:var(--shadow-card);
-  }
-  .guest-forms-table.table-stackable td{
-    padding:var(--space-xs) 0;
-    border:none;
-    white-space:normal;
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:var(--space-sm);
-  }
-  .guest-forms-table.table-stackable td::before{
-    content:attr(data-label);
-    font-weight:600;
-    color:var(--text-hi);
-    flex:0 0 auto;
-  }
-  .guest-forms-table.table-stackable td:last-child{
-    justify-content:flex-start;
-    flex-wrap:wrap;
-    margin-top:var(--space-xs);
-  }
-  .guest-forms-table.table-stackable td button{
-    margin:0;
-    padding:var(--space-xs) var(--space-sm);
-    font-size:var(--fs-xs);
-  }
-}
-
-
-/* ==========================================================================
-   14 GUEST INFO CARDS (+ SALE)
-   ========================================================================== */
-.guest-card{
-  background:var(--bg-card);
-  border:1px solid var(--border-color);
-  border-radius:var(--radius-lg);
-  padding:var(--space-lg);
-  box-shadow:var(--shadow-card);
-  transition:box-shadow var(--dur-med) var(--ease-out),background var(--dur-med) var(--ease-out);
-  width:100%;
-  margin-bottom:var(--space-md);
-}
-.guest-card:hover{box-shadow:var(--shadow-card-h);background:var(--bg-card-hover);}
-.guest-card .guest-display>div{
-  margin-bottom:var(--space-xs);
-  font-size:var(--fs-sm);
-  color:var(--text-med);
-  overflow-wrap:anywhere;
-}
-.guest-card .guest-display b{color:var(--text-hi);}
-.guest-card .guest-sale-summary{
-  margin-top:var(--space-xs);
-  font-size:var(--fs-xs);
-  color:var(--success);
-}
-.guest-card .guest-sale-summary.sold-badge{
-  display:inline-block;
-  margin-top:var(--space-2xs);
-  padding:0 var(--space-xs);
-  border-radius:var(--radius-sm);
-  background:var(--success-bg);
-  color:var(--success);
-}
-
-.guest-card form.guest-edit-form{
-  margin-top:var(--space-sm);
-  padding-top:var(--space-sm);
-  border-top:1px solid var(--border-color);
-  font-size:var(--fs-sm);
-}
-.guest-card form.guest-edit-form label{
-  display:block;
-  margin-bottom:var(--space-sm);
-}
-.guest-card form.guest-edit-form input,
-.guest-card form.guest-edit-form textarea{
-  margin-top:var(--space-2xs);
-}
-.guest-card form.guest-edit-form button{
-  margin-right:var(--space-xs);
-}
-
-@media (max-width:480px){
-  .guest-card form.guest-edit-form{
-    display:flex!important;
-    flex-direction:column!important;
-    gap:var(--space-xs)!important;
-  }
-  .guest-card form.guest-edit-form button{
-    width:100%!important;
-    margin-right:0!important;
-  }
-}
-
-
-/* ==========================================================================
-   15 SALES SUMMARY BADGES (STORE LINES / ROLLUPS)
-   ========================================================================== */
-.sale-metric-badge{
-  display:inline-block;
-  padding:0 var(--space-xs);
-  font-size:var(--fs-xs);
-  line-height:1.3;
-  border-radius:var(--radius-sm);
-  background:rgba(255,255,255,.1);
-  color:var(--text-med);
-  white-space:nowrap;
-}
-.sale-metric-badge.units-0{opacity:.5;}
-.sale-metric-badge.units-gt0{background:var(--success-bg);color:var(--success);}
-
-
-/* ==========================================================================
-   16 PRINT
-   ========================================================================== */
-@media print{
-  html,body{background:#fff!important;color:#000!important;}
-  .admin-header{position:static;background:#fff!important;color:#000!important;box-shadow:none;border:none;}
-  #logoutBtn{display:none!important;}
-  .admin-section{background:#fff!important;border:1px solid #000!important;box-shadow:none;}
-  .btn,.role-badge{filter:grayscale(100%);}
-  /* hide controls */
-  .review-controls,
-  .user-card-actions,
-  .store-add,
-  .guest-card form.guest-edit-form,
-  .guest-forms-table td button{display:none!important;}
-}
+  font-size:
