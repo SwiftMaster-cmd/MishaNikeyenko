@@ -5,38 +5,50 @@
   <style>
    :root {
   --primary: #1976d2;
-  --background: #f1f4f9;
+  --bg: #eef2f7;
   --card: #ffffff;
   --input-bg: #f9fbfd;
-  --border: #dce3ed;
-  --radius: 10px;
-  --shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
-  --text: #1e1e1e;
+  --border: #d0d7e2;
+  --radius: 12px;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --text: #1a1d23;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
+  color: var(--text);
 }
 
 body {
-  font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
-  background: var(--background);
-  color: var(--text);
-  padding: 32px 16px;
   display: flex;
+  align-items: center;
   justify-content: center;
+  padding: 24px 16px;
 }
 
 form {
   background: var(--card);
-  padding: 32px;
+  padding: 28px 24px;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   width: 100%;
   max-width: 480px;
-  box-sizing: border-box;
+  margin: auto;
 }
 
 h2 {
   margin-top: 0;
+  font-size: 1.6em;
   font-weight: 600;
-  font-size: 1.8em;
   text-align: center;
   color: var(--primary);
 }
@@ -45,40 +57,45 @@ input[type="text"],
 input[type="tel"],
 input[type="email"],
 button {
-  font-size: 16px;
   width: 100%;
+  font-size: 16px;
   padding: 12px 14px;
+  margin-top: 16px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--input-bg);
-  box-sizing: border-box;
-  transition: all 0.2s ease;
-  margin-top: 14px;
+  transition: border 0.2s, box-shadow 0.2s;
 }
 
 input:focus {
-  outline: none;
   border-color: var(--primary);
   background: #fff;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.15);
 }
 
 label {
-  margin-top: 18px;
-  font-size: 15px;
-  line-height: 1.5;
   display: flex;
   align-items: center;
+  font-size: 15px;
   gap: 10px;
+  margin-top: 20px;
   cursor: pointer;
+  line-height: 1.4;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 button {
   background: var(--primary);
   color: white;
-  border: none;
   font-weight: 500;
-  margin-top: 24px;
+  border: none;
+  margin-top: 28px;
+  cursor: pointer;
   transition: background 0.2s ease;
 }
 
