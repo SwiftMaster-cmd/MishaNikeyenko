@@ -1,56 +1,119 @@
 /* ==========================================================================
-   Variables & Reset
+   OSL Guest Portal CSS  (mobile-first)
+   --------------------------------------------------------------------------
+   Highlights:
+   • Compact, readable layout that scales up nicely
+   • Dark theme w/ translucency + blur
+   • >=16px interactive text on small screens (prevents iOS zoom)
+   • Sticky top "← Dashboard" header (respects safe-area on iPhone notch)
+   • Step forms hidden via .hidden
+   • Prefill summary styling for Step 2+
+   • Strong focus-visible accessibility outlines
+   -------------------------------------------------------------------------- */
+
+/* ==========================================================================
+   Design Tokens
    ========================================================================== */
 :root {
-  --bg-start: #0f1117;
-  --bg-end: #1c1f29;
-  --card-bg: rgba(25, 26, 32, 0.7);
-  --card-border: rgba(255, 255, 255, 0.1);
-  --accent: #1e90ff;
-  --accent-light: #4daaff;
-  --accent-dark: #1768c8;
-  --text-primary: #e2e2e8;
-  --text-secondary: #a0a8b7;
-  --error: #e35b5b;
-  --success: #47c971;
-  --radius: 12px;
+  --bg-start:        #0f1117;
+  --bg-end:          #1c1f29;
+
+  --card-bg:         rgba(25, 26, 32, 0.7);
+  --card-border:     rgba(255, 255, 255, 0.1);
+
+  --accent:          #1e90ff;
+  --accent-light:    #4daaff;
+  --accent-dark:     #1768c8;
+
+  --text-primary:    #e2e2e8;
+  --text-secondary:  #a0a8b7;
+
+  --error:           #e35b5b;
+  --success:         #47c971;
+
+  --radius:          12px;
+
+  --space-xs:        4px;
+  --space-sm:        8px;
+  --space-md:        16px;
+  --space-lg:        24px;
+  --space-xl:        32px;
 }
 
+/* ==========================================================================
+   Reset
+   ========================================================================== */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
-/* Guest Portal header / back button */
-.guest-header {
+
+html,
+body {
+  height: 100%;
+  min-height: 100%;
   width: 100%;
-  max-width: 480px;              /* aligns with guest-box width if you use a max there */
-  margin: 0 auto;
-  padding: 8px 16px;
+  max-width: 100%;
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+/* ==========================================================================
+   Body & Background
+   ========================================================================== */
+body {
+  background: linear-gradient(135deg, var(--bg-start), var(--bg-end)) fixed no-repeat;
+  font-family: system-ui, 'Segoe UI', 'SF Pro', Arial, sans-serif;
+  color: var(--text-primary);
+
+  /* top padding for safe-area (e.g., iPhone notch) */
+  padding-top: calc(env(safe-area-inset-top) + var(--space-sm));
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--space-xl));
+
+  display: block; /* allow vertical scroll; no forced center that breaks keyboards */
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   Back Header (sticky)
+   ========================================================================== */
+.guest-header {
+  position: sticky;
+  top: calc(env(safe-area-inset-top) + var(--space-sm));
+  z-index: 10;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto var(--space-sm);
+  padding: 0 var(--space-md);
   text-align: left;
 }
+
 .guest-back-btn {
   display: inline-block;
   padding: 8px 16px;
-  font-size: 16px;               /* >=16px to avoid iOS zoom */
+  font-size: 16px; /* >=16px prevents iOS zoom */
   font-weight: 600;
-  color: #1e90ff;
-  background: rgba(30,144,255,0.15);
-  border: 1px solid rgba(30,144,255,0.4);
+  color: var(--accent);
+  background: rgba(30, 144, 255, 0.15);
+  border: 1px solid rgba(30, 144, 255, 0.4);
   border-radius: 8px;
   line-height: 1.2;
   cursor: pointer;
   text-decoration: none;
-  transition: background .2s ease, box-shadow .2s ease;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
+
 .guest-back-btn:hover {
-  background: rgba(30,144,255,0.25);
-  box-shadow: 0 0 0 2px rgba(30,144,255,.4) inset;
+  background: rgba(30, 144, 255, 0.25);
+  box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.4) inset;
 }
+
 @media (min-width: 600px) {
   .guest-header {
-    padding: 16px 0;
-    text-align: left;
+    padding: 0;
   }
   .guest-back-btn {
     font-size: 1rem;
@@ -58,20 +121,7 @@
 }
 
 /* ==========================================================================
-   Body & Background
-   ========================================================================== */
-body {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
-  font-family: system-ui, 'Segoe UI', 'SF Pro', Arial, sans-serif;
-  color: var(--text-primary);
-}
-
-/* ==========================================================================
-   Guest Box (Mobile-First)
+   Guest Box (Step Forms container)
    ========================================================================== */
 .guest-box {
   background: var(--card-bg);
@@ -80,32 +130,65 @@ body {
   padding: 1rem;
   width: 90%;
   max-width: 360px;
-  margin: 1rem auto;
+  margin: 0 auto 1rem;
   backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
+/* Larger screens = bit more breathing room */
+@media (min-width: 480px) {
+  .guest-box {
+    padding: 2rem;
+    max-width: 400px;
+    gap: 1.25rem;
+  }
+}
+
 /* ==========================================================================
-   Title
+   Titles
    ========================================================================== */
 .guest-title {
   font-size: 1.25rem;
   font-weight: 600;
   text-align: center;
   color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+@media (min-width: 480px) {
+  .guest-title {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
 }
 
 /* ==========================================================================
-   Form Labels & Fields
+   Form Layout
    ========================================================================== */
-.glabel {
-  font-size: 1rem;
-  color: var(--text-secondary);
+form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
+.glabel {
+  display: block;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.glabel + .glabel {
+  margin-top: 0.5rem;
+}
+
+/* Fields */
 .gfield {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -115,7 +198,7 @@ body {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
   font-size: 1rem;
-  transition: background 0.3s, border-color 0.3s;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .gfield:focus {
@@ -124,22 +207,69 @@ body {
   outline: none;
 }
 
+/* Larger screens tweak */
+@media (min-width: 480px) {
+  .gfield {
+    padding: 1rem 1.25rem;
+    font-size: 1.05rem;
+  }
+}
+
+/* Textareas */
+textarea.gfield {
+  resize: vertical;
+  min-height: 3.25em;
+  line-height: 1.3;
+}
+
+/* Remove number input spinner look in some browsers */
+input[type="number"].gfield {
+  -moz-appearance: textfield;
+}
+input[type="number"].gfield::-webkit-inner-spin-button,
+input[type="number"].gfield::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ==========================================================================
+   Prefill Summary (shown in Step 2+) 
+   ========================================================================== */
+.prefill-summary {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+}
+.prefill-summary b {
+  color: var(--accent-light);
+}
+
 /* ==========================================================================
    Submit Button
    ========================================================================== */
 .guest-btn {
   display: block;
   width: auto;
-  margin: 1rem auto 0;
+  margin: 0 auto;
   padding: 0.75rem 1.5rem;
+
   font-size: 1rem;
   font-weight: 600;
   color: #fff;
+
   background: linear-gradient(90deg, var(--accent) 30%, var(--accent-light) 100%);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
+
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   box-shadow: 0 4px 16px rgba(30, 144, 255, 0.4);
   transition: background 0.2s, transform 0.2s;
 }
@@ -148,12 +278,25 @@ body {
   background: linear-gradient(90deg, var(--accent-dark) 30%, var(--accent) 100%);
   transform: translateY(-1px);
 }
-/* hide inactive steps */
-.hidden {
-  display: none;
-}
+
 .guest-btn:active {
   transform: translateY(0);
+}
+
+.guest-btn:disabled,
+.guest-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Larger screens */
+@media (min-width: 480px) {
+  .guest-btn {
+    padding: 1rem 2rem;
+    font-size: 1.05rem;
+    margin-top: 0.5rem;
+  }
 }
 
 /* ==========================================================================
@@ -163,6 +306,8 @@ body {
   min-height: 1.25rem;
   font-size: 0.95rem;
   text-align: center;
+  line-height: 1.2;
+  margin-top: -0.5rem; /* snug to button */
 }
 
 .g-status.error {
@@ -174,23 +319,72 @@ body {
 }
 
 /* ==========================================================================
-   Tablet & Up
+   Visibility Helpers
    ========================================================================== */
-@media (min-width: 480px) {
-  .guest-box {
-    padding: 2rem;
-    max-width: 400px;
+.hidden {
+  display: none !important;
+}
+
+/* Visually hidden (screen-reader only) if needed elsewhere */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   Focus Styles
+   ========================================================================== */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* If element already has border highlight, reduce double ring */
+.gfield:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
   }
-  .guest-title {
-    font-size: 1.5rem;
+}
+
+/* ==========================================================================
+   Print (just in case someone prints a form)
+   ========================================================================== */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    padding: 0;
+  }
+  .guest-header,
+  .guest-back-btn {
+    display: none !important;
+  }
+  .guest-box {
+    box-shadow: none !important;
+    background: #fff !important;
+    border-color: #000 !important;
+    color: #000 !important;
   }
   .gfield {
-    padding: 1rem 1.25rem;
-    font-size: 1.05rem;
+    background: #fff !important;
+    color: #000 !important;
   }
-  .guest-btn {
-    padding: 1rem 2rem;
-    font-size: 1.05rem;
-    margin-top: 1.5rem;
+  .guest-btn,
+  .g-status {
+    display: none !important;
   }
 }
