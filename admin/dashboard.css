@@ -453,7 +453,111 @@ button:hover,
     gap: 8px;
   }
 }
+/* ==========================================================================
+   Guest Form Submissions (Dashboard)
+   ========================================================================== */
+.guest-forms-section {
+  margin-top: 8px;
+}
+.guest-forms-section h2 {
+  margin-bottom: 16px;
+}
 
+/* Scroll wrapper safety (optional but recommended) */
+.guest-forms-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Desktop / default table */
+.guest-forms-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 420px; /* keeps columns from collapsing too tight */
+  font-size: .95rem;
+}
+.guest-forms-table th,
+.guest-forms-table td {
+  padding: 12px;
+  color: #ddd;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.guest-forms-table th {
+  font-weight: 600;
+  font-size: .95rem;
+  color: #fff;
+}
+.guest-forms-table td:last-child {
+  text-align: right;
+}
+.guest-forms-table td button {
+  margin-left: 4px;
+}
+
+/* Linked submission visual */
+.guest-forms-table tr.linked td {
+  background: rgba(30,200,120,0.06);
+}
+
+/* --------------------------------------------
+   Mobile Stack (<= 640px) turns rows into cards
+   -------------------------------------------- */
+@media (max-width: 640px) {
+  .guest-forms-table,
+  .guest-forms-table thead,
+  .guest-forms-table tbody,
+  .guest-forms-table th,
+  .guest-forms-table td,
+  .guest-forms-table tr {
+    display: block;
+    width: 100%;
+  }
+  .guest-forms-table thead {
+    display: none;
+  }
+  .guest-forms-table tr {
+    margin-bottom: 16px;
+    padding: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    background: rgba(25,26,32,0.8);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+  }
+  .guest-forms-table td {
+    padding: 6px 0;
+    border: none;
+    white-space: normal;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: .95rem;
+  }
+  .guest-forms-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #fff;
+    flex: 0 0 auto;
+  }
+  .guest-forms-table td:last-child {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .guest-forms-table td:last-child::before {
+    content: "Actions";
+  }
+  .guest-forms-table td button {
+    margin: 0;
+    padding: 8px 14px;
+    font-size: .85rem;
+  }
+}
 /* ==========================================================================
    Guest Info Cards
    ========================================================================== */
