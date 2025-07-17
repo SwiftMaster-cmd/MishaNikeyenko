@@ -7,6 +7,7 @@
    * Table overflow fixes + stack-to-card patterns
    * Hide edit forms by default; reveal via .is-editing or JS inline
    * Mobile-first responsive type & spacing tokens
+   * Stores Performance Highlight (collapsed Stores summary mode)
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -394,7 +395,7 @@ td:last-child{text-align:right;}
 }
 
 /* ==========================================================================
-   Stores Section
+   Stores Section (FULL TABLE MODE)
    ========================================================================== */
 .stores-section{margin-bottom:var(--space-lg);}
 .store-add{
@@ -845,7 +846,10 @@ td:last-child{text-align:right;}
   white-space:nowrap;
 }
 .sale-pill b{color:var(--success);font-weight:700;}
-/* Congrats / All-Good card */
+
+/* ==========================================================================
+   Congrats / All-Good card (DEPRECATED - leaving for possible reuse)
+   ========================================================================== */
 .allgood-congrats-section {
   text-align:center;
   background:linear-gradient(135deg,rgba(30,144,255,.25),rgba(0,200,83,.25));
@@ -891,8 +895,6 @@ td:last-child{text-align:right;}
 .allgood-cta-wrap{
   margin-top:var(--space-sm);
 }
-
-/* collapse fab in expanded view */
 .allgood-collapse-fab{
   text-align:right;
   margin-bottom:var(--space-sm);
@@ -910,31 +912,27 @@ td:last-child{text-align:right;}
 .w-100{width:100%!important;}
 .section-span-2{grid-column:span 2;}
 
-/* --- Stores summary blocks --- */
+/* --- Stores summary blocks (partial table mode / legacy collapsed rows) --- */
 .stores-container {
   display: grid;
   gap: var(--space-sm);
   width: 100%;
 }
-
-.user-store-block {
-  width: 100%;
-}
-
+.user-store-block {width:100%;}
 .user-store-summary {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto auto;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  cursor: pointer;
-  font-size: var(--fs-sm);
-  line-height: 1.2;
-  transition: background var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-fast) var(--ease-out);
+  display:grid;
+  grid-template-columns:auto auto 1fr auto auto;
+  align-items:center;
+  gap:var(--space-xs);
+  padding:var(--space-sm) var(--space-md);
+  border:1px solid var(--border-color);
+  border-radius:var(--radius-md);
+  background:var(--bg-card);
+  cursor:pointer;
+  font-size:var(--fs-sm);
+  line-height:1.2;
+  transition:background var(--dur-fast) var(--ease-out),
+             box-shadow var(--dur-fast) var(--ease-out);
 }
 .user-store-summary.open {
   background: var(--bg-card-hover);
@@ -943,18 +941,16 @@ td:last-child{text-align:right;}
 .user-store-summary.store-met { border-color: rgba(0,200,83,.5); }
 .user-store-summary.store-under { border-color: rgba(255,179,0,.5); }
 .user-store-summary.store-nogoal { opacity:.85; }
-
-.user-store-summary .uss-caret { width: 1em; text-align:center; }
-.user-store-summary .uss-name { font-weight:600; color:var(--text-hi); white-space:nowrap; }
-.user-store-summary .uss-role-mix { display:flex; gap:var(--space-2xs); }
-.user-store-summary .uss-progress { justify-self:end; white-space:nowrap; font-size:var(--fs-xs); opacity:.85; }
+.user-store-summary .uss-caret { width:1em;text-align:center; }
+.user-store-summary .uss-name { font-weight:600;color:var(--text-hi);white-space:nowrap; }
+.user-store-summary .uss-role-mix { display:flex;gap:var(--space-2xs); }
+.user-store-summary .uss-progress { justify-self:end;white-space:nowrap;font-size:var(--fs-xs);opacity:.85; }
 .store-budget-input {
   width:4.5ch;
   font-size:var(--fs-xs);
   padding:0 2px;
   text-align:right;
 }
-
 /* role pills in store summary */
 .store-pill {
   display:inline-block;
@@ -967,235 +963,33 @@ td:last-child{text-align:right;}
 }
 .store-pill.lead { background:rgba(30,200,120,.8); color:#fff; }
 .store-pill.me   { background:rgba(180,180,200,.4); color:#fff; }
-
 /* expanded detail */
 .user-store-detail {
   margin-top:var(--space-xs);
   overflow-x:auto;
   -webkit-overflow-scrolling:touch;
 }
-.user-store-block-unassigned .user-store-summary {
-  cursor:default;
-}
-/* Debug helper */
-/* *{outline:1px dashed rgba(255,0,0,.2);} */
+.user-store-block-unassigned .user-store-summary {cursor:default;}
 
-/* =======================================================================
-   PERFORMANCE HIGHLIGHTS  (Dashboard "Congrats" View)
-   -----------------------------------------------------------------------
-   Works inside .admin-section.dashboard-congrats markup emitted by
-   Dashboard Main Script when you're fully caught up *and* performance
-   metrics are on target.
-   -----------------------------------------------------------------------
-   Class refs emitted by JS:
-     .dashboard-congrats      (section wrapper; already has .admin-section)
-     .dash-congrats-grid      (grid of highlight cards)
-     .dc-card                 (individual tappable card)
-       .dc-emoji              (large emoji / icon)
-       .dc-title              (headline)
-       .dc-sub                (metric summary line)
-       .dc-cta                (link-ish call to action)
-   The close/X button is rendered inline in HTML (btn-ghost).
-   -----------------------------------------------------------------------
-   Color cues: we reuse global tokens + create softer
-   success/warning ribbons.
-   ======================================================================= */
-
-/* Section tweaks ------------------------------------------------------ */
-.dashboard-congrats {
-  text-align:center;
-  padding-top:calc(var(--space-xl) + 8px); /* leave room for X btn */
-  padding-bottom:var(--space-xl);
-  position:relative;
-  overflow:hidden;
-  /* celebratory subtle gradient shimmer */
-  background:
-    radial-gradient(circle at 20% 20%, rgba(30,144,255,.25) 0%, transparent 60%),
-    radial-gradient(circle at 80% 0%,   rgba(0,200,83,.22) 0%, transparent 60%),
-    var(--bg-card-hover);
-  animation:dc-bg-pulse var(--dur-slow) var(--ease-out) 1 both;
-}
-
-/* soft entrance pulse */
-@keyframes dc-bg-pulse {
-  0%   {box-shadow:0 0 0 0 rgba(30,144,255,0);}
-  100% {box-shadow:var(--shadow-card-h);}
-}
-
-/* Grid layout --------------------------------------------------------- */
-.dash-congrats-grid {
-  margin-top:var(--space-lg);
-  display:grid;
-  grid-template-columns:1fr;
-  gap:var(--space-lg);
-  width:100%;
-  max-width:520px;
-  margin-left:auto;
-  margin-right:auto;
-}
-@media (min-width:480px){
-  .dash-congrats-grid{grid-template-columns:repeat(2,1fr);}
-}
-
-/* Card base ----------------------------------------------------------- */
-.dc-card {
-  position:relative;
-  cursor:pointer;
-  padding:var(--space-xl) var(--space-md);
-  border-radius:var(--radius-xl);
-  background:var(--bg-card);
-  border:1px solid var(--border-strong);
-  box-shadow:var(--shadow-card);
-  transition:
-    transform var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
-}
-.dc-card:hover,
-.dc-card:focus-visible{
-  transform:translateY(-2px) scale(1.01);
-  box-shadow:var(--shadow-card-h);
-  background:var(--bg-card-hover);
-  outline:none;
-}
-.dc-card:active{
-  transform:translateY(0) scale(.98);
-}
-
-/* Large emoji / icon -------------------------------------------------- */
-.dc-emoji{
-  font-size:clamp(2.5rem,8vw,3.5rem);
-  line-height:1;
-  margin-bottom:var(--space-md);
-  display:block;
-}
-
-/* Title --------------------------------------------------------------- */
-.dc-title{
-  font-size:var(--fs-lg);
-  font-weight:700;
-  color:var(--text-hi);
-  margin-bottom:var(--space-xs);
-}
-
-/* Subline metrics ----------------------------------------------------- */
-.dc-sub{
-  font-size:var(--fs-sm);
-  color:var(--text-med);
-  margin-bottom:var(--space-sm);
-  line-height:1.3;
-  display:block;
-}
-
-/* CTA link-ish -------------------------------------------------------- */
-.dc-cta{
-  font-size:var(--fs-sm);
-  font-weight:600;
-  color:var(--brand);
-  text-decoration:underline;
-  text-underline-offset:2px;
-  pointer-events:none; /* click handled on .dc-card */
-}
-.dc-card:hover .dc-cta{color:var(--brand-hover);}
-
-/* Close (X) button inside section ------------------------------------ */
-.dashboard-congrats > .btn-ghost{
-  z-index:1;
-}
-
-/* Confetti spark (optional decorative) ------------------------------- */
-.dashboard-congrats::after,
-.dashboard-congrats::before{
-  content:"";
-  position:absolute;
-  pointer-events:none;
-  inset:0;
-  background-repeat:no-repeat;
-  background-image:
-    radial-gradient(circle at 10% 80%, rgba(255,255,255,.08) 0 6px, transparent 7px),
-    radial-gradient(circle at 90% 30%, rgba(255,255,255,.05) 0 4px, transparent 5px),
-    radial-gradient(circle at 60% 60%, rgba(255,255,255,.04) 0 3px, transparent 4px);
-  opacity:.6;
-  mix-blend-mode:screen;
-  animation:dc-confetti-float 6s linear infinite alternate;
-}
-@keyframes dc-confetti-float{
-  0%{transform:translateY(0) rotate(0deg);}
-  100%{transform:translateY(-4px) rotate(.5deg);}
-}
-
-/* -----------------------------------------------------------------------
-   Metric color helpers -- optional utility spans you may inject later
-   ----------------------------------------------------------------------- */
-.dc-metric-good   {color:var(--success);}
-.dc-metric-warn   {color:var(--warning);}
-.dc-metric-bad    {color:var(--danger);}
-.dc-metric-muted  {color:var(--text-muted);}
-
-/* -----------------------------------------------------------------------
-   Integration w/ existing store status classes (if reused in highlight)
-   ----------------------------------------------------------------------- */
-.dashboard-congrats .store-met    {color:var(--success);}
-.dashboard-congrats .store-under  {color:var(--warning);}
-.dashboard-congrats .store-nogoal {color:var(--text-muted);}
-
-/* -----------------------------------------------------------------------
-   Reduced motion: remove float + pulse
-   ----------------------------------------------------------------------- */
-@media (prefers-reduced-motion:reduce){
-  .dashboard-congrats::after,
-  .dashboard-congrats::before{animation:none;}
-  .dashboard-congrats{animation:none;}
-  .dc-card{transition:none;}
-}
-
-/* =======================================================================
+/* ==========================================================================
    STORES PERFORMANCE HIGHLIGHTS  (collapsed Stores summary mode)
-   -----------------------------------------------------------------------
-   Expected markup (emitted by JS when all stores are "good"):
-     <section class="admin-section stores-highlight-section">
-       <h2>Stores Performance</h2>
-       <div class="stores-hl-grid">
-         <div class="sh-card sh-met" onclick="...">
-            <div class="sh-card-head">
-              <span class="sh-store-num">#1234</span>
-              <span class="sh-staff-pills">
-                <span class="sh-pill sh-pill-lead" title="Leads">L1</span>
-                <span class="sh-pill sh-pill-me"   title="MEs">M2</span>
-              </span>
-            </div>
-            <div class="sh-rating-row">
-              <span class="sh-stars" data-stars="4.9">★★★★☆</span>
-              <span class="sh-rating-val">4.9</span>
-            </div>
-            <div class="sh-progress-wrap">
-              <div class="sh-progress-bar">
-                <div class="sh-progress-fill" style="--sh-pct:92%;"></div>
-              </div>
-              <div class="sh-progress-label">92% • 92/100u</div>
-            </div>
-            <div class="sh-card-cta">View Details</div>
-         </div>
-         ...
-       </div>
-     </section>
-   -----------------------------------------------------------------------
-   Color states: .sh-met (≥goal), .sh-under (<goal), .sh-nogoal (goal=0)
-   ----------------------------------------------------------------------- */
-
+   ========================================================================== *
+   Markup emitted when **all stores** meet staffing + budget + rating thresholds.
+   Section wrapper: .stores-highlight-section (also has .admin-section)
+   State classes on card: .sh-met | .sh-under | .sh-nogoal
+   -------------------------------------------------------------------------- */
 .stores-highlight-section {
   text-align:center;
   padding-top:var(--space-lg);
   padding-bottom:var(--space-xl);
+  position:relative;
 }
-
 .stores-highlight-section > h2 {
   margin-bottom:var(--space-md);
   display:inline-block;
   position:relative;
 }
-
-/* grid --------------------------------------------------------------- */
+/* grid */
 .stores-hl-grid{
   width:100%;
   max-width:860px;
@@ -1207,8 +1001,7 @@ td:last-child{text-align:right;}
 @media (max-width:480px){
   .stores-hl-grid{gap:var(--space-md);}
 }
-
-/* card --------------------------------------------------------------- */
+/* card */
 .sh-card{
   position:relative;
   cursor:pointer;
@@ -1229,7 +1022,10 @@ td:last-child{text-align:right;}
   outline:none;
 }
 .sh-card:active{transform:translateY(0) scale(.97);}
-
+/* focus-visible ring for keyboard nav */
+.sh-card:focus-visible{
+  box-shadow:0 0 0 2px var(--brand-focus-ring),var(--shadow-card-h);
+}
 /* state color accents (thin top bar) */
 .sh-card::before{
   content:"";
@@ -1243,8 +1039,7 @@ td:last-child{text-align:right;}
 .sh-card.sh-met::before   {background:var(--success);}
 .sh-card.sh-under::before {background:var(--warning);}
 .sh-card.sh-nogoal::before{background:var(--text-muted);}
-
-/* header row (store # + staff mix) ---------------------------------- */
+/* header row (store # + staff mix) */
 .sh-card-head{
   display:flex;
   justify-content:center;
@@ -1259,7 +1054,6 @@ td:last-child{text-align:right;}
   color:var(--text-hi);
   line-height:1;
 }
-
 .sh-staff-pills{
   display:inline-flex;
   gap:var(--space-xs);
@@ -1277,10 +1071,8 @@ td:last-child{text-align:right;}
 }
 .sh-pill-lead{background:rgba(30,200,120,.85);color:#fff;}
 .sh-pill-me{background:rgba(180,180,200,.6);color:#fff;}
-/* optional DM pill if needed */
-.sh-pill-dm{background:rgba(60,120,255,.85);color:#fff;}
-
-/* rating row --------------------------------------------------------- */
+.sh-pill-dm{background:rgba(60,120,255,.85);color:#fff;} /* optional */
+/* rating row */
 .sh-rating-row{
   display:flex;
   justify-content:center;
@@ -1298,8 +1090,7 @@ td:last-child{text-align:right;}
   font-size:var(--fs-sm);
   color:var(--text-med);
 }
-
-/* progress ----------------------------------------------------------- */
+/* progress */
 .sh-progress-wrap{
   width:100%;
   max-width:220px;
@@ -1324,15 +1115,13 @@ td:last-child{text-align:right;}
 .sh-card.sh-met   .sh-progress-fill{background:var(--success);}
 .sh-card.sh-under .sh-progress-fill{background:var(--warning);}
 .sh-card.sh-nogoal .sh-progress-fill{background:var(--text-muted);}
-
 .sh-progress-label{
   margin-top:var(--space-xs);
   font-size:var(--fs-xs);
   color:var(--text-muted);
   line-height:1.2;
 }
-
-/* CTA --------------------------------------------------------------- */
+/* CTA */
 .sh-card-cta{
   margin-top:var(--space-xs);
   font-size:var(--fs-sm);
@@ -1343,16 +1132,14 @@ td:last-child{text-align:right;}
   pointer-events:none; /* card handles click */
 }
 .sh-card:hover .sh-card-cta{color:var(--brand-hover);}
-
-/* empty / all-good message ------------------------------------------ */
+/* empty / all-good message */
 .stores-highlight-empty{
   margin-top:var(--space-md);
   font-size:var(--fs-md);
   color:var(--text-muted);
 }
 .stores-highlight-empty strong{color:var(--text-hi);}
-
-/* close button variant (if you place an X in header) ---------------- */
+/* close button variant (if you place an X in header) */
 .stores-highlight-section .sh-close-btn{
   position:absolute;
   top:var(--space-sm);
@@ -1366,8 +1153,7 @@ td:last-child{text-align:right;}
   cursor:pointer;
 }
 .stores-highlight-section .sh-close-btn:hover{color:var(--text-hi);}
-
-/* reduced motion ---------------------------------------------------- */
+/* reduced motion */
 @media (prefers-reduced-motion:reduce){
   .sh-card{transition:none;}
   .sh-progress-fill{transition:none;}
