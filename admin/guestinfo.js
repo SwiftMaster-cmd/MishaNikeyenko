@@ -108,7 +108,6 @@
     );
   }
   function inCurrentWeek(g){
-    // Filter basis: most recent activity timestamp
     const ts = latestActivityTs(g);
     return ts >= msNDaysAgo(7); // rolling 7 days labelled "This Week"
   }
@@ -117,7 +116,6 @@
    * Status detection & grouping
    * ------------------------------------------------------------------ */
   function detectStatus(g){
-    // trust stored status if exists
     if (g.status) return g.status.toLowerCase();
     if (g.sale) return "sold";
     if (g.solution) return "proposal";
@@ -129,10 +127,9 @@
     const groups = { new:[], working:[], proposal:[], sold:[] };
     for (const [id,g] of Object.entries(guestMap)){
       const st = detectStatus(g);
-      if (!groups[st]) groups[st] = []; // safeguard
+      if (!groups[st]) groups[st] = [];
       groups[st].push([id,g]);
     }
-    // sort each group newest -> oldest by latest activity
     for (const k in groups){
       groups[k].sort((a,b)=>(latestActivityTs(b[1]) - latestActivityTs(a[1])));
     }
@@ -152,20 +149,21 @@
   }
 
   /* ------------------------------------------------------------------
-   * Controls bar (time-frame, follow-ups, sales, new lead)
+   * Controls bar
    *  - Hide All + Sales for ME
-   *  - Hide Follow-Ups button if no proposals (unless currently viewing)
+   *  - Hide Follow-Ups button if none (unless currently viewing)
+   *  - showCreateBtn param to suppress top "+ New Lead" when caught-up
    * ------------------------------------------------------------------ */
-  function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole){
+  function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, showCreateBtn=true){
     const weekActive = filterMode === "week";
     const weekCls = weekActive ? "btn-primary" : "btn-secondary";
 
-    // For ME: no All button; locked to week.
+    // All button only if NOT ME
     const allCls  = !weekActive ? "btn-primary" : "btn-secondary";
     const allBtn  = isMe(currentRole) ? "" :
       `<button class="btn ${allCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.setFilterMode('all')">All</button>`;
 
-    // Follow-Ups button shows only if proposals exist OR currently in proposals view.
+    // Follow-Ups button if proposals exist OR currently viewing
     const showFollowBtn = (proposalCount > 0) || showProposals;
     let proposalBtn = "";
     if (showFollowBtn){
@@ -174,12 +172,16 @@
       proposalBtn = `<button class="btn ${proposalBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleShowProposals()">${proposalBtnLabel}</button>`;
     }
 
-    // Sales button hidden for ME; show for others always (count in label).
+    // Sales button only if NOT ME
     let soldBtn = "";
     if (!isMe(currentRole)){
       const soldBtnLabel = soldOnly ? "Back to Leads" : `Sales (${soldCount})`;
       soldBtn = `<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleSoldOnly()">${soldBtnLabel}</button>`;
     }
+
+    const createBtn = showCreateBtn
+      ? `<button class="btn btn-success btn-sm" style="margin-left:auto;" onclick="window.guestinfo.createNewLead()">+ New Lead</button>`
+      : "";
 
     return `
       <div class="guestinfo-controls review-controls" style="justify-content:flex-start;flex-wrap:wrap;">
@@ -187,7 +189,7 @@
         ${allBtn}
         ${proposalBtn}
         ${soldBtn}
-        <button class="btn btn-success btn-sm" style="margin-left:auto;" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
+        ${createBtn}
       </div>`;
   }
 
@@ -227,10 +229,9 @@
     const showProposals = window._guestinfo_showProposals;
     const soldOnly      = window._guestinfo_soldOnly;
 
-    const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole);
-
     /* ----- Sales Only view ----- */
     if (soldOnly && !isMe(currentRole)){
+      const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, true);
       const soldHtml = statusSectionHtml("Sales", groups.sold, currentUid, currentRole, "sold");
       const none = !groups.sold.length ? emptyMotivationHtml("No sales in this view.") : "";
       return `
@@ -244,6 +245,7 @@
 
     /* ----- Follow-Ups (Proposals) only ----- */
     if (showProposals){
+      const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, true);
       const proposalHtml = statusSectionHtml("Follow-Ups (Proposals)", groups.proposal, currentUid, currentRole, "proposal", true);
       const none = !groups.proposal.length ? emptyMotivationHtml("No follow-ups in this view.") : "";
       return `
@@ -256,11 +258,15 @@
     }
 
     /* ----- Default view: New + Working (proposal collapsed alert if any) ----- */
-    const newHtml     = statusSectionHtml("New",      groups.new,      currentUid, currentRole, "new");
-    const workingHtml = statusSectionHtml("Working",  groups.working,  currentUid, currentRole, "working");
+    const showEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
+    const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, !showEmpty);
 
-    // collapsed alert placeholder if proposals exist
-    const proposalHtml = groups.proposal.length
+    // Only include subsections if NOT caught up
+    const newHtml     = showEmpty ? "" : statusSectionHtml("New",      groups.new,      currentUid, currentRole, "new");
+    const workingHtml = showEmpty ? "" : statusSectionHtml("Working",  groups.working,  currentUid, currentRole, "working");
+
+    // collapsed alert placeholder if proposals exist and we're not empty-caught-up
+    const proposalHtml = (!showEmpty && groups.proposal.length)
       ? `
         <div class="guestinfo-proposal-alert">
           <span>⚠ ${groups.proposal.length} follow-up lead${groups.proposal.length===1?"":"s"} awaiting action.</span>
@@ -268,8 +274,6 @@
         </div>`
       : "";
 
-    // empty motivational state if no New & no Working & no Proposals
-    const showEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
     const emptyHtml = showEmpty ? emptyMotivationHtml("You're all caught up!") : "";
 
     return `
@@ -286,7 +290,6 @@
 
   /* ------------------------------------------------------------------
    * Build a status subsection
-   * (kept even when empty in Follow-Ups/Sales views; in default we show real empty state)
    * ------------------------------------------------------------------ */
   function statusSectionHtml(title, rows, currentUid, currentRole, statusKey, highlight=false){
     const hasRows = rows && rows.length;
@@ -316,7 +319,6 @@
     const allowEdit   = canEditEntry(currentRole, g.userUid, currentUid);
     const allowSold   = canMarkSold(currentRole, g.userUid, currentUid);
 
-    // unify service/eval fields: prefer top-level (legacy), else evaluate.*
     const serviceType = g.serviceType ?? g.evaluate?.serviceType ?? "";
     const situation   = g.situation   ?? g.evaluate?.situation   ?? "";
     const sitPreview  = situation && situation.length > 140
@@ -334,43 +336,34 @@
       ? `<div class="guest-sale-summary"><b>Sold:</b> ${soldAt || ""} &bull; Units: ${units}</div>`
       : "";
 
-    /* Action Row --------------------------------------------------- */
     const actions = [];
-
-    // Continue/Open workflow page
     actions.push(
       `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">
          ${g.evaluate || g.solution || g.sale ? "Open" : "Continue"}
        </button>`
     );
-
     if (allowEdit) {
       actions.push(
         `<button class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>`
       );
     }
-
     if (!isSold && allowSold) {
       actions.push(
         `<button class="btn btn-success btn-sm" style="margin-left:8px;" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>`
       );
     }
-
     if (isSold && allowSold) {
       actions.push(
         `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>`
       );
     }
-
     if (allowDelete) {
       actions.push(
         `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>`
       );
     }
-
     const actionRow = actions.join("");
 
-    /* Quick Edit Form ---------------------------------------------- */
     return `
       <div class="guest-card" id="guest-card-${id}">
         <div class="guest-display">
@@ -492,7 +485,6 @@
       let units = parseInt(unitsStr, 10);
       if (isNaN(units) || units < 0) units = 0;
 
-      // Determine storeNumber: prefer submitter’s user record
       const users = window._users || {};
       const submitter = users[g.userUid] || {};
       let storeNumber = submitter.store;
@@ -503,7 +495,6 @@
 
       const now = Date.now();
 
-      // Create sale
       const salePayload = {
         guestinfoKey: id,
         storeNumber,
@@ -514,7 +505,6 @@
       const saleRef = await window.db.ref("sales").push(salePayload);
       const saleId  = saleRef.key;
 
-      // Attach to guestinfo
       await window.db.ref(`guestinfo/${id}/sale`).set({
         saleId,
         soldAt: now,
@@ -523,7 +513,6 @@
       });
       await window.db.ref(`guestinfo/${id}/status`).set("sold");
 
-      // Credit store ledger (best-effort)
       if (storeNumber) {
         try {
           await window.db.ref(`storeCredits/${storeNumber}`).push({
@@ -568,14 +557,10 @@
       const storeNumber = g.sale.storeNumber;
       const hasEval     = !!g.evaluate;
 
-      // Remove sale record
       await window.db.ref(`sales/${saleId}`).remove();
-      // Remove from guestinfo
       await window.db.ref(`guestinfo/${id}/sale`).remove();
-      // Reset status
       await window.db.ref(`guestinfo/${id}/status`).set(hasEval ? "working" : "new");
 
-      // Remove related storeCredits entries (best-effort)
       if (storeNumber) {
         try {
           const creditsSnap = await window.db.ref(`storeCredits/${storeNumber}`).get();
@@ -602,16 +587,14 @@
    * Filter setters / toggles
    * ------------------------------------------------------------------ */
   function setFilterMode(mode){
-    // ME locked to week
     if (isMe(window.currentRole)) {
-      window._guestinfo_filterMode = "week";
+      window._guestinfo_filterMode = "week";   // ME locked
     } else {
       window._guestinfo_filterMode = (mode === "all" ? "all" : "week");
     }
     window.renderAdminApp();
   }
   function toggleShowProposals(){
-    // turning on Follow-Ups hides Sales view
     if (!window._guestinfo_showProposals){
       window._guestinfo_soldOnly = false;
     }
@@ -619,7 +602,6 @@
     window.renderAdminApp();
   }
   function toggleSoldOnly(){
-    // turning on Sales hides Follow-Ups
     if (!window._guestinfo_soldOnly){
       window._guestinfo_showProposals = false;
     }
@@ -631,9 +613,7 @@
    * Create New Lead (launch step workflow w/out gid param)
    * ------------------------------------------------------------------ */
   function createNewLead(){
-    // no gid param -> guest workflow shows Step 1
     const base = GUESTINFO_PAGE;
-    // ensure we don't accidentally carry ?gid= from location; open clean
     const url = base.split("?")[0]; // strip existing query if any
     try { localStorage.removeItem("last_guestinfo_key"); } catch(_) {}
     window.location.href = url;
