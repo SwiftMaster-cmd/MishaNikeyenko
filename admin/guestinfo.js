@@ -1,4 +1,4 @@
-// guestinfo.js  -- dashboard inline Guest Info cards grouped by status, with filters
+// guestinfo.js  -- dashboard inline Guest Info cards grouped by status, with filters + Pitch Score
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
@@ -13,6 +13,21 @@
   if (typeof window._guestinfo_filterMode === "undefined") window._guestinfo_filterMode = "week"; // 'week' | 'all'
   if (typeof window._guestinfo_showProposals === "undefined") window._guestinfo_showProposals = false;
   if (typeof window._guestinfo_soldOnly === "undefined") window._guestinfo_soldOnly = false;
+
+  /* ------------------------------------------------------------------
+   * Pitch Score weighting (editable)
+   * Total 100 points
+   * ------------------------------------------------------------------ */
+  const PITCH_WEIGHTS = {
+    custName:       10,
+    custPhone:      10,
+    serviceType:    20,
+    situation:      20,
+    carrierInfo:    10,
+    requirements:   10,
+    solutionText:   20
+  };
+  const PITCH_MAX = Object.values(PITCH_WEIGHTS).reduce((a,b)=>a+b,0);
 
   /* ------------------------------------------------------------------
    * Role helpers
@@ -146,6 +161,60 @@
     else if (s === "proposal"){ cls = "role-badge role-dm";    label = "PROPOSAL"; }
     else if (s === "sold")    { cls = "role-badge role-admin"; label = "SOLD"; }
     return `<span class="${cls}">${label}</span>`;
+  }
+
+  /* ------------------------------------------------------------------
+   * Compute Pitch Score
+   *  - Accepts guest record
+   *  - If DB already has g.pitchScore / g.pitchPct use that (live override)
+   *  - Else compute using local weight map and available fields
+   * ------------------------------------------------------------------ */
+  function _has(v){ return v!=null && String(v).trim()!==""; }
+
+  function computePitchScore(g){
+    // If record has persisted values, prefer them
+    const savedPct = g.pitchPct;
+    const savedScore = g.pitchScore;
+    if (typeof savedPct === "number" && !isNaN(savedPct)) {
+      return decoratePitch(savedPct, savedScore ?? (savedPct/100*PITCH_MAX), PITCH_MAX, "saved");
+    }
+
+    // Extract field candidates from record (support legacy nested paths)
+    const ev = g.evaluate || {};
+    const sol = g.solution || {};
+
+    let score = 0;
+    const parts = []; // {label, got, weight}
+
+    if (_has(g.custName))      { score += PITCH_WEIGHTS.custName;      parts.push(["Name",PITCH_WEIGHTS.custName]); }
+    if (_has(g.custPhone))     { score += PITCH_WEIGHTS.custPhone;     parts.push(["Phone",PITCH_WEIGHTS.custPhone]); }
+    if (_has(ev.serviceType) || _has(g.serviceType)) {
+      score += PITCH_WEIGHTS.serviceType; parts.push(["Service",PITCH_WEIGHTS.serviceType]);
+    }
+    if (_has(ev.situation) || _has(g.situation)) {
+      score += PITCH_WEIGHTS.situation;   parts.push(["Situation",PITCH_WEIGHTS.situation]);
+    }
+    if (_has(ev.carrierInfo))  { score += PITCH_WEIGHTS.carrierInfo;   parts.push(["Carrier",PITCH_WEIGHTS.carrierInfo]); }
+    if (_has(ev.requirements)) { score += PITCH_WEIGHTS.requirements;  parts.push(["Needs",PITCH_WEIGHTS.requirements]); }
+    if (_has(sol.text))        { score += PITCH_WEIGHTS.solutionText;  parts.push(["Solution",PITCH_WEIGHTS.solutionText]); }
+
+    const pct = Math.round((score / PITCH_MAX) * 100);
+    return decoratePitch(pct, score, PITCH_MAX, parts);
+  }
+
+  function decoratePitch(pct, score, max, parts){
+    let cls = "pitch-low";
+    if (pct >= 70) cls = "pitch-good";
+    else if (pct >= 40) cls = "pitch-warn";
+    // build tooltip summary
+    let expl = "";
+    if (Array.isArray(parts)) {
+      const lines = parts.map(p=>Array.isArray(p)?`${p[0]} +${p[1]}`:String(p));
+      expl = lines.join(", ");
+    } else if (typeof parts === "string") {
+      expl = parts;
+    }
+    return {score, max, pct, cls, explain: expl};
   }
 
   /* ------------------------------------------------------------------
@@ -311,7 +380,7 @@
   }
 
   /* ------------------------------------------------------------------
-   * Build guest card (inline preview + quick edit)
+   * Build guest card (inline preview + quick edit) + Pitch Score badge
    * ------------------------------------------------------------------ */
   function guestCardHtml(id, g, users, currentUid, currentRole) {
     const submitter = users[g.userUid];
@@ -319,14 +388,24 @@
     const allowEdit   = canEditEntry(currentRole, g.userUid, currentUid);
     const allowSold   = canMarkSold(currentRole, g.userUid, currentUid);
 
-    const serviceType = g.serviceType ?? g.evaluate?.serviceType ?? "";
-    const situation   = g.situation   ?? g.evaluate?.situation   ?? "";
+    // unify service/eval fields: prefer top-level (legacy), else evaluate.*
+    const ev = g.evaluate || {};
+    const serviceType = g.serviceType ?? ev.serviceType ?? "";
+    const situation   = g.situation   ?? ev.situation   ?? "";
     const sitPreview  = situation && situation.length > 140
       ? situation.slice(0,137) + "…"
       : situation;
 
     const status      = detectStatus(g);
     const statBadge   = statusBadge(status);
+
+    // Pitch Score
+    const pitch = computePitchScore(g);
+    const pitchHtml = `
+      <span class="guest-pitch-pill ${pitch.cls}"
+            title="Pitch completeness: ${pitch.pct}%${pitch.explain?` • ${esc(pitch.explain)}`:""}">
+        ${pitch.pct}%
+      </span>`;
 
     const isSold = status === "sold";
     const units  = isSold ? (g.sale?.units ?? "") : "";
@@ -336,38 +415,48 @@
       ? `<div class="guest-sale-summary"><b>Sold:</b> ${soldAt || ""} &bull; Units: ${units}</div>`
       : "";
 
+    /* Action Row --------------------------------------------------- */
     const actions = [];
+
+    // Continue/Open workflow page
     actions.push(
       `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">
          ${g.evaluate || g.solution || g.sale ? "Open" : "Continue"}
        </button>`
     );
+
     if (allowEdit) {
       actions.push(
         `<button class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>`
       );
     }
+
     if (!isSold && allowSold) {
       actions.push(
         `<button class="btn btn-success btn-sm" style="margin-left:8px;" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>`
       );
     }
+
     if (isSold && allowSold) {
       actions.push(
         `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>`
       );
     }
+
     if (allowDelete) {
       actions.push(
         `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>`
       );
     }
+
     const actionRow = actions.join("");
 
+    /* Quick Edit Form ---------------------------------------------- */
     return `
       <div class="guest-card" id="guest-card-${id}">
         <div class="guest-display">
           <div><b>Status:</b> ${statBadge}</div>
+          <div><b>Pitch:</b> ${pitchHtml}</div>
           <div><b>Submitted by:</b> ${esc(submitter?.name || submitter?.email || g.userUid)}</div>
           <div><b>Customer:</b> ${esc(g.custName) || "-"} &nbsp; | &nbsp; <b>Phone:</b> ${esc(g.custPhone) || "-"}</div>
           <div><b>Type:</b> ${esc(serviceType) || "-"}</div>
@@ -424,6 +513,7 @@
 
   /* ------------------------------------------------------------------
    * Save Quick Edit (top-level fields only)
+   * Also triggers pitch recompute server-side by writing updatedAt.
    * ------------------------------------------------------------------ */
   async function saveEdit(id) {
     const card = document.getElementById(`guest-card-${id}`);
@@ -433,7 +523,7 @@
     const data = {
       custName:    form.custName.value.trim(),
       custPhone:   form.custPhone.value.trim(),
-      serviceType: form.serviceType.value.trim(),
+      serviceType: form.serviceType.value.trim(), // kept top-level legacy
       situation:   form.situation.value.trim(),
       updatedAt:   Date.now()
     };
@@ -485,6 +575,7 @@
       let units = parseInt(unitsStr, 10);
       if (isNaN(units) || units < 0) units = 0;
 
+      // Determine storeNumber: prefer submitter’s user record
       const users = window._users || {};
       const submitter = users[g.userUid] || {};
       let storeNumber = submitter.store;
@@ -495,6 +586,7 @@
 
       const now = Date.now();
 
+      // Create sale
       const salePayload = {
         guestinfoKey: id,
         storeNumber,
@@ -505,6 +597,7 @@
       const saleRef = await window.db.ref("sales").push(salePayload);
       const saleId  = saleRef.key;
 
+      // Attach to guestinfo
       await window.db.ref(`guestinfo/${id}/sale`).set({
         saleId,
         soldAt: now,
@@ -513,6 +606,7 @@
       });
       await window.db.ref(`guestinfo/${id}/status`).set("sold");
 
+      // Credit store ledger (best-effort)
       if (storeNumber) {
         try {
           await window.db.ref(`storeCredits/${storeNumber}`).push({
@@ -557,10 +651,14 @@
       const storeNumber = g.sale.storeNumber;
       const hasEval     = !!g.evaluate;
 
+      // Remove sale record
       await window.db.ref(`sales/${saleId}`).remove();
+      // Remove from guestinfo
       await window.db.ref(`guestinfo/${id}/sale`).remove();
+      // Reset status
       await window.db.ref(`guestinfo/${id}/status`).set(hasEval ? "working" : "new");
 
+      // Remove related storeCredits entries (best-effort)
       if (storeNumber) {
         try {
           const creditsSnap = await window.db.ref(`storeCredits/${storeNumber}`).get();
@@ -595,6 +693,7 @@
     window.renderAdminApp();
   }
   function toggleShowProposals(){
+    // turning on Follow-Ups hides Sales view
     if (!window._guestinfo_showProposals){
       window._guestinfo_soldOnly = false;
     }
@@ -602,6 +701,7 @@
     window.renderAdminApp();
   }
   function toggleSoldOnly(){
+    // turning on Sales hides Follow-Ups
     if (!window._guestinfo_soldOnly){
       window._guestinfo_showProposals = false;
     }
@@ -613,7 +713,9 @@
    * Create New Lead (launch step workflow w/out gid param)
    * ------------------------------------------------------------------ */
   function createNewLead(){
+    // no gid param -> guest workflow shows Step 1
     const base = GUESTINFO_PAGE;
+    // ensure we don't accidentally carry ?gid= from location; open clean
     const url = base.split("?")[0]; // strip existing query if any
     try { localStorage.removeItem("last_guestinfo_key"); } catch(_) {}
     window.location.href = url;
@@ -629,6 +731,34 @@
     try { localStorage.setItem("last_guestinfo_key", guestKey); } catch(_) {}
     window.location.href = url;
   }
+
+  /* ------------------------------------------------------------------
+   * Inject minimal CSS for pitch pills (only once)
+   * ------------------------------------------------------------------ */
+  function ensurePitchCss(){
+    if (document.getElementById("guestinfo-pitch-css")) return;
+    const css = `
+      .guest-pitch-pill{
+        display:inline-block;
+        padding:2px 10px;
+        margin-left:4px;
+        font-size:var(--fs-xs,12px);
+        font-weight:700;
+        line-height:1.2;
+        border-radius:999px;
+        border:1px solid var(--border-color,rgba(255,255,255,.2));
+        white-space:nowrap;
+      }
+      .guest-pitch-pill.pitch-good{background:var(--success-bg,rgba(0,200,83,.15));color:var(--success,#00c853);}
+      .guest-pitch-pill.pitch-warn{background:var(--warning-bg,rgba(255,179,0,.15));color:var(--warning,#ffb300);}
+      .guest-pitch-pill.pitch-low{background:var(--danger-bg,rgba(255,82,82,.15));color:var(--danger,#ff5252);}
+    `.trim();
+    const style = document.createElement("style");
+    style.id = "guestinfo-pitch-css";
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+  ensurePitchCss();
 
   /* ------------------------------------------------------------------
    * Expose public API
@@ -647,6 +777,8 @@
     toggleShowProposals,
     toggleSoldOnly,
     // new lead
-    createNewLead
+    createNewLead,
+    // pitch util (exported in case other modules want it)
+    computePitchScore
   };
 })();
