@@ -1,424 +1,514 @@
-// messages.js  -- Mgmt-tier Messaging (Admin ⇄ DM ⇄ TL)
-
-// Expect global window.db (firebase.database()) and window.auth from admin.js.
-// We'll still allow explicit init(db, auth) call; if omitted, we fall back to globals.
-
-(function(){
+// messages.js  -- Lightweight thread+chat overlay for Admin Dashboard
+(() => {
   const ROLES = window.ROLES || { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
-  const MESSAGES_ROOT = "messages";
 
   /* ------------------------------------------------------------------
-   * State
-   * ---------------------------------------------------------------- */
-  let _db        = null;
-  let _auth      = null;
-  let _currentUid= null;
-  let _currentRole=ROLES.ME;
-  let _usersGetter = null;   // function returning users map (we'll pull from window._users)
-  let _threads   = {};       // threadId -> threadObj
-  let _msgsCache = {};       // threadId -> {msgId:msg}
-  let _rtBound   = false;
-  let _badgeEl   = null;
-  let _btnEl     = null;
+   * Local state
+   * ------------------------------------------------------------------ */
+  let _threads = {};          // {tid: threadObj}
+  let _rtBound = false;
+  let _currentUid  = null;
+  let _currentRole = null;
+  let _openThreadId = null;
+
+  /* DOM ids */
+  const IDS = {
+    overlay:       "msgOverlay",
+    panel:         "msgOverlayPanel",
+    close:         "msgOverlayClose",
+    listWrap:      "msgThreadList",
+    viewWrap:      "msgThreadView",
+    viewMsgs:      "msgMsgs",
+    viewTitle:     "msgThreadTitle",
+    viewBack:      "msgThreadBack",
+    sendForm:      "msgSendForm",
+    sendInput:     "msgInput",
+    newBtn:        "msgNewBtn",
+    newDlg:        "msgNewDlg",
+    newDlgList:    "msgNewDlgList",
+    newDlgCreate:  "msgNewDlgCreate",
+    newDlgCancel:  "msgNewDlgCancel",
+    badge:         "messagesBadge",
+    headerBtn:     "messagesBtn"
+  };
 
   /* ------------------------------------------------------------------
-   * Init (call after auth known)
-   * ---------------------------------------------------------------- */
-  function init(db, auth, usersGetterFn){
-    _db   = db   || window.db;
-    _auth = auth || window.auth;
-    _usersGetter = usersGetterFn || (()=>window._users||{});
+   * Helpers (roles)
+   * ------------------------------------------------------------------ */
+  const isAdmin = r => r === ROLES.ADMIN;
+  const isDM    = r => r === ROLES.DM;
+  const isLead  = r => r === ROLES.LEAD;
+  const isMe    = r => r === ROLES.ME;
 
-    _btnEl   = document.getElementById("messagesBtn");
-    _badgeEl = document.getElementById("messagesBadge");
-    if (_btnEl) _btnEl.addEventListener("click", openMessagesModal);
+  /* Build "people around you" recipient set --------------------------------
+     Returns array of user objects {uid, name, role} sorted by role weight then name.
+  ------------------------------------------------------------------------- */
+  function allowedRecipients(users, myUid, myRole) {
+    const meRec = users[myUid] || {name:"Me",role:myRole};
+    const out = new Map(); // uid->obj
 
-    if (_auth?.currentUser) {
-      bootstrapForUser(_auth.currentUser);
-    } else if (auth) {
-      auth.onAuthStateChanged(u=>{ if(u) bootstrapForUser(u); });
-    }
-  }
-
-  function bootstrapForUser(user){
-    _currentUid = user.uid;
-    const users=_usersGetter();
-    const meRec=users?.[_currentUid];
-    _currentRole = (meRec?.role||ROLES.ME).toLowerCase();
-    bindRealtime();
-  }
-
-  /* ------------------------------------------------------------------
-   * Realtime listeners
-   * ---------------------------------------------------------------- */
-  function bindRealtime(){
-    if (_rtBound || !_db) return;
-    _rtBound = true;
-    const ref = _db.ref(MESSAGES_ROOT);
-    // listen for threads meta changes
-    ref.on("child_added", s=>{handleThreadSnapshot(s);});
-    ref.on("child_changed", s=>{handleThreadSnapshot(s);});
-    ref.on("child_removed", s=>{delete _threads[s.key]; updateBadge();});
-  }
-
-  function handleThreadSnapshot(snap){
-    const id = snap.key;
-    const val= snap.val()||{};
-    _threads[id]=val;
-
-    // Bind messages substream for this thread (once)
-    if (!_msgsCache[id]) {
-      _msgsCache[id]={};
-      _db.ref(`${MESSAGES_ROOT}/${id}/msgs`).limitToLast(100).on("child_added", ms=>{
-        _msgsCache[id][ms.key]=ms.val();
-        updateThreadComputed(id);
-      });
-      _db.ref(`${MESSAGES_ROOT}/${id}/msgs`).on("child_changed", ms=>{
-        _msgsCache[id][ms.key]=ms.val();
-        updateThreadComputed(id);
-      });
-      _db.ref(`${MESSAGES_ROOT}/${id}/msgs`).on("child_removed", ms=>{
-        delete _msgsCache[id][ms.key];
-        updateThreadComputed(id);
-      });
+    function add(uid){
+      if(!uid || out.has(uid))return;
+      const u = users[uid] || {name:uid,role:"?"};
+      out.set(uid, {uid, name:u.name||u.email||uid, role:(u.role||"?").toLowerCase()});
     }
 
-    updateThreadComputed(id);
-  }
+    add(myUid);
 
-  function updateThreadComputed(threadId){
-    const t = _threads[threadId];
-    if (!t) return;
-    // compute unread if missing
-    if (!t.unread) t.unread={};
-    if (typeof t.unread[_currentUid] !== "number") {
-      const msgs=_msgsCache[threadId]||{};
-      let count=0;
-      for (const m of Object.values(msgs)){
-        if(!m.readBy || !m.readBy[_currentUid]) count++;
+    if (isAdmin(myRole)) {
+      for (const [uid,u] of Object.entries(users)) {
+        if (uid===myUid) continue;
+        add(uid);
       }
-      t.unread[_currentUid]=count;
+      return Array.from(out.values()).sort(recSort);
     }
-    updateBadge();
-    // if modal open, rerender
-    if (document.getElementById("messagesModal")) renderModalContent();
+
+    if (isDM(myRole)) {
+      // All leads assignedDM==me
+      const leads = Object.entries(users)
+        .filter(([,u])=>u.role===ROLES.LEAD && u.assignedDM===myUid)
+        .map(([uid])=>uid);
+      leads.forEach(add);
+      // All MEs under those leads
+      Object.entries(users).forEach(([uid,u])=>{
+        if(u.role===ROLES.ME && leads.includes(u.assignedLead)) add(uid);
+      });
+      // Admin(s) for escalation
+      Object.entries(users).forEach(([uid,u])=>{
+        if(u.role===ROLES.ADMIN) add(uid);
+      });
+      return Array.from(out.values()).sort(recSort);
+    }
+
+    if (isLead(myRole)) {
+      // Myself
+      add(myUid);
+      // My DM
+      const myRecord = users[myUid]||{};
+      if (myRecord.assignedDM) add(myRecord.assignedDM);
+      // Associates (ME) I lead
+      Object.entries(users).forEach(([uid,u])=>{
+        if(u.role===ROLES.ME && u.assignedLead===myUid) add(uid);
+      });
+      // Admin(s) optional escalate
+      Object.entries(users).forEach(([uid,u])=>{
+        if(u.role===ROLES.ADMIN) add(uid);
+      });
+      return Array.from(out.values()).sort(recSort);
+    }
+
+    // ME (associate)
+    if (isMe(myRole)) {
+      const myRecord = users[myUid]||{};
+      // Myself
+      add(myUid);
+      // My lead
+      if (myRecord.assignedLead) add(myRecord.assignedLead);
+      // My lead's DM
+      const leadRec = users[myRecord.assignedLead];
+      if (leadRec && leadRec.assignedDM) add(leadRec.assignedDM);
+      // Admin(s) (optional)
+      Object.entries(users).forEach(([uid,u])=>{
+        if(u.role===ROLES.ADMIN) add(uid);
+      });
+      return Array.from(out.values()).sort(recSort);
+    }
+
+    // fallback none
+    return Array.from(out.values()).sort(recSort);
+  }
+
+  function recSort(a,b){
+    const rank = {admin:0, dm:1, lead:2, me:3, "?":4};
+    const ra = rank[a.role] ?? 10;
+    const rb = rank[b.role] ?? 10;
+    if (ra !== rb) return ra - rb;
+    return (a.name||"").localeCompare(b.name||"");
+  }
+
+  function roleBadgeHtml(role){
+    const r = (role||"").toLowerCase();
+    const txt = r.toUpperCase();
+    return `<span class="msg-role msg-role-${r}">${txt}</span>`;
   }
 
   /* ------------------------------------------------------------------
-   * Badge
-   * ---------------------------------------------------------------- */
-  function updateBadge(){
-    if(!_badgeEl)return;
-    let tot=0;
-    const users=_usersGetter();
-    for (const [tid,t] of Object.entries(_threads)){
-      if(!threadVisibleToUser(tid,t,users)) continue;
-      const n = (t.unread && typeof t.unread[_currentUid]==="number")?t.unread[_currentUid]:0;
-      tot += n;
-    }
-    if (tot>0){
-      _badgeEl.style.display="inline-block";
-      _badgeEl.textContent = tot>99?"99+":String(tot);
-      if (_btnEl) _btnEl.setAttribute("aria-label",`Messages (${tot} unread)`);
-    } else {
-      _badgeEl.style.display="none";
-      _badgeEl.textContent="0";
-      if (_btnEl) _btnEl.setAttribute("aria-label","Messages (0 unread)");
-    }
-  }
-
-  /* ------------------------------------------------------------------
-   * Permissions: which threads user can see?
-   *   - Admin sees all.
-   *   - Others see threads where participants/uid true OR roles/uid exists.
-   * ---------------------------------------------------------------- */
-  function threadVisibleToUser(id, thread, users){
-    if (_currentRole===ROLES.ADMIN) return true;
-    if (thread?.participants && thread.participants[_currentUid]) return true;
-    if (thread?.roles && thread.roles[_currentUid]) return true;
-    return false;
-  }
-
-  /* ------------------------------------------------------------------
-   * Compute display name for a thread
-   *   - 1:1 show other participant name
-   *   - multi show "Group (n)"
-   * ---------------------------------------------------------------- */
-  function threadDisplayName(id, thread, users){
-    const parts = thread?.participants? Object.keys(thread.participants):[];
-    const others = parts.filter(u=>u!==_currentUid);
-    if (others.length===1){
-      const u=users?.[others[0]];
-      return u?.name || u?.email || "Conversation";
-    }
-    // fallback: lastMsg.from + count
-    return `Group (${parts.length})`;
-  }
-
-  /* ------------------------------------------------------------------
-   * Modal UI
-   * ---------------------------------------------------------------- */
-  function openMessagesModal(){
-    ensureModalShell();
-    renderModalContent();
-    showModal();
-  }
-
-  function ensureModalShell(){
-    if (document.getElementById("messagesModal")) return;
-    const root = document.getElementById("messagesModalRoot") || document.body;
-    const wrap=document.createElement("div");
-    wrap.id="messagesModal";
-    wrap.innerHTML=`
-      <div class="msg-modal-backdrop" data-msg-close></div>
-      <div class="msg-modal">
-        <header class="msg-modal-hdr">
-          <h3>Messages</h3>
-          <button type="button" class="msg-modal-close" data-msg-close>&times;</button>
+   * Overlay DOM bootstrap
+   * ------------------------------------------------------------------ */
+  function ensureOverlay(){
+    let ov = document.getElementById(IDS.overlay);
+    if (ov) return ov;
+    ov = document.createElement("div");
+    ov.id = IDS.overlay;
+    ov.className = "msg-overlay hidden";
+    ov.innerHTML = `
+      <div id="${IDS.panel}" class="msg-panel">
+        <header class="msg-panel-header">
+          <span>Messages</span>
+          <button type="button" id="${IDS.close}" aria-label="Close Messages">×</button>
         </header>
-        <div class="msg-modal-body">
-          <!-- thread list or thread view injected -->
+        <div class="msg-panel-body">
+          <div id="${IDS.listWrap}" class="msg-thread-list"></div>
+          <div id="${IDS.viewWrap}" class="msg-thread-view hidden">
+            <div class="msg-thread-view-header">
+              <button type="button" id="${IDS.viewBack}" aria-label="Back">&larr;</button>
+              <span id="${IDS.viewTitle}" class="msg-thread-title"></span>
+            </div>
+            <div id="${IDS.viewMsgs}" class="msg-msgs"></div>
+            <form id="${IDS.sendForm}" class="msg-send-form">
+              <input id="${IDS.sendInput}" type="text" placeholder="Type a message…" autocomplete="off" />
+              <button type="submit">Send</button>
+            </form>
+          </div>
         </div>
-      </div>`;
-    root.appendChild(wrap);
-    wrap.addEventListener("click",e=>{
-      if (e.target.matches("[data-msg-close]")) closeModal();
+        <button type="button" id="${IDS.newBtn}" class="msg-new-btn" aria-label="New Message">+</button>
+      </div>
+      <div id="${IDS.newDlg}" class="msg-new-dlg hidden" role="dialog" aria-modal="true">
+        <div class="msg-new-dlg-box">
+          <h3>New Message</h3>
+          <p>Select teammates:</p>
+          <div id="${IDS.newDlgList}" class="msg-new-dlg-list"></div>
+          <div class="msg-new-dlg-actions">
+            <button type="button" id="${IDS.newDlgCancel}">Cancel</button>
+            <button type="button" id="${IDS.newDlgCreate}" class="msg-new-dlg-create" disabled>Create</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(ov);
+
+    // wire close
+    document.getElementById(IDS.close).addEventListener("click",hideOverlay);
+    ov.addEventListener("click",e=>{
+      if(e.target===ov) hideOverlay(); // click backdrop
     });
-    injectMsgCss();
+
+    // wire new btn
+    document.getElementById(IDS.newBtn).addEventListener("click",openNewDialog);
+    document.getElementById(IDS.newDlgCancel).addEventListener("click",closeNewDialog);
+    document.getElementById(IDS.newDlgCreate).addEventListener("click",createThreadFromDialog);
+
+    // send form
+    document.getElementById(IDS.sendForm).addEventListener("submit",handleSendMsg);
+    document.getElementById(IDS.viewBack).addEventListener("click",()=>showThreadList());
+
+    return ov;
   }
 
-  function renderModalContent(){
-    const root=document.querySelector("#messagesModal .msg-modal-body");
-    if(!root)return;
-    if(_openThreadId){
-      renderThreadView(root,_openThreadId);
-    }else{
-      renderThreadList(root);
-    }
+  function showOverlay(){
+    ensureOverlay();
+    document.getElementById(IDS.overlay).classList.remove("hidden");
+    showThreadList();
   }
-
-  function showModal(){
-    const m=document.getElementById("messagesModal");
-    if(m)m.classList.add("msg-modal-open");
-  }
-  function closeModal(){
-    const m=document.getElementById("messagesModal");
-    if(m)m.classList.remove("msg-modal-open");
+  function hideOverlay(){
+    const ov=document.getElementById(IDS.overlay);
+    if(ov)ov.classList.add("hidden");
     _openThreadId=null;
   }
 
   /* ------------------------------------------------------------------
-   * Thread list view
-   * ---------------------------------------------------------------- */
-  function renderThreadList(root){
-    const users=_usersGetter();
-    // gather visible threads
-    const arr = Object.entries(_threads)
-      .filter(([id,t])=>threadVisibleToUser(id,t,users))
-      .map(([id,t])=>[id,t]);
-    // sort by updatedAt desc
-    arr.sort((a,b)=>(b[1].updatedAt||0) - (a[1].updatedAt||0));
-
-    const rows = arr.map(([id,t])=>{
-      const name = threadDisplayName(id,t,users);
-      const last = t.lastMsg?.text || "";
-      const when = t.updatedAt ? new Date(t.updatedAt).toLocaleString() : "";
-      const unread = t.unread?.[_currentUid]||0;
+   * New Thread dialog
+   * ------------------------------------------------------------------ */
+  function openNewDialog(){
+    const dlg=document.getElementById(IDS.newDlg);
+    if(!dlg)return;
+    renderNewDialogList();
+    dlg.classList.remove("hidden");
+  }
+  function closeNewDialog(){
+    const dlg=document.getElementById(IDS.newDlg);
+    if(dlg)dlg.classList.add("hidden");
+  }
+  function renderNewDialogList(){
+    const listEl=document.getElementById(IDS.newDlgList);
+    const myUid=_currentUid, myRole=_currentRole;
+    const users=window._users||{};
+    const recs=allowedRecipients(users,myUid,myRole)
+      .filter(r=>r.uid!==myUid); // exclude self (auto added)
+    listEl.innerHTML = recs.map(r=>{
+      const id=`msg-new-chk-${r.uid}`;
       return `
-        <div class="msg-thread-row" data-tid="${id}">
-          <div class="mtr-top">
-            <span class="mtr-name">${escapeHtml(name)}</span>
-            ${unread?`<span class="mtr-unread">${unread>99?"99+":unread}</span>`:""}
-          </div>
-          <div class="mtr-sub">${escapeHtml(last)}</div>
-          <div class="mtr-when">${when}</div>
-        </div>`;
-    }).join("") || `<div class="msg-empty">No messages.</div>`;
-
-    root.innerHTML=`
-      <div class="msg-list">${rows}</div>
-      <div class="msg-compose-bar">
-        <button type="button" id="msgComposeBtn" class="msg-compose-btn">+ New Message</button>
-      </div>
-    `;
-
-    root.querySelectorAll(".msg-thread-row").forEach(row=>{
-      row.addEventListener("click",()=>{
-        const tid=row.dataset.tid;
-        openThread(tid);
-      });
+      <label class="msg-new-opt">
+        <input type="checkbox" id="${id}" data-uid="${r.uid}">
+        ${roleBadgeHtml(r.role)} ${escapeHtml(r.name)}
+      </label>`;
+    }).join("");
+    listEl.querySelectorAll("input[type=checkbox]").forEach(chk=>{
+      chk.addEventListener("change",updateNewDialogCreateEnabled);
     });
-    root.querySelector("#msgComposeBtn")?.addEventListener("click",openComposeDialog);
+    updateNewDialogCreateEnabled();
   }
-
-  /* ------------------------------------------------------------------
-   * Compose dialog
-   * ---------------------------------------------------------------- */
-  function openComposeDialog(){
-    const users=_usersGetter();
-    const mgmtEntries = Object.entries(users||{})
-      .filter(([uid,u])=>{
-        const r=(u.role||"").toLowerCase();
-        return r===ROLES.ADMIN||r===ROLES.DM||r===ROLES.LEAD;
-      });
-    const opts = mgmtEntries.map(([uid,u])=>
-      `<option value="${uid}" ${uid===_currentUid?"disabled":""}>${escapeHtml(u.name||u.email||uid)} (${u.role})</option>`
-    ).join("");
-    const root=document.querySelector("#messagesModal .msg-modal-body");
-    if(!root)return;
-    root.innerHTML=`
-      <div class="msg-compose-form">
-        <label>Select recipient(s)</label>
-        <select id="msgComposeTo" multiple size="6">${opts}</select>
-        <label>Message</label>
-        <textarea id="msgComposeText" rows="3" placeholder="Type a message…"></textarea>
-        <div class="msg-compose-actions">
-          <button type="button" id="msgComposeSend" class="msg-send-btn">Send</button>
-          <button type="button" id="msgComposeCancel" class="msg-cancel-btn">Cancel</button>
-        </div>
-      </div>`;
-    document.getElementById("msgComposeSend")?.addEventListener("click",()=>{
-      const toSel=document.getElementById("msgComposeTo");
-      const txtEl=document.getElementById("msgComposeText");
-      const sel=[...toSel.options].filter(o=>o.selected && !o.disabled).map(o=>o.value);
-      const txt=txtEl.value.trim();
-      if(!sel.length){alert("Select at least one recipient.");return;}
-      if(!txt){alert("Enter a message.");return;}
-      sendNewThreadMessage(sel,txt);
-    });
-    document.getElementById("msgComposeCancel")?.addEventListener("click",renderModalContent);
+  function updateNewDialogCreateEnabled(){
+    const listEl=document.getElementById(IDS.newDlgList);
+    const checked=listEl.querySelectorAll("input[type=checkbox]:checked").length;
+    document.getElementById(IDS.newDlgCreate).disabled = checked===0;
   }
-
-  /* ------------------------------------------------------------------
-   * Send new thread message
-   * ---------------------------------------------------------------- */
-  async function sendNewThreadMessage(recipientUids,text){
-    const allUids=[...new Set([_currentUid,...recipientUids])].sort();
-    const tid=allUids.join("__");
-    const users=_usersGetter();
-    const roles={};
+  async function createThreadFromDialog(){
+    const listEl=document.getElementById(IDS.newDlgList);
+    const checks=[...listEl.querySelectorAll("input[type=checkbox]:checked")];
+    if(!checks.length)return;
     const participants={};
-    allUids.forEach(u=>{
-      participants[u]=true;
-      roles[u]=(users?.[u]?.role||"").toLowerCase();
+    const roles={};
+    const users=window._users||{};
+    participants[_currentUid]=true;
+    roles[_currentUid]=(_currentRole||"").toLowerCase();
+    checks.forEach(chk=>{
+      const uid=chk.dataset.uid;
+      participants[uid]=true;
+      roles[uid]=(users[uid]?.role||"?").toLowerCase();
     });
     const now=Date.now();
-    const msgRef=_db.ref(`${MESSAGES_ROOT}/${tid}/msgs`).push();
-    const msgPayload={fromUid:_currentUid,text,ts:now,readBy:{[_currentUid]:true}};
-    const threadMeta={
-      participants,roles,
-      lastMsg:{text,fromUid:_currentUid,ts:now},
+    const newRef=window.db.ref("messages").push();
+    const init = {
+      participants,
+      roles,
+      unread:Object.fromEntries(Object.keys(participants).map(uid=>[uid, uid===_currentUid?0:1])),
+      lastMsg:{
+        fromUid:_currentUid,
+        text:"(started a conversation)",
+        ts:now
+      },
       updatedAt:now
     };
-    const updates={};
-    updates[`${MESSAGES_ROOT}/${tid}`]=threadMeta;
-    updates[`${MESSAGES_ROOT}/${tid}/msgs/${msgRef.key}`]=msgPayload;
-    // set unread counts
-    allUids.forEach(u=>{
-      updates[`${MESSAGES_ROOT}/${tid}/unread/${u}`]= (u===_currentUid?0:1);
+    await newRef.set(init);
+    // Add a system "started" message
+    await newRef.child("msgs").push({
+      fromUid:_currentUid,
+      text:"Started the conversation.",
+      ts:now
     });
-    await _db.ref().update(updates);
-    _openThreadId=tid;
-    renderModalContent();
+    closeNewDialog();
+    openThread(newRef.key);
   }
 
   /* ------------------------------------------------------------------
-   * Open existing thread view
-   * ---------------------------------------------------------------- */
-  let _openThreadId=null;
-  function openThread(tid){
-    _openThreadId=tid;
-    renderModalContent();
-    markThreadRead(tid);
+   * Thread List rendering
+   * ------------------------------------------------------------------ */
+  function showThreadList(){
+    _openThreadId=null;
+    const listWrap=document.getElementById(IDS.listWrap);
+    const viewWrap=document.getElementById(IDS.viewWrap);
+    if(listWrap)listWrap.classList.remove("hidden");
+    if(viewWrap)viewWrap.classList.add("hidden");
+    renderThreadList();
   }
+  function renderThreadList(){
+    const wrap=document.getElementById(IDS.listWrap);
+    if(!wrap)return;
+    const threads = Object.entries(_threads)
+      .filter(([,t])=>t.participants && t.participants[_currentUid])
+      .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
 
-  function renderThreadView(root,tid){
-    const t=_threads[tid]||{};
-    const users=_usersGetter();
-    const name=threadDisplayName(tid,t,users);
-    const msgs=_msgsCache[tid]||{};
-    const arr=Object.entries(msgs).sort((a,b)=>(a[1].ts||0)-(b[1].ts||0));
-    const rows=arr.map(([mid,m])=>{
-      const me=(m.fromUid===_currentUid);
-      const sender=users?.[m.fromUid];
-      const label=sender?(sender.name||sender.email||m.fromUid):m.fromUid;
-      const when=m.ts?new Date(m.ts).toLocaleString():"";
-      return`
-        <div class="msg-bubble ${me?"me":"them"}">
-          <div class="msg-bubble-hdr">${escapeHtml(label)} • ${when}</div>
-          <div class="msg-bubble-txt">${escapeHtml(m.text)}</div>
+    if(!threads.length){
+      wrap.innerHTML = `<div class="msg-none">No messages yet.</div>`;
+      return;
+    }
+
+    const html=threads.map(([tid,t])=>{
+      const {label,unreadCount} = threadLabelAndUnread(tid,t);
+      const last = t.lastMsg?.text || '';
+      const ts   = t.lastMsg?.ts ? new Date(t.lastMsg.ts).toLocaleString() : '';
+      return `
+        <div class="msg-thread-row" data-tid="${tid}">
+          <div class="msg-thread-row-top">
+            <span class="msg-thread-label">${escapeHtml(label)}</span>
+            ${unreadCount>0?`<span class="msg-unread-pill">${unreadCount}</span>`:""}
+          </div>
+          <div class="msg-thread-row-snippet">${escapeHtml(last)}</div>
+          <div class="msg-thread-row-ts">${escapeHtml(ts)}</div>
         </div>`;
     }).join("");
-    root.innerHTML=`
-      <div class="msg-thread-view">
-        <div class="msg-thread-view-hdr">
-          <button type="button" class="msg-back-btn" id="msgThreadBack">← Back</button>
-          <span class="msg-thread-name">${escapeHtml(name)}</span>
-        </div>
-        <div class="msg-thread-scroller" id="msgThreadScroll">${rows||"<div class='msg-empty'>No messages yet.</div>"}</div>
-        <div class="msg-thread-compose">
-          <textarea id="msgThreadInput" rows="2" placeholder="Type a message…"></textarea>
-          <button type="button" id="msgThreadSend">Send</button>
-        </div>
-      </div>`;
-    document.getElementById("msgThreadBack")?.addEventListener("click",()=>{
-      _openThreadId=null;
-      renderModalContent();
+    wrap.innerHTML = html;
+    // click handlers
+    wrap.querySelectorAll(".msg-thread-row").forEach(row=>{
+      row.addEventListener("click",()=>openThread(row.dataset.tid));
     });
-    document.getElementById("msgThreadSend")?.addEventListener("click",()=>{
-      const txt=document.getElementById("msgThreadInput").value.trim();
-      if(!txt)return;
-      sendMessageToThread(tid,txt);
-    });
-    // scroll to bottom
-    const sc=document.getElementById("msgThreadScroll");
-    if(sc) sc.scrollTop=sc.scrollHeight;
+  }
+
+  function threadLabelAndUnread(tid,t){
+    const users=window._users||{};
+    const p = t.participants||{};
+    const names = Object.keys(p)
+      .filter(uid=>uid!==_currentUid)
+      .map(uid=>users[uid]?.name||users[uid]?.email||uid);
+    const label = names.length ? names.join(", ") : "Me";
+    const unreadCount = (t.unread && typeof t.unread[_currentUid]==="number") ? t.unread[_currentUid] : 0;
+    return {label, unreadCount};
   }
 
   /* ------------------------------------------------------------------
-   * Send message to existing thread
-   * ---------------------------------------------------------------- */
-  async function sendMessageToThread(tid,text){
+   * Thread View
+   * ------------------------------------------------------------------ */
+  function openThread(tid){
+    _openThreadId = tid;
+    const listWrap=document.getElementById(IDS.listWrap);
+    const viewWrap=document.getElementById(IDS.viewWrap);
+    if(listWrap)listWrap.classList.add("hidden");
+    if(viewWrap)viewWrap.classList.remove("hidden");
+
+    const t=_threads[tid]||{};
+    const {label} = threadLabelAndUnread(tid,t);
+    const titleEl=document.getElementById(IDS.viewTitle);
+    if(titleEl)titleEl.textContent=label;
+
+    // mark read
+    markThreadRead(tid);
+
+    renderThreadMsgs(tid);
+  }
+
+  function renderThreadMsgs(tid){
+    const wrap=document.getElementById(IDS.viewMsgs);
+    if(!wrap)return;
+    const t=_threads[tid];
+    if(!t){ wrap.innerHTML=`<div class="msg-none">Thread not found.</div>`; return; }
+    const msgs=t.msgs?Object.entries(t.msgs):[];
+    msgs.sort((a,b)=>(a[1].ts||0)-(b[1].ts||0));
+    const html=msgs.map(([mid,m])=>{
+      const mine = m.fromUid===_currentUid;
+      const users=window._users||{};
+      const who  = users[m.fromUid]?.name || users[m.fromUid]?.email || m.fromUid;
+      const ts   = m.ts ? new Date(m.ts).toLocaleTimeString() : "";
+      return `
+        <div class="msg-bubble-wrap ${mine?'mine':'theirs'}">
+          <div class="msg-bubble">
+            ${!mine?`<div class="msg-bubble-who">${escapeHtml(who)}</div>`:""}
+            <div class="msg-bubble-text">${escapeHtml(m.text)}</div>
+            <div class="msg-bubble-ts">${escapeHtml(ts)}</div>
+          </div>
+        </div>`;
+    }).join("");
+    wrap.innerHTML = html;
+    // auto-scroll bottom
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  /* ------------------------------------------------------------------
+   * Send message
+   * ------------------------------------------------------------------ */
+  async function handleSendMsg(e){
+    e.preventDefault();
+    if(!_openThreadId)return;
+    const inp=document.getElementById(IDS.sendInput);
+    const txt=(inp?.value||"").trim();
+    if(!txt)return;
+    const tid=_openThreadId;
     const now=Date.now();
-    const msgRef=_db.ref(`${MESSAGES_ROOT}/${tid}/msgs`).push();
-    const payload={fromUid:_currentUid,text,ts:now,readBy:{[_currentUid]:true}};
-    const updates={};
-    updates[`${MESSAGES_ROOT}/${tid}/msgs/${msgRef.key}`]=payload;
-    updates[`${MESSAGES_ROOT}/${tid}/lastMsg`]={text,fromUid:_currentUid,ts:now};
-    updates[`${MESSAGES_ROOT}/${tid}/updatedAt`]=now;
-    // increment unread for others
-    const t=_threads[tid]; const parts=t?.participants?Object.keys(t.participants):[];
-    parts.forEach(u=>{
-      const pRef=_db.ref(`${MESSAGES_ROOT}/${tid}/unread/${u}`);
-      if(u===_currentUid){
-        updates[`${MESSAGES_ROOT}/${tid}/unread/${u}`]=0;
-      }else{
-        // We'll use transaction for safety
-        pRef.transaction(cur=> (typeof cur==="number"?cur+1:1) );
-      }
+    // write msg
+    const msgRef=window.db.ref(`messages/${tid}/msgs`).push();
+    await msgRef.set({
+      fromUid:_currentUid,
+      text:txt,
+      ts:now
     });
-    await _db.ref().update(updates);
-    const input=document.getElementById("msgThreadInput");
-    if(input) input.value="";
+
+    // update lastMsg + unread increments
+    const t=_threads[tid]||{};
+    const p=t.participants||{};
+    const updates={};
+    updates[`messages/${tid}/lastMsg`] = {fromUid:_currentUid,text:txt,ts:now};
+    updates[`messages/${tid}/updatedAt`] = now;
+    for(const uid in p){
+      if(uid===_currentUid){
+        updates[`messages/${tid}/unread/${uid}`]=0;
+      }else{
+        const prev=(t.unread&&t.unread[uid])||0;
+        updates[`messages/${tid}/unread/${uid}`]=prev+1;
+      }
+    }
+    await window.db.ref().update(updates);
+
+    inp.value="";
   }
 
   /* ------------------------------------------------------------------
    * Mark thread read
-   * ---------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   async function markThreadRead(tid){
-    const updates={};
-    updates[`${MESSAGES_ROOT}/${tid}/unread/${_currentUid}`]=0;
-    // mark each message read
-    const msgs=_msgsCache[tid]||{};
-    for(const [mid,] of Object.entries(msgs)){
-      updates[`${MESSAGES_ROOT}/${tid}/msgs/${mid}/readBy/${_currentUid}`]=true;
-    }
-    await _db.ref().update(updates);
+    const path=`messages/${tid}/unread/${_currentUid}`;
+    await window.db.ref(path).set(0);
   }
 
   /* ------------------------------------------------------------------
-   * Utilities
-   * ---------------------------------------------------------------- */
+   * Unread total -> header badge
+   * ------------------------------------------------------------------ */
+  function updateHeaderUnread(){
+    const badge=document.getElementById(IDS.badge);
+    if(!badge)return;
+    let sum=0;
+    for(const t of Object.values(_threads)){
+      const n=t.unread && typeof t.unread[_currentUid]==="number" ? t.unread[_currentUid] : 0;
+      sum += n;
+    }
+    if(sum>0){
+      badge.textContent = sum>99? "99+" : String(sum);
+      badge.classList.remove("hidden");
+    }else{
+      badge.textContent="0";
+      badge.classList.add("hidden");
+    }
+  }
+
+  /* ------------------------------------------------------------------
+   * Realtime bind
+   * We listen to /messages once we have a user; we *filter client-side* to
+   * only keep threads where current user participates (cheap; scale low).
+   * ------------------------------------------------------------------ */
+  function ensureRealtime(){
+    if(_rtBound)return;
+    _rtBound=true;
+    const ref=window.db.ref("messages");
+    ref.on("child_added",snap=>{
+      const tid=snap.key, val=snap.val();
+      if(val.participants && val.participants[_currentUid]){
+        _threads[tid]=val;
+        updateHeaderUnread();
+        if(!_openThreadId) renderThreadList();
+      }
+    });
+    ref.on("child_changed",snap=>{
+      const tid=snap.key, val=snap.val();
+      if(val.participants && val.participants[_currentUid]){
+        _threads[tid]=val;
+        updateHeaderUnread();
+        if(_openThreadId===tid){
+          renderThreadMsgs(tid);
+        }else{
+          renderThreadList();
+        }
+      }else{
+        delete _threads[tid];
+        updateHeaderUnread();
+        renderThreadList();
+      }
+    });
+    ref.on("child_removed",snap=>{
+      const tid=snap.key;
+      delete _threads[tid];
+      updateHeaderUnread();
+      renderThreadList();
+    });
+  }
+
+  /* ------------------------------------------------------------------
+   * Public init (called by admin.js after auth + initial data load)
+   * ------------------------------------------------------------------ */
+  function initMessages(uid,role){
+    _currentUid=uid;
+    _currentRole=(role||"").toLowerCase();
+    ensureOverlay(); // build once
+    // header button
+    const btn=document.getElementById(IDS.headerBtn);
+    if(btn && !btn._msgWired){
+      btn._msgWired=true;
+      btn.addEventListener("click",showOverlay);
+    }
+    ensureRealtime();
+  }
+
+  /* ------------------------------------------------------------------
+   * Escape (HTML)
+   * ------------------------------------------------------------------ */
   function escapeHtml(str){
     return (str==null?"":String(str))
       .replace(/&/g,"&amp;")
@@ -429,69 +519,12 @@
   }
 
   /* ------------------------------------------------------------------
-   * Minimal CSS injection
-   * ---------------------------------------------------------------- */
-  function injectMsgCss(){
-    if(document.getElementById("messages-css"))return;
-    const css=`
-      .msg-modal-open{display:block;}
-      #messagesModal{position:fixed;z-index:9999;inset:0;display:none;}
-      #messagesModal.msg-modal-open{display:block;}
-      .msg-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);}
-      .msg-modal{position:absolute;top:5%;left:50%;transform:translateX(-50%);width:90%;max-width:480px;max-height:90%;overflow:hidden;background:rgba(25,26,32,.95);border:1px solid rgba(255,255,255,.15);border-radius:8px;display:flex;flex-direction:column;}
-      .msg-modal-hdr{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.1);}
-      .msg-modal-hdr h3{font-size:1.1rem;margin:0;}
-      .msg-modal-close{background:none;border:none;color:#fff;font-size:1.25rem;line-height:1;cursor:pointer;}
-      .msg-modal-body{flex:1;overflow-y:auto;padding:0;}
-
-      .msg-list{display:flex;flex-direction:column;padding:.5rem;}
-      .msg-thread-row{padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;}
-      .msg-thread-row:hover{background:rgba(255,255,255,.05);}
-      .mtr-top{display:flex;justify-content:space-between;align-items:center;font-weight:600;}
-      .mtr-unread{background:#ff5252;color:#fff;font-size:.75rem;line-height:1;padding:0 .35rem;border-radius:8px;margin-left:.5rem;}
-      .mtr-sub{font-size:.9rem;opacity:.8;margin-top:.25rem;}
-      .mtr-when{font-size:.75rem;opacity:.6;margin-top:.25rem;}
-
-      .msg-compose-bar{padding:.5rem 1rem;text-align:center;border-top:1px solid rgba(255,255,255,.08);}
-      .msg-compose-btn{padding:.5rem 1.25rem;font-weight:600;border-radius:4px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.05);color:#fff;cursor:pointer;}
-      .msg-compose-btn:hover{background:rgba(255,255,255,.15);}
-
-      .msg-compose-form{padding:1rem;display:flex;flex-direction:column;gap:.75rem;}
-      .msg-compose-form select,
-      .msg-compose-form textarea{width:100%;padding:.5rem;border-radius:4px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.05);color:#fff;font-size:1rem;}
-      .msg-compose-actions{text-align:right;display:flex;justify-content:flex-end;gap:.5rem;}
-      .msg-send-btn{padding:.5rem 1rem;font-weight:600;background:#00c853;border:none;border-radius:4px;color:#000;cursor:pointer;}
-      .msg-cancel-btn{padding:.5rem 1rem;font-weight:600;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.25);border-radius:4px;color:#fff;cursor:pointer;}
-
-      .msg-thread-view{display:flex;flex-direction:column;height:100%;}
-      .msg-thread-view-hdr{display:flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-bottom:1px solid rgba(255,255,255,.08);}
-      .msg-back-btn{background:none;border:none;color:#1e90ff;cursor:pointer;font-size:1rem;}
-      .msg-thread-name{font-weight:600;}
-      .msg-thread-scroller{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem;}
-      .msg-thread-compose{display:flex;gap:.5rem;padding:.75rem 1rem;border-top:1px solid rgba(255,255,255,.08);}
-      .msg-thread-compose textarea{flex:1;padding:.5rem;border-radius:4px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.05);color:#fff;font-size:1rem;resize:vertical;min-height:2.5em;}
-      .msg-thread-compose button{padding:.5rem 1rem;font-weight:600;border-radius:4px;background:#1e90ff;border:none;color:#fff;cursor:pointer;}
-
-      .msg-bubble{max-width:80%;padding:.5rem .75rem;border-radius:8px;line-height:1.3;font-size:.95rem;}
-      .msg-bubble-hdr{font-size:.75rem;font-weight:600;margin-bottom:.25rem;opacity:.8;}
-      .msg-bubble-txt{white-space:pre-wrap;word-break:break-word;}
-      .msg-bubble.me{margin-left:auto;background:#1e90ff;color:#fff;}
-      .msg-bubble.them{margin-right:auto;background:rgba(255,255,255,.1);}
-    `;
-    const tag=document.createElement("style");
-    tag.id="messages-css";
-    tag.textContent=css;
-    document.head.appendChild(tag);
-  }
-
-  /* ------------------------------------------------------------------
-   * Public API
-   * ---------------------------------------------------------------- */
+   * Export
+   * ------------------------------------------------------------------ */
   window.messages = {
-    init,
-    open: openMessagesModal,
-    sendNewThreadMessage,
-    sendMessageToThread,
-    markThreadRead
+    initMessages,
+    allowedRecipients,
+    open: showOverlay,
+    close: hideOverlay
   };
 })();
