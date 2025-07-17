@@ -15,6 +15,8 @@ firebase.initializeApp(firebaseConfig);
 const db   = firebase.database();
 const auth = firebase.auth();
 
+window.db = db; // expose for modules needing it
+
 const adminAppDiv = document.getElementById("adminApp");
 
 /* ========================================================================
@@ -52,7 +54,10 @@ auth.onAuthStateChanged(async user => {
   await db.ref("users/"+user.uid).update(prof);
 
   currentRole = prof.role || ROLES.ME;
+  window.currentRole = currentRole; // expose globally for user.js
+
   document.getElementById("logoutBtn")?.addEventListener("click", () => auth.signOut());
+
   renderAdminApp();
 });
 
@@ -95,46 +100,10 @@ async function renderAdminApp() {
   }).join('');
 
   /* ------------------ USERS ------------------ */
-  const userCards = Object.entries(users).map(([uid,u])=>{
-    const lead = users[u.assignedLead] || {};
-    const dm   = users[u.assignedDM]   || {};
-    return `<div class="user-card">
-      <div class="user-card-header">
-        <div><div class="user-name">${u.name||u.email}</div><div class="user-email">${u.email}</div></div>
-        ${roleBadge(u.role)}
-      </div>
-      <div class="user-card-info">
-        <div><b>Store:</b> ${u.store||'-'}</div>
-        <div><b>Lead:</b> ${lead.name||lead.email||'-'}</div>
-        <div><b>DM:</b>   ${dm.name||dm.email||'-'}</div>
-      </div>
-      ${canEdit(currentRole)?`<div class="user-card-actions">
-        <label>Role:
-          <select onchange="changeUserRole('${uid}',this.value)">
-            <option value="${ROLES.ME}"   ${u.role===ROLES.ME?'selected':''}>ME</option>
-            <option value="${ROLES.LEAD}" ${u.role===ROLES.LEAD?'selected':''}>Lead</option>
-            <option value="${ROLES.DM}"   ${u.role===ROLES.DM?'selected':''}>DM</option>
-            <option value="${ROLES.ADMIN}"${u.role===ROLES.ADMIN?'selected':''}>Admin</option>
-          </select>
-        </label>
-        <label>Assign Lead:
-          <select onchange="assignLeadToGuest('${uid}',this.value)">
-            <option value="">None</option>
-            ${Object.entries(users).filter(([,x])=>x.role===ROLES.LEAD)
-               .map(([id,x])=>`<option value="${id}" ${u.assignedLead===id?'selected':''}>${x.name||x.email}</option>`).join('')}
-          </select>
-        </label>
-        <label>Assign DM:
-          <select onchange="assignDMToLead('${uid}',this.value)">
-            <option value="">None</option>
-            ${Object.entries(users).filter(([,x])=>x.role===ROLES.DM)
-               .map(([id,x])=>`<option value="${id}" ${u.assignedDM===id?'selected':''}>${x.name||x.email}</option>`).join('')}
-          </select>
-        </label>
-        ${canDelete(currentRole)?`<button class="btn btn-danger-outline" onclick="deleteUser('${uid}')">Delete</button>`:''}
-      </div>`:''}
-    </div>`;
-  }).join('');
+  // DELEGATE to users.js render function
+  const usersHtml = window.users?.renderUsersSection
+    ? window.users.renderUsersSection(users, currentRole)
+    : `<p class="text-center">Users module not loaded.</p>`;
 
   /* ------------------ REVIEWS ------------------ */
   const reviewEntries = Object.entries(reviews).sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));
@@ -179,10 +148,7 @@ async function renderAdminApp() {
         </div>`:''}
     </section>
 
-    <section class="admin-section users-section">
-      <h2>Users</h2>
-      <div class="users-container">${userCards}</div>
-    </section>
+    ${usersHtml}
 
     <section class="admin-section reviews-section">
       <h2>Reviews</h2>
@@ -205,9 +171,21 @@ async function renderAdminApp() {
 /* ========================================================================
    Action handlers (RBAC enforced)
    ===================================================================== */
-window.assignLeadToGuest = async (guestUid,leadUid)=>{assertEdit(); await db.ref(`users/${guestUid}/assignedLead`).set(leadUid||null); renderAdminApp();};
-window.assignDMToLead    = async (leadUid,dmUid)=>   {assertEdit(); await db.ref(`users/${leadUid}/assignedDM`).set(dmUid||null);   renderAdminApp();};
+// Delegate user handlers to users.js
+window.assignLeadToGuest = async (guestUid,leadUid)=>{
+  if (window.users?.assignLeadToGuest) return window.users.assignLeadToGuest(guestUid, leadUid);
+  assertEdit();
+  await db.ref(`users/${guestUid}/assignedLead`).set(leadUid||null);
+  renderAdminApp();
+};
+window.assignDMToLead = async (leadUid,dmUid)=>{
+  if (window.users?.assignDMToLead) return window.users.assignDMToLead(leadUid, dmUid);
+  assertEdit();
+  await db.ref(`users/${leadUid}/assignedDM`).set(dmUid||null);
+  renderAdminApp();
+};
 
+// Store actions
 window.assignTL = async (storeId,uid)=>{
   assertEdit();
   const stores=(await db.ref("stores").get()).val()||{};
@@ -229,6 +207,7 @@ window.addStore          = async()=>{
   await db.ref("stores").push({storeNumber:num,teamLeadUid:""});
   renderAdminApp();
 };
+
 window.editStorePrompt = async storeId =>{
   assertEdit();
   const snap=await db.ref(`stores/${storeId}`).get();
@@ -238,6 +217,7 @@ window.editStorePrompt = async storeId =>{
 };
 
 window.editUserStore = async uid =>{
+  if (window.users?.editUserStore) return window.users.editUserStore(uid);
   assertEdit();
   const num=prompt("Enter store number:");
   if(!num)return;
@@ -254,13 +234,10 @@ window.editUserStore = async uid =>{
   renderAdminApp();
 };
 
-window.changeUserRole = async(uid,role)=>{assertEdit(); await db.ref(`users/${uid}/role`).set(role); renderAdminApp();};
+// Reviews actions
 window.toggleStar     = async(id,starred)=>{assertEdit(); await db.ref(`reviews/${id}/starred`).set(!starred); renderAdminApp();};
-
-// deletions (strict)
-window.deleteStore  = async id => {assertDelete(); if(confirm("Delete this store?"))  {await db.ref(`stores/${id}`).remove(); renderAdminApp();}};
-window.deleteUser   = async id => {assertDelete(); if(confirm("Delete this user?"))   {await db.ref(`users/${id}`).remove();  renderAdminApp();}};
-window.deleteReview = async id => {assertDelete(); if(confirm("Delete this review?")) {await db.ref(`reviews/${id}`).remove(); renderAdminApp();}};
+window.deleteStore    = async id => {assertDelete(); if(confirm("Delete this store?"))  {await db.ref(`stores/${id}`).remove(); renderAdminApp();}};
+window.deleteReview   = async id => {assertDelete(); if(confirm("Delete this review?")) {await db.ref(`reviews/${id}`).remove(); renderAdminApp();}};
 
 /* ========================================================================
    Review filter helpers (read-only)
