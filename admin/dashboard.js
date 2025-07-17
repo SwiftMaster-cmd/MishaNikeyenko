@@ -115,6 +115,155 @@ async function initialLoad() {
 }
 
 /* ========================================================================
+   CAUGHT-UP HELPERS
+   ------------------------------------------------------------------------
+   We replicate the *visibility + timeframe* logic used in the modules
+   (lightweight versions) so we can decide whether to consolidate the
+   Guest Forms + Guest Info sections into a single "Caught Up" card.
+   ===================================================================== */
+
+/* -- role helpers -- */
+const _isAdmin = r => r === ROLES.ADMIN;
+const _isDM    = r => r === ROLES.DM;
+const _isLead  = r => r === ROLES.LEAD;
+const _isMe    = r => r === ROLES.ME;
+
+/* -- guestforms advanced status (hide proposal/sold) -- */
+function _gfAdvancedStatus(g){
+  const s = (g?.status || "").toLowerCase();
+  return s === "proposal" || s === "sold";
+}
+
+/* timeframe: start/end of today */
+function _startOfTodayMs(){ const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }
+function _endOfTodayMs(){ const d = new Date(); d.setHours(23,59,59,999); return d.getTime(); }
+
+/* guestinfo week filter: rolling 7 days by latest activity */
+function _giLatestTs(g){
+  return Math.max(g.updatedAt||0, g.submittedAt||0, g.sale?.soldAt||0, g.solution?.completedAt||0);
+}
+function _giInCurrentWeek(g){ return _giLatestTs(g) >= (Date.now() - 7*24*60*60*1000); }
+
+/* guestinfo status detect */
+function _giDetectStatus(g){
+  if (g.status) return g.status.toLowerCase();
+  if (g.sale) return "sold";
+  if (g.solution) return "proposal";
+  if (g.evaluate) return "working";
+  return "new";
+}
+
+/* Visible guestforms count after role + today/all filter */
+function _guestFormsVisibleCount(guestForms, guestinfo, role, uid){
+  if (!guestForms) return 0;
+  const showAll = !!window._guestforms_showAll;  // global from module
+  const startToday = _startOfTodayMs();
+  const endToday   = _endOfTodayMs();
+
+  let count = 0;
+  for (const [,f] of Object.entries(guestForms)){
+    // skip if advanced (proposal/sold)
+    if (f.guestinfoKey){
+      const g = guestinfo?.[f.guestinfoKey];
+      if (_gfAdvancedStatus(g)) continue;
+    }
+
+    // role visibility
+    if (_isAdmin(role) || _isDM(role)){
+      /* see all */
+    } else {
+      const claimedBy = f.consumedBy || f.claimedBy;
+      if (claimedBy && claimedBy !== uid){
+        // hidden from me/lead
+        continue;
+      }
+      // leads could see their MEs? module currently shows only unclaimed+self, so same.
+    }
+
+    // timeframe filter
+    if (!showAll){
+      const ts = f.timestamp || 0;
+      if (ts < startToday || ts > endToday) continue;
+    }
+
+    count++;
+  }
+  return count;
+}
+
+/* Visible actionable guestinfo count (new+working+proposal) respecting filters */
+function _guestInfoActionableCount(guestinfo, users, role, uid){
+  if (!guestinfo) return 0;
+
+  // if user is in Sales Only or Follow Ups mode, we do *not* collapse; treat as not caught
+  if (window._guestinfo_soldOnly || window._guestinfo_showProposals) return 1; // non-zero so we don't auto-collapse
+
+  // ME locked to week filter; others per global
+  const weekFilter = _isMe(role) ? true : (window._guestinfo_filterMode === "week");
+
+  let count = 0;
+
+  // apply role visibility
+  for (const [,g] of Object.entries(guestinfo)){
+    // role gating
+    if (_isAdmin(role)) {
+      /* all ok */
+    } else if (_isDM(role)) {
+      // DM sees own + assigned tree
+      const under = _giUsersUnderDM(users, uid); // we'll build helper below
+      under.add(uid);
+      if (!under.has(g.userUid)) continue;
+    } else if (_isLead(role)) {
+      const mesUnderLead = Object.entries(users)
+        .filter(([, u]) => u.role === ROLES.ME && u.assignedLead === uid)
+        .map(([id]) => id);
+      const visible = new Set([...mesUnderLead, uid]);
+      if (!visible.has(g.userUid)) continue;
+    } else if (_isMe(role)) {
+      if (g.userUid !== uid) continue;
+    }
+
+    // timeframe
+    if (weekFilter && !_giInCurrentWeek(g)) continue;
+
+    // status
+    const st = _giDetectStatus(g);
+    if (st === "sold") continue; // not actionable
+    // we *do* count proposal because default view collapses those; we want them
+    // included in "caught up" check; you asked: if no new, no working, and no proposals -> caught up
+    if (st === "proposal" || st === "working" || st === "new"){
+      count++;
+    }
+  }
+
+  return count;
+}
+
+/* Build DM under-user set (helper above used) */
+function _giUsersUnderDM(users, dmUid){
+  const leads = Object.entries(users||{})
+    .filter(([,u])=>u.role===ROLES.LEAD && u.assignedDM===dmUid)
+    .map(([id])=>id);
+  const mes = Object.entries(users||{})
+    .filter(([,u])=>u.role===ROLES.ME && leads.includes(u.assignedLead))
+    .map(([id])=>id);
+  return new Set([...leads,...mes]);
+}
+
+/* Unified caught-up HTML */
+function _caughtUpUnifiedHtml(msg="You're all caught up!"){
+  return `
+    <section class="admin-section guest-caughtup-section" id="guest-caughtup-section">
+      <h2>Guest Queue</h2>
+      <div class="guestinfo-empty-all text-center" style="margin-top:16px;">
+        <p><b>${msg}</b></p>
+        <p style="opacity:.8;">No open guest forms or leads right now.</p>
+        <button class="btn btn-success btn-lg" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
+      </div>
+    </section>`;
+}
+
+/* ========================================================================
    RENDER (from current caches)
    ===================================================================== */
 function renderAdminApp() {
@@ -128,18 +277,34 @@ function renderAdminApp() {
   const sales      = window._sales;
 
   /* ---------------------------------------------------------------
+     Evaluate caught-up statuses BEFORE rendering sections
+     --------------------------------------------------------------- */
+  const gfVisibleCount = _guestFormsVisibleCount(guestForms, guestinfo, currentRole, currentUid);
+  const giActionableCount = _guestInfoActionableCount(guestinfo, users, currentRole, currentUid);
+  const bothCaught = (gfVisibleCount === 0) && (giActionableCount === 0);
+
+  /* ---------------------------------------------------------------
      Build each section's HTML in requested order
      --------------------------------------------------------------- */
 
-  // 1) Guest Form Submissions
-  const guestFormsHtml = window.guestforms?.renderGuestFormsSection
-    ? window.guestforms.renderGuestFormsSection(guestForms, currentRole, currentUid)
-    : `<section id="guest-forms-section" class="admin-section guest-forms-section"><h2>Guest Form Submissions</h2><p class="text-center">Module not loaded.</p></section>`;
+  let guestFormsHtml = "";
+  let guestinfoHtml  = "";
 
-  // 2) Guest Info (role-filtered in module)
-  const guestinfoHtml = window.guestinfo?.renderGuestinfoSection
-    ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
-    : `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">Module not loaded.</p></section>`;
+  if (bothCaught) {
+    // Single consolidated card; suppress individual sections
+    guestFormsHtml = _caughtUpUnifiedHtml();
+    guestinfoHtml  = ""; // skip
+  } else {
+    // 1) Guest Form Submissions
+    guestFormsHtml = window.guestforms?.renderGuestFormsSection
+      ? window.guestforms.renderGuestFormsSection(guestForms, currentRole, currentUid)
+      : `<section id="guest-forms-section" class="admin-section guest-forms-section"><h2>Guest Form Submissions</h2><p class="text-center">Module not loaded.</p></section>`;
+
+    // 2) Guest Info
+    guestinfoHtml = window.guestinfo?.renderGuestinfoSection
+      ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
+      : `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">Module not loaded.</p></section>`;
+  }
 
   // 3) Stores (hidden for ME)
   const storesHtml = (currentRole !== ROLES.ME && window.stores?.renderStoresSection)
