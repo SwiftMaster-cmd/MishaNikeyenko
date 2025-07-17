@@ -54,6 +54,28 @@ function assertDelete() {
   if (!window.canDelete || !window.canDelete(currentRole)) throw "PERM_DENIED_DELETE";
 }
 
+function renderGuestFormSection() {
+  return `
+    <section class="admin-section guest-form-section">
+      <h2>Guest Form</h2>
+      <form id="guestForm">
+        <label>
+          Guest Name:<br />
+          <input type="text" name="guestName" id="guestName" required />
+        </label><br />
+        <label>
+          Guest Phone:<br />
+          <input type="tel" name="guestPhone" id="guestPhone" required />
+        </label><br />
+        <label>
+          <input type="checkbox" id="agreeTerms" name="agreeTerms" required /> I agree to the terms
+        </label><br /><br />
+        <button type="submit">Submit</button>
+      </form>
+    </section>
+  `;
+}
+
 async function renderAdminApp() {
   adminAppDiv.innerHTML = "<div>Loading data…</div>";
 
@@ -77,7 +99,6 @@ async function renderAdminApp() {
     ? window.users.renderUsersSection(users, currentRole, currentUid)
     : `<p class="text-center">Users module not loaded.</p>`;
 
-  // Pass users and current info for filtering
   const reviewsHtml = window.reviews?.renderReviewsSection
     ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
     : `<p class="text-center">Reviews module not loaded.</p>`;
@@ -96,10 +117,10 @@ async function renderAdminApp() {
     ${usersHtml}
     ${reviewsHtml}
     ${guestinfoHtml}
+    ${renderGuestFormSection()}
     ${roleMgmtHtml}
   `;
 
-  // Store filtered reviews for filtering actions
   if (window.reviews?.filterReviewsByRole) {
     window._filteredReviews = Object.entries(
       window.reviews.filterReviewsByRole(reviews, users, currentUid, currentRole)
@@ -112,26 +133,21 @@ async function renderAdminApp() {
   window._stores = stores;
 }
 
-// --- Action handlers ---
-
-// Stores
+// Action handlers
 window.assignTL = (storeId, uid) => window.stores.assignTL(storeId, uid);
 window.updateStoreNumber = (id, val) => window.stores.updateStoreNumber(id, val);
 window.addStore = () => window.stores.addStore();
 window.deleteStore = (id) => window.stores.deleteStore(id);
 
-// Users
 window.assignLeadToGuest = (guestUid, leadUid) => window.users.assignLeadToGuest(guestUid, leadUid);
 window.assignDMToLead = (leadUid, dmUid) => window.users.assignDMToLead(leadUid, dmUid);
 window.editUserStore = async (uid) => {
   if (window.users?.editUserStore) return window.users.editUserStore(uid);
 };
 
-// Reviews
 window.toggleStar = (id, starred) => window.reviews.toggleStar(id, starred);
 window.deleteReview = (id) => window.reviews.deleteReview(id);
 
-// Review filters (use filtered reviews)
 window.filterReviewsByStore = (store) => {
   const filtered = window._filteredReviews.filter(([, r]) => r.store === store);
   document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(filtered);
