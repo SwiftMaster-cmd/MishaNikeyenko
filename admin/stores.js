@@ -1,56 +1,30 @@
 /* =======================================================================
  * stores.js  (Dashboard Stores / Staffing & Budget module)
  * -----------------------------------------------------------------------
- * Features
- *  - Admin sets per-store monthly "budget" (unit goal) => stores/<id>/budgetUnits
- *  - Auto-collapse store block when MTD units >= goal (unless user re-opens)
- *  - Collapsed summary shows: store #, role-mix pills (Lead/ME counts),
- *    MTD progress % (and units/goal), status color (meets / under / no goal).
- *  - Expanded detail: edit store # (Admin), set budget (Admin), assign TL
- *    (Admin+DM), view Associates (MEs) auto-collected, lifetime & MTD sales,
- *    delete store (Admin+DM).
- *  - Handles orphaned sales (unassigned bucket).
- *  - Normalizes sales store numbers via guestinfo & user submitter fallback.
- * -----------------------------------------------------------------------
- * Globals expected:
- *    window.db
- *    window.currentUid
- *    window.currentRole
- *    window._stores, window._users, window._guestinfo, window._sales  (caches)
- * -----------------------------------------------------------------------
- * Exports:
- *    renderStoresSection(stores, users, currentRole, salesObj)
- *    assignTL(storeId, uid)
- *    updateStoreNumber(id, val)
- *    updateStoreBudget(id, val)
- *    addStore()
- *    deleteStore(id)
- *    summarizeSalesByStore(...)
- *    summarizeSalesByStoreMTD(...)
- *    getMesForStore(...)
- *    toggleStoreOpen(id)
- * ======================================================================= */
+ * Collapsible store blocks with staffing & sales goals.
+ * Auto-collapse if goal met (staff OR sales). Manual toggle overrides.
+ * ---------------------------------------------------------------------- */
 (() => {
 
   const ROLES = { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
   const UNASSIGNED_KEY = "__UNASSIGNED__";
 
-  /* --------------------------------------------------------------------
-   * UI open/close state (persist across re-renders)
-   * storeId -> boolean open/closed
+  /* ------------------------------------------------------------------
+   * Persisted open/closed state (storeId -> bool open)
+   * Cleared / extended automatically when render sees new stores.
    * ------------------------------------------------------------------ */
   if (!window._storesOpenById) window._storesOpenById = {};
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Permission helpers
    * ------------------------------------------------------------------ */
   const isAdmin = r => r === ROLES.ADMIN;
   const isDM    = r => r === ROLES.DM;
 
-  function canEditStoreNumber(role){ return isAdmin(role); }
-  function canAssignTL(role){ return isAdmin(role) || isDM(role); }
-  function canDeleteStore(role){ return isAdmin(role) || isDM(role); }
-  function canEditBudget(role){ return isAdmin(role); }
+  const canEditStoreNumber = r => isAdmin(r);
+  const canAssignTL        = r => isAdmin(r) || isDM(r);
+  const canDeleteStore     = r => isAdmin(r) || isDM(r);
+  const canEditBudget      = r => isAdmin(r); // staffGoal + budgetUnits
 
   function assertEdit(){
     if (!isAdmin(window.currentRole)) throw "PERM_DENIED_EDIT";
@@ -59,12 +33,12 @@
     if (!(isAdmin(window.currentRole) || isDM(window.currentRole))) throw "PERM_DENIED_ASSIGN";
   }
   function assertDelete(){
-    if (!canDeleteStore(window.currentRole)) throw "PERM_DENIED_DELETE";
+    if (!(isAdmin(window.currentRole) || isDM(window.currentRole))) throw "PERM_DENIED_DELETE";
   }
 
   const roleBadge = r => `<span class="role-badge role-${r}">${r.toUpperCase()}</span>`;
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Utilities
    * ------------------------------------------------------------------ */
   const normStore = sn => (sn ?? "").toString().trim();
@@ -76,7 +50,12 @@
     return d.getTime();
   }
 
-  /* --------------------------------------------------------------------
+  function toNonNegInt(v, fallback=0){
+    const n = parseInt(v,10);
+    return (isNaN(n) || n < 0) ? fallback : n;
+  }
+
+  /* ------------------------------------------------------------------
    * Sale → storeNumber normalization
    * ------------------------------------------------------------------ */
   function deriveStoreNumberForSale(sale, guestinfoObj, users, storesObj) {
@@ -109,7 +88,7 @@
     return sn || UNASSIGNED_KEY;
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Sales summarizers
    * out[storeNumber] = { count, units, amount }
    * ------------------------------------------------------------------ */
@@ -142,7 +121,7 @@
     return out;
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Staff lookups
    * ------------------------------------------------------------------ */
   function getPeopleForStore(users, storeNumber, teamLeadUid){
@@ -151,7 +130,6 @@
     const mes   = [];
     for (const [uid,u] of Object.entries(users||{})){
       if (u.role === ROLES.LEAD){
-        // explicit TL for store OR user.store matches sn
         if ((teamLeadUid && uid === teamLeadUid) || (sn && normStore(u.store)===sn)){
           leads.push({uid,...u});
         }
@@ -174,36 +152,63 @@
     return shown+extra;
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Format Sales cells
    * ------------------------------------------------------------------ */
   const fmtSalesCell = s => s ? `${s.count} / ${s.units}u` : "-";
 
-  /* --------------------------------------------------------------------
-   * Compute % to goal + status class
-   * budgetUnits default 0 => no-goal
+  /* ------------------------------------------------------------------
+   * Progress computations
    * ------------------------------------------------------------------ */
-  function computeBudgetStatus(mtdSummary, budgetUnits){
+  function computeSalesStatus(mtdSummary, budgetUnits){
     const units = mtdSummary?.units || 0;
-    const goal  = Number(budgetUnits||0);
+    const goal  = toNonNegInt(budgetUnits,0);
     if (!goal){
-      return {pct:null, meets:false, cls:"store-nogoal", label:"–"};
+      return {type:"sales",goal:0,units,pct:null,meets:false,cls:"store-nogoal",label:"–"};
     }
     const pct = (units/goal)*100;
     const meets = units >= goal;
     const pctStr = Math.round(pct) + "%";
-    const cls = meets ? "store-met" : "store-under";
-    return {pct, pctStr, meets, goal, units, cls, label:pctStr};
+    return {type:"sales",goal,units,pct,pctStr,meets,cls:meets?"store-met":"store-under",label:pctStr};
   }
 
-  /* --------------------------------------------------------------------
+  function computeStaffStatus(staff, staffGoal){
+    const goal  = toNonNegInt(staffGoal,0);
+    const count = staff.leads.length + staff.mes.length;
+    if (!goal){
+      return {type:"staff",goal:0,count,meets:false,cls:"store-nogoal",label:"–"};
+    }
+    const pct = (count/goal)*100;
+    const meets = count >= goal;
+    const pctStr = Math.round(pct) + "%";
+    const cls = meets ? "store-met" : "store-under";
+    return {type:"staff",goal,count,pct,pctStr,meets,cls,label:`${count}/${goal}`};
+  }
+
+  /**
+   * Decide collapse default:
+   *  If staffGoal>0 => use staffStatus.meets
+   *  else if budgetUnits>0 => use salesStatus.meets
+   *  else => default OPEN
+   */
+  function defaultIsOpen(storeRec, staffStatus, salesStatus){
+    if (toNonNegInt(storeRec.staffGoal,0) > 0){
+      return !staffStatus.meets; // open when not fully staffed
+    }
+    if (toNonNegInt(storeRec.budgetUnits,0) > 0){
+      return !salesStatus.meets; // open when under sales goal
+    }
+    return true; // no goals -> open
+  }
+
+  /* ------------------------------------------------------------------
    * Store summary (collapsed header row)
    * ------------------------------------------------------------------ */
-  function storeSummaryHtml(storeId, storeRec, staff, mtdSumm, budgetStatus, isOpen, isAdminView){
+  function storeSummaryHtml(storeId, storeRec, staff, staffStatus, salesStatus, isOpen, isAdminView){
     const sn = storeRec.storeNumber || "";
     const caret = isOpen ? "▾" : "▸";
 
-    // Role mix pills
+    // Role mix pills (color-coded via CSS)
     const leadCnt = staff.leads.length;
     const meCnt   = staff.mes.length;
     const pills = [
@@ -211,38 +216,58 @@
       meCnt   ? `<span class="store-pill me">M${meCnt>1?meCnt:""}</span>`       : ""
     ].join("");
 
-    // Budget progress label
-    const bs = budgetStatus;
-    const progressLabel = (bs.pct!=null)
-      ? `${mtdSumm?.units||0}/${bs.goal}u • ${bs.label}`
-      : fmtSalesCell(mtdSumm); // fallback show MTD (count/units)
+    // Primary progress shown in summary = STAFF if goal>0 else SALES
+    const showStaff = toNonNegInt(storeRec.staffGoal,0) > 0;
+    const primaryLabel = showStaff
+      ? `${staffStatus.count}/${staffStatus.goal}${staffStatus.meets?" ✓":""}`
+      : (salesStatus.goal
+          ? `${salesStatus.units}/${salesStatus.goal}u${salesStatus.meets?" ✓":""}`
+          : "--");
 
-    // Inline goal input (Admin) - stopPropagation so clicking input doesn't toggle
-    const budgetInput = isAdminView
-      ? `<input type="number" min="0" class="store-budget-input" value="${Number(storeRec.budgetUnits||0)}"
-          onclick="event.stopPropagation();"
-          onchange="window.stores.updateStoreBudget('${storeId}', this.value)" />`
-      : "";
+    // Provide richer tooltip (includes both if applicable)
+    let tip = "";
+    if (showStaff){
+      tip += `Staff ${staffStatus.count}/${staffStatus.goal}`;
+      if (salesStatus.goal){
+        tip += ` | Sales ${salesStatus.units}/${salesStatus.goal}u`;
+      }
+    } else if (salesStatus.goal){
+      tip += `Sales ${salesStatus.units}/${salesStatus.goal}u`;
+    }
 
-    const cls = `user-store-summary ${bs.cls} ${isOpen?"open":""}`;
+    // Inline ADMIN budget/staff edit (stopPropagation)
+    const adminInputs = isAdminView ? `
+      <input type="number" min="0" class="store-staffgoal-input"
+        value="${toNonNegInt(storeRec.staffGoal,0)}"
+        onclick="event.stopPropagation();"
+        onchange="window.stores.updateStoreStaffGoal('${storeId}', this.value)" />
+      <input type="number" min="0" class="store-budget-input"
+        value="${toNonNegInt(storeRec.budgetUnits,0)}"
+        onclick="event.stopPropagation();"
+        onchange="window.stores.updateStoreBudget('${storeId}', this.value)" />
+    ` : "";
+
+    // choose class color from whichever goal is active
+    const cls = `user-store-summary ${showStaff?staffStatus.cls:salesStatus.cls} ${isOpen?"open":""}`;
 
     return `
       <div class="${cls}" data-storeid="${storeId}"
            onclick="window.stores.toggleStoreOpen('${storeId}')"
-           title="Month-to-date: ${progressLabel}">
+           title="${tip}">
         <span class="uss-caret">${caret}</span>
         <span class="uss-name">#${sn||"?"}</span>
         <span class="uss-role-mix">${pills}</span>
-        <span class="uss-progress">${progressLabel}</span>
-        ${budgetInput}
+        <span class="uss-progress">${primaryLabel}</span>
+        ${adminInputs}
       </div>
     `;
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Expanded store detail
    * ------------------------------------------------------------------ */
-  function storeDetailHtml(storeId, storeRec, staff, users, currentRole, salesAllSumm, salesMtdSumm){
+  function storeDetailHtml(storeId, storeRec, staff, users, currentRole,
+                           salesAllSumm, salesMtdSumm, staffStatus, salesStatus){
     const sn = storeRec.storeNumber || "";
     const tlUid = storeRec.teamLeadUid;
     const tl    = users[tlUid] || {};
@@ -275,6 +300,18 @@
       ? `<input type="text" value="${sn}" onchange="window.stores.updateStoreNumber('${storeId}',this.value)">`
       : `#${sn||"-"}`;
 
+    /* ---- Staff goal edit / display ---- */
+    const staffGoalCell = canEditBudget(currentRole)
+      ? `<input type="number" min="0" value="${toNonNegInt(storeRec.staffGoal,0)}"
+           onchange="window.stores.updateStoreStaffGoal('${storeId}',this.value)">`
+      : `${staffStatus.count}/${staffStatus.goal || "--"}`;
+
+    /* ---- Sales budget edit / display ---- */
+    const budgetCell = canEditBudget(currentRole)
+      ? `<input type="number" min="0" value="${toNonNegInt(storeRec.budgetUnits,0)}"
+           onchange="window.stores.updateStoreBudget('${storeId}',this.value)">`
+      : (salesStatus.goal ? `${salesStatus.units}/${salesStatus.goal}u` : "--");
+
     /* ---- Delete btn ---- */
     const deleteBtn = canDeleteStore(currentRole)
       ? `<button class="btn btn-danger btn-sm" onclick="window.stores.deleteStore('${storeId}')">Delete</button>`
@@ -288,6 +325,8 @@
               <th>Store</th>
               <th>Team Lead</th>
               <th>Associates (MEs)</th>
+              <th>Staff Goal</th>
+              <th>Sales Budget</th>
               <th>Sales<br><small>All / MTD</small></th>
               <th>Actions</th>
             </tr>
@@ -297,6 +336,8 @@
               <td>${storeNumCell}</td>
               <td>${tlCell} ${tlBadge}</td>
               <td>${mesCell}</td>
+              <td>${staffGoalCell}</td>
+              <td>${budgetCell}</td>
               <td>${allCell} / ${mtdCell}</td>
               <td>${deleteBtn}</td>
             </tr>
@@ -306,25 +347,25 @@
     `;
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Store block (summary + optional detail)
-   * Auto-open logic: if user hasn’t toggled yet, open unless at/above goal.
    * ------------------------------------------------------------------ */
   function storeBlockHtml(storeId, storeRec, users, currentRole,
                           salesAllSumm, salesMtdSumm){
     const staff = getPeopleForStore(users, storeRec.storeNumber, storeRec.teamLeadUid);
-    const budgetStatus = computeBudgetStatus(salesMtdSumm, storeRec.budgetUnits);
+    const staffStatus = computeStaffStatus(staff, storeRec.staffGoal);
+    const salesStatus = computeSalesStatus(salesMtdSumm, storeRec.budgetUnits);
 
     // Determine open/closed
-    let isOpen = window._storesOpenById.hasOwnProperty(storeId)
-      ? !!window._storesOpenById[storeId]
-      : !(budgetStatus.meets && budgetStatus.pct!=null); // default collapse if met goal
+    const hasPref = Object.prototype.hasOwnProperty.call(window._storesOpenById, storeId);
+    let isOpen = hasPref ? !!window._storesOpenById[storeId] : defaultIsOpen(storeRec, staffStatus, salesStatus);
 
     const summaryHtml = storeSummaryHtml(
-      storeId, storeRec, staff, salesMtdSumm, budgetStatus, isOpen, isAdmin(currentRole)
+      storeId, storeRec, staff, staffStatus, salesStatus, isOpen, isAdmin(currentRole)
     );
     const detailHtml = isOpen
-      ? storeDetailHtml(storeId, storeRec, staff, users, currentRole, salesAllSumm, salesMtdSumm)
+      ? storeDetailHtml(storeId, storeRec, staff, users, currentRole,
+                        salesAllSumm, salesMtdSumm, staffStatus, salesStatus)
       : "";
 
     return `
@@ -335,7 +376,7 @@
     `;
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * UNASSIGNED sales block (if any)
    * ------------------------------------------------------------------ */
   function unassignedSalesBlockHtml(unassignedSumm){
@@ -351,7 +392,25 @@
     `;
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
+   * INITIALIZE DEFAULT OPEN MAP (1st render only or new stores)
+   * ------------------------------------------------------------------ */
+  function initOpenDefaultsIfNeeded(sortedStores, users, salesMtd, salesAll){
+    let changed = false;
+    for (const [id,s] of sortedStores){
+      if (!Object.prototype.hasOwnProperty.call(window._storesOpenById, id)){
+        // build ephemeral status to decide default
+        const staff = getPeopleForStore(users, s.storeNumber, s.teamLeadUid);
+        const staffStatus = computeStaffStatus(staff, s.staffGoal);
+        const salesStatus = computeSalesStatus(salesMtd[normStore(s.storeNumber)], s.budgetUnits);
+        window._storesOpenById[id] = defaultIsOpen(s, staffStatus, salesStatus);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  /* ------------------------------------------------------------------
    * RENDER STORES SECTION
    * ------------------------------------------------------------------ */
   function renderStoresSection(stores, users, currentRole, salesObj) {
@@ -371,6 +430,9 @@
       if (!isNaN(an) && !isNaN(bn)) return an - bn;
       return (a.storeNumber||"").localeCompare(b.storeNumber||"");
     });
+
+    // Initialize open defaults for any never-seen store
+    initOpenDefaultsIfNeeded(sorted, _users, salesMtd, salesAll);
 
     // Build blocks
     const blocksHtml = sorted.map(([id,s]) => {
@@ -402,7 +464,7 @@
     `;
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Toggle open / closed
    * ------------------------------------------------------------------ */
   function toggleStoreOpen(storeId){
@@ -410,7 +472,7 @@
     window.renderAdminApp();
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * ACTIONS
    * ------------------------------------------------------------------ */
   async function assignTL(storeId, uid) {
@@ -443,9 +505,15 @@
 
   async function updateStoreBudget(id, val){
     assertEdit();
-    let n = parseInt(val,10);
-    if (isNaN(n) || n < 0) n = 0;
+    const n = toNonNegInt(val,0);
     await window.db.ref(`stores/${id}/budgetUnits`).set(n);
+    window.renderAdminApp();
+  }
+
+  async function updateStoreStaffGoal(id, val){
+    assertEdit();
+    const n = toNonNegInt(val,0);
+    await window.db.ref(`stores/${id}/staffGoal`).set(n);
     window.renderAdminApp();
   }
 
@@ -457,7 +525,8 @@
     await window.db.ref("stores").push({
       storeNumber: num,
       teamLeadUid: "",
-      budgetUnits: 0
+      budgetUnits: 0,
+      staffGoal:   2   // default TL + 1 ME
     });
     window.renderAdminApp();
   }
@@ -469,7 +538,7 @@
     window.renderAdminApp();
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * BACK-COMPAT exports (legacy funcs used in other modules)
    * ------------------------------------------------------------------ */
   function getMesForStore(users, storeNumber, teamLeadUid){
@@ -477,7 +546,7 @@
     return getPeopleForStore(users, storeNumber, teamLeadUid).mes;
   }
 
-  /* --------------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Expose
    * ------------------------------------------------------------------ */
   window.stores = {
@@ -485,6 +554,7 @@
     assignTL,
     updateStoreNumber,
     updateStoreBudget,
+    updateStoreStaffGoal,
     addStore,
     deleteStore,
     summarizeSalesByStore,
