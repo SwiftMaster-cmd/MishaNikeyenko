@@ -845,6 +845,58 @@ td:last-child{text-align:right;}
   white-space:nowrap;
 }
 .sale-pill b{color:var(--success);font-weight:700;}
+/* Congrats / All-Good card */
+.allgood-congrats-section {
+  text-align:center;
+  background:linear-gradient(135deg,rgba(30,144,255,.25),rgba(0,200,83,.25));
+  border:1px solid rgba(255,255,255,.25);
+}
+.allgood-header{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  position:relative;
+  margin-bottom:var(--space-md);
+}
+.allgood-header h2{
+  margin:0;
+  font-size:var(--fs-lg);
+  color:var(--text-hi);
+}
+.allgood-expand-btn{
+  position:absolute;
+  top:0;
+  right:0;
+  line-height:1;
+  padding:0 var(--space-sm);
+  font-size:var(--fs-md);
+}
+.allgood-metrics{
+  display:flex;
+  justify-content:center;
+  gap:var(--space-lg);
+  flex-wrap:wrap;
+  margin-bottom:var(--space-md);
+}
+.agm{
+  font-size:var(--fs-lg);
+  font-weight:700;
+  padding:var(--space-xs) var(--space-sm);
+  border-radius:var(--radius-md);
+  background:rgba(255,255,255,.1);
+}
+.agm-rating{color:var(--brand);}
+.agm-staff{color:var(--success);}
+.agm-budget{color:var(--warning);}
+.allgood-cta-wrap{
+  margin-top:var(--space-sm);
+}
+
+/* collapse fab in expanded view */
+.allgood-collapse-fab{
+  text-align:right;
+  margin-bottom:var(--space-sm);
+}
 
 /* ==========================================================================
    Utilities

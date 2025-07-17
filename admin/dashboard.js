@@ -1,5 +1,6 @@
 /* ========================================================================
-   Dashboard Main Script (Realtime)  -- Performance Highlights + Caught-Up
+   Dashboard Main Script (Realtime, Enhanced Highlights)
+   Order: Guest Form Submissions → Guest Info → Stores → Users → Reviews → Role Mgmt
    ===================================================================== */
 
 const ROLES = window.ROLES || { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
@@ -47,11 +48,9 @@ window._guestForms = window._guestForms || {};
 window._sales      = window._sales      || {};
 
 /* ------------------------------------------------------------------------
-   Performance Highlight expanded states
+   Global UI flags
    ------------------------------------------------------------------------ */
-if (typeof window._perf_expand_reviews === "undefined") window._perf_expand_reviews = false;
-if (typeof window._perf_expand_stores  === "undefined") window._perf_expand_stores  = false;
-if (typeof window._perf_expand_users   === "undefined") window._perf_expand_users   = false;
+if (typeof window._allGoodExpanded === "undefined") window._allGoodExpanded = false;
 
 /* ------------------------------------------------------------------------
    Auth guard + profile bootstrap
@@ -82,12 +81,13 @@ auth.onAuthStateChanged(async (user) => {
 
   // initial load + realtime bind
   await initialLoad();
-  ensureRealtime();                  // attach global listeners
+  ensureRealtime();              // attach all listeners
   window.guestforms?.ensureRealtime?.(); // module-specific (safe if double-bound)
 });
 
 /* ========================================================================
    INITIAL LOAD
+   Fetch once, fill caches, render.
    ===================================================================== */
 async function initialLoad() {
   adminAppDiv.innerHTML = "<div>Loading data…</div>";
@@ -104,7 +104,7 @@ async function initialLoad() {
     db.ref("users").get(),
     db.ref("reviews").get(),
     db.ref("guestinfo").get(),
-    db.ref("guestEntries").get(),
+    db.ref("guestEntries").get(), // Step-1 QR submissions
     db.ref("sales").get()
   ]);
 
@@ -116,270 +116,334 @@ async function initialLoad() {
   window._sales      = salesSnap.val()      || {};
 
   _initialLoaded = true;
-  renderAdminApp();
+  renderAdminApp(); // from cache
 }
 
 /* ========================================================================
-   CAUGHT-UP HELPERS (Guest Forms + Guest Info)
+   HELPER: Date
    ===================================================================== */
-const _isAdmin = r => r === ROLES.ADMIN;
-const _isDM    = r => r === ROLES.DM;
-const _isLead  = r => r === ROLES.LEAD;
-const _isMe    = r => r === ROLES.ME;
-
-/* guestforms advanced status (hide proposal/sold) */
-function _gfAdvancedStatus(g){
-  const s = (g?.status || "").toLowerCase();
-  return s === "proposal" || s === "sold";
-}
-
-function _startOfTodayMs(){ const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); }
-function _endOfTodayMs(){ const d=new Date(); d.setHours(23,59,59,999); return d.getTime(); }
-
-/* guestinfo week filter: rolling 7 days by latest activity */
-function _giLatestTs(g){
-  return Math.max(g.updatedAt||0, g.submittedAt||0, g.sale?.soldAt||0, g.solution?.completedAt||0);
-}
-function _giInCurrentWeek(g){ return _giLatestTs(g) >= (Date.now() - 7*24*60*60*1000); }
-
-/* guestinfo status detect */
-function _giDetectStatus(g){
-  if (g.status) return g.status.toLowerCase();
-  if (g.sale) return "sold";
-  if (g.solution) return "proposal";
-  if (g.evaluate) return "working";
-  return "new";
-}
-
-/* DM tree helper */
-function _giUsersUnderDM(users, dmUid){
-  const leads = Object.entries(users||{})
-    .filter(([,u])=>u.role===ROLES.LEAD && u.assignedDM===dmUid)
-    .map(([id])=>id);
-  const mes = Object.entries(users||{})
-    .filter(([,u])=>u.role===ROLES.ME && leads.includes(u.assignedLead))
-    .map(([id])=>id);
-  return new Set([...leads,...mes]);
-}
-
-/* Visible guestforms count */
-function _guestFormsVisibleCount(guestForms, guestinfo, role, uid){
-  if (!guestForms) return 0;
-  const showAll = !!window._guestforms_showAll;
-  const startToday = _startOfTodayMs();
-  const endToday   = _endOfTodayMs();
-  let count = 0;
-  for (const [,f] of Object.entries(guestForms)){
-    if (f.guestinfoKey){
-      const g = guestinfo?.[f.guestinfoKey];
-      if (_gfAdvancedStatus(g)) continue;
-    }
-    if (!_isAdmin(role) && !_isDM(role)){
-      const claimedBy = f.consumedBy || f.claimedBy;
-      if (claimedBy && claimedBy !== uid) continue;
-    }
-    if (!showAll){
-      const ts = f.timestamp || 0;
-      if (ts < startToday || ts > endToday) continue;
-    }
-    count++;
-  }
-  return count;
-}
-
-/* Visible actionable guestinfo count (new+working+proposal) respecting filters */
-function _guestInfoActionableCount(guestinfo, users, role, uid){
-  if (!guestinfo) return 0;
-  if (window._guestinfo_soldOnly || window._guestinfo_showProposals) return 1; // force not-caught in alt modes
-
-  const weekFilter = _isMe(role) ? true : (window._guestinfo_filterMode === "week");
-
-  let count = 0;
-  for (const [,g] of Object.entries(guestinfo)){
-    // role gating
-    if (_isAdmin(role)) {
-      /* all */
-    } else if (_isDM(role)) {
-      const under = _giUsersUnderDM(users, uid); under.add(uid);
-      if (!under.has(g.userUid)) continue;
-    } else if (_isLead(role)) {
-      const mesUnderLead = Object.entries(users)
-        .filter(([, u]) => u.role === ROLES.ME && u.assignedLead === uid)
-        .map(([id]) => id);
-      const visible = new Set([...mesUnderLead, uid]);
-      if (!visible.has(g.userUid)) continue;
-    } else if (_isMe(role)) {
-      if (g.userUid !== uid) continue;
-    }
-    // timeframe
-    if (weekFilter && !_giInCurrentWeek(g)) continue;
-    // status
-    const st = _giDetectStatus(g);
-    if (st !== "sold") count++; // include proposal, working, new
-  }
-  return count;
-}
-
-/* Unified caught-up HTML (Guest queue only) */
-function _caughtUpUnifiedHtml(msg="You're all caught up!"){
-  return `
-    <section class="admin-section guest-caughtup-section" id="guest-caughtup-section">
-      <h2>Guest Queue</h2>
-      <div class="guestinfo-empty-all text-center" style="margin-top:16px;">
-        <p><b>${msg}</b></p>
-        <p style="opacity:.8;">No open guest forms or leads right now.</p>
-        <button class="btn btn-success btn-lg" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
-      </div>
-    </section>`;
+function _monthStartMs(){
+  const d = new Date();
+  d.setDate(1);
+  d.setHours(0,0,0,0);
+  return d.getTime();
 }
 
 /* ========================================================================
-   PERFORMANCE METRIC HELPERS  (Ratings / Staffing / Budget)
-   ===================================================================== */
+   PERFORMANCE STATUS CALC
+   ------------------------------------------------------------------------
+   Returns:
+     {
+       ratingsGood, staffingGood, budgetGood,
+       avgRating, ratingsCount,
+       staffTotal, staffGoalTotal,
+       budgetUnits, budgetGoal,
+       storesStatus: {
+          [storeId]: {
+             ratingAvg, ratingCount,
+             staffCount, staffGoal,
+             budgetUnits, budgetGoal,
+             ratingGood, staffGood, budgetGood
+          }
+       }
+     }
+   --------------------------------------------------------------------- */
+const RATING_THRESH = 4.7; // inclusive
+const DEFAULT_STORE_STAFF_GOAL = 2; // (TL + ME) minimum
 
-/* Visible reviews -> avg rating */
-function _visibleReviewsArray(reviews, users, role, uid){
-  if (window.reviews?.filterReviewsByRole){
-    return Object.entries(window.reviews.filterReviewsByRole(reviews, users, uid, role));
-  }
-  return Object.entries(reviews||{});
-}
-function _avgRatingVisible(reviewsArr){
-  if (!reviewsArr.length) return null;
-  let sum=0, n=0;
-  for (const [,r] of reviewsArr){
-    const v = Number(r.rating||0);
-    if (!isNaN(v) && v>0){ sum+=v; n++; }
-  }
-  return n? (sum/n):null;
-}
+function _computePerformanceStatus(stores, sales, users, reviews, role){
+  const storesObj = stores || {};
+  const usersObj  = users  || {};
+  const reviewsObj= reviews|| {};
+  const salesObj  = sales  || {};
 
-/* Staffing counts per visible store (Admin/DM/Lead; ME sees no stores) */
-function _visibleStoresArray(stores, role, uid){
-  if (_isAdmin(role) || _isDM(role)) return Object.entries(stores||{});
-  if (_isLead(role)){
-    return Object.entries(stores||{}).filter(([,s])=>s.teamLeadUid===uid || (s.storeNumber && window._users && Object.values(window._users).some(u=>u.role===ROLES.ME && u.store===s.storeNumber && u.assignedLead===uid)));
+  // map storeNumber -> storeId
+  const idByNum = {};
+  for (const [sid,s] of Object.entries(storesObj)){
+    const sn = (s.storeNumber??"").toString().trim();
+    if (sn) idByNum[sn] = sid;
   }
-  return []; // ME no stores
-}
-function _storePeopleCounts(storeRec, users){
-  const sn = (storeRec.storeNumber||"").toString().trim();
-  const tlUid = storeRec.teamLeadUid;
-  let leads=0, mes=0;
-  for (const [,u] of Object.entries(users||{})){
-    if (u.role===ROLES.LEAD){
-      if ((tlUid && u.uid===tlUid) || (sn && u.store===sn)) leads++;
-    } else if (u.role===ROLES.ME){
-      if ((sn && u.store===sn) || (tlUid && u.assignedLead===tlUid)) mes++;
+
+  /* --- Ratings by storeNumber --- */
+  const ratingAgg = {}; // sn -> {sum,count}
+  for (const [,r] of Object.entries(reviewsObj)){
+    const sn = (r.store||"").toString().trim();
+    if (!sn) continue;
+    if (!ratingAgg[sn]) ratingAgg[sn]={sum:0,count:0};
+    ratingAgg[sn].sum += Number(r.rating||0);
+    ratingAgg[sn].count += 1;
+  }
+
+  /* --- Staffing by storeId: count leads+mes, choose goal --- */
+  const storeStaffCounts = {}; // sid -> {leads,mes}
+  for (const [sid,s] of Object.entries(storesObj)){
+    storeStaffCounts[sid]={leads:0,mes:0};
+  }
+  // count leads + mes by user assignment (direct store match or teamLead link)
+  for (const [uid,u] of Object.entries(usersObj)){
+    const r = (u.role||"").toLowerCase();
+    const sn = (u.store??"").toString().trim();
+    // direct store match
+    if (sn && idByNum[sn]){
+      const sid = idByNum[sn];
+      if (r===ROLES.LEAD) storeStaffCounts[sid].leads++;
+      else if (r===ROLES.ME) storeStaffCounts[sid].mes++;
+    }
+    // fallback: user is TL for store (teamLeadUid field)
+    if (r===ROLES.LEAD || r===ROLES.DM){
+      for (const [sid,s] of Object.entries(storesObj)){
+        if (s.teamLeadUid === uid){
+          if (r===ROLES.LEAD) storeStaffCounts[sid].leads++;
+          // DM isn't counted toward store staffing unless explicitly stored
+        }
+      }
     }
   }
-  // some user objects may not carry uid; ensure leads counts at least 1 if tlUid set
-  if (tlUid && leads===0) leads=1;
-  return {leads, mes, total: leads+mes};
-}
-/* Staffing met? goal = storeRec.staffGoal || 2 */
-function _storeStaffingMet(storeRec, users){
-  const goal = Number(storeRec.staffGoal ?? 2);
-  const {total} = _storePeopleCounts(storeRec, users);
-  return {met: total >= goal, goal, total};
-}
 
-/* Budget MTD using stores.js summarizer if available */
-function _salesMtdMap(){
+  /* --- Budget (MTD sales units) by storeNumber --- */
+  let salesMtdByStore;
   if (window.stores?.summarizeSalesByStoreMTD){
-    return window.stores.summarizeSalesByStoreMTD(window._sales, window._stores, window._guestinfo, window._users);
+    salesMtdByStore = window.stores.summarizeSalesByStoreMTD(salesObj, storesObj, window._guestinfo, usersObj);
+  } else {
+    // fallback minimal MTD aggregator
+    const out={};
+    const ms = _monthStartMs();
+    for (const [,s] of Object.entries(salesObj)){
+      const ts = s.createdAt || s.soldAt || 0;
+      if (ts < ms) continue;
+      const sn = (s.storeNumber??"").toString().trim() || "__UNASSIGNED__";
+      if (!out[sn]) out[sn]={units:0,count:0};
+      out[sn].units += Number(s.units||0);
+      out[sn].count += 1;
+    }
+    salesMtdByStore = out;
   }
-  // fallback quick build
-  const out={};
-  const mStart = (d=>{d.setDate(1);d.setHours(0,0,0,0);return d.getTime();})(new Date());
-  for (const [,s] of Object.entries(window._sales||{})){
-    const ts = s.createdAt||s.soldAt||0;
-    if (ts < mStart) continue;
-    const sn = (s.storeNumber||"").toString().trim()||"__";
-    if(!out[sn]) out[sn]={count:0,units:0};
-    out[sn].count++; out[sn].units += Number(s.units||0);
+
+  /* --- Build per-store status --- */
+  const storesStatus = {};
+  let totalRatingSum=0,totalRatingCount=0;
+  let staffTotal=0,staffGoalTotal=0;
+  let budgetUnits=0,budgetGoal=0;
+
+  for (const [sid,s] of Object.entries(storesObj)){
+    const sn = (s.storeNumber??"").toString().trim();
+    const rAgg = ratingAgg[sn];
+    const ratingAvg = rAgg ? (rAgg.sum / rAgg.count) : null;
+    const ratingCount = rAgg ? rAgg.count : 0;
+    const ratingGood = ratingAvg!=null ? (ratingAvg >= RATING_THRESH) : true; // no reviews => neutral/good
+
+    const staffC = storeStaffCounts[sid] || {leads:0,mes:0};
+    const staffCount = staffC.leads + staffC.mes;
+    const staffGoal = Number(s.staffingGoal ?? DEFAULT_STORE_STAFF_GOAL);
+    const staffGood = staffCount >= staffGoal;
+
+    const budGoal = Number(s.budgetUnits||0);
+    const budMtd  = salesMtdByStore?.[sn]?.units || 0;
+    const budgetGood = !budGoal || budMtd >= budGoal;
+
+    storesStatus[sid] = {
+      ratingAvg, ratingCount, ratingGood,
+      staffCount, staffGoal, staffGood,
+      budgetUnits: budMtd, budgetGoal: budGoal, budgetGood
+    };
+
+    if (ratingAvg!=null){ totalRatingSum+=ratingAvg; totalRatingCount++; }
+    staffTotal     += staffCount;
+    staffGoalTotal += staffGoal;
+    budgetUnits    += budMtd;
+    budgetGoal     += budGoal;
   }
-  return out;
-}
-function _storeBudgetMet(storeRec, mtdMap){
-  const goal = Number(storeRec.budgetUnits||0);
-  if (!goal) return {met:true,goal:0,units:0,pct:null}; // no goal -> treat as met
-  const sn = (storeRec.storeNumber||"").toString().trim();
-  const summ = mtdMap[sn];
-  const units = summ?.units||0;
-  const met = units >= goal;
-  const pct = goal? (units/goal*100):null;
-  return {met,goal,units,pct};
-}
 
-/* Aggregate Performance status across visible stores */
-function _performanceStatus(reviews, stores, users, role, uid){
-  const rvArr = _visibleReviewsArray(reviews, users, role, uid);
-  const avgRating = _avgRatingVisible(rvArr);
-  const ratingsGood = avgRating!=null ? avgRating >= 4.7 : false;
-
-  const stArr = _visibleStoresArray(stores, role, uid);
-  const mtdMap = _salesMtdMap();
-
-  let staffingGood=true, budgetGood=true;
-  let staffTotal=0, staffGoalTotal=0, budgetUnits=0, budgetGoal=0;
-
-  for (const [,s] of stArr){
-    const staff = _storeStaffingMet(s, users);
-    staffTotal += staff.total;
-    staffGoalTotal += staff.goal;
-    if (!staff.met) staffingGood=false;
-
-    const bud = _storeBudgetMet(s, mtdMap);
-    budgetUnits += bud.units;
-    budgetGoal  += bud.goal;
-    if (!bud.met) budgetGood=false;
+  // aggregate rating: weighted by #reviews across stores
+  let aggRating = null;
+  let totalReviewSum = 0;
+  let totalReviewCnt = 0;
+  for (const [,r] of Object.entries(reviewsObj)){
+    const rating = Number(r.rating||0);
+    if (rating){
+      totalReviewSum += rating;
+      totalReviewCnt += 1;
+    }
   }
+  if (totalReviewCnt) aggRating = totalReviewSum / totalReviewCnt;
+
+  // top-level pass/fail (skip for MEs)
+  const ratingsGood  = aggRating==null ? true : (aggRating >= RATING_THRESH);
+  const staffingGood = (role === ROLES.ME) ? true : (staffTotal >= staffGoalTotal);
+  const budgetGood   = (role === ROLES.ME) ? true : (!budgetGoal || budgetUnits >= budgetGoal);
 
   return {
     ratingsGood,
     staffingGood,
     budgetGood,
-    allGood: ratingsGood && staffingGood && budgetGood,
-    avgRating,
-    staffTotal, staffGoalTotal,
-    budgetUnits, budgetGoal
+    avgRating: aggRating,
+    ratingsCount: totalReviewCnt,
+    staffTotal,
+    staffGoalTotal,
+    budgetUnits,
+    budgetGoal,
+    storesStatus
   };
 }
+window._computePerformanceStatus = _computePerformanceStatus; // expose for other modules
 
-/* Performance Highlights HTML */
-/* Performance Highlights HTML (no New Lead button) */
-function _perfHighlightsHtml(ps, role){
-  // skip if ME (no store view)
-  const showStores = (role !== ROLES.ME);
-  const avg = ps.avgRating!=null ? ps.avgRating.toFixed(1) : "–";
-  const staffLbl = showStores ? `${ps.staffTotal}/${ps.staffGoalTotal||"?"}` : "";
-  const budLbl   = showStores ? (ps.budgetGoal? `${ps.budgetUnits}/${ps.budgetGoal}u` : `${ps.budgetUnits}u`) : "";
+/* ========================================================================
+   GUEST "CAUGHT UP" DETECTORS
+   ===================================================================== */
+function _isGuestFormsCaughtUp(formsObj, guestinfoObj, role, uid){
+  // If guestforms module exports a visibility util, use it
+  if (window.guestforms?.visibleFormsForRole){
+    const vis = window.guestforms.visibleFormsForRole(formsObj, role, uid);
+    // that util already removes advanced statuses; just test length
+    return !Object.keys(vis).length;
+  }
 
-  const ratCls = ps.ratingsGood ? "good" : "warn";
-  const stfCls = ps.staffingGood? "good":"warn";
-  const budCls = ps.budgetGood ? "good":"warn";
+  // fallback: naive -- hide if every form is linked to a guestinfo that
+  // is proposal/sold
+  for (const [,f] of Object.entries(formsObj||{})){
+    const gid = f.guestinfoKey;
+    if (gid){
+      const g = guestinfoObj[gid];
+      if (!g) continue;
+      const st = (g.status||"").toLowerCase();
+      if (st !== "proposal" && st !== "sold") return false;
+    }else{
+      return false; // unclaimed form
+    }
+  }
+  return true;
+}
 
-  const revClick = `onclick="window.perfToggleReviews()"`;
-  const stClick  = `onclick="window.perfToggleStores()"`;
-  const usClick  = `onclick="window.perfToggleUsers()"`;
+function _isGuestInfoCaughtUp(guestinfoObj, users, role, uid){
+  // Use guestinfo module's filter (role-scoped)
+  const vis = window.guestinfo?.filterGuestinfo
+    ? window.guestinfo.filterGuestinfo(guestinfoObj, users, uid, role)
+    : guestinfoObj;
 
+  // Count actionable (new+working) in current timeframe filter
+  const weekMode = window._guestinfo_filterMode === "week";
+  const rows = Object.entries(vis).filter(([,g])=>{
+    const st = (g.status||"").toLowerCase();
+    if (st === "proposal" || st === "sold") return false;
+    if (!weekMode) return true;
+    const ts = Math.max(g.updatedAt||0, g.submittedAt||0, g.solution?.completedAt||0, g.sale?.soldAt||0);
+    return ts >= Date.now() - 7*24*60*60*1000;
+  });
+  return rows.length === 0;
+}
+
+/* Combined */
+function _allGoodStatus(role){
+  const forms = window._guestForms || {};
+  const guestinfo = window._guestinfo || {};
+  const users = window._users || {};
+  const reviews = window._reviews || {};
+  const stores = window._stores || {};
+  const sales  = window._sales  || {};
+
+  const guestsCaught = _isGuestFormsCaughtUp(forms, guestinfo, role, window.currentUid) &&
+                       _isGuestInfoCaughtUp(guestinfo, users, role, window.currentUid);
+
+  const ps = _computePerformanceStatus(stores, sales, users, reviews, role);
+  const perfGood = ps.ratingsGood && ps.staffingGood && ps.budgetGood;
+
+  return {guestsCaught, perfGood, ps};
+}
+
+/* ========================================================================
+   TOP CARD HTML HELPERS
+   ===================================================================== */
+function _caughtUpHtml(){
   return `
-    <section class="admin-section perf-highlights-section" id="perf-highlights-section">
-      <h2>Performance Highlights</h2>
-      <div class="perf-highlights-grid">
-        <div class="perf-highlight rating ${ratCls}" ${revClick} title="Click to view full reviews">★ ${avg}</div>
-        ${showStores? `<div class="perf-highlight staffing ${stfCls}" ${usClick} title="Click to view staffing/users">${staffLbl} staffed</div>`:""}
-        ${showStores? `<div class="perf-highlight budget ${budCls}" ${stClick} title="Click to view stores/budget">${budLbl} MTD</div>`:""}
+    <section class="admin-section guest-caughtup-section" id="guest-caughtup-section">
+      <h2>Guest Queue Clear!</h2>
+      <p class="text-center">No open guest forms or leads in this view.</p>
+      <div class="text-center" style="margin-top:12px;">
+        <button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
       </div>
     </section>`;
 }
 
+/* Performance Highlights (no New Lead button -- per request) */
+function _perfHighlightsHtml(ps, role){
+  const showStores = (role !== ROLES.ME);
+
+  // rating metric
+  const rating = ps.avgRating!=null ? ps.avgRating.toFixed(1) : "–";
+  const ratingCls = ps.ratingsGood ? "metric-chip success" : "metric-chip warning";
+
+  // staffing
+  const staffLbl = showStores ? `${ps.staffTotal}/${ps.staffGoalTotal||"?"}` : "";
+  const staffCls = ps.staffingGood ? "metric-chip success" : "metric-chip warning";
+
+  // budget
+  const budLbl = showStores
+    ? (ps.budgetGoal? `${ps.budgetUnits}/${ps.budgetGoal}u` : `${ps.budgetUnits}u`)
+    : "";
+  const budCls = ps.budgetGood ? "metric-chip success" : "metric-chip warning";
+
+  return `
+    <section class="admin-section perf-highlights-section" id="perf-highlights-section">
+      <div class="perf-header">
+        <h2>Performance Highlights</h2>
+      </div>
+      <div class="perf-metrics">
+        <div class="${ratingCls}" title="Avg rating this week">★ ${rating}</div>
+        ${showStores? `<div class="${staffCls}" title="Staffed vs goal">${staffLbl}</div>`:""}
+        ${showStores? `<div class="${budCls}" title="Month-to-date units vs goal">${budLbl}</div>`:""}
+      </div>
+    </section>`;
+}
+
+/* Congrats / All-Good (collapsed) */
+function _allGoodCongratsHtml(ps, role){
+  const showStores = (role !== ROLES.ME);
+  const rating  = ps.avgRating!=null ? ps.avgRating.toFixed(1) : "–";
+  const staffLbl = showStores ? `${ps.staffTotal}/${ps.staffGoalTotal||"?"}` : "";
+  const budLbl   = showStores
+    ? (ps.budgetGoal? `${ps.budgetUnits}/${ps.budgetGoal}u` : `${ps.budgetUnits}u`)
+    : "";
+
+  const expandBtn = `
+    <button class="btn btn-ghost btn-sm allgood-expand-btn"
+            onclick="window.allGoodExpand()"
+            title="Show details">×</button>`;
+
+  const newLeadBtnHtml = `
+    <div class="allgood-cta-wrap">
+      <button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
+    </div>`;
+
+  return `
+    <section class="admin-section allgood-congrats-section" id="allgood-congrats-section">
+      <div class="allgood-header">
+        <h2>You're Crushing It! 🎉</h2>
+        ${expandBtn}
+      </div>
+      <div class="allgood-metrics">
+        <div class="agm agm-rating" title="Avg rating this week">★ ${rating}</div>
+        ${showStores? `<div class="agm agm-staff" title="Staffed vs goal">${staffLbl}</div>`:""}
+        ${showStores? `<div class="agm agm-budget" title="Month-to-date units vs goal">${budLbl}</div>`:""}
+      </div>
+      ${newLeadBtnHtml}
+    </section>`;
+}
+
+/* Expand / collapse handlers (global) */
+window.allGoodExpand = function(){
+  window._allGoodExpanded = true;
+  window.renderAdminApp();
+};
+window.allGoodCollapse = function(){
+  window._allGoodExpanded = false;
+  window.renderAdminApp();
+};
+
 /* ========================================================================
-   RENDER
+   RENDER (from current caches)
    ===================================================================== */
 function renderAdminApp() {
-  if (!_initialLoaded) return;
+  if (!_initialLoaded) return; // guard; initial load will render when ready
 
   const stores     = window._stores;
   const users      = window._users;
@@ -388,93 +452,88 @@ function renderAdminApp() {
   const guestForms = window._guestForms;
   const sales      = window._sales;
 
-  /* ----- Caught-up checks (Guest Queue) ----- */
-  const gfVisibleCount   = _guestFormsVisibleCount(guestForms, guestinfo, currentRole, currentUid);
-  const giActionableCount= _guestInfoActionableCount(guestinfo, users, currentRole, currentUid);
-  const guestsCaught     = (gfVisibleCount === 0) && (giActionableCount === 0);
-
-  /* ----- Performance metrics ----- */
-  const perf = _performanceStatus(reviews, stores, users, currentRole, currentUid);
-  const perfEligible = (currentRole !== ROLES.ME); // only show for mgmt tiers
-  const perfGood = perfEligible && perf.allGood;
-
   /* ---------------------------------------------------------------
-     Build top-of-page guest queue portion
-     --------------------------------------------------------------- */
-  let guestFormsHtml = "";
-  let guestinfoHtml  = "";
-  let perfHighlightsHtml = "";
+   * Determine top-card & hiding rules
+   * --------------------------------------------------------------- */
+  const {guestsCaught, perfGood, ps} = _allGoodStatus(currentRole);
 
-  if (guestsCaught) {
-    // show unified guest caught-up card
-    guestFormsHtml = _caughtUpUnifiedHtml();
+  const showCongratsCollapsed = guestsCaught && perfGood && !window._allGoodExpanded;
+  const hideGuestSections     = guestsCaught && !window._allGoodExpanded;              // hide guest forms/info when caught up & collapsed
+  const hidePerfSections      = perfGood && guestsCaught && !window._allGoodExpanded;  // hide perf (stores/users/reviews) when everything good & collapsed
+
+  // Build top cards (if not hidden entirely)
+  let topCardsHtml = "";
+  if (showCongratsCollapsed){
+    // Single combined card
+    topCardsHtml = _allGoodCongratsHtml(ps, currentRole);
   } else {
-    // guestforms section
-    guestFormsHtml = window.guestforms?.renderGuestFormsSection
-      ? window.guestforms.renderGuestFormsSection(guestForms, currentRole, currentUid)
-      : `<section id="guest-forms-section" class="admin-section guest-forms-section"><h2>Guest Form Submissions</h2><p class="text-center">Module not loaded.</p></section>`;
-
-    // guestinfo section
-    guestinfoHtml = window.guestinfo?.renderGuestinfoSection
-      ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
-      : `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">Module not loaded.</p></section>`;
+    // Expanded OR partial-good states
+    const showCaughtCard = guestsCaught;
+    const showPerfCard   = perfGood;
+    const collapseBtn = (guestsCaught && perfGood && window._allGoodExpanded)
+      ? `<div class="allgood-collapse-fab"><button class="btn btn-ghost btn-sm" onclick="window.allGoodCollapse()" title="Collapse highlights">Collapse</button></div>`
+      : "";
+    topCardsHtml = `
+      ${collapseBtn}
+      ${showCaughtCard ? _caughtUpHtml() : ""}
+      ${showPerfCard   ? _perfHighlightsHtml(ps, currentRole) : ""}
+    `;
   }
 
   /* ---------------------------------------------------------------
-     Stores / Users / Reviews (possibly collapsed into highlights)
+     Build each module section's HTML (may be hidden)
      --------------------------------------------------------------- */
-  let storesHtml = "";
-  let usersHtml  = "";
-  let reviewsHtml= "";
 
-  if (perfGood) {
-    // show highlight card instead of full sections
-    perfHighlightsHtml = _perfHighlightsHtml(perf, currentRole);
+  // 1) Guest Form Submissions
+  const guestFormsHtml = (!hideGuestSections && window.guestforms?.renderGuestFormsSection)
+    ? window.guestforms.renderGuestFormsSection(guestForms, currentRole, currentUid)
+    : (!hideGuestSections
+        ? `<section id="guest-forms-section" class="admin-section guest-forms-section"><h2>Guest Form Submissions</h2><p class="text-center">Module not loaded.</p></section>`
+        : "");
 
-    // Render expanded sections ONLY if toggled
-    if (window._perf_expand_reviews) {
-      reviewsHtml = window.reviews?.renderReviewsSection
-        ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
-        : `<section class="admin-section reviews-section"><h2>Reviews</h2><p class="text-center">Module not loaded.</p></section>`;
-    }
-    if (window._perf_expand_users) {
-      usersHtml = window.users?.renderUsersSection
-        ? window.users.renderUsersSection(users, currentRole, currentUid)
-        : `<section class="admin-section users-section"><h2>Users</h2><p class="text-center">Module not loaded.</p></section>`;
-    }
-    if (window._perf_expand_stores && currentRole !== ROLES.ME) {
-      storesHtml = window.stores?.renderStoresSection
-        ? window.stores.renderStoresSection(stores, users, currentRole, sales)
-        : `<section class="admin-section stores-section"><h2>Stores</h2><p class="text-center">Module not loaded.</p></section>`;
-    }
-  } else {
-    // normal behavior (no highlight collapse)
-    if (currentRole !== ROLES.ME && window.stores?.renderStoresSection) {
-      storesHtml = window.stores.renderStoresSection(stores, users, currentRole, sales);
-    }
-    usersHtml = window.users?.renderUsersSection
-      ? window.users.renderUsersSection(users, currentRole, currentUid)
-      : `<section class="admin-section users-section"><h2>Users</h2><p class="text-center">Module not loaded.</p></section>`;
-    reviewsHtml = window.reviews?.renderReviewsSection
-      ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
-      : `<section class="admin-section reviews-section"><h2>Reviews</h2><p class="text-center">Module not loaded.</p></section>`;
-  }
+  // 2) Guest Info (role-filtered in module)
+  const guestinfoHtml = (!hideGuestSections && window.guestinfo?.renderGuestinfoSection)
+    ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
+    : (!hideGuestSections
+        ? `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">Module not loaded.</p></section>`
+        : "");
 
-  /* ---------------------------------------------------------------
-     Role Mgmt
-     --------------------------------------------------------------- */
+  // 3) Stores (hidden for ME always; also hide when perf collapsed)
+  const storesHtml = (
+      currentRole !== ROLES.ME &&
+      !hidePerfSections &&
+      window.stores?.renderStoresSection
+    )
+    ? window.stores.renderStoresSection(stores, users, currentRole, sales)
+    : "";
+
+  // 4) Users (hide when perf collapsed)
+  const usersHtml = (!hidePerfSections && window.users?.renderUsersSection)
+    ? window.users.renderUsersSection(users, currentRole, currentUid)
+    : (!hidePerfSections
+        ? `<section class="admin-section users-section"><h2>Users</h2><p class="text-center">Module not loaded.</p></section>`
+        : "");
+
+  // 5) Reviews (hide when perf collapsed)
+  const reviewsHtml = (!hidePerfSections && window.reviews?.renderReviewsSection)
+    ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
+    : (!hidePerfSections
+        ? `<section class="admin-section reviews-section"><h2>Reviews</h2><p class="text-center">Module not loaded.</p></section>`
+        : "");
+
+  // 6) Role Mgmt (always show)
   const roleMgmtHtml =
     typeof window.renderRoleManagementSection === "function"
       ? window.renderRoleManagementSection(currentRole)
       : "";
 
   /* ---------------------------------------------------------------
-     Inject into DOM (order: guest queue → perf highlights → others)
+     Inject into DOM
      --------------------------------------------------------------- */
   adminAppDiv.innerHTML = `
+    ${topCardsHtml}
     ${guestFormsHtml}
     ${guestinfoHtml}
-    ${perfHighlightsHtml}
     ${storesHtml}
     ${usersHtml}
     ${reviewsHtml}
@@ -482,7 +541,7 @@ function renderAdminApp() {
   `;
 
   /* ---------------------------------------------------------------
-     Build review cache for filters
+     Build review cache for filters (role-filtered if module provides)
      --------------------------------------------------------------- */
   if (window.reviews?.filterReviewsByRole) {
     window._filteredReviews = Object.entries(
@@ -496,83 +555,123 @@ function renderAdminApp() {
 }
 
 /* ========================================================================
-   PERF HIGHLIGHT TOGGLES
-   ===================================================================== */
-window.perfToggleReviews = function(){
-  window._perf_expand_reviews = !window._perf_expand_reviews;
-  renderAdminApp();
-};
-window.perfToggleStores = function(){
-  window._perf_expand_stores = !window._perf_expand_stores;
-  renderAdminApp();
-};
-window.perfToggleUsers = function(){
-  window._perf_expand_users = !window._perf_expand_users;
-  renderAdminApp();
-};
-
-/* ========================================================================
    REALTIME BIND
+   Attaches listeners once; updates caches; throttled re-render.
    ===================================================================== */
 function ensureRealtime() {
   if (_rtBound) return;
   _rtBound = true;
 
+  /* throttle re-render calls so bursts of updates don't spam DOM */
   function scheduleRealtimeRender() {
     if (_rtRerenderTO) return;
     _rtRerenderTO = setTimeout(() => {
       _rtRerenderTO = null;
       renderAdminApp();
-    }, 100);
+    }, 100); // 100ms batch window
   }
 
-  /* STORES */
+  /* ---------- STORES ---------- */
   const storesRef = db.ref("stores");
-  storesRef.on("child_added", snap => { window._stores[snap.key] = snap.val(); scheduleRealtimeRender(); });
-  storesRef.on("child_changed", snap => { window._stores[snap.key] = snap.val(); scheduleRealtimeRender(); });
-  storesRef.on("child_removed", snap => { delete window._stores[snap.key]; scheduleRealtimeRender(); });
+  storesRef.on("child_added", snap => {
+    window._stores[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
+  storesRef.on("child_changed", snap => {
+    window._stores[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
+  storesRef.on("child_removed", snap => {
+    delete window._stores[snap.key];
+    scheduleRealtimeRender();
+  });
 
-  /* USERS */
+  /* ---------- USERS ---------- */
   const usersRef = db.ref("users");
-  usersRef.on("child_added", snap => { window._users[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  usersRef.on("child_added", snap => {
+    window._users[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
   usersRef.on("child_changed", snap => {
     window._users[snap.key] = snap.val();
+    // if my own role changed, update currentRole & security view
     if (snap.key === currentUid) {
       currentRole = (snap.val()?.role || ROLES.ME).toLowerCase();
       window.currentRole = currentRole;
     }
     scheduleRealtimeRender();
   });
-  usersRef.on("child_removed", snap => { delete window._users[snap.key]; scheduleRealtimeRender(); });
+  usersRef.on("child_removed", snap => {
+    delete window._users[snap.key];
+    scheduleRealtimeRender();
+  });
 
-  /* REVIEWS */
+  /* ---------- REVIEWS ---------- */
   const reviewsRef = db.ref("reviews");
-  reviewsRef.on("child_added", snap => { window._reviews[snap.key] = snap.val(); scheduleRealtimeRender(); });
-  reviewsRef.on("child_changed", snap => { window._reviews[snap.key] = snap.val(); scheduleRealtimeRender(); });
-  reviewsRef.on("child_removed", snap => { delete window._reviews[snap.key]; scheduleRealtimeRender(); });
+  reviewsRef.on("child_added", snap => {
+    window._reviews[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
+  reviewsRef.on("child_changed", snap => {
+    window._reviews[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
+  reviewsRef.on("child_removed", snap => {
+    delete window._reviews[snap.key];
+    scheduleRealtimeRender();
+  });
 
-  /* GUEST INFO */
+  /* ---------- GUEST INFO ---------- */
   const giRef = db.ref("guestinfo");
-  giRef.on("child_added", snap => { window._guestinfo[snap.key] = snap.val(); scheduleRealtimeRender(); });
-  giRef.on("child_changed", snap => { window._guestinfo[snap.key] = snap.val(); scheduleRealtimeRender(); });
-  giRef.on("child_removed", snap => { delete window._guestinfo[snap.key]; scheduleRealtimeRender(); });
+  giRef.on("child_added", snap => {
+    window._guestinfo[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
+  giRef.on("child_changed", snap => {
+    window._guestinfo[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
+  giRef.on("child_removed", snap => {
+    delete window._guestinfo[snap.key];
+    scheduleRealtimeRender();
+  });
 
-  /* GUEST ENTRIES */
+  /* ---------- GUEST ENTRIES (Step 1 forms) ---------- */
   const gfRef = db.ref("guestEntries");
-  gfRef.on("child_added", snap => { window._guestForms[snap.key] = snap.val(); scheduleRealtimeRender(); });
-  gfRef.on("child_changed", snap => { window._guestForms[snap.key] = snap.val(); scheduleRealtimeRender(); });
-  gfRef.on("child_removed", snap => { delete window._guestForms[snap.key]; scheduleRealtimeRender(); });
+  gfRef.on("child_added", snap => {
+    window._guestForms[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
+  gfRef.on("child_changed", snap => {
+    window._guestForms[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
+  gfRef.on("child_removed", snap => {
+    delete window._guestForms[snap.key];
+    scheduleRealtimeRender();
+  });
 
-  /* SALES */
+  /* ---------- SALES ---------- */
   const salesRef = db.ref("sales");
-  salesRef.on("child_added", snap => { window._sales[snap.key] = snap.val(); scheduleRealtimeRender(); });
-  salesRef.on("child_changed", snap => { window._sales[snap.key] = snap.val(); scheduleRealtimeRender(); });
-  salesRef.on("child_removed", snap => { delete window._sales[snap.key]; scheduleRealtimeRender(); });
+  salesRef.on("child_added", snap => {
+    window._sales[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
+  salesRef.on("child_changed", snap => {
+    window._sales[snap.key] = snap.val();
+    scheduleRealtimeRender();
+  });
+  salesRef.on("child_removed", snap => {
+    delete window._sales[snap.key];
+    scheduleRealtimeRender();
+  });
 }
 
 /* ========================================================================
-   Module action passthroughs
+   Action handlers delegated to modules
+   (unchanged; modules perform writes; realtime will refresh view)
    ===================================================================== */
+
 // Stores
 window.assignTL          = (storeId, uid) => window.stores.assignTL(storeId, uid);
 window.updateStoreNumber = (id, val)      => window.stores.updateStoreNumber(id, val);
@@ -590,7 +689,7 @@ window.editUserStore     = async (uid)         => {
 window.toggleStar   = (id, starred) => window.reviews.toggleStar(id, starred);
 window.deleteReview = (id)          => window.reviews.deleteReview(id);
 
-// Review filters
+// Review filters (operate on window._filteredReviews built in render)
 window.filterReviewsByStore = (store) => {
   const filtered = window._filteredReviews.filter(([, r]) => r.store === store);
   const el = document.querySelector(".reviews-container");
@@ -611,6 +710,6 @@ window.deleteGuestFormEntry     = (id) => window.guestforms.deleteGuestFormEntry
 window.continueGuestFormToGuest = (id) => window.guestforms.continueToGuestInfo(id);
 
 /* ------------------------------------------------------------------------
-   Expose render for modules
+   Expose render for modules that call window.renderAdminApp()
    ------------------------------------------------------------------------ */
 window.renderAdminApp = renderAdminApp;
