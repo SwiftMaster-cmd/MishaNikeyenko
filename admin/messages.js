@@ -1,53 +1,60 @@
-/* messages.js  -----------------------------------------------------------
- * Lightweight role-scoped messaging overlay for Admin Dashboard.
- * ---------------------------------------------------------------------- */
-
+/* =======================================================================
+   messages.js  -- Lightweight role-scoped messaging overlay for Dashboard
+   ======================================================================= */
 (function(){
+  /* --------------------------------------------------------------------
+   * Firebase handles (prefer globals injected by dashboard.js)
+   * ------------------------------------------------------------------ */
+  const fb = window.firebase;
+  const db   = window.db   || (fb ? fb.database() : null);
+  const auth = window.auth || (fb ? fb.auth()     : null);
+
+  if (!db || !auth) {
+    console.warn("[messages] Firebase not ready yet; module will lazy-init when setCurrentUser() called.");
+  }
+
   const ROLES = window.ROLES || { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
-  const db    = window.db    || firebase.database();
-  const auth  = firebase.auth();
 
   /* --------------------------------------------------------------------
    * Local state
    * ------------------------------------------------------------------ */
   let currentUid   = null;
   let currentRole  = ROLES.ME;
-  let threadsCache = {};      // tid -> thread obj (live)
+  let threadsCache = {};      // tid -> thread obj
   let msgsCache    = {};      // tid -> {msgid:msg}
   let overlayOpen  = false;
+  let activeThreadId = null;
 
-  /* badge el (created when dashboard.js calls messages.injectButtonBadge) */
-  let _badgeEl = null;
+  /* listener flags */
+  let _threadsBound = false;
+  const _msgBounds = {}; // tid -> true once bound
 
   /* --------------------------------------------------------------------
-   * Init called from dashboard.js after auth; safe to call multiple times.
+   * Public init (called from dashboard.js after auth)
+   * Safe to call repeatedly; will re-evaluate user context.
    * ------------------------------------------------------------------ */
-  function initMessages(uid, role){
+  function setCurrentUser(uid, role){
     currentUid  = uid;
     currentRole = (role||ROLES.ME).toLowerCase();
-    bindThreadsRealtime();
+    if (!_threadsBound && db) bindThreadsRealtime();
+    refreshHeaderBadge(); // update count for new user
   }
 
-  /* Dashboard helper sets external badge reference -------------------- */
-  function setBadgeEl(el){ _badgeEl = el; refreshHeaderBadge(); }
-
   /* --------------------------------------------------------------------
-   * Realtime listeners
-   * NOTE: top-level messages .read is auth != null, so we can subscribe.
-   * Each child’s per-thread .read will protect contents; unauthorized
-   * children arrive as null (ignored).
+   * Realtime: top-level /messages
+   * We subscribe to all threads; permission rules will hide unauthorized.
+   * We also locally filter to participant|admin for belt+suspenders.
    * ------------------------------------------------------------------ */
-  let _threadsBound = false;
   function bindThreadsRealtime(){
-    if(_threadsBound || !currentUid) return;
+    if(_threadsBound) return;
     _threadsBound = true;
-    const ref = db.ref("messages");
 
-    ref.on("child_added",   snap => handleThreadSnap(snap));
-    ref.on("child_changed", snap => handleThreadSnap(snap));
-    ref.on("child_removed", snap => {
-      delete threadsCache[snap.key];
-      delete msgsCache[snap.key];
+    db.ref("messages").on("child_added",   handleThreadSnap);
+    db.ref("messages").on("child_changed", handleThreadSnap);
+    db.ref("messages").on("child_removed", snap=>{
+      const tid = snap.key;
+      delete threadsCache[tid];
+      delete msgsCache[tid];
       refreshHeaderBadge();
       if(overlayOpen) renderOverlay();
     });
@@ -56,24 +63,31 @@
   function handleThreadSnap(snap){
     const tid  = snap.key;
     const data = snap.val();
+    if(!data) return; // denied by rules
 
-    // If we can't see the data (security filtered) ignore.
-    if(!data) return;
+    // filter by participant unless Admin
+    if(currentRole !== ROLES.ADMIN){
+      const parts = data.participants || {};
+      if(!parts[currentUid]) return;
+    }
 
-    // Show only if participant OR admin view? We relaxed .read but
-    // per-thread .read already enforces participant|admin. So if we got here,
-    // we’re authorized; keep it.
     threadsCache[tid] = data;
 
-    // Bind msgs subfeed if not yet
-    if(!msgsCache[tid]) bindMsgsRealtime(tid);
+    // bind msgs once
+    if(!_msgBounds[tid]){
+      _msgBounds[tid] = true;
+      bindMsgsRealtime(tid);
+    }
+
+    // If no active thread, pick most recent
+    if (!activeThreadId) activeThreadId = tid;
 
     refreshHeaderBadge();
     if(overlayOpen) renderOverlay();
   }
 
   function bindMsgsRealtime(tid){
-    const ref = db.ref("messages/"+tid+"/msgs");
+    const ref = db.ref(`messages/${tid}/msgs`);
     msgsCache[tid] = msgsCache[tid] || {};
     ref.on("child_added", snap=>{
       msgsCache[tid][snap.key]=snap.val();
@@ -90,7 +104,7 @@
   }
 
   /* --------------------------------------------------------------------
-   * Compute unread count for current user (sum of per-thread unread)
+   * Unread total + badge update (delegates to dashboard helper)
    * ------------------------------------------------------------------ */
   function unreadTotal(){
     let sum = 0;
@@ -102,10 +116,9 @@
   }
 
   function refreshHeaderBadge(){
-    if(!_badgeEl) return;
-    const n = unreadTotal();
-    _badgeEl.textContent = n>0 ? String(n) : "";
-    _badgeEl.style.display = n>0 ? "" : "none";
+    if (typeof window.updateMessagesBadge === "function") {
+      window.updateMessagesBadge(unreadTotal());
+    }
   }
 
   /* --------------------------------------------------------------------
@@ -118,19 +131,23 @@
     ov.id = "msg-overlay";
     ov.className = "msg-overlay hidden";
     ov.innerHTML = `
-      <div class="msg-overlay-backdrop" onclick="window.messages.closeOverlay()"></div>
+      <div class="msg-overlay-backdrop"></div>
       <div class="msg-overlay-panel" role="dialog" aria-modal="true">
         <header class="msg-overlay-header">
           <h3>Messages</h3>
-          <button type="button" class="msg-overlay-close" onclick="window.messages.closeOverlay()" aria-label="Close">×</button>
+          <button type="button" class="msg-overlay-close" aria-label="Close">×</button>
         </header>
-        <div class="msg-overlay-body">
-          <!-- thread list injected here -->
-        </div>
-        <button type="button" class="msg-overlay-new" title="New Message" onclick="window.messages.openNewThreadModal()">＋</button>
+        <div class="msg-overlay-body"></div>
+        <button type="button" class="msg-overlay-new" title="New Message">＋</button>
       </div>
     `;
     document.body.appendChild(ov);
+
+    // wire clicks
+    ov.querySelector(".msg-overlay-backdrop").addEventListener("click", closeOverlay);
+    ov.querySelector(".msg-overlay-close").addEventListener("click", closeOverlay);
+    ov.querySelector(".msg-overlay-new").addEventListener("click", openNewThreadModal);
+
     return ov;
   }
 
@@ -138,8 +155,15 @@
     const ov = ensureOverlay();
     ov.classList.remove("hidden");
     overlayOpen = true;
+    // choose latest thread if none
+    if(!activeThreadId){
+      const tids = Object.keys(threadsCache);
+      if(tids.length) {
+        activeThreadId = tids.sort((a,b)=>(threadsCache[b].updatedAt||0)-(threadsCache[a].updatedAt||0))[0];
+      }
+    }
     renderOverlay();
-    markAllViewed(); // mark threads seen (zero unread)
+    markAllViewed(); // zero unread for visible threads
   }
   function closeOverlay(){
     const ov = ensureOverlay();
@@ -148,16 +172,13 @@
   }
 
   /* --------------------------------------------------------------------
-   * Render overlay body (threads list + active thread messages)
+   * Render overlay body (threads list + active thread)
    * ------------------------------------------------------------------ */
-  let activeThreadId = null;
-
   function renderOverlay(){
     const ov = ensureOverlay();
     const body = ov.querySelector(".msg-overlay-body");
     if(!body) return;
 
-    // Build thread tiles
     const threadEntries = Object.entries(threadsCache)
       .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
 
@@ -167,7 +188,7 @@
       const unread = t.unread && t.unread[currentUid] ? t.unread[currentUid] : 0;
       const activeCls = (tid===activeThreadId)?"active":"";
       return `
-        <div class="msg-thread-tile ${activeCls}" data-tid="${tid}" onclick="window.messages.setActiveThread('${tid}')">
+        <div class="msg-thread-tile ${activeCls}" data-tid="${tid}">
           <div class="msg-thread-top">
             <span class="msg-thread-names">${esc(partNames)}</span>
             ${unread?`<span class="msg-thread-unread">${unread}</span>`:""}
@@ -188,7 +209,7 @@
           <div class="msg-thread-active-messages" id="msg-thread-active-messages">
             ${sorted.map(([mid,m])=>renderMsgBubble(m)).join("")}
           </div>
-          <form class="msg-send-form" onsubmit="return window.messages.sendActiveThreadMsg(event)">
+          <form class="msg-send-form">
             <input type="text" id="msg-send-input" placeholder="Type a message…" autocomplete="off" />
             <button type="submit">Send</button>
           </form>
@@ -205,6 +226,15 @@
         ${threadMsgsHtml}
       </div>
     `;
+
+    // interactions
+    body.querySelectorAll(".msg-thread-tile").forEach(tile=>{
+      tile.addEventListener("click", ()=>setActiveThread(tile.dataset.tid));
+    });
+    const sendForm = body.querySelector(".msg-send-form");
+    if(sendForm){
+      sendForm.addEventListener("submit", sendActiveThreadMsg);
+    }
 
     // scroll active message area to bottom
     const box = body.querySelector("#msg-thread-active-messages");
@@ -244,8 +274,7 @@
     activeThreadId = tid;
     // reset unread for me
     if(threadsCache[tid]){
-      const ref = db.ref(`messages/${tid}/unread/${currentUid}`);
-      ref.set(0);
+      db.ref(`messages/${tid}/unread/${currentUid}`).set(0);
     }
     renderOverlay();
     refreshHeaderBadge();
@@ -260,13 +289,12 @@
     const tid  = activeThreadId;
     if(!tid || !threadsCache[tid]) return false;
     input.value = "";
-
     await sendMessage(tid, text);
     return false;
   }
 
   /* --------------------------------------------------------------------
-   * Create / send message
+   * Create / send message in existing thread
    * ------------------------------------------------------------------ */
   async function sendMessage(tid, text){
     const now = Date.now();
@@ -277,18 +305,16 @@
       ts: now
     });
 
-    // update lastMsg + updatedAt
+    // update lastMsg + updatedAt + unread increments
+    const t = threadsCache[tid] || {};
+    const parts = t.participants || {};
+
     const up = {};
     up[`messages/${tid}/lastMsg`] = { fromUid: currentUid, text, ts: now };
     up[`messages/${tid}/updatedAt`] = now;
 
-    // unread++ for all OTHER participants
-    const t = threadsCache[tid] || {};
-    const parts = t.participants || {};
     Object.keys(parts).forEach(uid=>{
-      if(uid === currentUid) return;
-      const cur = (t.unread && t.unread[uid]) || 0;
-      up[`messages/${tid}/unread/${uid}`] = cur + 1;
+      up[`messages/${tid}/unread/${uid}`] = (uid===currentUid?0:((t.unread && t.unread[uid])||0)+1);
     });
 
     await db.ref().update(up);
@@ -325,17 +351,22 @@
     m.id = "msg-new-modal";
     m.className = "msg-new-modal hidden";
     m.innerHTML = `
-      <div class="msg-new-backdrop" onclick="window.messages.closeNewThreadModal()"></div>
+      <div class="msg-new-backdrop"></div>
       <div class="msg-new-panel">
         <h4>New Message</h4>
         <div id="msg-new-list"></div>
         <textarea id="msg-new-text" rows="3" placeholder="Message…"></textarea>
         <div class="msg-new-actions">
-          <button type="button" onclick="window.messages.closeNewThreadModal()">Cancel</button>
-          <button type="button" class="msg-new-send" onclick="window.messages.sendNewThread()">Send</button>
+          <button type="button" class="msg-new-cancel">Cancel</button>
+          <button type="button" class="msg-new-send">Send</button>
         </div>
       </div>`;
     document.body.appendChild(m);
+
+    m.querySelector(".msg-new-backdrop").addEventListener("click", closeNewThreadModal);
+    m.querySelector(".msg-new-cancel").addEventListener("click", closeNewThreadModal);
+    m.querySelector(".msg-new-send").addEventListener("click", sendNewThread);
+
     return m;
   }
 
@@ -353,9 +384,9 @@
 
   function buildEligibleRecipients(users, uid, role){
     const arr = [];
+    if(!users || !uid) return arr;
     const me = users[uid];
-    // everybody?--we scope: Admin sees all; DM sees all leads + mes under them; lead sees its mes + DM; me sees own lead + DM.
-    if(!users) return arr;
+
     if(role === ROLES.ADMIN){
       Object.entries(users).forEach(([id,u])=>{
         if(id===uid) return;
@@ -363,13 +394,16 @@
       });
       return arr;
     }
+
     if(role === ROLES.DM){
       const leads = Object.entries(users).filter(([,u])=>u.role===ROLES.LEAD && u.assignedDM===uid);
-      const mes   = Object.entries(users).filter(([,u])=>u.role===ROLES.ME && leads.some(([lid])=>lid===u.assignedLead));
+      const leadIds = leads.map(([id])=>id);
+      const mes   = Object.entries(users).filter(([,u])=>u.role===ROLES.ME && leadIds.includes(u.assignedLead));
       leads.forEach(([id,u])=>arr.push({uid:id,label:(u.name||u.email||id)+" (Lead)"}));
       mes.forEach(([id,u])=>arr.push({uid:id,label:(u.name||u.email||id)+" (Associate)"}));
       return arr;
     }
+
     if(role === ROLES.LEAD){
       // my DM
       Object.entries(users).forEach(([id,u])=>{
@@ -385,11 +419,11 @@
       });
       return arr;
     }
-    // ME: my Lead + my Lead's DM (if any)
+
+    // ME: my Lead + that Lead's DM
     Object.entries(users).forEach(([id,u])=>{
       if(u.role===ROLES.LEAD && me?.assignedLead===id){
         arr.push({uid:id,label:(u.name||u.email||id)+" (Lead)"});
-        // also DM over that lead?
         const dmUid = u.assignedDM;
         if(dmUid && users[dmUid]){
           const dm = users[dmUid];
@@ -447,9 +481,8 @@
    * Public API
    * ------------------------------------------------------------------ */
   window.messages = {
-    init: initMessages,
-    setBadgeEl,
-    openOverlay,
+    setCurrentUser,
+    openMessagesOverlay: openOverlay,  // name expected by dashboard.js
     closeOverlay,
     setActiveThread,
     sendActiveThreadMsg,
@@ -464,8 +497,8 @@
   (function injectCss(){
     if(document.getElementById("msg-overlay-css")) return;
     const css=`
-      .admin-msg-btn{position:relative;}
-      .admin-msg-badge{position:absolute;top:-6px;right:-6px;min-width:18px;padding:0 4px;height:18px;line-height:18px;font-size:11px;text-align:center;border-radius:9px;background:#ff5252;color:#fff;display:none;}
+      .admin-msg-btn{position:relative;margin-right:.5rem;}
+      .admin-msg-btn .msg-badge{position:absolute;top:-6px;right:-6px;min-width:18px;padding:0 4px;height:18px;line-height:18px;font-size:11px;text-align:center;border-radius:9px;background:#ff5252;color:#fff;display:none;}
 
       .msg-overlay.hidden{display:none!important;}
       .msg-overlay{position:fixed;inset:0;z-index:1000;font-family:inherit;color:#fff;}
@@ -516,4 +549,4 @@
     document.head.appendChild(tag);
   })();
 
-})(); // IIFE end
+})(); // end IIFE
