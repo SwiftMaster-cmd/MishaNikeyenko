@@ -1,11 +1,12 @@
 /* ==========================================================================
-   DASHBOARD v3.1 MOBILE-FIRST THEME (refined)
+   DASHBOARD v3.2 MOBILE-FIRST THEME
    ========================================================================== *
-   * Preserves v3 spacing & look.
-   * Adds safe-area insets, hard no-repeat background, and mobile overflow fixes.
-   * Adds edit/view utility classes so modules can toggle cleanly (no forced show).
-   * Ensures form controls stay hidden unless JS or .is-editing reveals them.
-   * Minimal !important usage; respects module inline styles.
+   * Preserves v3 spacing & general look
+   * Adds: Guest Info grouped UI styles, proposal caution, sales badge
+   * Safe-area padding, non-repeating gradient background
+   * Table overflow fixes + stack-to-card patterns
+   * Hide edit forms by default; reveal via .is-editing or JS inline
+   * Mobile-first responsive type & spacing tokens
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -95,9 +96,8 @@
 html,body{
   height:100%;
   min-height:100%;
-  background:linear-gradient(135deg,var(--bg-page-a) 0%,var(--bg-page-b) 100%) no-repeat;
+  background:linear-gradient(135deg,var(--bg-page-a) 0%,var(--bg-page-b) 100%) no-repeat fixed;
   background-size:cover;
-  background-attachment:scroll; /* change to fixed if you prefer parallax */
   color:var(--text-med);
   -webkit-text-size-adjust:100%;
   text-size-adjust:100%;
@@ -277,6 +277,9 @@ button,.btn,.login-btn{
 .btn-danger{background:var(--danger);color:var(--text-hi);box-shadow:var(--shadow-danger);}
 .btn-danger:hover{background:var(--danger-hover);}
 
+.btn-warning{background:var(--warning);color:#000;box-shadow:0 4px 14px rgba(255,179,0,.3);}
+.btn-warning:hover{filter:brightness(1.05);}
+
 .btn-ghost{background:transparent;color:var(--brand);}
 .btn-ghost:hover{background:rgba(30,144,255,.15);}
 
@@ -287,7 +290,8 @@ button,.btn,.login-btn{
   .review-controls button,
   .guest-card .guest-edit-form button,
   .guest-forms-table td button,
-  .store-add button{
+  .store-add button,
+  .guestinfo-controls button{
     width:100%;
     margin-top:var(--space-xs);
   }
@@ -406,6 +410,84 @@ td:last-child{text-align:right;}
   .store-add input,.store-add button{width:100%;}
 }
 
+/* Responsive readability tweaks */
+.store-table{table-layout:auto;}
+.store-table th,
+.store-table td{white-space:nowrap;}
+.store-table .store-tl-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:var(--space-2xs);
+  max-width:min(220px,100%);
+  overflow-wrap:anywhere;
+}
+.store-table .store-sales-wrap{
+  display:flex;
+  align-items:center;
+  gap:var(--space-xs);
+  flex-wrap:wrap;
+}
+.metric-chip{
+  display:inline-block;
+  padding:0 var(--space-xs);
+  font-size:var(--fs-xs);
+  line-height:1.4;
+  border-radius:var(--radius-sm);
+  background:rgba(255,255,255,.1);
+  color:var(--text-med);
+  white-space:nowrap;
+}
+.metric-chip.success{background:var(--success-bg);color:var(--success);}
+.metric-chip.warning{background:var(--warning-bg);color:var(--warning);}
+.metric-chip.danger{background:var(--danger-bg);color:var(--danger);}
+
+/* Small screens: stackable (requires .table-stackable on table) */
+@media (max-width:600px){
+  .store-table.table-stackable,
+  .store-table.table-stackable thead,
+  .store-table.table-stackable tbody,
+  .store-table.table-stackable tr,
+  .store-table.table-stackable th,
+  .store-table.table-stackable td{
+    display:block;
+    width:100%;
+  }
+  .store-table.table-stackable thead{display:none;}
+  .store-table.table-stackable tr{
+    margin-bottom:var(--space-md);
+    padding:var(--space-md);
+    border:1px solid var(--border-color);
+    border-radius:var(--radius-lg);
+    background:var(--bg-card-hover);
+    box-shadow:var(--shadow-card);
+  }
+  .store-table.table-stackable td{
+    padding:var(--space-xs) 0;
+    border:none;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:var(--space-sm);
+    white-space:normal;
+  }
+  .store-table.table-stackable td::before{
+    content:attr(data-label);
+    font-weight:600;
+    color:var(--text-hi);
+    flex:0 0 auto;
+  }
+  .store-table.table-stackable td:last-child{
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    margin-top:var(--space-xs);
+    text-align:left;
+  }
+}
+@media (max-width:480px){
+  .store-add{gap:var(--space-xs);}
+}
+
 /* ==========================================================================
    Users Section
    ========================================================================== */
@@ -509,14 +591,223 @@ td:last-child{text-align:right;}
   display:flex;
   flex-wrap:wrap;
   gap:var(--space-md);
-  font-size:
-  
-  
-  /* ================================================================
-   DASHBOARD v3.1 PATCH – Guest Info + Stores refinements
-   ================================================================ */
+  font-size:var(--fs-xs);
+  color:var(--text-muted);
+}
+.review-meta b{color:var(--text-med);}
+@media (max-width:600px){
+  .review-header{flex-direction:column;align-items:flex-start;}
+  .review-meta{flex-direction:column;gap:var(--space-xs);}
+}
 
-/* ---------------- Guest Info Field Grid ---------------- */
+/* ==========================================================================
+   Guest Form Submissions (Dashboard)
+   ========================================================================== */
+.guest-forms-section{margin-top:var(--space-sm);}
+.guest-forms-section h2{margin-bottom:var(--space-md);}
+
+.guest-forms-table-wrap{
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.guest-forms-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:var(--fs-sm);
+}
+.guest-forms-table th,
+.guest-forms-table td{
+  padding:var(--space-sm);
+  color:var(--text-med);
+  border-bottom:1px solid var(--border-color);
+  text-align:left;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+.guest-forms-table th{color:var(--text-hi);font-weight:600;}
+.guest-forms-table td:last-child{text-align:right;}
+.guest-forms-table td button{margin-left:var(--space-xs);}
+.guest-forms-table tr.consumed td{opacity:.7;}
+.guest-forms-table tr.linked td{background:var(--success-bg);}
+
+@media (max-width:640px){
+  .guest-forms-table.table-stackable,
+  .guest-forms-table.table-stackable thead,
+  .guest-forms-table.table-stackable tbody,
+  .guest-forms-table.table-stackable tr,
+  .guest-forms-table.table-stackable th,
+  .guest-forms-table.table-stackable td{
+    display:block;
+    width:100%;
+  }
+  .guest-forms-table.table-stackable thead{display:none;}
+  .guest-forms-table.table-stackable tr{
+    margin-bottom:var(--space-md);
+    padding:var(--space-md);
+    border:1px solid var(--border-color);
+    border-radius:var(--radius-lg);
+    background:var(--bg-card-hover);
+    box-shadow:var(--shadow-card);
+  }
+  .guest-forms-table.table-stackable td{
+    padding:var(--space-xs) 0;
+    border:none;
+    white-space:normal;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:var(--space-sm);
+  }
+  .guest-forms-table.table-stackable td::before{
+    content:attr(data-label);
+    font-weight:600;
+    color:var(--text-hi);
+    flex:0 0 auto;
+  }
+  .guest-forms-table.table-stackable td:last-child{
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    margin-top:var(--space-xs);
+  }
+  .guest-forms-table.table-stackable td button{
+    margin:0;
+    padding:var(--space-xs) var(--space-sm);
+    font-size:var(--fs-xs);
+  }
+}
+
+/* ==========================================================================
+   Guest Info (Dashboard) -- OVERHAUL
+   ========================================================================== */
+
+/* Top-level controls row (filters, proposals, sales) */
+.guestinfo-controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:var(--space-sm);
+  margin-bottom:var(--space-md);
+}
+.guestinfo-controls span{
+  line-height:1.5;
+  font-size:var(--fs-xs);
+  color:var(--text-muted);
+}
+
+/* Proposal alert (collapsed view when proposals hidden) */
+.guestinfo-proposal-alert{
+  margin:var(--space-sm) 0;
+  padding:var(--space-sm);
+  border:1px solid var(--warning);
+  border-radius:var(--radius-md);
+  background:var(--warning-bg);
+  color:var(--warning);
+  font-weight:600;
+  text-align:center;
+  line-height:1.35;
+}
+
+/* Sales badge if you want to inline counts elsewhere */
+.guestinfo-sales-badge{
+  display:inline-block;
+  padding:0 var(--space-sm);
+  font-size:var(--fs-xs);
+  line-height:1.4;
+  border-radius:999px;
+  background:var(--success-bg);
+  color:var(--success);
+  font-weight:600;
+}
+
+/* Status subsections (New / Working / Proposal / Sale view) */
+.guestinfo-subsection{
+  margin-top:var(--space-md);
+}
+.guestinfo-subsection>h3{
+  font-size:var(--fs-md);
+  font-weight:700;
+  color:var(--text-hi);
+  margin-bottom:var(--space-sm);
+  display:flex;
+  align-items:center;
+  gap:var(--space-xs);
+}
+.guestinfo-subsection-empty{
+  opacity:.7;
+}
+.guestinfo-subsection-highlight{
+  border:1px solid var(--warning);
+  padding:var(--space-sm);
+  border-radius:var(--radius-md);
+  background:var(--warning-bg);
+}
+.guestinfo-empty-msg{
+  font-size:.95em;
+  opacity:.7;
+  padding:var(--space-sm);
+  text-align:center;
+}
+
+/* Guest card container grid (subsection body) */
+.guestinfo-container{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:var(--space-md);
+  width:100%;
+}
+@media (min-width:640px){
+  .guestinfo-container{
+    grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));
+  }
+}
+
+/* Guest card shell */
+.guest-card{
+  background:var(--bg-card);
+  border:1px solid var(--border-color);
+  border-radius:var(--radius-lg);
+  padding:var(--space-lg);
+  box-shadow:var(--shadow-card);
+  transition:box-shadow var(--dur-med) var(--ease-out),background var(--dur-med) var(--ease-out);
+  width:100%;
+}
+.guest-card:hover{box-shadow:var(--shadow-card-h);background:var(--bg-card-hover);}
+
+/* Display rows */
+.guest-card .guest-display>div{
+  margin-bottom:var(--space-xs);
+  font-size:var(--fs-sm);
+  color:var(--text-med);
+}
+.guest-card .guest-display b{color:var(--text-hi);}
+.guest-card .guest-sale-summary{
+  margin-top:var(--space-xs);
+  font-size:var(--fs-xs);
+  color:var(--success);
+}
+
+/* Quick edit form (hidden by default; see .is-editing) */
+.guest-edit-form{display:none;margin-top:var(--space-sm);padding-top:var(--space-sm);border-top:1px solid var(--border-color);font-size:var(--fs-sm);}
+.guest-edit-form label{display:block;margin-bottom:var(--space-sm);}
+.guest-edit-form input,
+.guest-edit-form textarea{margin-top:var(--space-2xs);}
+.guest-card.is-editing .guest-display{display:none;}
+.guest-card.is-editing .guest-edit-form{display:block;}
+.guest-card.is-editing{background:var(--bg-card-hover);box-shadow:var(--shadow-card-h);}
+
+/* Action row */
+.guest-card-actions{
+  margin-top:var(--space-sm);
+  display:flex;
+  flex-wrap:wrap;
+  gap:var(--space-xs);
+}
+@media (max-width:480px){
+  .guest-card-actions .btn{width:100%;}
+}
+
+/* Optional grid field layout for denser displays */
 .guest-card-fields {
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
@@ -541,7 +832,7 @@ td:last-child{text-align:right;}
   .guest-card-fields{grid-template-columns:1fr;}
 }
 
-/* Sale pill */
+/* Sale pill (used in lists if desired) */
 .sale-pill {
   display:inline-block;
   padding:0 var(--space-sm);
@@ -555,109 +846,17 @@ td:last-child{text-align:right;}
 }
 .sale-pill b{color:var(--success);font-weight:700;}
 
-/* Ensure edit form spacing is comfy on small screens */
-.guest-card form.guest-edit-form label {
-  margin-bottom:var(--space-md);
-}
-.guest-card form.guest-edit-form textarea {
-  min-height:72px;
-}
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+.text-center{text-align:center!important;}
+.u-hide{display:none!important;}
+.u-show-inline{display:inline-block!important;}
+.mt-sm{margin-top:var(--space-sm)!important;}
+.mt-md{margin-top:var(--space-md)!important;}
+.mt-lg{margin-top:var(--space-lg)!important;}
+.w-100{width:100%!important;}
+.section-span-2{grid-column:span 2;}
 
-/* When card in edit mode, give subtle bg separation */
-.guest-card.is-editing {
-  background:var(--bg-card-hover);
-  box-shadow:var(--shadow-card-h);
-}
-
-/* Place action buttons row w/ wrap */
-.guest-card-actions {
-  margin-top:var(--space-sm);
-  display:flex;
-  flex-wrap:wrap;
-  gap:var(--space-xs);
-}
-@media (max-width:480px){
-  .guest-card-actions .btn{width:100%;}
-}
-
-/* ---------------- Stores Responsive Tweaks ---------------- */
-.store-table{table-layout:auto;}
-.store-table th,
-.store-table td{white-space:nowrap;}
-.store-table .store-tl-wrap{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:var(--space-2xs);
-  max-width:min(220px,100%);
-  overflow-wrap:anywhere;
-}
-.store-table .store-sales-wrap{
-  display:flex;
-  align-items:center;
-  gap:var(--space-xs);
-  flex-wrap:wrap;
-}
-
-.metric-chip{
-  display:inline-block;
-  padding:0 var(--space-xs);
-  font-size:var(--fs-xs);
-  line-height:1.4;
-  border-radius:var(--radius-sm);
-  background:rgba(255,255,255,.1);
-  color:var(--text-med);
-  white-space:nowrap;
-}
-.metric-chip.success{background:var(--success-bg);color:var(--success);}
-.metric-chip.warning{background:var(--warning-bg);color:var(--warning);}
-.metric-chip.danger{background:var(--danger-bg);color:var(--danger);}
-
-/* Small screens: stackable (requires class output in markup) */
-@media (max-width:600px){
-  .store-table.table-stackable,
-  .store-table.table-stackable thead,
-  .store-table.table-stackable tbody,
-  .store-table.table-stackable tr,
-  .store-table.table-stackable th,
-  .store-table.table-stackable td{
-    display:block;
-    width:100%;
-  }
-  .store-table.table-stackable thead{display:none;}
-  .store-table.table-stackable tr{
-    margin-bottom:var(--space-md);
-    padding:var(--space-md);
-    border:1px solid var(--border-color);
-    border-radius:var(--radius-lg);
-    background:var(--bg-card-hover);
-    box-shadow:var(--shadow-card);
-  }
-  .store-table.table-stackable td{
-    padding:var(--space-xs) 0;
-    border:none;
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:var(--space-sm);
-    white-space:normal;
-  }
-  .store-table.table-stackable td::before{
-    content:attr(data-label);
-    font-weight:600;
-    color:var(--text-hi);
-    flex:0 0 auto;
-  }
-  .store-table.table-stackable td:last-child{
-    justify-content:flex-start;
-    flex-wrap:wrap;
-    margin-top:var(--space-xs);
-    text-align:left;
-  }
-}
-
-/* Slightly tighten store add inputs on narrow screens */
-@media (max-width:480px){
-  .store-add{gap:var(--space-xs);}
-}
-
+/* Debug helper */
+/* *{outline:1px dashed rgba(255,0,0,.2);} */
