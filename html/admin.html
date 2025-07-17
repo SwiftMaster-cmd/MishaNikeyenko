@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#0f1117" />
   <meta name="color-scheme" content="dark light" />
 
-  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
   <style>
     /* Messages btn + badge lightweight styles (can move to dashboard.css) */
     .admin-header-actions{display:flex;align-items:center;gap:.5rem;}
@@ -67,19 +67,19 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <!-- Core init FIRST -->
-  <script src="admin.js"></script>
+  <script src="./js/admin/admin.js"></script>
 
   <!-- Other modules (can read window.db that admin.js exports) -->
-  <script src="users.js"></script>
-  <script src="reviews.js"></script>
-  <script src="stores.js"></script>
-  <script src="guestinfo.js"></script>
-  <script src="guestform.js"></script>
+  <script src="../js/admin/users.js"></script>
+  <script src="./js/admin/reviews.js"></script>
+  <script src="./js/admin/stores.js"></script>
+  <script src="./js/admin/guestinfo.js"></script>
+  <script src="./js/admin/guestform.js"></script>
 
   <!-- Messages AFTER admin.js so firebase is ready -->
-  <script src="messages.js"></script>
+  <script src="./js/admin/messages.js"></script>
 
   <!-- Dashboard renderer last -->
-  <script src="dashboard.js"></script>
+  <script src="./js/admin/dashboard.js"></script>
 </body>
 </html>
