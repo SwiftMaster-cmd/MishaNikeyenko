@@ -1,4 +1,4 @@
-// guestinfo.js  -- dashboard inline Guest Info cards grouped by status, with filters + Pitch Score
+// guestinfo.js  -- dashboard inline Guest Info cards grouped by status, with filters + Stage-aware Pitch Score
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
@@ -15,10 +15,10 @@
   if (typeof window._guestinfo_soldOnly === "undefined") window._guestinfo_soldOnly = false;
 
   /* ------------------------------------------------------------------
-   * Pitch Score weighting (editable)
-   * Total 100 points
+   * Field Weights (points if answered)
+   * Update here to change contribution of each question.
    * ------------------------------------------------------------------ */
-  const PITCH_WEIGHTS = {
+  const FIELD_WEIGHTS = {
     custName:       10,
     custPhone:      10,
     serviceType:    20,
@@ -27,7 +27,33 @@
     requirements:   10,
     solutionText:   20
   };
-  const PITCH_MAX = Object.values(PITCH_WEIGHTS).reduce((a,b)=>a+b,0);
+
+  /* Map field -> logical step */
+  const FIELD_STEP = {
+    custName:     "step1",
+    custPhone:    "step1",
+    serviceType:  "step2",
+    situation:    "step2",
+    carrierInfo:  "step2",
+    requirements: "step2",
+    solutionText: "step3"
+  };
+
+  /* Status -> included steps (denominator set) */
+  const STATUS_STEPS = {
+    new:      ["step1"],
+    working:  ["step1","step2"],
+    proposal: ["step1","step2","step3"],
+    sold:     ["step1","step2","step3"]
+  };
+
+  /* Derive per-step max & grand max */
+  const STEP_MAX = {step1:0,step2:0,step3:0};
+  Object.entries(FIELD_WEIGHTS).forEach(([k,w])=>{
+    const st = FIELD_STEP[k] || "step1";
+    STEP_MAX[st] = (STEP_MAX[st]||0) + w;
+  });
+  const FULL_MAX = Object.values(STEP_MAX).reduce((a,b)=>a+b,0);
 
   /* ------------------------------------------------------------------
    * Role helpers
@@ -164,57 +190,92 @@
   }
 
   /* ------------------------------------------------------------------
-   * Compute Pitch Score
-   *  - Accepts guest record
-   *  - If DB already has g.pitchScore / g.pitchPct use that (live override)
-   *  - Else compute using local weight map and available fields
+   * Pitch Score computation
+   *  - Fixed field weights
+   *  - Display % denominator depends on CURRENT STATUS
+   *    (New => step1 max only; Working => step1+2; Proposal/Sold => all)
+   *  - Skipped question gives 0 (no bump)
+   *  - If record stores pitchPct/pitchScore & pitchStage matching current
+   *    status, show saved; else recompute.
    * ------------------------------------------------------------------ */
   function _has(v){ return v!=null && String(v).trim()!==""; }
 
   function computePitchScore(g){
-    // If record has persisted values, prefer them
-    const savedPct = g.pitchPct;
-    const savedScore = g.pitchScore;
-    if (typeof savedPct === "number" && !isNaN(savedPct)) {
-      return decoratePitch(savedPct, savedScore ?? (savedPct/100*PITCH_MAX), PITCH_MAX, "saved");
+    const status = detectStatus(g);
+    const stepsIncluded = STATUS_STEPS[status] || ["step1"];
+    const stageMax = stepsIncluded.reduce((sum,st)=>sum+(STEP_MAX[st]||0),0);
+
+    // If record has saved pitch & matching pitchStage, use those
+    if (typeof g.pitchPct === "number" && g.pitchStage === status) {
+      const pct = clampPct(g.pitchPct);
+      const score = Math.round(stageMax * pct/100);
+      return decoratePitch(pct, score, stageMax, FULL_MAX, status, true);
     }
 
-    // Extract field candidates from record (support legacy nested paths)
-    const ev = g.evaluate || {};
+    // Gather values
+    const ev  = g.evaluate || {};
     const sol = g.solution || {};
+    const vals = {
+      custName:     g.custName,
+      custPhone:    g.custPhone,
+      serviceType:  g.serviceType ?? ev.serviceType,
+      situation:    g.situation   ?? ev.situation,
+      carrierInfo:  ev.carrierInfo,
+      requirements: ev.requirements,
+      solutionText: sol.text
+    };
 
-    let score = 0;
-    const parts = []; // {label, got, weight}
-
-    if (_has(g.custName))      { score += PITCH_WEIGHTS.custName;      parts.push(["Name",PITCH_WEIGHTS.custName]); }
-    if (_has(g.custPhone))     { score += PITCH_WEIGHTS.custPhone;     parts.push(["Phone",PITCH_WEIGHTS.custPhone]); }
-    if (_has(ev.serviceType) || _has(g.serviceType)) {
-      score += PITCH_WEIGHTS.serviceType; parts.push(["Service",PITCH_WEIGHTS.serviceType]);
+    // compute earned points *only* for steps in denominator
+    let earned = 0;
+    const parts = [];
+    for (const [field,wt] of Object.entries(FIELD_WEIGHTS)){
+      const st = FIELD_STEP[field] || "step1";
+      if (!stepsIncluded.includes(st)) continue;        // not in denominator
+      if (_has(vals[field])) {
+        earned += wt;
+        parts.push([field, wt]);
+      }
     }
-    if (_has(ev.situation) || _has(g.situation)) {
-      score += PITCH_WEIGHTS.situation;   parts.push(["Situation",PITCH_WEIGHTS.situation]);
-    }
-    if (_has(ev.carrierInfo))  { score += PITCH_WEIGHTS.carrierInfo;   parts.push(["Carrier",PITCH_WEIGHTS.carrierInfo]); }
-    if (_has(ev.requirements)) { score += PITCH_WEIGHTS.requirements;  parts.push(["Needs",PITCH_WEIGHTS.requirements]); }
-    if (_has(sol.text))        { score += PITCH_WEIGHTS.solutionText;  parts.push(["Solution",PITCH_WEIGHTS.solutionText]); }
 
-    const pct = Math.round((score / PITCH_MAX) * 100);
-    return decoratePitch(pct, score, PITCH_MAX, parts);
+    const pct = stageMax ? Math.round((earned / stageMax)*100) : 0;
+    return decoratePitch(pct, earned, stageMax, FULL_MAX, status, false, parts);
   }
 
-  function decoratePitch(pct, score, max, parts){
+  function clampPct(n){
+    if (typeof n!=="number" || isNaN(n)) return 0;
+    if (n<0) return 0;
+    if (n>100) return 100;
+    return Math.round(n);
+  }
+
+  function decoratePitch(stagePct, stageScore, stageMax, fullMax, status, isSaved=false, parts=[]){
     let cls = "pitch-low";
-    if (pct >= 70) cls = "pitch-good";
-    else if (pct >= 40) cls = "pitch-warn";
-    // build tooltip summary
-    let expl = "";
-    if (Array.isArray(parts)) {
-      const lines = parts.map(p=>Array.isArray(p)?`${p[0]} +${p[1]}`:String(p));
-      expl = lines.join(", ");
-    } else if (typeof parts === "string") {
-      expl = parts;
-    }
-    return {score, max, pct, cls, explain: expl};
+    if (stagePct >= 70) cls = "pitch-good";
+    else if (stagePct >= 40) cls = "pitch-warn";
+
+    // optional breakdown
+    const humanParts = Array.isArray(parts) && parts.length
+      ? parts.map(([f,w])=>`${f}+${w}`).join(", ")
+      : "";
+
+    const tooltip = [
+      `Stage: ${status.toUpperCase()}`,
+      `${stageScore}/${stageMax} pts`,
+      `(${stagePct}%)`,
+      fullMax && stageMax!==fullMax ? `Full max ${fullMax}` : "",
+      humanParts
+    ].filter(Boolean).join(" • ");
+
+    return {
+      stagePct,
+      stageScore,
+      stageMax,
+      fullMax,
+      status,
+      isSaved,
+      cls,
+      tooltip
+    };
   }
 
   /* ------------------------------------------------------------------
@@ -399,12 +460,12 @@
     const status      = detectStatus(g);
     const statBadge   = statusBadge(status);
 
-    // Pitch Score
+    // Pitch Score (stage aware)
     const pitch = computePitchScore(g);
     const pitchHtml = `
       <span class="guest-pitch-pill ${pitch.cls}"
-            title="Pitch completeness: ${pitch.pct}%${pitch.explain?` • ${esc(pitch.explain)}`:""}">
-        ${pitch.pct}%
+            title="${esc(pitch.tooltip)}">
+        ${pitch.stagePct}%
       </span>`;
 
     const isSold = status === "sold";
@@ -713,9 +774,7 @@
    * Create New Lead (launch step workflow w/out gid param)
    * ------------------------------------------------------------------ */
   function createNewLead(){
-    // no gid param -> guest workflow shows Step 1
     const base = GUESTINFO_PAGE;
-    // ensure we don't accidentally carry ?gid= from location; open clean
     const url = base.split("?")[0]; // strip existing query if any
     try { localStorage.removeItem("last_guestinfo_key"); } catch(_) {}
     window.location.href = url;
@@ -778,7 +837,7 @@
     toggleSoldOnly,
     // new lead
     createNewLead,
-    // pitch util (exported in case other modules want it)
+    // pitch util (exported for other modules)
     computePitchScore
   };
 })();
