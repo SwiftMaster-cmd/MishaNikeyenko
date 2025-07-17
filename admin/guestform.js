@@ -8,10 +8,10 @@
   /* --------------------------------------------------------------
      Role helpers
      -------------------------------------------------------------- */
-  function isAdmin(role){ return role === ROLES.ADMIN; }
-  function isDM(role){ return role === ROLES.DM; }
-  function isLead(role){ return role === ROLES.LEAD; }
-  function isMe(role){ return role === ROLES.ME; }
+  const isAdmin = r => r === ROLES.ADMIN;
+  const isDM    = r => r === ROLES.DM;
+  const isLead  = r => r === ROLES.LEAD;
+  const isMe    = r => r === ROLES.ME;
 
   function canDeleteForm(role){
     return isAdmin(role) || isDM(role);
@@ -35,6 +35,20 @@
       }
     }
     return out;
+  }
+
+  /* --------------------------------------------------------------
+     Date helpers: start/end of *today* in local browser tz
+     -------------------------------------------------------------- */
+  function startOfTodayMs(){
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    return d.getTime();
+  }
+  function endOfTodayMs(){
+    const d = new Date();
+    d.setHours(23,59,59,999);
+    return d.getTime();
   }
 
   /* --------------------------------------------------------------
@@ -62,72 +76,86 @@
 
     const fullFormsObj = guestForms || {};
     const visFormsObj  = visibleGuestForms(fullFormsObj, currentRole, currentUid);
-
     const guestinfoObj = window._guestinfo || {};
 
-    const ids = Object.keys(visFormsObj);
-    if (!ids.length){
+    const idsAll = Object.keys(visFormsObj);
+    if (!idsAll.length){
       return `
         <section class="admin-section guest-forms-section">
           <h2>Guest Form Submissions</h2>
-          <p class="text-center">No new guest form submissions.</p>
+          <p class="text-center">No guest form submissions.</p>
         </section>`;
     }
 
-    // sort newest first
-    ids.sort((a,b) => (visFormsObj[b].timestamp||0) - (visFormsObj[a].timestamp||0));
+    // sort newest first across full visible set
+    idsAll.sort((a,b) => (visFormsObj[b].timestamp||0) - (visFormsObj[a].timestamp||0));
 
-    // top controls: show/hide consumed (only if there are consumed)
-    const anyConsumed = ids.some(id => visFormsObj[id].guestinfoKey || visFormsObj[id].consumedBy);
-    const showAll = !isMe(currentRole) && !isLead(currentRole); // admin/dm default show all
-    // We'll set a data attr & let toggle button re-render by flipping global
+    // default to TODAY view unless global toggle set
     if (typeof window._guestforms_showAll === "undefined"){
-      window._guestforms_showAll = showAll;
+      window._guestforms_showAll = false; // start-of-day default
     }
 
-    const rows = ids
-      .filter(id => {
-        if (window._guestforms_showAll) return true;
-        const f = visFormsObj[id];
-        return !(f.guestinfoKey || f.consumedBy); // only unclaimed
-      })
-      .map(id => {
-        const f = visFormsObj[id];
-        const ts = f.timestamp ? new Date(f.timestamp).toLocaleString() : "-";
-        const name = f.guestName || "-";
-        const phone = f.guestPhone || "-";
-        const consumed = !!(f.guestinfoKey || f.consumedBy);
-        const actionLabel = consumed ? "Open" : "Continue";
+    const startToday = startOfTodayMs();
+    const endToday   = endOfTodayMs();
 
-        // dup?
-        const dup = findGuestinfoByPhone(guestinfoObj, f.guestPhone);
-        const dupBadge = dup ? `<span class="role-badge role-guest" title="Existing lead">DUP</span>` : "";
+    // which IDs to render?
+    const idsRender = window._guestforms_showAll
+      ? idsAll
+      : idsAll.filter(id => {
+          const ts = visFormsObj[id].timestamp || 0;
+          return ts >= startToday && ts <= endToday;
+        });
 
-        // claim info string
-        const claimInfo = consumed
-          ? `<small style="opacity:.7;">claimed</small>`
-          : `<small style="opacity:.7;">unclaimed</small>`;
+    const showingTodayOnly = !window._guestforms_showAll;
 
-        const deleteBtn = canDeleteForm(currentRole)
-          ? `<button class="btn btn-danger btn-sm" onclick="window.guestforms.deleteGuestFormEntry('${id}')">Delete</button>`
-          : "";
+    // detect if there ARE entries outside today (to decide if toggle shown)
+    const anyOlder = idsAll.some(id => {
+      const ts = visFormsObj[id].timestamp || 0;
+      return ts < startToday || ts > endToday;
+    });
 
-        return `<tr class="${consumed?'consumed':''}">
-          <td>${name} ${dupBadge}</td>
-          <td>${phone}</td>
-          <td>${ts}<br>${claimInfo}</td>
-          <td>
-            <button class="btn btn-primary btn-sm" onclick="window.guestforms.continueToGuestInfo('${id}')">${actionLabel}</button>
-            ${deleteBtn}
-          </td>
-        </tr>`;
-      })
-      .join("");
+    // Build table rows
+    const rows = idsRender.map(id => {
+      const f = visFormsObj[id];
+      const ts = f.timestamp ? new Date(f.timestamp).toLocaleString() : "-";
+      const name = f.guestName || "-";
+      const phone = f.guestPhone || "-";
+      const consumed = !!(f.guestinfoKey || f.consumedBy);
+      const actionLabel = consumed ? "Open" : "Continue";
 
-    const toggleBtn = anyConsumed
+      // dup?
+      const dup = findGuestinfoByPhone(guestinfoObj, f.guestPhone);
+      const dupBadge = dup ? `<span class="role-badge role-guest" title="Existing lead">DUP</span>` : "";
+
+      const claimInfo = consumed
+        ? `<small style="opacity:.7;">claimed</small>`
+        : `<small style="opacity:.7;">unclaimed</small>`;
+
+      const deleteBtn = canDeleteForm(currentRole)
+        ? `<button class="btn btn-danger btn-sm" onclick="window.guestforms.deleteGuestFormEntry('${id}')">Delete</button>`
+        : "";
+
+      return `<tr class="${consumed?'consumed':''}">
+        <td>${name} ${dupBadge}</td>
+        <td>${phone}</td>
+        <td>${ts}<br>${claimInfo}</td>
+        <td>
+          <button class="btn btn-primary btn-sm" onclick="window.guestforms.continueToGuestInfo('${id}')">${actionLabel}</button>
+          ${deleteBtn}
+        </td>
+      </tr>`;
+    }).join("");
+
+    // toggle button (only render if older items exist)
+    const toggleBtn = anyOlder
       ? `<button class="btn btn-secondary btn-sm" onclick="window.guestforms.toggleShowAll()">
-           ${window._guestforms_showAll ? "Hide Claimed" : "Show All"}
+           ${showingTodayOnly ? "Show All" : "Show Today"}
          </button>`
+      : "";
+
+    // Empty-today message if no today's rows but we have older
+    const emptyTodayMsg = (!window._guestforms_showAll && !rows)
+      ? `<tr><td colspan="4" class="text-center"><i>No guest forms today.</i></td></tr>`
       : "";
 
     return `
@@ -144,7 +172,7 @@
                 <th>Action</th>
               </tr>
             </thead>
-            <tbody>${rows}</tbody>
+            <tbody>${rows || emptyTodayMsg}</tbody>
           </table>
         </div>
       </section>
@@ -152,7 +180,7 @@
   }
 
   /* --------------------------------------------------------------
-     Toggle show/hide consumed & re-render
+     Toggle Today<->All & re-render
      -------------------------------------------------------------- */
   function toggleShowAll(){
     window._guestforms_showAll = !window._guestforms_showAll;
@@ -161,14 +189,10 @@
 
   /* --------------------------------------------------------------
      Continue / Open flow
-     - If form already linked to guestinfoKey, just open page
-     - Else create new guestinfo record seeded w/ name/phone
-     - Mark form consumed
-     - Redirect (unless suppressed)
      -------------------------------------------------------------- */
   async function continueToGuestInfo(entryId){
     const currentUid  = window.currentUid;
-    const currentRole = window.currentRole;
+    // const currentRole = window.currentRole; // not needed here
 
     // read entry fresh
     const entrySnap = await window.db.ref(`guestEntries/${entryId}`).get();
@@ -217,8 +241,6 @@
 
   /* --------------------------------------------------------------
      Delete form
-     - If linked, warn user we are only deleting the form intake;
-       the full guestinfo stays.
      -------------------------------------------------------------- */
   async function deleteGuestFormEntry(entryId){
     const entrySnap = await window.db.ref(`guestEntries/${entryId}`).get();
