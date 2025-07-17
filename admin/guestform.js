@@ -2,7 +2,7 @@
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
   // Path to employee guest-info page (override globally if needed)
-  const GUEST_INFO_PAGE = window.GUEST_INFO_PAGE || "employee/guest-info.html";
+  const GUEST_INFO_PAGE = window.GUEST_INFO_PAGE || "employee/guestinfo.html";
 
   function canDelete(role) {
     return role === ROLES.ADMIN || role === ROLES.DM;
