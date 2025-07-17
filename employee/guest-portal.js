@@ -1,10 +1,23 @@
-// employee/guest-portal.js  (Unified Pitch Quality; Saved vs Live Preview)
-
 /* =======================================================================
-   Requires shared/guest-completion-util.js loaded first!
-   ======================================================================= */
+ * employee/guest-portal.js  (Unified Pitch Quality; Saved vs Live Preview)
+ * -----------------------------------------------------------------------
+ * RELIES ON: shared/guest-completion-util.js (must load BEFORE this file)
+ *   Expects globals:
+ *     - window.normalizeGuestForCompletion(rawGuest) -> normalizedGuest
+ *     - window.computeGuestPitchQuality(normalizedGuest) -> {pct,steps,fields,...}
+ *
+ * This file:
+ *   • No required fields (all optional input).
+ *   • Writes guestinfo records incrementally (Step1→Step2→Step3).
+ *   • Tracks Pitch Quality % (a.k.a. completion quality) per current status.
+ *   • Shows saved % bar + live preview % as you type before submitting.
+ *   • Gracefully degrades to 0% if util not loaded (won’t crash).
+ * =======================================================================
+ */
 
-/* Firebase init ------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+ * Firebase init
+ * -------------------------------------------------------------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
@@ -19,10 +32,49 @@ if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db   = firebase.database();
 const auth = firebase.auth();
 
-/* Options ------------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+ * Options
+ * -------------------------------------------------------------------- */
 const GP_SHOW_PREVIEW = window.GP_SHOW_PREVIEW !== false; // default true
 
-/* DOM helpers --------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+ * Safe wrappers around shared util (resolve at *call* time so load order
+ * hiccups don’t permanently zero-out scoring).
+ * -------------------------------------------------------------------- */
+function _norm(g) {
+  const fn = window.normalizeGuestForCompletion;
+  if (typeof fn === "function") return fn(g);
+  // lightweight fallback normalization
+  if (!g || typeof g !== "object") return {};
+  const out = {...g};
+  // cascade top-level -> evaluate fallback if legacy fields used
+  if (!out.evaluate) out.evaluate = {};
+  if (out.serviceType && !out.evaluate.serviceType) out.evaluate.serviceType = out.serviceType;
+  if (out.situation   && !out.evaluate.situation)   out.evaluate.situation   = out.situation;
+  // status inference
+  if (!out.status) {
+    if (out.sale) out.status = "sold";
+    else if (out.solution) out.status = "proposal";
+    else if (out.evaluate) out.status = "working";
+    else out.status = "new";
+  }
+  return out;
+}
+function _pq(g) {
+  const fn = window.computeGuestPitchQuality;
+  if (typeof fn === "function") return fn(_norm(g));
+  // minimal fallback: 0% unless we can count custName/Phone
+  const gg = _norm(g);
+  let pts = 0, max = 0;
+  if ("custName" in gg)  { max += 1; if (gg.custName?.trim()) pts += 1; }
+  if ("custPhone" in gg) { max += 1; if (gg.custPhone?.trim()) pts += 1; }
+  const pct = max ? Math.round(pts/max*100) : 0;
+  return {pct,steps:{},fields:{}};
+}
+
+/* -----------------------------------------------------------------------
+ * DOM helpers
+ * -------------------------------------------------------------------- */
 function qs(name){ return new URLSearchParams(window.location.search).get(name); }
 function show(id){ document.getElementById(id)?.classList.remove('hidden'); }
 function hide(id){ document.getElementById(id)?.classList.add('hidden'); }
@@ -43,7 +95,9 @@ function injectPrefillSummary(name,phone){
   summary.innerHTML=`<b>Customer:</b> ${name||'-'} &nbsp; <b>Phone:</b> ${phone||'-'}`;
 }
 
-/* Progress bar -------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+ * Progress bar UI
+ * -------------------------------------------------------------------- */
 function ensureProgressBarContainer(){
   let bar=document.getElementById('gp-progress'); if(bar)return bar;
   bar=document.createElement('div'); bar.id='gp-progress'; bar.className='gp-progress';
@@ -83,12 +137,16 @@ function updateProgressPreview(pct){
   wrap.style.display='';
 }
 
-/* State --------------------------------------------------------------- */
-let currentEntryKey=null;
-let currentGuestObj=null; // last saved snapshot (normalized)
-let _gp_bound=false;
+/* -----------------------------------------------------------------------
+ * State
+ * -------------------------------------------------------------------- */
+let currentEntryKey=null;   // guestinfo/<key>
+let currentGuestObj=null;   // normalized snapshot
+let _gp_bound=false;        // form listeners bound
 
-/* Load existing ------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+ * Load existing record by ?gid or legacy ?entry
+ * -------------------------------------------------------------------- */
 async function loadExistingGuestIfParam(){
   const key=qs('gid')||qs('entry'); if(!key)return false;
   try{
@@ -96,22 +154,26 @@ async function loadExistingGuestIfParam(){
     const data=snap.val();
     if(data){
       currentEntryKey=key;
-      currentGuestObj=window.normalizeGuestForCompletion?normalizeGuestForCompletion(data):data;
+      currentGuestObj=_norm(data);
       return true;
     }
   }catch(e){console.error("guest-portal: load error",e);}
   return false;
 }
 
-/* Build temp guest from onscreen fields (for preview only) ------------ */
+/* -----------------------------------------------------------------------
+ * Build temp guest from current form field values (for preview only)
+ * -------------------------------------------------------------------- */
 function buildTempGuestFromForms(){
   const g=currentGuestObj?JSON.parse(JSON.stringify(currentGuestObj)):{};
-  // step1
+
+  // Step1
   const nameEl=document.getElementById('custName');
   const phoneEl=document.getElementById('custPhone');
   if(nameEl)g.custName=nameEl.value.trim();
   if(phoneEl)g.custPhone=phoneEl.value.trim();
-  // step2
+
+  // Step2
   const stEl=document.getElementById('serviceType');
   const sitEl=document.getElementById('situation');
   const carEl=document.getElementById('evalCarrier');
@@ -121,23 +183,31 @@ function buildTempGuestFromForms(){
   if(sitEl)g.evaluate.situation=sitEl.value.trim();
   if(carEl)g.evaluate.carrierInfo=carEl.value.trim();
   if(reqEl)g.evaluate.requirements=reqEl.value.trim();
-  // step3
+
+  // Step3
   const solEl=document.getElementById('solutionText');
   if(!g.solution)g.solution={};
   if(solEl)g.solution.text=solEl.value.trim();
-  return g;
+
+  return _norm(g);
 }
+
+/* -----------------------------------------------------------------------
+ * Live preview updater (debounced via input/change event)
+ * -------------------------------------------------------------------- */
 function updateProgressPreviewFromForms(){
   if(!GP_SHOW_PREVIEW)return;
   const temp=buildTempGuestFromForms();
-  const comp=window.computeGuestPitchQuality?computeGuestPitchQuality(temp):{pct:0};
-  // show only if diff >1% from saved
-  const saved = currentGuestObj?window.computeGuestPitchQuality(currentGuestObj).pct:0;
-  const diff=Math.abs(Math.round(comp.pct)-Math.round(saved));
+  const comp=_pq(temp);
+  // show only if diff > 1% from saved baseline
+  const saved = currentGuestObj ? _pq(currentGuestObj).pct : 0;
+  const diff  = Math.abs(Math.round(comp.pct) - Math.round(saved));
   updateProgressPreview(diff>1?comp.pct:null);
 }
 
-/* Bind realtime listeners once --------------------------------------- */
+/* -----------------------------------------------------------------------
+ * Bind realtime form listeners once
+ * -------------------------------------------------------------------- */
 function bindRealtimeFieldListeners(){
   if(_gp_bound)return;
   _gp_bound=true;
@@ -150,12 +220,13 @@ function bindRealtimeFieldListeners(){
   });
 }
 
-/* Sync UI from loaded record ------------------------------------------ */
+/* -----------------------------------------------------------------------
+ * Sync UI from loaded record
+ * -------------------------------------------------------------------- */
 function syncUiToLoadedGuest(){
   if(!currentGuestObj)return;
   ensureProgressBarContainer();
-  // baseline saved %
-  const comp=window.computeGuestPitchQuality?computeGuestPitchQuality(currentGuestObj):{pct:0};
+  const comp=_pq(currentGuestObj);
   updateProgressBarSaved(comp.pct);
   updateProgressPreview(null);
 
@@ -186,7 +257,9 @@ function syncUiToLoadedGuest(){
   bindRealtimeFieldListeners();
 }
 
-/* Auth guard ---------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+ * Auth guard
+ * -------------------------------------------------------------------- */
 auth.onAuthStateChanged(async user=>{
   if(!user){
     window.location.href="../login.html";
@@ -195,7 +268,7 @@ auth.onAuthStateChanged(async user=>{
   const found=await loadExistingGuestIfParam();
   if(found){syncUiToLoadedGuest();return;}
 
-  // new
+  // new record flow
   ensureProgressBarContainer();
   updateProgressBarSaved(0);
   updateProgressPreview(null);
@@ -203,25 +276,29 @@ auth.onAuthStateChanged(async user=>{
   bindRealtimeFieldListeners();
 });
 
-/* Write completion to DB ---------------------------------------------- */
+/* -----------------------------------------------------------------------
+ * Write (recompute) completion to DB
+ * -------------------------------------------------------------------- */
 async function writeCompletionPct(gid,guestObj){
-  const comp=window.computeGuestPitchQuality?computeGuestPitchQuality(guestObj):{pct:0};
+  const comp=_pq(_norm(guestObj));
   try{
     await db.ref(`guestinfo/${gid}/completion`).set({
       pct:Math.round(comp.pct),
-      steps:comp.steps,
-      fields:comp.fields,
+      steps:comp.steps||{},
+      fields:comp.fields||{},
       updatedAt:Date.now()
     });
   }catch(err){console.warn("guest-portal: completion write failed",err);}
-  // update saved bar
   updateProgressBarSaved(comp.pct);
   updateProgressPreview(null);
 }
 
-/* STEP 1 --------------------------------------------------------------- */
-document.getElementById('step1Form')
-  .addEventListener('submit',async e=>{
+/* -----------------------------------------------------------------------
+ * STEP 1 submit
+ * -------------------------------------------------------------------- */
+const step1El=document.getElementById('step1Form');
+if(step1El){
+  step1El.addEventListener('submit',async e=>{
     e.preventDefault();
     statusMsg('status1','', '');
     const custName=document.getElementById('custName').value.trim();
@@ -243,6 +320,8 @@ document.getElementById('step1Form')
       if(!currentGuestObj)currentGuestObj={};
       currentGuestObj.custName=custName;
       currentGuestObj.custPhone=custPhone;
+      currentGuestObj.status=currentGuestObj.status||"new";
+      currentGuestObj=_norm(currentGuestObj);
 
       statusMsg('status1','Saved.','success');
       await writeCompletionPct(currentEntryKey,currentGuestObj);
@@ -254,10 +333,14 @@ document.getElementById('step1Form')
       statusMsg('status1','Error: '+err.message,'error');
     }
   });
+}
 
-/* STEP 2 --------------------------------------------------------------- */
-document.getElementById('step2Form')
-  .addEventListener('submit',async e=>{
+/* -----------------------------------------------------------------------
+ * STEP 2 submit
+ * -------------------------------------------------------------------- */
+const step2El=document.getElementById('step2Form');
+if(step2El){
+  step2El.addEventListener('submit',async e=>{
     e.preventDefault();
     statusMsg('status2','', '');
     const serviceType=document.getElementById('serviceType').value;
@@ -277,6 +360,8 @@ document.getElementById('step2Form')
       if(!currentGuestObj)currentGuestObj={};
       currentGuestObj.evaluate={serviceType,situation,carrierInfo,requirements};
       currentGuestObj.status="working";
+      currentGuestObj=_norm(currentGuestObj);
+
       statusMsg('status2','Saved.','success');
       await writeCompletionPct(currentEntryKey,currentGuestObj);
       hide('step2Form');show('step3Form');
@@ -285,10 +370,14 @@ document.getElementById('step2Form')
       statusMsg('status2','Error: '+err.message,'error');
     }
   });
+}
 
-/* STEP 3 --------------------------------------------------------------- */
-document.getElementById('step3Form')
-  .addEventListener('submit',async e=>{
+/* -----------------------------------------------------------------------
+ * STEP 3 submit
+ * -------------------------------------------------------------------- */
+const step3El=document.getElementById('step3Form');
+if(step3El){
+  step3El.addEventListener('submit',async e=>{
     e.preventDefault();
     statusMsg('status3','', '');
     const solutionText=document.getElementById('solutionText').value.trim();
@@ -305,23 +394,30 @@ document.getElementById('step3Form')
       if(!currentGuestObj)currentGuestObj={};
       currentGuestObj.solution={text:solutionText,completedAt:now};
       currentGuestObj.status="proposal";
+      currentGuestObj=_norm(currentGuestObj);
+
       statusMsg('status3','Saved.','success');
       await writeCompletionPct(currentEntryKey,currentGuestObj);
     }catch(err){
       statusMsg('status3','Error: '+err.message,'error');
     }
   });
+}
 
-/* Manual recompute ---------------------------------------------------- */
+/* -----------------------------------------------------------------------
+ * Manual recompute (debug helper)
+ * -------------------------------------------------------------------- */
 window.gpRecomputeCompletion=async function(gid){
   const key=gid||currentEntryKey; if(!key)return;
   const snap=await db.ref(`guestinfo/${key}`).get();
   const data=snap.val()||{};
-  currentGuestObj=window.normalizeGuestForCompletion?normalizeGuestForCompletion(data):data;
+  currentGuestObj=_norm(data);
   await writeCompletionPct(key,currentGuestObj);
 };
 
-/* Inline CSS (if not in stylesheet) ----------------------------------- */
+/* -----------------------------------------------------------------------
+ * Inline CSS (if not in stylesheet)
+ * -------------------------------------------------------------------- */
 (function injectGpProgressCss(){
   if(document.getElementById('gp-progress-css'))return;
   const css=`
@@ -334,5 +430,8 @@ window.gpRecomputeCompletion=async function(gid){
     .gp-progress-fill.gp-progress-yellow{background:#ffb300;}
     .gp-progress-fill.gp-progress-red{background:#ff5252;}
   `;
-  const tag=document.createElement('style');tag.id='gp-progress-css';tag.textContent=css;document.head.appendChild(tag);
+  const tag=document.createElement('style');
+  tag.id='gp-progress-css';
+  tag.textContent=css;
+  document.head.appendChild(tag);
 })();
