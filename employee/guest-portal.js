@@ -1,4 +1,4 @@
-// employee/guest-portal.js  (Weighted Completion Version)
+// employee/guest-portal.js  (Weighted Completion + Realtime Pitch Quality)
 
 /* =======================================================================
    Firebase init (guarded in case dashboard loaded first)
@@ -22,14 +22,9 @@ const auth = firebase.auth();
 /* =======================================================================
    CONFIG: Weighted Completion
    -----------------------------------------------------------------------
-   You may override any/all of these by setting
-       window.GUEST_COMPLETION_WEIGHTS = { ... }
-   *before* this script loads. Missing pieces fall back to defaults.
-   Weights add to 100 total (not required, we'll scale if not).
-   Each step has:
-     weight: number (portion of total score)
-     fields: { fieldName: number (portion of step weight) }
-   Any field absent from the config contributes 0.
+   Override before load via:
+       window.GUEST_COMPLETION_WEIGHTS = { step1:{...}, ... }
+   Weights need not total 100; we normalize.
    ======================================================================= */
 const DEFAULT_COMPLETION_WEIGHTS = {
   step1: {
@@ -57,7 +52,6 @@ const DEFAULT_COMPLETION_WEIGHTS = {
 };
 function getCompletionWeights() {
   const cfg = window.GUEST_COMPLETION_WEIGHTS || {};
-  // shallow merge steps; deeper merge fields
   const out = JSON.parse(JSON.stringify(DEFAULT_COMPLETION_WEIGHTS));
   for (const k of Object.keys(cfg)) {
     if (!out[k]) out[k] = {};
@@ -101,9 +95,6 @@ function injectPrefillSummary(name, phone) {
 
 /* -----------------------------------------------------------------------
    Progress indicator (Pitch Quality)
-   -----------------------------------------------------------------------
-   Inject once; subsequent calls update.
-   Markup inserted above currently visible step form.
    ----------------------------------------------------------------------- */
 function ensureProgressBarContainer() {
   let bar = document.getElementById('gp-progress');
@@ -115,7 +106,6 @@ function ensureProgressBarContainer() {
     <div class="gp-progress-label">Pitch Quality: <span id="gp-progress-pct">0%</span></div>
     <div class="gp-progress-bar"><div id="gp-progress-fill" class="gp-progress-fill" style="width:0%;"></div></div>
   `;
-  // place at top of page body just under header OR top of step1?
   const hook = document.getElementById('gp-progress-hook') ||
                document.querySelector('.guest-portal-progress-hook') ||
                document.body.firstElementChild;
@@ -129,7 +119,6 @@ function updateProgressBar(pct) {
   const fillEl = document.getElementById('gp-progress-fill');
   if (pctEl)  pctEl.textContent = pctClamped + '%';
   if (fillEl) fillEl.style.width = pctClamped + '%';
-  // color cue simple: >75 success, >40 warn, else base
   if (fillEl) {
     fillEl.classList.remove('gp-progress-green','gp-progress-yellow','gp-progress-red');
     if (pctClamped >= 75) fillEl.classList.add('gp-progress-green');
@@ -141,8 +130,9 @@ function updateProgressBar(pct) {
 /* =======================================================================
    State
    ======================================================================= */
-let currentEntryKey = null;         // guestinfo/<key>
-let currentGuestObj = null;         // loaded guestinfo snapshot data
+let currentEntryKey = null;   // guestinfo/<key>
+let currentGuestObj = null;   // loaded guestinfo snapshot data
+let _gp_bound = false;        // realtime listeners bound once
 
 /* =======================================================================
    Load existing guestinfo if query param present
@@ -169,60 +159,54 @@ async function loadExistingGuestIfParam() {
 }
 
 /* =======================================================================
-   Completion scoring
+   Completion scoring helpers
    ======================================================================= */
 function _hasValue(v){
   if (v == null) return false;
   if (typeof v === "string") return v.trim().length > 0;
   if (typeof v === "object") {
-    // for nested objects, consider "has any non-empty leaf"
-    for (const k in v){
-      if (_hasValue(v[k])) return true;
-    }
+    for (const k in v){ if (_hasValue(v[k])) return true; }
     return false;
   }
-  // numbers, booleans count as present
-  return true;
+  return true; // numbers/booleans
 }
 
 /**
- * computeCompletionFromObj(guest) -> { pct, steps: {step1:{pct,weight}, ...}, fields:{fieldName:{pct,weight}} }
+ * Cascading weighted completion.
  *
- * pct is 0..100.
- * steps[].pct is 0..100 within that step; field weight applied.
- * A field counts 100% if _hasValue is true.
+ * Each step’s contribution is scaled by the cumulative completion
+ * of all *prior* steps. Skipping Step 1 caps the max contribution
+ * from Steps 2 & 3. Skipping Step 2 caps Step 3, etc.
  */
 function computeCompletionFromObj(guest) {
   const weights = getCompletionWeights();
-  // gather step weights & sum
   const stepKeys = Object.keys(weights);
+
   let totalStepWeight = 0;
   for (const sk of stepKeys) totalStepWeight += Number(weights[sk].weight || 0);
-  if (!totalStepWeight) totalStepWeight = 1; // avoid /0
+  if (!totalStepWeight) totalStepWeight = 1; // guard
 
   let totalScore = 0;
   const stepsOut = {};
   const fieldsOut = {};
 
-  for (const sk of stepKeys) {
-    const stepCfg = weights[sk];
-    const stepWeight = Number(stepCfg.weight || 0);
-    const fieldCfg = stepCfg.fields || {};
+  let prevStepsFactor = 1; // cascade multiplier entering step
 
-    // Step object mapping
+  for (const sk of stepKeys) {
+    const stepCfg    = weights[sk];
+    const stepWeight = Number(stepCfg.weight || 0);
+    const fieldCfg   = stepCfg.fields || {};
+
+    // Locate record data
     let stepObj;
-    if (sk === "step1") {
-      stepObj = guest;
-    } else if (sk === "step2") {
-      stepObj = guest?.evaluate;
-    } else if (sk === "step3") {
-      stepObj = guest?.solution;
-    } else {
-      // custom steps? Just look at top-level subobject
-      stepObj = guest?.[sk];
+    switch (sk) {
+      case "step1": stepObj = guest; break;
+      case "step2": stepObj = guest?.evaluate; break;
+      case "step3": stepObj = guest?.solution; break;
+      default:      stepObj = guest?.[sk]; break;
     }
 
-    // field internal total
+    // Score fields within step
     let stepFieldTotal = 0;
     let stepFieldScore = 0;
 
@@ -230,53 +214,54 @@ function computeCompletionFromObj(guest) {
       const fieldWeight = Number(fieldCfg[fk] || 0);
       stepFieldTotal += fieldWeight;
 
-      // determine value path
+      // Map canonical value
       let val;
-      if (sk === "step1") {
-        if (fk === "custName") val = stepObj?.custName;
-        else if (fk === "custPhone") val = stepObj?.custPhone;
-        else val = stepObj?.[fk];
-      } else if (sk === "step2") {
-        if (fk === "serviceType") val = stepObj?.serviceType;
-        else if (fk === "situation") val = stepObj?.situation;
-        else if (fk === "carrierInfo") val = stepObj?.carrierInfo;
-        else if (fk === "requirements") val = stepObj?.requirements;
-        else val = stepObj?.[fk];
-      } else if (sk === "step3") {
-        if (fk === "solutionText") {
-          // canonical solution text; your stored structure is {text,completedAt}
-          val = stepObj?.text;
-        } else {
+      switch (sk) {
+        case "step1":
+          if (fk === "custName")      val = stepObj?.custName;
+          else if (fk === "custPhone")val = stepObj?.custPhone;
+          else                        val = stepObj?.[fk];
+          break;
+        case "step2":
+          if (fk === "serviceType")   val = stepObj?.serviceType;
+          else if (fk === "situation")val = stepObj?.situation;
+          else if (fk === "carrierInfo") val = stepObj?.carrierInfo;
+          else if (fk === "requirements")val = stepObj?.requirements;
+          else                        val = stepObj?.[fk];
+          break;
+        case "step3":
+          if (fk === "solutionText")  val = stepObj?.text; // stored {text,completedAt}
+          else                        val = stepObj?.[fk];
+          break;
+        default:
           val = stepObj?.[fk];
-        }
-      } else {
-        val = stepObj?.[fk];
       }
 
       const filled = _hasValue(val);
       if (filled) stepFieldScore += fieldWeight;
 
-      fieldsOut[`${sk}.${fk}`] = {
-        filled,
-        weight: fieldWeight
-      };
+      fieldsOut[`${sk}.${fk}`] = { filled, weight: fieldWeight };
     }
 
-    const stepPctWithin = stepFieldTotal ? (stepFieldScore / stepFieldTotal) : 0;
-    const stepScore = stepPctWithin * stepWeight;
+    const stepPctWithin = stepFieldTotal ? (stepFieldScore / stepFieldTotal) : 0;        // 0..1
+    const stepEffectivePct = stepPctWithin * prevStepsFactor;                            // 0..1 (cascade)
+    const stepScore = stepEffectivePct * stepWeight;                                     // weighted
+    totalScore += stepScore;
 
     stepsOut[sk] = {
-      pct: stepPctWithin * 100,
+      pctWithin: stepPctWithin * 100,
+      cascadeFactorIn: prevStepsFactor,
+      effectivePct: stepEffectivePct * 100,
       weight: stepWeight,
-      filledWeight: stepFieldScore
+      filledWeight: stepFieldScore,
+      totalWeight: stepFieldTotal
     };
 
-    totalScore += stepScore;
+    // apply cascade forward
+    prevStepsFactor *= stepPctWithin;
   }
 
-  // scale to 100
   const pct = (totalScore / totalStepWeight) * 100;
-
   return { pct, steps: stepsOut, fields: fieldsOut };
 }
 
@@ -297,18 +282,66 @@ async function writeCompletionPct(key, guestObj) {
 }
 
 /* =======================================================================
+   Realtime progress from unsaved form edits
+   ======================================================================= */
+function buildTempGuestFromForms() {
+  const g = JSON.parse(JSON.stringify(currentGuestObj || {}));
+
+  // STEP1
+  const nameEl  = document.getElementById('custName');
+  const phoneEl = document.getElementById('custPhone');
+  if (nameEl)  g.custName  = nameEl.value.trim();
+  if (phoneEl) g.custPhone = phoneEl.value.trim();
+
+  // STEP2
+  const stEl  = document.getElementById('serviceType');
+  const sitEl = document.getElementById('situation');
+  const carEl = document.getElementById('evalCarrier');
+  const reqEl = document.getElementById('evalRequirements');
+  if (!g.evaluate) g.evaluate = {};
+  if (stEl)  g.evaluate.serviceType  = stEl.value;
+  if (sitEl) g.evaluate.situation    = sitEl.value.trim();
+  if (carEl) g.evaluate.carrierInfo  = carEl.value.trim();
+  if (reqEl) g.evaluate.requirements = reqEl.value.trim();
+
+  // STEP3
+  const solEl = document.getElementById('solutionText');
+  if (!g.solution) g.solution = {};
+  if (solEl) g.solution.text = solEl.value.trim();
+
+  return g;
+}
+function updateProgressFromForms() {
+  const temp = buildTempGuestFromForms();
+  const comp = computeCompletionFromObj(temp);
+  updateProgressBar(comp.pct);
+}
+
+/* Bind realtime listeners once */
+function bindRealtimeFieldListeners() {
+  if (_gp_bound) return;
+  _gp_bound = true;
+  const ids = [
+    'custName','custPhone',
+    'serviceType','situation','evalCarrier','evalRequirements',
+    'solutionText'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+    el.addEventListener(evt, updateProgressFromForms);
+  });
+}
+
+/* =======================================================================
    Prefill UI based on loaded guestinfo record
-   Steps:
-     Step1 always hidden (already done)
-     Step2 shown if no evaluate; else Step3
-     Step2 fields prefilled if evaluate exists (let user edit)
-     Step3 field prefilled if solution exists (let user edit)
    ======================================================================= */
 function syncUiToLoadedGuest() {
   if (!currentGuestObj) return;
 
   ensureProgressBarContainer();
-  // Update progress bar with current record state
+  // baseline from DB snapshot
   updateProgressBar(computeCompletionFromObj(currentGuestObj).pct);
 
   // Hide Step 1 always when editing existing guest
@@ -345,6 +378,10 @@ function syncUiToLoadedGuest() {
     hide('step2Form');
     show('step3Form');
   }
+
+  // Wire realtime and refresh from onscreen values (may differ from DB snapshot)
+  bindRealtimeFieldListeners();
+  updateProgressFromForms();
 }
 
 /* =======================================================================
@@ -364,8 +401,9 @@ auth.onAuthStateChanged(async user => {
 
   // no existing record param -> start Step 1
   ensureProgressBarContainer();
-  updateProgressBar(0);
   show('step1Form');
+  bindRealtimeFieldListeners();
+  updateProgressFromForms();
 });
 
 /* =======================================================================
@@ -382,14 +420,12 @@ document.getElementById('step1Form')
 
     try {
       if (currentEntryKey) {
-        // update existing Step 1 fields (blank allowed)
         await db.ref(`guestinfo/${currentEntryKey}`).update({
           custName,
           custPhone,
           updatedAt: Date.now()
         });
       } else {
-        // create new guestinfo record (blanks allowed)
         const refPush = await db.ref('guestinfo').push({
           custName,
           custPhone,
@@ -400,20 +436,19 @@ document.getElementById('step1Form')
         currentEntryKey = refPush.key;
       }
 
-      // reflect local state
       if (!currentGuestObj) currentGuestObj = {};
       currentGuestObj.custName  = custName;
       currentGuestObj.custPhone = custPhone;
 
       statusMsg('status1','Saved.','success');
 
-      // update completion
       await writeCompletionPct(currentEntryKey, currentGuestObj);
 
-      // advance UI
       hide('step1Form');
       show('step2Form');
       injectPrefillSummary(custName, custPhone);
+      bindRealtimeFieldListeners();
+      updateProgressFromForms();
     } catch (err) {
       statusMsg('status1','Error: ' + err.message,'error');
     }
@@ -450,18 +485,18 @@ document.getElementById('step2Form')
       updates[`guestinfo/${currentEntryKey}/updatedAt`] = Date.now();
       await db.ref().update(updates);
 
-      // local reflect
       if (!currentGuestObj) currentGuestObj = {};
       currentGuestObj.evaluate = {serviceType,situation,carrierInfo,requirements};
       currentGuestObj.status   = "working";
 
       statusMsg('status2','Saved.','success');
 
-      // update completion
       await writeCompletionPct(currentEntryKey, currentGuestObj);
 
       hide('step2Form');
       show('step3Form');
+      bindRealtimeFieldListeners();
+      updateProgressFromForms();
     } catch (err) {
       statusMsg('status2','Error: ' + err.message,'error');
     }
@@ -493,15 +528,14 @@ document.getElementById('step3Form')
       updates[`guestinfo/${currentEntryKey}/updatedAt`] = now;
       await db.ref().update(updates);
 
-      // local reflect
       if (!currentGuestObj) currentGuestObj = {};
       currentGuestObj.solution = {text:solutionText,completedAt:now};
       currentGuestObj.status   = "proposal";
 
       statusMsg('status3','Saved.','success');
 
-      // update completion
       await writeCompletionPct(currentEntryKey, currentGuestObj);
+      updateProgressFromForms();
     } catch (err) {
       statusMsg('status3','Error: ' + err.message,'error');
     }
@@ -517,11 +551,11 @@ window.gpRecomputeCompletion = async function(gid){
   const data = snap.val() || {};
   currentGuestObj = data;
   await writeCompletionPct(key, data);
+  updateProgressFromForms();
 };
 
 /* =======================================================================
    Minimal CSS injection (only if site CSS lacks gp-progress styles)
-   You can move to static stylesheet; left inline for portability.
    ======================================================================= */
 (function injectGpProgressCss(){
   if (document.getElementById('gp-progress-css')) return;
