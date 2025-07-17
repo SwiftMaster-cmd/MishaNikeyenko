@@ -348,10 +348,10 @@ function _performanceStatus(reviews, stores, users, role, uid){
 }
 
 /* Performance Highlights HTML */
+/* Performance Highlights HTML (no New Lead button) */
 function _perfHighlightsHtml(ps, role){
   // skip if ME (no store view)
   const showStores = (role !== ROLES.ME);
-  const showUsers  = (role !== ROLES.ME); // Users section always visible to mgmt; keep same gating
   const avg = ps.avgRating!=null ? ps.avgRating.toFixed(1) : "–";
   const staffLbl = showStores ? `${ps.staffTotal}/${ps.staffGoalTotal||"?"}` : "";
   const budLbl   = showStores ? (ps.budgetGoal? `${ps.budgetUnits}/${ps.budgetGoal}u` : `${ps.budgetUnits}u`) : "";
@@ -371,9 +371,6 @@ function _perfHighlightsHtml(ps, role){
         <div class="perf-highlight rating ${ratCls}" ${revClick} title="Click to view full reviews">★ ${avg}</div>
         ${showStores? `<div class="perf-highlight staffing ${stfCls}" ${usClick} title="Click to view staffing/users">${staffLbl} staffed</div>`:""}
         ${showStores? `<div class="perf-highlight budget ${budCls}" ${stClick} title="Click to view stores/budget">${budLbl} MTD</div>`:""}
-      </div>
-      <div class="text-center" style="margin-top:16px;">
-        <button class="btn btn-success btn-lg" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
       </div>
     </section>`;
 }
