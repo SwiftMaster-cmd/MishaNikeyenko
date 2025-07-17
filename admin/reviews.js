@@ -1,4 +1,5 @@
 // reviews.js  -- role-filtered store review cards w/ high-avg collapse + expand
+// v2: big bold avg stars in store header; removed reload button
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
   const HIGH_AVG_THRESHOLD = 4.7;
@@ -6,7 +7,7 @@
   /* --------------------------------------------------------------
    * UI open/closed memory (persist on window)
    * -------------------------------------------------------------- */
-  if (!window._reviews_ui_openStores) window._reviews_ui_openStores = new Set(); // stores explicitly opened by user
+  if (!window._reviews_ui_openStores) window._reviews_ui_openStores = new Set(); // see toggleStore()
 
   /* --------------------------------------------------------------
    * Perms
@@ -49,20 +50,20 @@
   /* --------------------------------------------------------------
    * Helpers
    * -------------------------------------------------------------- */
-  const starChar = "★";
-  const emptyChar = "☆";
+  const STAR = "★";
+  const STAR_EMPTY = "☆";
 
   function starString(n) {
     const rating = Number(n) || 0;
-    const full = Math.round(rating); // simple round
-    return starChar.repeat(full) + emptyChar.repeat(Math.max(0, 5 - full));
+    const full = Math.round(rating);
+    return STAR.repeat(full) + STAR_EMPTY.repeat(Math.max(0, 5 - full));
   }
 
-  // Fancy multi-color star row for avg; feel free to swap icons
   function avgStarsHtml(avg) {
-    const str = starString(avg);
-    const val = avg.toFixed(1);
-    return `<span class="review-avg-stars" title="${val} / 5">${str} <span class="review-avg-num">${val}</span></span>`;
+    const val   = Number(avg) || 0;
+    const stars = starString(val);
+    // big + bold class; numeric avg shown smaller but inline
+    return `<span class="store-avg-stars-big" title="${val.toFixed(1)} / 5"><strong>${stars}</strong><span class="store-avg-num"> ${val.toFixed(1)}</span></span>`;
   }
 
   function reviewStarsHtml(r) {
@@ -105,11 +106,11 @@
   }
 
   /* --------------------------------------------------------------
-   * Build summary block (collapsed)
+   * Build summary block (collapsed header; big stars inline w/ name)
    * -------------------------------------------------------------- */
   function storeSummaryHtml(store, entries, avg, isOpen) {
     const count = entries.length;
-    const cls = isOpen ? "store-summary open" : "store-summary";
+    const cls   = isOpen ? "store-summary open" : "store-summary";
     const stars = avgStarsHtml(avg);
     const arrow = isOpen ? "▾" : "▸";
     return `
@@ -117,7 +118,7 @@
         <div class="store-summary-main">
           <span class="store-summary-arrow">${arrow}</span>
           <span class="store-summary-name">${store}</span>
-          <span class="store-summary-stars">${stars}</span>
+          ${stars}
           <span class="store-summary-count">(${count})</span>
         </div>
       </div>
@@ -148,28 +149,22 @@
   }
 
   /* --------------------------------------------------------------
-   * Build expanded store block (shows summary header + list)
+   * Build expanded store block (summary header always shown)
    * -------------------------------------------------------------- */
   function storeBlockHtml(store, entries, avg, isOpen) {
-    // summary header (click to toggle) always present
     const header = storeSummaryHtml(store, entries, avg, isOpen);
-
-    // if collapsed, stop here
     if (!isOpen) return header;
-
-    // expanded: include all store reviews
     const cards = entries.map(([id, r]) => reviewCardHtml(id, r)).join("");
-
     return `
       ${header}
-      <div class="reviews-store-list" data-store="${esc(store)}">
+      <div class="reviews-store-list" data-store="${escapeHtml(store)}">
         ${cards}
       </div>
     `;
   }
 
   /* --------------------------------------------------------------
-   * Legacy flat list builder (used by dashboard filter shortcuts)
+   * Legacy flat list builder (kept for dashboard filters)
    * -------------------------------------------------------------- */
   function reviewsToHtml(reviewEntries) {
     if (!reviewEntries.length) return `<p class="text-center">No reviews.</p>`;
@@ -183,16 +178,16 @@
     const filteredReviews = filterReviewsByRole(reviews, users, currentUid, currentRole);
     const grouped = groupByStore(filteredReviews);
 
-    // build store blocks
     const blocks = Object.entries(grouped)
-      .sort((a,b) => a[0].localeCompare(b[0], undefined, {numeric:true,sensitivity:'base'})) // alphabetical by store
+      .sort((a,b) => a[0].localeCompare(b[0], undefined, {numeric:true,sensitivity:'base'}))
       .map(([store, entries]) => {
         const avg = calcAvg(entries);
         const openSet = window._reviews_ui_openStores;
-        const storeKey = encodeURIComponent(store); // used in toggle
-        // default collapsed if avg >= threshold; else open
+        const storeKey = encodeURIComponent(store);
         const defaultOpen = avg < HIGH_AVG_THRESHOLD;
-        const isOpen = openSet.has(storeKey) ? true : (openSet.has("!" + storeKey) ? false : defaultOpen);
+        const isOpen = openSet.has(storeKey)
+          ? true
+          : (openSet.has("!" + storeKey) ? false : defaultOpen);
         return storeBlockHtml(store, entries, avg, isOpen);
       })
       .join("");
@@ -200,9 +195,6 @@
     return `
       <section class="admin-section reviews-section">
         <h2>Reviews</h2>
-        <div class="review-controls">
-          <button class="btn btn-secondary btn-sm" onclick="window.reviews.renderReviewsReload()">Reload</button>
-        </div>
         <div class="reviews-container reviews-by-store">
           ${blocks || `<p class="text-center">No reviews.</p>`}
         </div>
@@ -212,41 +204,33 @@
 
   /* --------------------------------------------------------------
    * Toggle open/closed for a store summary
-   * (store comes in URL-encoded from onclick; decode)
    * -------------------------------------------------------------- */
   function toggleStore(encStore) {
-    const store = decodeURIComponent(encStore);
-    const key   = encodeURIComponent(store);
+    const store   = decodeURIComponent(encStore);
+    const key     = encodeURIComponent(store);
     const openSet = window._reviews_ui_openStores;
 
-    // We track both positive and explicit closed flags so we can
-    // remember a user collapsing a low-avg store (default open) or
-    // opening a high-avg store (default closed). Approach:
-    // - If key present -> force open
-    // - If !key present -> force closed
-    // We'll flip whichever is currently active; clear both before set.
+    // clear existing marks
     openSet.delete(key);
     openSet.delete("!" + key);
 
-    // Determine current open state from last render:
-    // Quick check of DOM: if currently open (has class 'open') -> after click close; else open
+    // determine current state from DOM
     const summaryNode = document.querySelector(`.store-summary[onclick*="${encStore}"]`);
     const currentlyOpen = summaryNode?.classList.contains("open");
+
     if (!currentlyOpen) {
-      openSet.add(key); // user opens
+      openSet.add(key);       // user opens
     } else {
       openSet.add("!" + key); // user closes
     }
-
     window.renderAdminApp();
   }
 
   /* --------------------------------------------------------------
-   * Star toggle (unchanged)  -- note: your markup no longer shows interactive star icon
-   * leaving function for backward compat; call manually if you re-add star toggles
+   * Star toggle (unchanged; kept for compat)
    * -------------------------------------------------------------- */
   async function toggleStar(id, starred) {
-    if (window.currentRole === ROLES.ME) return; // ME can't edit
+    if (window.currentRole === ROLES.ME) return;
     await window.db.ref(`reviews/${id}/starred`).set(!starred);
     await window.renderAdminApp();
   }
@@ -262,8 +246,24 @@
     }
   }
 
+  /* --------------------------------------------------------------
+   * Back-compat no-op reload (kept so dashboard doesn't error)
+   * -------------------------------------------------------------- */
   function renderReviewsReload() {
     window.renderAdminApp();
+  }
+
+  /* --------------------------------------------------------------
+   * Escape (used in storeBlockHtml)
+   * -------------------------------------------------------------- */
+  function escapeHtml(str){
+    return (str||"")
+      .toString()
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#39;");
   }
 
   /* --------------------------------------------------------------
@@ -273,9 +273,9 @@
     renderReviewsSection,
     deleteReview,
     toggleStar,
-    renderReviewsReload,
+    renderReviewsReload, // kept for compatibility
     filterReviewsByRole,
-    reviewsToHtml,   // legacy flat
-    toggleStore      // expand/collapse a store
+    reviewsToHtml,
+    toggleStore
   };
 })();
