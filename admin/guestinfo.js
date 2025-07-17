@@ -1,3 +1,4 @@
+window.renderGuestInfoSection = function(guestinfo, users) {
 /* ========================================================================
    Guest Info Logic
    ===================================================================== */
@@ -20,3 +21,4 @@ async function renderGuestInfoSection(guestinfo, users) {
       <div class="guestinfo-container">${guestCards}</div>
     </section>`;
 }
+};

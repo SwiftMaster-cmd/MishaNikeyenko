@@ -1,3 +1,6 @@
+window.renderReviewSection = function(reviews) {
+  const reviewEntries = Object.entries(reviews).sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));
+
 /* ========================================================================
    Reviews Logic
    ===================================================================== */
@@ -81,4 +84,5 @@ window.deleteReview = async id => {
     await db.ref(`reviews/${id}`).remove();
     renderAdminApp();
   }
+}
 };

@@ -1,3 +1,4 @@
+window.renderGuestFormsSection = function() {
 /* ========================================================================
    Guest Forms Section
    ===================================================================== */
@@ -12,3 +13,4 @@ function renderGuestFormsSection() {
       </div>
     </section>`;
 }
+};

@@ -1,3 +1,4 @@
+window.renderUserSection = function(users) {
 /* ========================================================================
    Users Logic
    ===================================================================== */
@@ -95,4 +96,5 @@ window.deleteUser = async id => {
     await db.ref(`users/${id}`).remove();
     renderAdminApp();
   }
+}
 };

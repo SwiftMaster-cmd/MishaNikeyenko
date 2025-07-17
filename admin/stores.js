@@ -1,3 +1,4 @@
+window.renderStoreSection = function(stores, users) {
 /* ========================================================================
    Stores Logic
    ===================================================================== */
@@ -82,4 +83,5 @@ window.deleteStore = async id => {
     await db.ref(`stores/${id}`).remove();
     renderAdminApp();
   }
+}
 };
