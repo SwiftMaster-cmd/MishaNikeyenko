@@ -15,14 +15,14 @@ const firebaseConfig = {
   measurementId: "G-9HWXNSBE1T"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+const db   = firebase.database();
 const auth = firebase.auth();
 
 window.db = db; // expose for modules
 
 const adminAppDiv = document.getElementById("adminApp");
 
-let currentUid = null;
+let currentUid  = null;
 let currentRole = ROLES.ME;
 
 auth.onAuthStateChanged(async (user) => {
@@ -62,14 +62,14 @@ async function renderAdminApp() {
     db.ref("users").get(),
     db.ref("reviews").get(),
     db.ref("guestinfo").get(),
-    db.ref("guestEntries").get(),          // <-- NEW: public guest form submissions
+    db.ref("guestEntries").get(), // <-- NEW
   ]);
 
   const stores     = storesSnap.val()     || {};
   const users      = usersSnap.val()      || {};
   const reviews    = reviewsSnap.val()    || {};
   const guestinfo  = guestSnap.val()      || {};
-  const guestForms = guestFormsSnap.val() || {};
+  const guestForms = guestFormsSnap.val() || {}; // <-- NEW
 
   const storesHtml = (currentRole !== ROLES.ME && window.stores?.renderStoresSection)
     ? window.stores.renderStoresSection(stores, users, currentRole)
@@ -87,10 +87,10 @@ async function renderAdminApp() {
     ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
     : `<p class="text-center">Guest Info module not loaded.</p>`;
 
-  // NEW: guest form submissions section
+  // NEW: guest form submissions section (name + phone captured externally)
   const guestFormsHtml = window.guestforms?.renderGuestFormsSection
     ? window.guestforms.renderGuestFormsSection(guestForms, currentRole)
-    : `<p class="text-center">Guest Form submissions module not loaded.</p>`;
+    : `<section class="admin-section guest-forms-section"><h2>Guest Form Submissions</h2><p class="text-center">Module not loaded.</p></section>`;
 
   const roleMgmtHtml =
     typeof window.renderRoleManagementSection === "function"
@@ -115,7 +115,7 @@ async function renderAdminApp() {
     window._filteredReviews = Object.entries(reviews).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
   }
 
-  window._users = users;
+  window._users  = users;
   window._stores = stores;
 }
 
@@ -124,21 +124,21 @@ async function renderAdminApp() {
    ===================================================================== */
 
 // Stores
-window.assignTL = (storeId, uid) => window.stores.assignTL(storeId, uid);
-window.updateStoreNumber = (id, val) => window.stores.updateStoreNumber(id, val);
-window.addStore = () => window.stores.addStore();
-window.deleteStore = (id) => window.stores.deleteStore(id);
+window.assignTL          = (storeId, uid) => window.stores.assignTL(storeId, uid);
+window.updateStoreNumber = (id, val)      => window.stores.updateStoreNumber(id, val);
+window.addStore          = ()             => window.stores.addStore();
+window.deleteStore       = (id)           => window.stores.deleteStore(id);
 
 // Users
 window.assignLeadToGuest = (guestUid, leadUid) => window.users.assignLeadToGuest(guestUid, leadUid);
-window.assignDMToLead = (leadUid, dmUid) => window.users.assignDMToLead(leadUid, dmUid);
-window.editUserStore = async (uid) => {
+window.assignDMToLead    = (leadUid, dmUid)    => window.users.assignDMToLead(leadUid, dmUid);
+window.editUserStore     = async (uid)         => {
   if (window.users?.editUserStore) return window.users.editUserStore(uid);
 };
 
 // Reviews
-window.toggleStar = (id, starred) => window.reviews.toggleStar(id, starred);
-window.deleteReview = (id) => window.reviews.deleteReview(id);
+window.toggleStar   = (id, starred) => window.reviews.toggleStar(id, starred);
+window.deleteReview = (id)          => window.reviews.deleteReview(id);
 
 // Review filters (use filtered reviews)
 window.filterReviewsByStore = (store) => {
@@ -153,5 +153,6 @@ window.clearReviewFilter = () => {
   document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(window._filteredReviews);
 };
 
-// Guest Form submissions
-window.deleteGuestFormEntry = (id) => window.guestforms.deleteGuestFormEntry(id);
+// Guest Form submissions actions
+window.deleteGuestFormEntry     = (id) => window.guestforms.deleteGuestFormEntry(id);
+window.continueGuestFormToGuest = (id) => window.guestforms.continueToGuestInfo(id); // <-- NEW
