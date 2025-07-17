@@ -1,519 +1,726 @@
-/* messages.js  -----------------------------------------------------------
- * Lightweight role-scoped messaging overlay for Admin Dashboard.
- * ---------------------------------------------------------------------- */
+/* ========================================================================
+   Dashboard Main Script (Realtime)  -- Performance Highlights + Caught-Up
+   Now with role-scoped Messaging overlay integration.
+   ===================================================================== */
 
-(function(){
-  const ROLES = window.ROLES || { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
-  const db    = window.db    || firebase.database();
-  const auth  = firebase.auth();
+const ROLES = window.ROLES || { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
-  /* --------------------------------------------------------------------
-   * Local state
-   * ------------------------------------------------------------------ */
-  let currentUid   = null;
-  let currentRole  = ROLES.ME;
-  let threadsCache = {};      // tid -> thread obj (live)
-  let msgsCache    = {};      // tid -> {msgid:msg}
-  let overlayOpen  = false;
+/* ------------------------------------------------------------------------
+   Firebase Init (guarded)
+   ------------------------------------------------------------------------ */
+const firebaseConfig = {
+  apiKey: "AIzaSyD9fILTNJQ0wsPkdLrhRGV9dslMzE",
+  authDomain: "osls-644fd.firebaseapp.com",
+  databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
+  projectId: "osls-644fd",
+  storageBucket: "osls-644fd.appspot.com",
+  messagingSenderId: "798578046321",
+  appId: "1:798578046321:web:8758776701786a2fccf2d0",
+  measurementId: "G-9HWXNSBE1T"
+};
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const db   = firebase.database();
+const auth = firebase.auth();
+window.db  = db; // expose for modules
 
-  /* badge el (created when dashboard.js calls messages.injectButtonBadge) */
-  let _badgeEl = null;
+/* ------------------------------------------------------------------------
+   Inject header Messages button (idempotent)
+   ------------------------------------------------------------------------ */
+function ensureMessagesButton() {
+  const hdr = document.querySelector(".admin-header");
+  if (!hdr) return null;
 
-  /* --------------------------------------------------------------------
-   * Init called from dashboard.js after auth; safe to call multiple times.
-   * ------------------------------------------------------------------ */
-  function initMessages(uid, role){
-    currentUid  = uid;
-    currentRole = (role||ROLES.ME).toLowerCase();
-    bindThreadsRealtime();
-  }
-
-  /* Dashboard helper sets external badge reference -------------------- */
-  function setBadgeEl(el){ _badgeEl = el; refreshHeaderBadge(); }
-
-  /* --------------------------------------------------------------------
-   * Realtime listeners
-   * NOTE: top-level messages .read is auth != null, so we can subscribe.
-   * Each child’s per-thread .read will protect contents; unauthorized
-   * children arrive as null (ignored).
-   * ------------------------------------------------------------------ */
-  let _threadsBound = false;
-  function bindThreadsRealtime(){
-    if(_threadsBound || !currentUid) return;
-    _threadsBound = true;
-    const ref = db.ref("messages");
-
-    ref.on("child_added",   snap => handleThreadSnap(snap));
-    ref.on("child_changed", snap => handleThreadSnap(snap));
-    ref.on("child_removed", snap => {
-      delete threadsCache[snap.key];
-      delete msgsCache[snap.key];
-      refreshHeaderBadge();
-      if(overlayOpen) renderOverlay();
-    });
-  }
-
-  function handleThreadSnap(snap){
-    const tid  = snap.key;
-    const data = snap.val();
-
-    // If we can't see the data (security filtered) ignore.
-    if(!data) return;
-
-    // Show only if participant OR admin view? We relaxed .read but
-    // per-thread .read already enforces participant|admin. So if we got here,
-    // we’re authorized; keep it.
-    threadsCache[tid] = data;
-
-    // Bind msgs subfeed if not yet
-    if(!msgsCache[tid]) bindMsgsRealtime(tid);
-
-    refreshHeaderBadge();
-    if(overlayOpen) renderOverlay();
-  }
-
-  function bindMsgsRealtime(tid){
-    const ref = db.ref("messages/"+tid+"/msgs");
-    msgsCache[tid] = msgsCache[tid] || {};
-    ref.on("child_added", snap=>{
-      msgsCache[tid][snap.key]=snap.val();
-      if(overlayOpen) renderOverlay();
-    });
-    ref.on("child_changed", snap=>{
-      msgsCache[tid][snap.key]=snap.val();
-      if(overlayOpen) renderOverlay();
-    });
-    ref.on("child_removed", snap=>{
-      delete msgsCache[tid][snap.key];
-      if(overlayOpen) renderOverlay();
-    });
-  }
-
-  /* --------------------------------------------------------------------
-   * Compute unread count for current user (sum of per-thread unread)
-   * ------------------------------------------------------------------ */
-  function unreadTotal(){
-    let sum = 0;
-    Object.values(threadsCache).forEach(t=>{
-      const n = t.unread && typeof t.unread[currentUid] === "number" ? t.unread[currentUid] : 0;
-      sum += n;
-    });
-    return sum;
-  }
-
-  function refreshHeaderBadge(){
-    if(!_badgeEl) return;
-    const n = unreadTotal();
-    _badgeEl.textContent = n>0 ? String(n) : "";
-    _badgeEl.style.display = n>0 ? "" : "none";
-  }
-
-  /* --------------------------------------------------------------------
-   * Overlay creation / teardown
-   * ------------------------------------------------------------------ */
-  function ensureOverlay(){
-    let ov = document.getElementById("msg-overlay");
-    if(ov) return ov;
-    ov = document.createElement("div");
-    ov.id = "msg-overlay";
-    ov.className = "msg-overlay hidden";
-    ov.innerHTML = `
-      <div class="msg-overlay-backdrop" onclick="window.messages.closeOverlay()"></div>
-      <div class="msg-overlay-panel" role="dialog" aria-modal="true">
-        <header class="msg-overlay-header">
-          <h3>Messages</h3>
-          <button type="button" class="msg-overlay-close" onclick="window.messages.closeOverlay()" aria-label="Close">×</button>
-        </header>
-        <div class="msg-overlay-body">
-          <!-- thread list injected here -->
-        </div>
-        <button type="button" class="msg-overlay-new" title="New Message" onclick="window.messages.openNewThreadModal()">＋</button>
-      </div>
+  // If already present, just wire badge & click and return existing.
+  let msgBtn = document.getElementById("messagesBtn");
+  if (!msgBtn) {
+    msgBtn = document.createElement("button");
+    msgBtn.id = "messagesBtn";
+    msgBtn.className = "admin-msg-btn";
+    msgBtn.type = "button";
+    msgBtn.innerHTML = `
+      Messages
+      <span class="admin-msg-badge" id="messagesBadge"></span>
     `;
-    document.body.appendChild(ov);
-    return ov;
-  }
-
-  function openOverlay(){
-    const ov = ensureOverlay();
-    ov.classList.remove("hidden");
-    overlayOpen = true;
-    renderOverlay();
-    markAllViewed(); // mark threads seen (zero unread)
-  }
-  function closeOverlay(){
-    const ov = ensureOverlay();
-    ov.classList.add("hidden");
-    overlayOpen = false;
-  }
-
-  /* --------------------------------------------------------------------
-   * Render overlay body (threads list + active thread messages)
-   * ------------------------------------------------------------------ */
-  let activeThreadId = null;
-
-  function renderOverlay(){
-    const ov = ensureOverlay();
-    const body = ov.querySelector(".msg-overlay-body");
-    if(!body) return;
-
-    // Build thread tiles
-    const threadEntries = Object.entries(threadsCache)
-      .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
-
-    const threadListHtml = threadEntries.map(([tid,t])=>{
-      const partNames = participantsHuman(t.participants||{});
-      const last = t.lastMsg ? shortText(t.lastMsg.text, 60) : "(no messages)";
-      const unread = t.unread && t.unread[currentUid] ? t.unread[currentUid] : 0;
-      const activeCls = (tid===activeThreadId)?"active":"";
-      return `
-        <div class="msg-thread-tile ${activeCls}" data-tid="${tid}" onclick="window.messages.setActiveThread('${tid}')">
-          <div class="msg-thread-top">
-            <span class="msg-thread-names">${esc(partNames)}</span>
-            ${unread?`<span class="msg-thread-unread">${unread}</span>`:""}
-          </div>
-          <div class="msg-thread-last">${esc(last)}</div>
-        </div>`;
-    }).join("");
-
-    // Active thread content
-    let threadMsgsHtml = "";
-    if(activeThreadId && threadsCache[activeThreadId]){
-      const thread = threadsCache[activeThreadId];
-      const msgs   = msgsCache[activeThreadId] || {};
-      const sorted = Object.entries(msgs).sort((a,b)=>(a[1].ts||0)-(b[1].ts||0));
-      threadMsgsHtml = `
-        <div class="msg-thread-active" data-tid="${activeThreadId}">
-          <div class="msg-thread-active-header">${esc(participantsHuman(thread.participants||{}))}</div>
-          <div class="msg-thread-active-messages" id="msg-thread-active-messages">
-            ${sorted.map(([mid,m])=>renderMsgBubble(m)).join("")}
-          </div>
-          <form class="msg-send-form" onsubmit="return window.messages.sendActiveThreadMsg(event)">
-            <input type="text" id="msg-send-input" placeholder="Type a message…" autocomplete="off" />
-            <button type="submit">Send</button>
-          </form>
-        </div>`;
+    // Insert before logout if found, else append
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn && logoutBtn.parentNode === hdr) {
+      hdr.insertBefore(msgBtn, logoutBtn);
     } else {
-      threadMsgsHtml = `<div class="msg-no-thread">Select a thread, or tap ＋ to start one.</div>`;
+      hdr.appendChild(msgBtn);
     }
-
-    body.innerHTML = `
-      <div class="msg-threads-col">
-        ${threadListHtml || '<div class="msg-no-threads">(No threads)</div>'}
-      </div>
-      <div class="msg-active-col">
-        ${threadMsgsHtml}
-      </div>
-    `;
-
-    // scroll active message area to bottom
-    const box = body.querySelector("#msg-thread-active-messages");
-    if(box) box.scrollTop = box.scrollHeight;
   }
 
-  function renderMsgBubble(m){
-    const isMe = m.fromUid === currentUid;
-    const when = m.ts ? new Date(m.ts).toLocaleString() : "";
-    return `
-      <div class="msg-bubble ${isMe?'me':'them'}">
-        <div class="msg-bubble-text">${esc(m.text)}</div>
-        <div class="msg-bubble-meta">${when}</div>
-      </div>`;
+  // Wire click -> open overlay
+  msgBtn.onclick = () => window.messages?.openOverlay?.();
+
+  // Pass badge element to messages module so it can update counts
+  const badgeEl = document.getElementById("messagesBadge");
+  window.messages?.setBadgeEl?.(badgeEl);
+
+  return msgBtn;
+}
+
+/* Fallback CSS for Messages button/badge if dashboard.css doesn't cover */
+(function injectDashboardMsgCss(){
+  if (document.getElementById("dash-msg-css")) return;
+  const css = `
+    .admin-header{position:relative;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;}
+    .admin-header .admin-msg-btn{position:relative;padding:4px 12px;font-size:.9rem;font-weight:600;cursor:pointer;}
+    .admin-header .admin-msg-badge{position:absolute;top:-6px;right:-6px;min-width:18px;padding:0 4px;height:18px;line-height:18px;font-size:11px;text-align:center;border-radius:9px;background:#ff5252;color:#fff;display:none;}
+  `;
+  const tag = document.createElement("style");
+  tag.id = "dash-msg-css";
+  tag.textContent = css;
+  document.head.appendChild(tag);
+})();
+
+/* ------------------------------------------------------------------------
+   DOM refs
+   ------------------------------------------------------------------------ */
+const adminAppDiv = document.getElementById("adminApp");
+
+/* ------------------------------------------------------------------------
+   Session globals
+   ------------------------------------------------------------------------ */
+let currentUid      = null;
+let currentRole     = ROLES.ME;
+let _initialLoaded  = false;
+let _rtBound        = false;
+let _rtRerenderTO   = null;   // throttle timer for realtime refresh
+
+/* Live caches (used by all modules, kept in window for convenience) */
+window._stores     = window._stores     || {};
+window._users      = window._users      || {};
+window._reviews    = window._reviews    || {};
+window._guestinfo  = window._guestinfo  || {};
+window._guestForms = window._guestForms || {};
+window._sales      = window._sales      || {};
+
+/* ------------------------------------------------------------------------
+   Performance Highlight expanded states
+   ------------------------------------------------------------------------ */
+if (typeof window._perf_expand_reviews === "undefined") window._perf_expand_reviews = false;
+if (typeof window._perf_expand_stores  === "undefined") window._perf_expand_stores  = false;
+if (typeof window._perf_expand_users   === "undefined") window._perf_expand_users   = false;
+
+/* ------------------------------------------------------------------------
+   Auth guard + profile bootstrap
+   ------------------------------------------------------------------------ */
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    window.location.href = "index.html";
+    return;
   }
 
-  /* --------------------------------------------------------------------
-   * Helpers
-   * ------------------------------------------------------------------ */
-  function esc(str){ return (str||"").toString().replace(/[&<>"]/g,s=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[s])); }
-  function shortText(str,max){ str=str||""; return str.length>max?str.slice(0,max-1)+"…":str; }
+  currentUid = user.uid;
+  window.currentUid = currentUid;
 
-  function participantsHuman(partMap){
-    const users = window._users || {};
-    const names = [];
-    Object.keys(partMap||{}).forEach(uid=>{
-      const u = users[uid];
-      names.push(u?.name || u?.email || uid);
-    });
-    return names.join(", ");
-  }
-
-  /* --------------------------------------------------------------------
-   * Thread selection & send
-   * ------------------------------------------------------------------ */
-  function setActiveThread(tid){
-    activeThreadId = tid;
-    // reset unread for me
-    if(threadsCache[tid]){
-      const ref = db.ref(`messages/${tid}/unread/${currentUid}`);
-      ref.set(0);
-    }
-    renderOverlay();
-    refreshHeaderBadge();
-  }
-
-  async function sendActiveThreadMsg(evt){
-    evt.preventDefault();
-    const input = document.getElementById("msg-send-input");
-    if(!input) return false;
-    const text = input.value.trim();
-    if(!text) return false;
-    const tid  = activeThreadId;
-    if(!tid || !threadsCache[tid]) return false;
-    input.value = "";
-
-    await sendMessage(tid, text);
-    return false;
-  }
-
-  /* --------------------------------------------------------------------
-   * Create / send message
-   * ------------------------------------------------------------------ */
-  async function sendMessage(tid, text){
-    const now = Date.now();
-    const msgRef = db.ref(`messages/${tid}/msgs`).push();
-    await msgRef.set({
-      fromUid: currentUid,
-      text,
-      ts: now
-    });
-
-    // update lastMsg + updatedAt
-    const up = {};
-    up[`messages/${tid}/lastMsg`] = { fromUid: currentUid, text, ts: now };
-    up[`messages/${tid}/updatedAt`] = now;
-
-    // unread++ for all OTHER participants
-    const t = threadsCache[tid] || {};
-    const parts = t.participants || {};
-    Object.keys(parts).forEach(uid=>{
-      if(uid === currentUid) return;
-      const cur = (t.unread && t.unread[uid]) || 0;
-      up[`messages/${tid}/unread/${uid}`] = cur + 1;
-    });
-
-    await db.ref().update(up);
-  }
-
-  /* Mark all as viewed when overlay opens -------------------------------- */
-  function markAllViewed(){
-    const up = {};
-    Object.entries(threadsCache).forEach(([tid,t])=>{
-      if(t.unread && t.unread[currentUid]){
-        up[`messages/${tid}/unread/${currentUid}`] = 0;
-      }
-    });
-    if(Object.keys(up).length) db.ref().update(up);
-  }
-
-  /* --------------------------------------------------------------------
-   * New Thread Modal
-   * ------------------------------------------------------------------ */
-  let _newModal = null;
-  function openNewThreadModal(){
-    const users = window._users || {};
-    const opts  = buildEligibleRecipients(users,currentUid,currentRole);
-    if(!_newModal) _newModal = buildNewModal();
-    populateNewModal(opts);
-    _newModal.classList.remove("hidden");
-  }
-  function closeNewThreadModal(){
-    if(_newModal) _newModal.classList.add("hidden");
-  }
-
-  function buildNewModal(){
-    const m = document.createElement("div");
-    m.id = "msg-new-modal";
-    m.className = "msg-new-modal hidden";
-    m.innerHTML = `
-      <div class="msg-new-backdrop" onclick="window.messages.closeNewThreadModal()"></div>
-      <div class="msg-new-panel">
-        <h4>New Message</h4>
-        <div id="msg-new-list"></div>
-        <textarea id="msg-new-text" rows="3" placeholder="Message…"></textarea>
-        <div class="msg-new-actions">
-          <button type="button" onclick="window.messages.closeNewThreadModal()">Cancel</button>
-          <button type="button" class="msg-new-send" onclick="window.messages.sendNewThread()">Send</button>
-        </div>
-      </div>`;
-    document.body.appendChild(m);
-    return m;
-  }
-
-  function populateNewModal(opts){
-    const list = document.getElementById("msg-new-list");
-    if(!list) return;
-    list.innerHTML = opts.map(o=>`
-      <label class="msg-new-opt">
-        <input type="checkbox" value="${o.uid}" />
-        ${esc(o.label)}
-      </label>`).join("");
-    const txt = document.getElementById("msg-new-text");
-    if(txt) txt.value="";
-  }
-
-  function buildEligibleRecipients(users, uid, role){
-    const arr = [];
-    const me = users[uid];
-    // everybody?--we scope: Admin sees all; DM sees all leads + mes under them; lead sees its mes + DM; me sees own lead + DM.
-    if(!users) return arr;
-    if(role === ROLES.ADMIN){
-      Object.entries(users).forEach(([id,u])=>{
-        if(id===uid) return;
-        arr.push({uid:id,label:(u.name||u.email||id)+" ("+u.role+")"});
-      });
-      return arr;
-    }
-    if(role === ROLES.DM){
-      const leads = Object.entries(users).filter(([,u])=>u.role===ROLES.LEAD && u.assignedDM===uid);
-      const mes   = Object.entries(users).filter(([,u])=>u.role===ROLES.ME && leads.some(([lid])=>lid===u.assignedLead));
-      leads.forEach(([id,u])=>arr.push({uid:id,label:(u.name||u.email||id)+" (Lead)"}));
-      mes.forEach(([id,u])=>arr.push({uid:id,label:(u.name||u.email||id)+" (Associate)"}));
-      return arr;
-    }
-    if(role === ROLES.LEAD){
-      // my DM
-      Object.entries(users).forEach(([id,u])=>{
-        if(u.role===ROLES.DM && me?.assignedDM===id){
-          arr.push({uid:id,label:(u.name||u.email||id)+" (DM)"});
-        }
-      });
-      // my MEs
-      Object.entries(users).forEach(([id,u])=>{
-        if(u.role===ROLES.ME && u.assignedLead===uid){
-          arr.push({uid:id,label:(u.name||u.email||id)});
-        }
-      });
-      return arr;
-    }
-    // ME: my Lead + my Lead's DM (if any)
-    Object.entries(users).forEach(([id,u])=>{
-      if(u.role===ROLES.LEAD && me?.assignedLead===id){
-        arr.push({uid:id,label:(u.name||u.email||id)+" (Lead)"});
-        // also DM over that lead?
-        const dmUid = u.assignedDM;
-        if(dmUid && users[dmUid]){
-          const dm = users[dmUid];
-          arr.push({uid:dmUid,label:(dm.name||dm.email||dmUid)+" (DM)"});
-        }
-      }
-    });
-    return arr;
-  }
-
-  async function sendNewThread(){
-    const modal = _newModal || document.getElementById("msg-new-modal");
-    if(!modal) return;
-    const checkEls = [...modal.querySelectorAll('input[type="checkbox"]:checked')];
-    if(!checkEls.length){ alert("Select at least one recipient."); return; }
-    const textEl = document.getElementById("msg-new-text");
-    const text   = (textEl?.value||"").trim();
-    if(!text){ alert("Enter a message."); return; }
-
-    const now = Date.now();
-    const parts = {};
-    parts[currentUid] = true;
-    checkEls.forEach(ch=>{ parts[ch.value] = true; });
-
-    const tRef = db.ref("messages").push();
-    const tid  = tRef.key;
-
-    const unread = {};
-    Object.keys(parts).forEach(uid=>{
-      unread[uid] = (uid===currentUid?0:1); // others unread 1 (first msg)
-    });
-
-    const base = {
-      participants: parts,
-      unread,
-      updatedAt: now,
-      lastMsg: { fromUid: currentUid, text, ts: now }
-    };
-
-    // Create thread, then push msg
-    await tRef.set(base);
-    await db.ref(`messages/${tid}/msgs`).push({
-      fromUid: currentUid,
-      text,
-      ts: now
-    });
-
-    // Show new thread
-    activeThreadId = tid;
-    closeNewThreadModal();
-    openOverlay();
-  }
-
-  /* --------------------------------------------------------------------
-   * Public API
-   * ------------------------------------------------------------------ */
-  window.messages = {
-    init: initMessages,
-    setBadgeEl,
-    openOverlay,
-    closeOverlay,
-    setActiveThread,
-    sendActiveThreadMsg,
-    openNewThreadModal,
-    closeNewThreadModal,
-    sendNewThread
+  // get or seed profile
+  const snap = await db.ref("users/" + user.uid).get();
+  const prof = snap.val() || {
+    role: ROLES.ME,
+    name: user.displayName || user.email,
+    email: user.email,
   };
+  currentRole = (prof.role || ROLES.ME).toLowerCase();
+  window.currentRole = currentRole;
 
-  /* --------------------------------------------------------------------
-   * Minimal CSS injection
-   * ------------------------------------------------------------------ */
-  (function injectCss(){
-    if(document.getElementById("msg-overlay-css")) return;
-    const css=`
-      .admin-msg-btn{position:relative;}
-      .admin-msg-badge{position:absolute;top:-6px;right:-6px;min-width:18px;padding:0 4px;height:18px;line-height:18px;font-size:11px;text-align:center;border-radius:9px;background:#ff5252;color:#fff;display:none;}
+  // ensure existence / normalization
+  await db.ref("users/" + user.uid).update(prof);
 
-      .msg-overlay.hidden{display:none!important;}
-      .msg-overlay{position:fixed;inset:0;z-index:1000;font-family:inherit;color:#fff;}
-      .msg-overlay-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);}
-      .msg-overlay-panel{position:relative;width:95%;max-width:900px;height:90%;max-height:600px;margin:4vh auto;background:rgba(25,26,32,.95);border:1px solid rgba(255,255,255,.1);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;}
-      .msg-overlay-header{display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem;border-bottom:1px solid rgba(255,255,255,.1);}
-      .msg-overlay-close{background:none;border:none;color:#fff;font-size:1.25rem;cursor:pointer;line-height:1;}
+  // Logout button
+  document.getElementById("logoutBtn")?.addEventListener("click", () => auth.signOut());
 
-      .msg-overlay-body{flex:1;display:grid;grid-template-columns:minmax(160px,30%) 1fr;overflow:hidden;}
-      .msg-threads-col{border-right:1px solid rgba(255,255,255,.1);overflow-y:auto;padding:.5rem;}
-      .msg-active-col{position:relative;overflow:hidden;padding:.5rem;display:flex;flex-direction:column;}
+  // Messages button (make sure header exists first)
+  ensureMessagesButton();
+  // Initialize messages module (safe if undefined)
+  window.messages?.init?.(currentUid, currentRole);
 
-      .msg-thread-tile{padding:.5rem;border-radius:8px;cursor:pointer;margin-bottom:.25rem;background:rgba(255,255,255,.05);}
-      .msg-thread-tile.active{background:rgba(130,202,255,.15);border:1px solid rgba(130,202,255,.4);}
-      .msg-thread-top{display:flex;justify-content:space-between;align-items:center;font-size:.9rem;font-weight:600;}
-      .msg-thread-unread{background:#ff5252;color:#fff;font-size:.75rem;padding:0 .4rem;border-radius:8px;line-height:1.2;}
-      .msg-thread-last{font-size:.8rem;opacity:.75;margin-top:2px;}
+  // initial load + realtime bind
+  await initialLoad();
+  ensureRealtime();                       // attach global listeners
+  window.guestforms?.ensureRealtime?.();  // module-specific (safe if double-bound)
+});
 
-      .msg-thread-active{display:flex;flex-direction:column;height:100%;}
-      .msg-thread-active-header{text-align:center;font-weight:600;margin-bottom:.25rem;}
-      .msg-thread-active-messages{flex:1;overflow-y:auto;padding:.25rem;}
-      .msg-bubble{max-width:80%;margin-bottom:.5rem;padding:.5rem .75rem;border-radius:12px;line-height:1.3;font-size:.95rem;position:relative;}
-      .msg-bubble.me{margin-left:auto;background:#1e90ff;color:#fff;}
-      .msg-bubble.them{margin-right:auto;background:rgba(255,255,255,.1);}
-      .msg-bubble-meta{text-align:right;font-size:.7rem;opacity:.7;margin-top:2px;}
+/* ========================================================================
+   INITIAL LOAD
+   ===================================================================== */
+async function initialLoad() {
+  adminAppDiv.innerHTML = "<div>Loading data…</div>";
 
-      .msg-send-form{display:flex;gap:.5rem;margin-top:.5rem;}
-      .msg-send-form input{flex:1;padding:.5rem;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);color:#fff;}
-      .msg-send-form button{padding:.5rem 1rem;border:none;border-radius:8px;background:#1e90ff;color:#fff;cursor:pointer;font-weight:600;}
+  const [
+    storesSnap,
+    usersSnap,
+    reviewsSnap,
+    guestSnap,
+    guestFormsSnap,
+    salesSnap
+  ] = await Promise.all([
+    db.ref("stores").get(),
+    db.ref("users").get(),
+    db.ref("reviews").get(),
+    db.ref("guestinfo").get(),
+    db.ref("guestEntries").get(),
+    db.ref("sales").get()
+  ]);
 
-      .msg-overlay-new{position:absolute;right:1rem;bottom:1rem;width:44px;height:44px;border-radius:50%;background:#47c971;border:none;color:#fff;font-size:1.5rem;line-height:1;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6);}
+  window._stores     = storesSnap.val()     || {};
+  window._users      = usersSnap.val()      || {};
+  window._reviews    = reviewsSnap.val()    || {};
+  window._guestinfo  = guestSnap.val()      || {};
+  window._guestForms = guestFormsSnap.val() || {};
+  window._sales      = salesSnap.val()      || {};
 
-      /* new-thread modal */
-      .msg-new-modal.hidden{display:none!important;}
-      .msg-new-modal{position:fixed;inset:0;z-index:1100;color:#fff;font-family:inherit;}
-      .msg-new-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.7);}
-      .msg-new-panel{position:relative;width:90%;max-width:400px;margin:10vh auto;padding:1rem;background:rgba(25,26,32,.95);border:1px solid rgba(255,255,255,.1);border-radius:12px;display:flex;flex-direction:column;gap:1rem;}
-      #msg-new-list{max-height:200px;overflow-y:auto;font-size:.95rem;line-height:1.3;}
-      .msg-new-opt{display:block;margin-bottom:.25rem;}
-      #msg-new-text{width:100%;min-height:4rem;padding:.5rem;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);color:#fff;}
-      .msg-new-actions{text-align:right;display:flex;justify-content:flex-end;gap:.5rem;}
-      .msg-new-actions button{padding:.5rem 1rem;border-radius:8px;border:none;cursor:pointer;font-weight:600;}
-      .msg-new-actions .msg-new-send{background:#1e90ff;color:#fff;}
-    `;
-    const tag=document.createElement("style");
-    tag.id="msg-overlay-css";
-    tag.textContent=css;
-    document.head.appendChild(tag);
-  })();
+  _initialLoaded = true;
+  renderAdminApp();
+}
 
-})(); // IIFE end
+/* ========================================================================
+   CAUGHT-UP HELPERS (Guest Forms + Guest Info)
+   ===================================================================== */
+const _isAdmin = r => r === ROLES.ADMIN;
+const _isDM    = r => r === ROLES.DM;
+const _isLead  = r => r === ROLES.LEAD;
+const _isMe    = r => r === ROLES.ME;
+
+/* guestforms advanced status (hide proposal/sold) */
+function _gfAdvancedStatus(g){
+  const s = (g?.status || "").toLowerCase();
+  return s === "proposal" || s === "sold";
+}
+
+function _startOfTodayMs(){ const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); }
+function _endOfTodayMs(){ const d=new Date(); d.setHours(23,59,59,999); return d.getTime(); }
+
+/* guestinfo week filter: rolling 7 days by latest activity */
+function _giLatestTs(g){
+  return Math.max(g.updatedAt||0, g.submittedAt||0, g.sale?.soldAt||0, g.solution?.completedAt||0);
+}
+function _giInCurrentWeek(g){ return _giLatestTs(g) >= (Date.now() - 7*24*60*60*1000); }
+
+/* guestinfo status detect */
+function _giDetectStatus(g){
+  if (g.status) return g.status.toLowerCase();
+  if (g.sale) return "sold";
+  if (g.solution) return "proposal";
+  if (g.evaluate) return "working";
+  return "new";
+}
+
+/* DM tree helper */
+function _giUsersUnderDM(users, dmUid){
+  const leads = Object.entries(users||{})
+    .filter(([,u])=>u.role===ROLES.LEAD && u.assignedDM===dmUid)
+    .map(([id])=>id);
+  const mes = Object.entries(users||{})
+    .filter(([,u])=>u.role===ROLES.ME && leads.includes(u.assignedLead))
+    .map(([id])=>id);
+  return new Set([...leads,...mes]);
+}
+
+/* Visible guestforms count */
+function _guestFormsVisibleCount(guestForms, guestinfo, role, uid){
+  if (!guestForms) return 0;
+  const showAll = !!window._guestforms_showAll;
+  const startToday = _startOfTodayMs();
+  const endToday   = _endOfTodayMs();
+  let count = 0;
+  for (const [,f] of Object.entries(guestForms)){
+    if (f.guestinfoKey){
+      const g = guestinfo?.[f.guestinfoKey];
+      if (_gfAdvancedStatus(g)) continue;
+    }
+    if (!_isAdmin(role) && !_isDM(role)){
+      const claimedBy = f.consumedBy || f.claimedBy;
+      if (claimedBy && claimedBy !== uid) continue;
+    }
+    if (!showAll){
+      const ts = f.timestamp || 0;
+      if (ts < startToday || ts > endToday) continue;
+    }
+    count++;
+  }
+  return count;
+}
+
+/* Visible actionable guestinfo count (new+working+proposal) respecting filters */
+function _guestInfoActionableCount(guestinfo, users, role, uid){
+  if (!guestinfo) return 0;
+  if (window._guestinfo_soldOnly || window._guestinfo_showProposals) return 1; // force not-caught in alt modes
+
+  const weekFilter = _isMe(role) ? true : (window._guestinfo_filterMode === "week");
+
+  let count = 0;
+  for (const [,g] of Object.entries(guestinfo)){
+    // role gating
+    if (_isAdmin(role)) {
+      /* all */
+    } else if (_isDM(role)) {
+      const under = _giUsersUnderDM(users, uid); under.add(uid);
+      if (!under.has(g.userUid)) continue;
+    } else if (_isLead(role)) {
+      const mesUnderLead = Object.entries(users)
+        .filter(([, u]) => u.role === ROLES.ME && u.assignedLead === uid)
+        .map(([id]) => id);
+      const visible = new Set([...mesUnderLead, uid]);
+      if (!visible.has(g.userUid)) continue;
+    } else if (_isMe(role)) {
+      if (g.userUid !== uid) continue;
+    }
+    // timeframe
+    if (weekFilter && !_giInCurrentWeek(g)) continue;
+    // status
+    const st = _giDetectStatus(g);
+    if (st !== "sold") count++; // include proposal, working, new
+  }
+  return count;
+}
+
+/* Unified caught-up HTML (Guest queue only) */
+function _caughtUpUnifiedHtml(msg="You're all caught up!"){
+  return `
+    <section class="admin-section guest-caughtup-section" id="guest-caughtup-section">
+      <h2>Guest Queue</h2>
+      <div class="guestinfo-empty-all text-center" style="margin-top:16px;">
+        <p><b>${msg}</b></p>
+        <p style="opacity:.8;">No open guest forms or leads right now.</p>
+        <button class="btn btn-success btn-lg" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
+      </div>
+    </section>`;
+}
+
+/* ========================================================================
+   PERFORMANCE METRIC HELPERS  (Ratings / Staffing / Budget)
+   ===================================================================== */
+
+/* Visible reviews -> avg rating */
+function _visibleReviewsArray(reviews, users, role, uid){
+  if (window.reviews?.filterReviewsByRole){
+    return Object.entries(window.reviews.filterReviewsByRole(reviews, users, uid, role));
+  }
+  return Object.entries(reviews||{});
+}
+function _avgRatingVisible(reviewsArr){
+  if (!reviewsArr.length) return null;
+  let sum=0, n=0;
+  for (const [,r] of reviewsArr){
+    const v = Number(r.rating||0);
+    if (!isNaN(v) && v>0){ sum+=v; n++; }
+  }
+  return n? (sum/n):null;
+}
+
+/* Staffing counts per visible store (Admin/DM/Lead; ME sees no stores) */
+function _visibleStoresArray(stores, role, uid){
+  if (_isAdmin(role) || _isDM(role)) return Object.entries(stores||{});
+  if (_isLead(role)){
+    return Object.entries(stores||{}).filter(([,s])=>s.teamLeadUid===uid);
+  }
+  return []; // ME no stores
+}
+
+/* Count people per store */
+function _storePeopleCounts(storeRec, users){
+  const sn = (storeRec.storeNumber||"").toString().trim();
+  const tlUid = storeRec.teamLeadUid;
+  let leads=0, mes=0;
+  for (const [uid,u] of Object.entries(users||{})){
+    if (u.role===ROLES.LEAD){
+      if ((tlUid && uid===tlUid) || (sn && u.store===sn)) leads++;
+    } else if (u.role===ROLES.ME){
+      if ((sn && u.store===sn) || (tlUid && u.assignedLead===tlUid)) mes++;
+    }
+  }
+  if (tlUid && leads===0) leads=1; // assume 1 TL if assigned but not counted
+  return {leads, mes, total: leads+mes};
+}
+
+/* Staffing met? goal = storeRec.staffGoal || 2 */
+function _storeStaffingMet(storeRec, users){
+  const goal = Number(storeRec.staffGoal ?? 2);
+  const {total} = _storePeopleCounts(storeRec, users);
+  return {met: total >= goal, goal, total};
+}
+
+/* Budget MTD map using stores.js summarizer if available */
+function _salesMtdMap(){
+  if (window.stores?.summarizeSalesByStoreMTD){
+    return window.stores.summarizeSalesByStoreMTD(window._sales, window._stores, window._guestinfo, window._users);
+  }
+  const out={};
+  const mStart = (d=>{d.setDate(1);d.setHours(0,0,0,0);return d.getTime();})(new Date());
+  for (const [,s] of Object.entries(window._sales||{})){
+    const ts = s.createdAt||s.soldAt||0;
+    if (ts < mStart) continue;
+    const sn = (s.storeNumber||"").toString().trim()||"__";
+    if(!out[sn]) out[sn]={count:0,units:0};
+    out[sn].count++; out[sn].units += Number(s.units||0);
+  }
+  return out;
+}
+function _storeBudgetMet(storeRec, mtdMap){
+  const goal = Number(storeRec.budgetUnits||0);
+  if (!goal) return {met:true,goal:0,units:0,pct:null}; // no goal -> treat as met
+  const sn = (storeRec.storeNumber||"").toString().trim();
+  const summ = mtdMap[sn];
+  const units = summ?.units||0;
+  const met = units >= goal;
+  const pct = goal? (units/goal*100):null;
+  return {met,goal,units,pct};
+}
+
+/* Aggregate Performance status across visible stores */
+function _performanceStatus(reviews, stores, users, role, uid){
+  const rvArr = _visibleReviewsArray(reviews, users, role, uid);
+  const avgRating = _avgRatingVisible(rvArr);
+  const ratingsGood = avgRating!=null ? avgRating >= 4.7 : false;
+
+  const stArr = _visibleStoresArray(stores, role, uid);
+  const mtdMap = _salesMtdMap();
+
+  let staffingGood=true, budgetGood=true;
+  let staffTotal=0, staffGoalTotal=0, budgetUnits=0, budgetGoal=0;
+
+  for (const [,s] of stArr){
+    const staff = _storeStaffingMet(s, users);
+    staffTotal += staff.total;
+    staffGoalTotal += staff.goal;
+    if (!staff.met) staffingGood=false;
+
+    const bud = _storeBudgetMet(s, mtdMap);
+    budgetUnits += bud.units;
+    budgetGoal  += bud.goal;
+    if (!bud.met) budgetGood=false;
+  }
+
+  return {
+    ratingsGood,
+    staffingGood,
+    budgetGood,
+    allGood: ratingsGood && staffingGood && budgetGood,
+    avgRating,
+    staffTotal, staffGoalTotal,
+    budgetUnits, budgetGoal,
+    reviewCount: rvArr.length,
+    storeCount: stArr.length
+  };
+}
+
+/* ------------------------------------------------------------------------
+   State helper -> good/warn/bad class
+   ------------------------------------------------------------------------ */
+function _stateClassFromBool(b, fallbackWarn=true){
+  return b ? "good" : (fallbackWarn ? "warn" : "bad");
+}
+function _stateClassFromRatio(r, goodThr=1, warnThr=.5){
+  if (isNaN(r)) return "warn";
+  if (r >= goodThr) return "good";
+  if (r >= warnThr) return "warn";
+  return "bad";
+}
+
+/* ========================================================================
+   PERFORMANCE HIGHLIGHTS HTML (3 horizontal buttons, no New Lead btn)
+   ===================================================================== */
+function _perfHighlightsHtml(ps, role){
+  // Ratings
+  const avg = ps.avgRating!=null ? ps.avgRating.toFixed(1) : "–";
+  const ratState = ps.avgRating==null
+    ? "warn"
+    : (ps.avgRating>=4.7?"good":(ps.avgRating>=4?"warn":"bad"));
+
+  // Staffing (mgmt tiers only)
+  const showStores = (role !== ROLES.ME);
+  const staffRatio = ps.staffGoalTotal>0 ? (ps.staffTotal/ps.staffGoalTotal) : null;
+  const stState = !showStores ? "warn" : (
+    ps.staffGoalTotal===0 ? "warn" : _stateClassFromRatio(staffRatio,1,.5)
+  );
+  const staffLbl = showStores ? `${ps.staffTotal}/${ps.staffGoalTotal||"?"}` : "";
+
+  // Budget
+  const budRatio = ps.budgetGoal>0 ? (ps.budgetUnits/ps.budgetGoal) : null;
+  const budState = !showStores ? "warn" : (
+    ps.budgetGoal===0 ? "good" : _stateClassFromRatio(budRatio,1,.7)
+  );
+  const budPct = ps.budgetGoal>0 ? Math.round((ps.budgetUnits/ps.budgetGoal)*100) : null;
+  const budLbl = showStores
+    ? (ps.budgetGoal>0 ? `${budPct}%` : `${ps.budgetUnits}u`)
+    : "";
+
+  const ratClick = `onclick="window.perfToggleReviews()"`;
+  const stClick  = `onclick="window.perfToggleUsers()"`;   // staffing shows Users
+  const budClick = `onclick="window.perfToggleStores()"`;  // budget shows Stores
+
+  return `
+    <section class="admin-section perf-highlights-section" id="perf-highlights-section">
+      <h2>Performance Highlights</h2>
+      <div class="perf-hl-row">
+        <button type="button" class="perf-hl-btn ${ratState}" ${ratClick} aria-label="View Reviews">
+          <span class="ph-icon">⭐</span>
+          <span class="ph-label">Ratings</span>
+          <span class="ph-val">${avg}</span>
+        </button>
+        ${showStores ? `
+        <button type="button" class="perf-hl-btn ${stState}" ${stClick} aria-label="View Staffing">
+          <span class="ph-icon">👥</span>
+          <span class="ph-label">Staffing</span>
+          <span class="ph-val">${staffLbl}</span>
+        </button>`:""}
+        ${showStores ? `
+        <button type="button" class="perf-hl-btn ${budState}" ${budClick} aria-label="View Budget Progress">
+          <span class="ph-icon">📈</span>
+          <span class="ph-label">Budget</span>
+          <span class="ph-val">${budLbl}</span>
+        </button>`:""}
+      </div>
+    </section>`;
+}
+
+/* ========================================================================
+   RENDER
+   ===================================================================== */
+function renderAdminApp() {
+  if (!_initialLoaded) return;
+
+  const stores     = window._stores;
+  const users      = window._users;
+  const reviews    = window._reviews;
+  const guestinfo  = window._guestinfo;
+  const guestForms = window._guestForms;
+  const sales      = window._sales;
+
+  /* ----- Caught-up checks (Guest Queue) ----- */
+  const gfVisibleCount   = _guestFormsVisibleCount(guestForms, guestinfo, currentRole, currentUid);
+  const giActionableCount= _guestInfoActionableCount(guestinfo, users, currentRole, currentUid);
+  const guestsCaught     = (gfVisibleCount === 0) && (giActionableCount === 0);
+
+  /* ----- Performance metrics ----- */
+  const perf = _performanceStatus(reviews, stores, users, currentRole, currentUid);
+  const perfEligible = (currentRole !== ROLES.ME); // only show for mgmt tiers
+  const perfGood = perfEligible && perf.allGood;
+
+  /* ---------------------------------------------------------------
+     Build top-of-page guest queue portion
+     --------------------------------------------------------------- */
+  let guestFormsHtml = "";
+  let guestinfoHtml  = "";
+  let perfHighlightsHtml = "";
+
+  if (guestsCaught) {
+    // show unified guest caught-up card
+    guestFormsHtml = _caughtUpUnifiedHtml();
+  } else {
+    // guestforms section
+    guestFormsHtml = window.guestforms?.renderGuestFormsSection
+      ? window.guestforms.renderGuestFormsSection(guestForms, currentRole, currentUid)
+      : `<section id="guest-forms-section" class="admin-section guest-forms-section"><h2>Guest Form Submissions</h2><p class="text-center">Module not loaded.</p></section>`;
+
+    // guestinfo section
+    guestinfoHtml = window.guestinfo?.renderGuestinfoSection
+      ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
+      : `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">Module not loaded.</p></section>`;
+  }
+
+  /* ---------------------------------------------------------------
+     Stores / Users / Reviews (possibly collapsed into highlights)
+     --------------------------------------------------------------- */
+  let storesHtml = "";
+  let usersHtml  = "";
+  let reviewsHtml= "";
+
+  if (perfGood) {
+    // show highlight buttons instead of full sections
+    perfHighlightsHtml = _perfHighlightsHtml(perf, currentRole);
+
+    // Render expanded sections ONLY if toggled
+    if (window._perf_expand_reviews) {
+      reviewsHtml = window.reviews?.renderReviewsSection
+        ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
+        : `<section class="admin-section reviews-section"><h2>Reviews</h2><p class="text-center">Module not loaded.</p></section>`;
+    }
+    if (window._perf_expand_users) {
+      usersHtml = window.users?.renderUsersSection
+        ? window.users.renderUsersSection(users, currentRole, currentUid)
+        : `<section class="admin-section users-section"><h2>Users</h2><p class="text-center">Module not loaded.</p></section>`;
+    }
+    if (window._perf_expand_stores && currentRole !== ROLES.ME) {
+      storesHtml = window.stores?.renderStoresSection
+        ? window.stores.renderStoresSection(stores, users, currentRole, sales)
+        : `<section class="admin-section stores-section"><h2>Stores</h2><p class="text-center">Module not loaded.</p></section>`;
+    }
+  } else {
+    // normal behavior (no highlight collapse)
+    if (currentRole !== ROLES.ME && window.stores?.renderStoresSection) {
+      storesHtml = window.stores.renderStoresSection(stores, users, currentRole, sales);
+    }
+    usersHtml = window.users?.renderUsersSection
+      ? window.users.renderUsersSection(users, currentRole, currentUid)
+      : `<section class="admin-section users-section"><h2>Users</h2><p class="text-center">Module not loaded.</p></section>`;
+    reviewsHtml = window.reviews?.renderReviewsSection
+      ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
+      : `<section class="admin-section reviews-section"><h2>Reviews</h2><p class="text-center">Module not loaded.</p></section>`;
+  }
+
+  /* ---------------------------------------------------------------
+     Role Mgmt
+     --------------------------------------------------------------- */
+  const roleMgmtHtml =
+    typeof window.renderRoleManagementSection === "function"
+      ? window.renderRoleManagementSection(currentRole)
+      : "";
+
+  /* ---------------------------------------------------------------
+     Inject into DOM (order: guest queue → perf highlights → others)
+     --------------------------------------------------------------- */
+  adminAppDiv.innerHTML = `
+    ${guestFormsHtml}
+    ${guestinfoHtml}
+    ${perfHighlightsHtml}
+    ${storesHtml}
+    ${usersHtml}
+    ${reviewsHtml}
+    ${roleMgmtHtml}
+  `;
+
+  /* ---------------------------------------------------------------
+     Build review cache for filters
+     --------------------------------------------------------------- */
+  if (window.reviews?.filterReviewsByRole) {
+    window._filteredReviews = Object.entries(
+      window.reviews.filterReviewsByRole(reviews, users, currentUid, currentRole)
+    ).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
+  } else {
+    window._filteredReviews = Object.entries(reviews).sort(
+      (a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0)
+    );
+  }
+
+  // Ensure messages button stays wired after each re-render (header may not rerender but safe)
+  ensureMessagesButton();
+}
+
+/* ========================================================================
+   PERF HIGHLIGHT TOGGLES
+   ===================================================================== */
+window.perfToggleReviews = function(){
+  window._perf_expand_reviews = !window._perf_expand_reviews;
+  renderAdminApp();
+};
+window.perfToggleStores = function(){
+  window._perf_expand_stores = !window._perf_expand_stores;
+  renderAdminApp();
+};
+window.perfToggleUsers = function(){
+  window._perf_expand_users = !window._perf_expand_users;
+  renderAdminApp();
+};
+
+/* ========================================================================
+   REALTIME BIND
+   ===================================================================== */
+function ensureRealtime() {
+  if (_rtBound) return;
+  _rtBound = true;
+
+  function scheduleRealtimeRender() {
+    if (_rtRerenderTO) return;
+    _rtRerenderTO = setTimeout(() => {
+      _rtRerenderTO = null;
+      renderAdminApp();
+    }, 100);
+  }
+
+  /* STORES */
+  const storesRef = db.ref("stores");
+  storesRef.on("child_added", snap => { window._stores[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  storesRef.on("child_changed", snap => { window._stores[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  storesRef.on("child_removed", snap => { delete window._stores[snap.key]; scheduleRealtimeRender(); });
+
+  /* USERS */
+  const usersRef = db.ref("users");
+  usersRef.on("child_added", snap => { window._users[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  usersRef.on("child_changed", snap => {
+    window._users[snap.key] = snap.val();
+    if (snap.key === currentUid) {
+      currentRole = (snap.val()?.role || ROLES.ME).toLowerCase();
+      window.currentRole = currentRole;
+      // Update messages module with any role change
+      window.messages?.init?.(currentUid, currentRole);
+    }
+    scheduleRealtimeRender();
+  });
+  usersRef.on("child_removed", snap => { delete window._users[snap.key]; scheduleRealtimeRender(); });
+
+  /* REVIEWS */
+  const reviewsRef = db.ref("reviews");
+  reviewsRef.on("child_added", snap => { window._reviews[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  reviewsRef.on("child_changed", snap => { window._reviews[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  reviewsRef.on("child_removed", snap => { delete window._reviews[snap.key]; scheduleRealtimeRender(); });
+
+  /* GUEST INFO */
+  const giRef = db.ref("guestinfo");
+  giRef.on("child_added", snap => { window._guestinfo[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  giRef.on("child_changed", snap => { window._guestinfo[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  giRef.on("child_removed", snap => { delete window._guestinfo[snap.key]; scheduleRealtimeRender(); });
+
+  /* GUEST ENTRIES */
+  const gfRef = db.ref("guestEntries");
+  gfRef.on("child_added", snap => { window._guestForms[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  gfRef.on("child_changed", snap => { window._guestForms[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  gfRef.on("child_removed", snap => { delete window._guestForms[snap.key]; scheduleRealtimeRender(); });
+
+  /* SALES */
+  const salesRef = db.ref("sales");
+  salesRef.on("child_added", snap => { window._sales[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  salesRef.on("child_changed", snap => { window._sales[snap.key] = snap.val(); scheduleRealtimeRender(); });
+  salesRef.on("child_removed", snap => { delete window._sales[snap.key]; scheduleRealtimeRender(); });
+
+  /* NOTE: messages realtime handled inside messages.js */
+}
+
+/* ========================================================================
+   Module action passthroughs
+   ===================================================================== */
+// Stores
+window.assignTL          = (storeId, uid) => window.stores.assignTL(storeId, uid);
+window.updateStoreNumber = (id, val)      => window.stores.updateStoreNumber(id, val);
+window.addStore          = ()             => window.stores.addStore();
+window.deleteStore       = (id)           => window.stores.deleteStore(id);
+
+// Users
+window.assignLeadToGuest = (guestUid, leadUid) => window.users.assignLeadToGuest(guestUid, leadUid);
+window.assignDMToLead    = (leadUid, dmUid)    => window.users.assignDMToLead(leadUid, dmUid);
+window.editUserStore     = async (uid)         => {
+  if (window.users?.editUserStore) return window.users.editUserStore(uid);
+};
+
+// Reviews
+window.toggleStar   = (id, starred) => window.reviews.toggleStar(id, starred);
+window.deleteReview = (id)          => window.reviews.deleteReview(id);
+
+// Review filters
+window.filterReviewsByStore = (store) => {
+  const filtered = window._filteredReviews.filter(([, r]) => r.store === store);
+  const el = document.querySelector(".reviews-container");
+  if (el) el.innerHTML = window.reviews.reviewsToHtml(filtered);
+};
+window.filterReviewsByAssociate = (name) => {
+  const filtered = window._filteredReviews.filter(([, r]) => r.associate === name);
+  const el = document.querySelector(".reviews-container");
+  if (el) el.innerHTML = window.reviews.reviewsToHtml(filtered);
+};
+window.clearReviewFilter = () => {
+  const el = document.querySelector(".reviews-container");
+  if (el) el.innerHTML = window.reviews.reviewsToHtml(window._filteredReviews);
+};
+
+// Guest Form submissions actions
+window.deleteGuestFormEntry     = (id) => window.guestforms.deleteGuestFormEntry(id);
+window.continueGuestFormToGuest = (id) => window.guestforms.continueToGuestInfo(id);
+
+/* ------------------------------------------------------------------------
+   Expose render for modules
+   ------------------------------------------------------------------------ */
+window.renderAdminApp = renderAdminApp;
