@@ -1,69 +1,55 @@
-
 (() => {
   const ROLES = { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
-
-  /* Path to detailed guest-info workflow page (update if moved). */
   window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guestinfo.html";
 
-  /* ------------------------------------------------------------------
-     Local realtime caches
-     ------------------------------------------------------------------ */
-  let _gfRealtimeBound = false;
-  let _gfRerenderTimer = null;
+  /* ================================================================
+     Realtime caches
+     ================================================================ */
+  let _bound = false;
+  let _rerenderTimer = null;
 
-  // Always mirror latest form + guestinfo data for fast render / dup check
+  // global so dashboard & other modules can see current data
   window._guestFormsCache = window._guestFormsCache || {};
   window._guestinfo       = window._guestinfo       || {};
 
-  /* ------------------------------------------------------------------
+  /* ================================================================
      Role helpers
-     ------------------------------------------------------------------ */
+     ================================================================ */
   const isAdmin = r => r === ROLES.ADMIN;
   const isDM    = r => r === ROLES.DM;
   const isLead  = r => r === ROLES.LEAD;
   const isMe    = r => r === ROLES.ME;
 
-  // Admin, DM, Lead can delete guest form intakes.
+  // Admin, DM, Lead may delete an intake form.
   function canDeleteForm(role){
     return isAdmin(role) || isDM(role) || isLead(role);
   }
 
-  /* ------------------------------------------------------------------
-     Visibility filter
+  /* ================================================================
+     Visibility: which guestEntries does the viewer see?
      - Admin / DM: all
-     - Lead / ME: unclaimed + claimedBy self
-     ------------------------------------------------------------------ */
+     - Lead / ME: unclaimed or claimedBy self
+     ================================================================ */
   function visibleGuestForms(formsObj, currentRole, currentUid){
     if (!formsObj) return {};
     if (isAdmin(currentRole) || isDM(currentRole)) return formsObj;
-
     const out = {};
-    for (const [id, f] of Object.entries(formsObj)){
+    for (const [id,f] of Object.entries(formsObj)){
       const claimedBy = f.consumedBy || f.claimedBy;
-      if (!claimedBy || claimedBy === currentUid){
-        out[id] = f;
-      }
+      if (!claimedBy || claimedBy === currentUid) out[id] = f;
     }
     return out;
   }
 
-  /* ------------------------------------------------------------------
-     Date helpers: start/end of today
-     ------------------------------------------------------------------ */
-  function startOfTodayMs(){
-    const d = new Date();
-    d.setHours(0,0,0,0);
-    return d.getTime();
-  }
-  function endOfTodayMs(){
-    const d = new Date();
-    d.setHours(23,59,59,999);
-    return d.getTime();
-  }
+  /* ================================================================
+     Date helpers
+     ================================================================ */
+  const startOfTodayMs = () => { const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); };
+  const endOfTodayMs   = () => { const d=new Date(); d.setHours(23,59,59,999); return d.getTime(); };
 
-  /* ------------------------------------------------------------------
-     Duplicate phone helper (match against guestinfo cache)
-     ------------------------------------------------------------------ */
+  /* ================================================================
+     DUP helper (match phone in guestinfo)
+     ================================================================ */
   const digitsOnly = str => (str||"").replace(/\D+/g,"");
   function findGuestinfoByPhone(guestinfoObj, phone){
     const pd = digitsOnly(phone);
@@ -74,62 +60,71 @@
     return null;
   }
 
-  /* ------------------------------------------------------------------
-     RENDER SECTION
-     ------------------------------------------------------------------ */
+  /* ================================================================
+     Escape HTML for safe text injection
+     ================================================================ */
+  function esc(str){
+    return (str ?? "")
+      .toString()
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#39;");
+  }
+
+  /* ================================================================
+     Render Section -> HTML
+     ================================================================ */
   function renderGuestFormsSection(guestForms, currentRole, currentUid){
     currentUid  = currentUid  || window.currentUid;
     currentRole = currentRole || window.currentRole;
 
-    const fullFormsObj = guestForms || {};
-    const visFormsObj  = visibleGuestForms(fullFormsObj, currentRole, currentUid);
+    const formsObj = guestForms || {};
+    const visForms = visibleGuestForms(formsObj, currentRole, currentUid);
     const guestinfoObj = window._guestinfo || {};
 
-    const idsAll = Object.keys(visFormsObj);
+    const idsAll = Object.keys(visForms);
     if (!idsAll.length){
       return `
-        <section class="admin-section guest-forms-section">
+        <section id="guest-forms-section" class="admin-section guest-forms-section">
           <h2>Guest Form Submissions</h2>
           <p class="text-center">No guest form submissions.</p>
         </section>`;
     }
 
     // sort newest first
-    idsAll.sort((a,b) => (visFormsObj[b].timestamp||0) - (visFormsObj[a].timestamp||0));
+    idsAll.sort((a,b)=>(visForms[b].timestamp||0)-(visForms[a].timestamp||0));
 
-    // default to TODAY if not set
-    if (typeof window._guestforms_showAll === "undefined"){
-      window._guestforms_showAll = false;
-    }
+    // default filter state
+    if (typeof window._guestforms_showAll === "undefined") window._guestforms_showAll = false;
 
     const startToday = startOfTodayMs();
     const endToday   = endOfTodayMs();
 
     const idsRender = window._guestforms_showAll
       ? idsAll
-      : idsAll.filter(id => {
-          const ts = visFormsObj[id].timestamp || 0;
+      : idsAll.filter(id=>{
+          const ts = visForms[id].timestamp || 0;
           return ts >= startToday && ts <= endToday;
         });
 
     const showingTodayOnly = !window._guestforms_showAll;
 
-    // Do we have any rows *outside* today? (controls toggle visibility)
+    // Are there any non-today rows? Controls toggle visibility.
     const anyOlder = idsAll.some(id => {
-      const ts = visFormsObj[id].timestamp || 0;
+      const ts = visForms[id].timestamp || 0;
       return ts < startToday || ts > endToday;
     });
 
-    // Build table rows
-    const rows = idsRender.map(id => {
-      const f = visFormsObj[id];
+    const rowsHtml = idsRender.map(id=>{
+      const f = visForms[id];
       const ts = f.timestamp ? new Date(f.timestamp).toLocaleString() : "-";
-      const name = f.guestName || "-";
-      const phone = f.guestPhone || "-";
+      const name = esc(f.guestName || "-");
+      const phone = esc(f.guestPhone || "-");
       const consumed = !!(f.guestinfoKey || f.consumedBy);
       const actionLabel = consumed ? "Open" : "Continue";
 
-      // DUP badge
       const dup = findGuestinfoByPhone(guestinfoObj, f.guestPhone);
       const dupBadge = dup ? `<span class="role-badge role-guest" title="Existing lead">DUP</span>` : "";
 
@@ -137,7 +132,7 @@
         ? `<small style="opacity:.7;">claimed</small>`
         : `<small style="opacity:.7;">unclaimed</small>`;
 
-      const deleteBtn = canDeleteForm(currentRole)
+      const delBtn = canDeleteForm(currentRole)
         ? `<button class="btn btn-danger btn-sm" onclick="window.guestforms.deleteGuestFormEntry('${id}')">Delete</button>`
         : "";
 
@@ -147,10 +142,14 @@
         <td data-label="Submitted">${ts}<br>${claimInfo}</td>
         <td data-label="Action">
           <button class="btn btn-primary btn-sm" onclick="window.guestforms.continueToGuestInfo('${id}')">${actionLabel}</button>
-          ${deleteBtn}
+          ${delBtn}
         </td>
       </tr>`;
     }).join("");
+
+    // fallback row if filter hides everything
+    const emptyTodayRow = `<tr><td colspan="4" class="text-center"><i>No guest forms in this view.</i></td></tr>`;
+    const bodyHtml = rowsHtml.length ? rowsHtml : emptyTodayRow;
 
     const toggleBtn = anyOlder
       ? `<button class="btn btn-secondary btn-sm" onclick="window.guestforms.toggleShowAll()">
@@ -158,16 +157,12 @@
          </button>`
       : "";
 
-    const emptyTodayMsg = (!window._guestforms_showAll && !rows)
-      ? `<tr><td colspan="4" class="text-center"><i>No guest forms today.</i></td></tr>`
-      : "";
-
     return `
-      <section class="admin-section guest-forms-section">
+      <section id="guest-forms-section" class="admin-section guest-forms-section">
         <h2>Guest Form Submissions</h2>
         <div class="review-controls" style="justify-content:flex-end;">${toggleBtn}</div>
         <div class="guest-forms-table-wrap">
-          <table class="store-table guest-forms-table">
+          <table class="store-table guest-forms-table table-stackable">
             <thead>
               <tr>
                 <th>Name</th>
@@ -176,73 +171,83 @@
                 <th>Action</th>
               </tr>
             </thead>
-            <tbody>${rows || emptyTodayMsg}</tbody>
+            <tbody>${bodyHtml}</tbody>
           </table>
         </div>
       </section>
     `;
   }
 
-  /* ------------------------------------------------------------------
-     Partial DOM patch: replace the guest-forms-section in page
-     ------------------------------------------------------------------ */
+  /* ================================================================
+     DOM Patch
+     ================================================================ */
   function patchGuestFormsDom(){
-    const target = document.querySelector(".guest-forms-section");
-    const html   = renderGuestFormsSection(window._guestFormsCache, window.currentRole, window.currentUid);
-    if (!target){
-      // section not yet rendered; force full dashboard render
-      if (typeof window.renderAdminApp === "function") window.renderAdminApp();
+    const html = renderGuestFormsSection(window._guestFormsCache, window.currentRole, window.currentUid);
+    const existing = document.getElementById("guest-forms-section");
+    if (!existing){
+      // section not yet rendered; let next full render include it
       return;
     }
-    // Replace outerHTML to rebuild section cleanly
-    target.outerHTML = html;
+    existing.outerHTML = html;
   }
 
-  /* ------------------------------------------------------------------
-     Throttled rerender (prevents cascade of renders on many updates)
-     ------------------------------------------------------------------ */
-  function scheduleGuestFormsRerender(delay=75){
-    if (_gfRerenderTimer) return;
-    _gfRerenderTimer = setTimeout(() => {
-      _gfRerenderTimer = null;
+  function scheduleRerender(delay=60){
+    if (_rerenderTimer) return;
+    _rerenderTimer = setTimeout(()=>{
+      _rerenderTimer = null;
       patchGuestFormsDom();
     }, delay);
   }
 
-  /* ------------------------------------------------------------------
-     Realtime init (idempotent)
-     ------------------------------------------------------------------ */
+  /* ================================================================
+     REALTIME BIND
+     ================================================================ */
   function ensureRealtime(){
-    if (_gfRealtimeBound) return;
-    const db = window.db; // set by dashboard.js after firebase init
-    if (!db) return;      // try again later; dashboard should call again after init
+    if (_bound) return;
+    const db = window.db;
+    if (!db) return; // call again after firebase init
 
-    _gfRealtimeBound = true;
+    _bound = true;
 
-    // guestEntries live
-    db.ref("guestEntries").on("value", snap => {
+    // ----- guestEntries realtime -----
+    const formsRef = db.ref("guestEntries");
+
+    // full sync once
+    formsRef.once("value", snap => {
       window._guestFormsCache = snap.val() || {};
-      scheduleGuestFormsRerender();
+      scheduleRerender();
     });
 
-    // guestinfo live (needed for DUP detection + claimed statuses)
-    db.ref("guestinfo").on("value", snap => {
+    // incremental updates
+    formsRef.on("child_added", snap => {
+      window._guestFormsCache[snap.key] = snap.val();
+      scheduleRerender();
+    });
+    formsRef.on("child_changed", snap => {
+      window._guestFormsCache[snap.key] = snap.val();
+      scheduleRerender();
+    });
+    formsRef.on("child_removed", snap => {
+      delete window._guestFormsCache[snap.key];
+      scheduleRerender();
+    });
+
+    // ----- guestinfo realtime (needed for DUP + claimed status) -----
+    const giRef = db.ref("guestinfo");
+    giRef.on("value", snap => {
       window._guestinfo = snap.val() || {};
-      scheduleGuestFormsRerender();
+      scheduleRerender();
     });
   }
 
-  /* ------------------------------------------------------------------
-     Toggle Today<->All & re-render
-     ------------------------------------------------------------------ */
+  /* ================================================================
+     UI actions
+     ================================================================ */
   function toggleShowAll(){
     window._guestforms_showAll = !window._guestforms_showAll;
     patchGuestFormsDom();
   }
 
-  /* ------------------------------------------------------------------
-     Continue / Open flow
-     ------------------------------------------------------------------ */
   async function continueToGuestInfo(entryId){
     const currentUid = window.currentUid;
     if (!window.db){
@@ -250,7 +255,6 @@
       return;
     }
 
-    // read entry fresh
     const entrySnap = await window.db.ref(`guestEntries/${entryId}`).get();
     const entry = entrySnap.val();
     if (!entry){
@@ -258,47 +262,37 @@
       return;
     }
 
-    // Already linked?
     if (entry.guestinfoKey){
       openGuestInfoPage(entry.guestinfoKey);
       return;
     }
 
-    // build guestinfo payload
     const payload = {
       custName:    entry.guestName || "",
       custPhone:   entry.guestPhone || "",
       submittedAt: entry.timestamp || Date.now(),
       userUid:     currentUid || null,
       status:      "new",
-      source: {
-        type: "guestForm",
-        entryId
-      }
+      source: { type:"guestForm", entryId }
     };
 
-    // write new guestinfo
     const gRef = await window.db.ref("guestinfo").push(payload);
     const guestKey = gRef.key;
 
-    // back link on form
     await window.db.ref(`guestEntries/${entryId}`).update({
       guestinfoKey: guestKey,
       consumedBy: currentUid || null,
       consumedAt: Date.now()
     });
 
-    // caches will update via realtime; just patch quickly
-    scheduleGuestFormsRerender();
+    // caches will update via realtime; patch quickly anyway
+    scheduleRerender();
 
     if (!window.GUESTFORMS_NO_REDIRECT){
       openGuestInfoPage(guestKey);
     }
   }
 
-  /* ------------------------------------------------------------------
-     Delete form
-     ------------------------------------------------------------------ */
   async function deleteGuestFormEntry(entryId){
     if (!canDeleteForm(window.currentRole)){
       alert("You don't have permission to delete this form.");
@@ -316,26 +310,23 @@
 
     try {
       await window.db.ref(`guestEntries/${entryId}`).remove();
-      // realtime listener will update cache & UI
+      // realtime handles UI update
     } catch (err) {
       alert("Error deleting form: " + err.message);
     }
   }
 
-  /* ------------------------------------------------------------------
-     Helper: open guest info page
-     ------------------------------------------------------------------ */
   function openGuestInfoPage(guestKey){
     const base = window.GUESTINFO_PAGE || "guest-info.html";
     const sep  = base.includes("?") ? "&" : "?";
     const url  = `${base}${sep}entry=${encodeURIComponent(guestKey)}&gid=${encodeURIComponent(guestKey)}`;
-    try { localStorage.setItem("last_guestinfo_key", guestKey); } catch(_) {}
+    try { localStorage.setItem("last_guestinfo_key", guestKey); } catch(_){}
     window.location.href = url;
   }
 
-  /* ------------------------------------------------------------------
+  /* ================================================================
      Expose
-     ------------------------------------------------------------------ */
+     ================================================================ */
   window.guestforms = {
     renderGuestFormsSection,
     toggleShowAll,
@@ -344,7 +335,6 @@
     ensureRealtime
   };
 
-  // OPTIONAL auto-init if db already present when script loads
+  // Auto-attempt bind in case db already set by load order
   if (window.db) ensureRealtime();
-
 })();
