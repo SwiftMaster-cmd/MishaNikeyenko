@@ -1,4 +1,4 @@
-<script>
+
 (() => {
   const ROLES = { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
 
@@ -348,4 +348,3 @@
   if (window.db) ensureRealtime();
 
 })();
-</script>
