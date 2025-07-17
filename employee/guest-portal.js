@@ -1,68 +1,70 @@
 /* ==========================================================================
- * OSL Guest Portal  –  Autosave, Weighted Pitch, Revertable Steps
+ * OSL Guest Portal
+ * Autosave • Weighted Pitch • Revertable Steps • Collapsible Extras
  * ========================================================================== */
 
 /* --------------------------------------------------------------------------
- * Firebase init (guarded)
+ * Firebase init (guarded) – reuse existing app if present
  * ----------------------------------------------------------------------- */
-const firebaseConfig = {
-  apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
-  authDomain: "osls-644fd.firebaseapp.com",
-  databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
-  projectId: "osls-644fd",
-  storageBucket: "osls-644fd.appspot.com",
-  messagingSenderId: "798578046321",
-  appId: "1:798578046321:web:8758776701786a2fccf2d0",
-  measurementId: "G-9HWXNSBE1T"
-};
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+(function initFirebase(){
+  if (window.firebase && !firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+      authDomain: "osls-644fd.firebaseapp.com",
+      databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
+      projectId: "osls-644fd",
+      storageBucket: "osls-644fd.appspot.com",
+      messagingSenderId: "798578046321",
+      appId: "1:798578046321:web:8758776701786a2fccf2d0",
+      measurementId: "G-9HWXNSBE1T"
+    });
+  }
+})();
+
 const db   = firebase.database();
 const auth = firebase.auth();
 
 /* --------------------------------------------------------------------------
  * Tunables
  * ----------------------------------------------------------------------- */
-const AUTO_STATUS_ESCALATE = true;       // auto bump status based on data
-const AUTOSAVE_DEBOUNCE_MS = 600;        // wait after blur/change group
-const AUTOSAVE_IDLE_MS     = 3000;       // type idle (no blur) -> autosave
-const COMPLETION_DEBOUNCE_MS = 900;      // write /completion after save
+const AUTO_STATUS_ESCALATE    = true;   // auto bump status from data
+const AUTOSAVE_DEBOUNCE_MS    = 600;    // after blur/clustered events
+const AUTOSAVE_IDLE_MS        = 3000;   // type idle
+const COMPLETION_DEBOUNCE_MS  = 900;    // write /completion after save
+const SHOW_PREVIEW_THRESHOLD  = 1;      // % diff before showing preview
 
 /* --------------------------------------------------------------------------
- * Pitch Weights (adjust to taste; totals auto-sum)
+ * Pitch Weights
  * ----------------------------------------------------------------------- */
 const PITCH_WEIGHTS = {
   // Step 1
   custName:      8,
   custPhone:     7,
-
-  // Step 2 (core pillars first 5 = "bundle")
+  // Step 2 bundle (top 5)
   currentCarrier:12,
   numLines:      8,
   coverageZip:   8,
   deviceStatus:  8,
   finPath:       12,
-
-  // Optional extras (collapsed / details)
+  // Extras
   billPain:      4,
   dataNeed:      4,
   hotspotNeed:   2,
   intlNeed:      2,
-
-  // Legacy (0 pts – historical notes)
+  // Legacy notes (0 pts)
   serviceType:   0,
   situation:     0,
   carrierInfo:   0,
   requirements:  0,
-
   // Step 3
   solutionText:  25
 };
 
 /* Tier groupings for coaching chips */
-const TIER_A_FIELDS = ["currentCarrier","numLines","coverageZip","deviceStatus","finPath"]; // Must
-const TIER_B_FIELDS = ["billPain","dataNeed","hotspotNeed","intlNeed"];                     // Should
+const TIER_A_FIELDS = ["currentCarrier","numLines","coverageZip","deviceStatus","finPath"];
+const TIER_B_FIELDS = ["billPain","dataNeed","hotspotNeed","intlNeed"];
 
-/* Field -> step */
+/* Field → step */
 const FIELD_STEP = {
   custName:"step1", custPhone:"step1",
   currentCarrier:"step2", numLines:"step2", coverageZip:"step2",
@@ -72,7 +74,7 @@ const FIELD_STEP = {
   solutionText:"step3"
 };
 
-/* Status -> expected steps (only used if you need stage %) */
+/* Status → steps (stage % if desired) */
 const STATUS_STEPS = {
   new:["step1"],
   working:["step1","step2"],
@@ -81,7 +83,7 @@ const STATUS_STEPS = {
 };
 
 /* --------------------------------------------------------------------------
- * Utilities
+ * Light helpers
  * ----------------------------------------------------------------------- */
 const $  = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
@@ -94,26 +96,16 @@ function statusMsg(id,msg,cls=''){
   el.className='g-status';
   if(cls)el.classList.add(cls);
 }
+function esc(str){return (str??"").toString().replace(/[&<>"]/g,s=>({ "&":"&amp;","<":"&lt;",">":"&gt;"}[s]));}
 
-function detectStatus(g){
-  const s=(g?.status||"").toLowerCase();
-  if (s) return s;
-  if (g?.sale) return "sold";
-  if (g?.solution && g.solution.text) return "proposal";
-  if (g?.evaluate && hasAnyEvalData(g.evaluate)) return "working";
-  return "new";
-}
-function normGuest(g){
-  const out = g ? JSON.parse(JSON.stringify(g)) : {};
-  out.evaluate = out.evaluate || {};
-  out.solution = out.solution || {};
-  return out;
-}
+/* --------------------------------------------------------------------------
+ * Guest status detection (data-driven)
+ * ----------------------------------------------------------------------- */
 function hasVal(v){
   if (v==null) return false;
   if (typeof v==="string") return v.trim()!=="";
   if (typeof v==="number") return true;
-  if (typeof v==="boolean") return v; // only true counts
+  if (typeof v==="boolean") return v;
   if (Array.isArray(v)) return v.length>0;
   if (typeof v==="object") return Object.keys(v).length>0;
   return false;
@@ -136,9 +128,23 @@ function hasAnyEvalData(e){
     hasVal(e.requirements)
   );
 }
+function detectStatus(g){
+  const s=(g?.status||"").toLowerCase();
+  if (s) return s;
+  if (g?.sale) return "sold";
+  if (g?.solution && g.solution.text) return "proposal";
+  if (g?.evaluate && hasAnyEvalData(g.evaluate)) return "working";
+  return "new";
+}
+function normGuest(g){
+  const out = g ? JSON.parse(JSON.stringify(g)) : {};
+  out.evaluate = out.evaluate || {};
+  out.solution = out.solution || {};
+  return out;
+}
 
 /* --------------------------------------------------------------------------
- * Field accessors (guest object)
+ * Field accessors (logical → guest obj)
  * ----------------------------------------------------------------------- */
 function getFieldValue(g, key){
   const e=g?.evaluate||{};
@@ -209,7 +215,7 @@ function injectPrefillSummary(name,phone){
     summary.style.marginBottom='1rem';
     step2.insertBefore(summary,step2.firstChild);
   }
-  summary.innerHTML=`<b>Customer:</b> ${name||'-'} &nbsp; <b>Phone:</b> ${phone||'-'}`;
+  summary.innerHTML=`<b>Customer:</b> ${esc(name||'-')} &nbsp; <b>Phone:</b> ${esc(phone||'-')}`;
 }
 
 /* --------------------------------------------------------------------------
@@ -296,15 +302,12 @@ function ensureRevertLinks(){
 }
 
 /* --------------------------------------------------------------------------
- * Collapsible "extra eval" support (optional)
- * If your HTML already wraps extras in <details.gp-extra>, skip.
- * This is non-destructive; it won't double-wrap.
+ * Collapsible extra evaluation block
  * ----------------------------------------------------------------------- */
 function ensureEvalExtrasWrap(){
   const frm=$("#step2Form"); if(!frm)return;
   if(frm.querySelector('.gp-extra')) return; // already wrapped
 
-  // Identify nodes after the first 5 bundle questions (currentCarrier..finPath)
   const extraIds = [
     'billPain','dataNeed','hotspotNeed','intlNeed',
     'serviceType','situation','evalCarrier','evalRequirements'
@@ -318,10 +321,8 @@ function ensureEvalExtrasWrap(){
   det.innerHTML=`<summary>Show Extra Questions (optional)</summary><div class="gp-extra-inner"></div>`;
   const inner=det.querySelector('.gp-extra-inner');
 
-  // insert det before first extra element
   const firstExtra=extras[0];
   frm.insertBefore(det, firstExtra);
-
   extras.forEach(node=>inner.appendChild(node));
 }
 
@@ -338,7 +339,7 @@ function bindLivePreview(){
   const ids=[
     // step1
     'custName','custPhone',
-    // bundle (top 5)
+    // bundle
     'currentCarrierSel','numLines','coverageZip','deviceStatus','finPath',
     // extras
     'billPain','dataNeed','hotspotNeed','intlNeed',
@@ -354,27 +355,25 @@ function bindLivePreview(){
   });
 }
 
-/* Called on keystroke/change – update preview but don't save yet */
+/* Called on keystroke/change – update preview, schedule idle autosave */
 function handleLiveInput(){
-  // preview % from form data
   const live = buildGuestFromForms();
   const comp = computePitchFull(live);
   const savedPct = currentGuestObj? computePitchFull(currentGuestObj).pctFull : 0;
   const diff = Math.abs(comp.pctFull - savedPct);
-  setProgressPreview(diff>1?comp.pctFull:null);
+  setProgressPreview(diff>SHOW_PREVIEW_THRESHOLD?comp.pctFull:null);
   updateNbqChips(live);
 
-  // idle autosave if user pauses typing
   if(_idleTO) clearTimeout(_idleTO);
   _idleTO = setTimeout(()=>commitAutosaveFromDom(), AUTOSAVE_IDLE_MS);
 }
 
-/* Called when user leaves a field – commit sooner */
+/* Blur = save sooner */
 function handleFieldBlur(){
   commitAutosaveFromDom();
 }
 
-/* Build guest object from current form field values */
+/* Build guest object from current DOM */
 function buildGuestFromForms(){
   const g = currentGuestObj? JSON.parse(JSON.stringify(currentGuestObj)) : {status:"new",evaluate:{},solution:{}};
   g.evaluate = g.evaluate || {};
@@ -384,7 +383,7 @@ function buildGuestFromForms(){
   const nameEl=$("#custName"); if(nameEl)g.custName=nameEl.value.trim();
   const phoneEl=$("#custPhone"); if(phoneEl)g.custPhone=phoneEl.value.trim();
 
-  // Structured Step2 bundle
+  // Step2 structured
   const curEl=$("#currentCarrierSel"); if(curEl)g.evaluate.currentCarrier=curEl.value;
   const linesEl=$("#numLines"); if(linesEl)g.evaluate.numLines=linesEl.value?Number(linesEl.value):null;
   const zipEl=$("#coverageZip"); if(zipEl)g.evaluate.coverageZip=zipEl.value.trim();
@@ -397,7 +396,7 @@ function buildGuestFromForms(){
   const hotEl=$("#hotspotNeed"); if(hotEl){const v=hotEl.value; g.evaluate.hotspotNeed=(v===""?null:(v==="true")); }
   const intlEl=$("#intlNeed"); if(intlEl){const v=intlEl.value; g.evaluate.intlNeed=(v===""?null:(v==="true")); }
 
-  // legacy free text
+  // legacy
   const stEl=$("#serviceType"); if(stEl)g.evaluate.serviceType=stEl.value;
   const sitEl=$("#situation"); if(sitEl)g.evaluate.situation=sitEl.value.trim();
   const carEl=$("#evalCarrier"); if(carEl)g.evaluate.carrierInfo=carEl.value.trim();
@@ -406,10 +405,9 @@ function buildGuestFromForms(){
   // Step3
   const solEl=$("#solutionText"); if(solEl) { g.solution.text=solEl.value.trim(); }
 
-  // escalate status if configured
+  // escalate status
   if (AUTO_STATUS_ESCALATE) {
-    let next = detectStatus(g); // will derive from data if no explicit
-    g.status = next;
+    g.status = detectStatus(g);
   } else {
     g.status = currentGuestObj?.status || detectStatus(g);
   }
@@ -426,57 +424,57 @@ async function doAutosaveFromDom(){
   _autosaveTO=null;
   const g = buildGuestFromForms();
 
-  // create record if needed
+  /* create record if needed */
   if(!currentEntryKey){
-    const refPush = await db.ref('guestinfo').push({
-      custName:g.custName||"",
-      custPhone:g.custPhone||"",
-      submittedAt:Date.now(),
-      userUid:auth.currentUser?.uid||null,
-      status:detectStatus(g) || "new",
-      evaluate:g.evaluate||{},
-      solution:g.solution||null
-    });
-    currentEntryKey=refPush.key;
-    currentGuestObj=normGuest(g);
-    statusMsg('status1','Saved.','success');
+    try{
+      const refPush = await db.ref('guestinfo').push({
+        custName:g.custName||"",
+        custPhone:g.custPhone||"",
+        submittedAt:Date.now(),
+        userUid:auth.currentUser?.uid||null,
+        status:detectStatus(g) || "new",
+        evaluate:g.evaluate||{},
+        solution:hasVal(g.solution?.text)?{text:g.solution.text,completedAt:Date.now()}:null
+      });
+      currentEntryKey=refPush.key;
+      currentGuestObj=normGuest(g);
+      statusMsg('status1','Saved.','success');
+    }catch(err){
+      console.warn("autosave create failed",err);
+      statusMsg('status1','Save error','error'); return;
+    }
   }else{
-    // patch update (write minimal)
     const now=Date.now();
     const updates={};
-    updates[`guestinfo/${currentEntryKey}/custName`] = g.custName||"";
-    updates[`guestinfo/${currentEntryKey}/custPhone`] = g.custPhone||"";
-    updates[`guestinfo/${currentEntryKey}/evaluate`] = g.evaluate||{};
-    if (hasVal(g.solution?.text)) {
-      updates[`guestinfo/${currentEntryKey}/solution`] = {text:g.solution.text,completedAt: currentGuestObj?.solution?.completedAt || now};
-    } else {
-      updates[`guestinfo/${currentEntryKey}/solution`] = null;
-    }
-    updates[`guestinfo/${currentEntryKey}/status`] = detectStatus(g);
-    updates[`guestinfo/${currentEntryKey}/updatedAt`] = now;
-    try {
+    updates[`guestinfo/${currentEntryKey}/custName`]   = g.custName||"";
+    updates[`guestinfo/${currentEntryKey}/custPhone`]  = g.custPhone||"";
+    updates[`guestinfo/${currentEntryKey}/evaluate`]   = g.evaluate||{};
+    updates[`guestinfo/${currentEntryKey}/solution`]   = hasVal(g.solution?.text)?{text:g.solution.text,completedAt: currentGuestObj?.solution?.completedAt || now}:null;
+    updates[`guestinfo/${currentEntryKey}/status`]     = detectStatus(g);
+    updates[`guestinfo/${currentEntryKey}/updatedAt`]  = now;
+    try{
       await db.ref().update(updates);
       statusMsg('status1','Saved.','success');
       statusMsg('status2','Saved.','success');
       statusMsg('status3','Saved.','success');
-    } catch(err){
+    }catch(err){
       console.warn("autosave update failed",err);
       statusMsg('status1','Autosave error','error');
     }
     currentGuestObj = normGuest(g);
   }
 
-  // update saved progress bar
+  // update progress UI
   const comp = computePitchFull(currentGuestObj);
   setProgressSaved(comp.pctFull);
   setProgressPreview(null);
   updateNbqChips(currentGuestObj);
 
-  // schedule completion doc write separately
+  // scheduled /completion write
   if(_completionTO) clearTimeout(_completionTO);
   _completionTO = setTimeout(()=>writeCompletionPct(currentEntryKey,currentGuestObj), COMPLETION_DEBOUNCE_MS);
 
-  // adjust UI step highlight
+  // update nav highlight
   const s=detectStatus(currentGuestObj);
   markStepActive(s==="new"?"step1":(s==="working"?"step2":"step3"));
 }
@@ -517,7 +515,6 @@ function fieldToInputId(field){
 function focusField(field){
   const id=fieldToInputId(field); if(!id)return;
   const el=document.getElementById(id); if(!el)return;
-  // jump to correct step
   const st=FIELD_STEP[field]; if(st)gotoStep(st);
   el.focus({preventScroll:false});
   el.scrollIntoView({behavior:"smooth",block:"center"});
@@ -601,6 +598,15 @@ window.gpRevertTo = revertTo;
 let currentEntryKey=null;
 let currentGuestObj=null;
 
+/* detect if we came from the dashboard intake queue */
+function cameFromGuestForm(){
+  const src = (qs('source')||qs('src')||"").toLowerCase();
+  if (src.includes("gf") || src.includes("guestform")) return true;
+  // some older flows only pass ?entry=; treat as from GF when both entry & gid exist
+  if (qs('entry') && !qs('gid')) return true;
+  return false;
+}
+
 /* --------------------------------------------------------------------------
  * Load existing guest by ?gid or ?entry
  * ----------------------------------------------------------------------- */
@@ -619,7 +625,7 @@ async function loadExistingGuestIfParam(){
 }
 
 /* --------------------------------------------------------------------------
- * Write completion snapshot (/completion) – called after autosaves
+ * Write completion snapshot (/completion)
  * ----------------------------------------------------------------------- */
 async function writeCompletionPct(gid,g){
   if(!gid) return;
@@ -653,40 +659,45 @@ function syncUiToLoadedGuest(){
   setProgressPreview(null);
   updateNbqChips(g);
 
-  // Step nav active by status
-  const s=detectStatus(g);
-  markStepActive(s==="new"?"step1":(s==="working"?"step2":"step3"));
-
   // Step1 fields
-  const nEl=$("#custName"); if(nEl)nEl.value=g.custName||"";
-  const pEl=$("#custPhone"); if(pEl)pEl.value=g.custPhone||"";
+  $("#custName")?.value = g.custName || "";
+  $("#custPhone")?.value = g.custPhone || "";
 
-  // Step2 structured bundle + extras
+  // Step2 structured
   const e=g.evaluate||{};
-  const curEl=$("#currentCarrierSel"); if(curEl)curEl.value=e.currentCarrier||"";
-  const linesEl=$("#numLines"); if(linesEl)linesEl.value=(e.numLines!=null?e.numLines:"");
-  const zipEl=$("#coverageZip"); if(zipEl)zipEl.value=e.coverageZip||"";
-  const devEl=$("#deviceStatus"); if(devEl)devEl.value=e.deviceStatus||"";
-  const finEl=$("#finPath"); if(finEl)finEl.value=e.finPath||"";
-  const billEl=$("#billPain"); if(billEl)billEl.value=e.billPain||"";
-  const dataEl=$("#dataNeed"); if(dataEl)dataEl.value=e.dataNeed||"";
-  const hotEl=$("#hotspotNeed"); if(hotEl)hotEl.value=(e.hotspotNeed==null?"":String(!!e.hotspotNeed));
-  const intlEl=$("#intlNeed"); if(intlEl)intlEl.value=(e.intlNeed==null?"":String(!!e.intlNeed));
+  $("#currentCarrierSel")?.value = e.currentCarrier || "";
+  $("#numLines")?.value         = (e.numLines!=null?e.numLines:"");
+  $("#coverageZip")?.value      = e.coverageZip || "";
+  $("#deviceStatus")?.value     = e.deviceStatus || "";
+  $("#finPath")?.value          = e.finPath || "";
+  $("#billPain")?.value         = e.billPain || "";
+  $("#dataNeed")?.value         = e.dataNeed || "";
+  $("#hotspotNeed")?.value      = (e.hotspotNeed==null?"":String(!!e.hotspotNeed));
+  $("#intlNeed")?.value         = (e.intlNeed==null?"":String(!!e.intlNeed));
 
-  // legacy free text
-  const stEl=$("#serviceType"); if(stEl)stEl.value=e.serviceType||"";
-  const sitEl=$("#situation"); if(sitEl)sitEl.value=e.situation||"";
-  const carEl=$("#evalCarrier"); if(carEl)carEl.value=e.carrierInfo||"";
-  const reqEl=$("#evalRequirements"); if(reqEl)reqEl.value=e.requirements||"";
+  // legacy
+  $("#serviceType")?.value      = e.serviceType || "";
+  $("#situation")?.value        = e.situation || "";
+  $("#evalCarrier")?.value      = e.carrierInfo || "";
+  $("#evalRequirements")?.value = e.requirements || "";
 
   // Step3
   const sol=g.solution||{};
-  const solEl=$("#solutionText"); if(solEl)solEl.value=sol.text||"";
+  $("#solutionText")?.value = sol.text || "";
 
   injectPrefillSummary(g.custName,g.custPhone);
 
-  // Show/hide forms (all viewable via nav; default active based on status)
-  gotoStep(s==="new"?"step1":(s==="working"?"step2":"step3"));
+  /* decide which step to show */
+  let s = detectStatus(g);           // actual saved status
+  let initialStep = s==="new"?"step1":(s==="working"?"step2":"step3");
+
+  // override: came from guestForm & we already have Step1 info => start Step2 UI
+  if (s==="new" && cameFromGuestForm() && (hasVal(g.custName)||hasVal(g.custPhone))) {
+    initialStep = "step2";
+  }
+
+  gotoStep(initialStep);
+  markStepActive(initialStep);
 }
 
 /* --------------------------------------------------------------------------
@@ -705,7 +716,7 @@ auth.onAuthStateChanged(async user=>{
   const found=await loadExistingGuestIfParam();
   if(found){ syncUiToLoadedGuest(); return; }
 
-  // new record start @ step1 (not yet created in DB; created on first autosave)
+  // new record start @ step1 (not yet created in DB; created first autosave)
   currentGuestObj = { status:"new", evaluate:{}, solution:{} };
   setProgressSaved(0);
   updateNbqChips(currentGuestObj);
@@ -715,24 +726,24 @@ auth.onAuthStateChanged(async user=>{
 /* --------------------------------------------------------------------------
  * Manual submit fallbacks (still supported)
  * ----------------------------------------------------------------------- */
-document.getElementById('step1Form').addEventListener('submit',async e=>{
+document.getElementById('step1Form')?.addEventListener('submit',async e=>{
   e.preventDefault();
-  await doAutosaveFromDom(); // ensures record created & saved
+  await doAutosaveFromDom();
   gotoStep("step2");
 });
-document.getElementById('step2Form').addEventListener('submit',async e=>{
+document.getElementById('step2Form')?.addEventListener('submit',async e=>{
   e.preventDefault();
   await doAutosaveFromDom();
   gotoStep("step3");
 });
-document.getElementById('step3Form').addEventListener('submit',async e=>{
+document.getElementById('step3Form')?.addEventListener('submit',async e=>{
   e.preventDefault();
   await doAutosaveFromDom();
   gotoStep("step3");
 });
 
 /* --------------------------------------------------------------------------
- * Manual recompute global (for console)
+ * Manual recompute global (console)
  * ----------------------------------------------------------------------- */
 window.gpRecomputeCompletion = async function(gid){
   const key=gid||currentEntryKey; if(!key)return;
@@ -743,7 +754,7 @@ window.gpRecomputeCompletion = async function(gid){
 };
 
 /* --------------------------------------------------------------------------
- * Minimal CSS injection safety (if not already loaded in main CSS file)
+ * Minimal CSS injection (if global sheet missing)
  * ----------------------------------------------------------------------- */
 (function injectCssIfMissing(){
   if(document.getElementById('gp-progress-css'))return;
@@ -778,6 +789,6 @@ window.gpRecomputeCompletion = async function(gid){
 })();
 
 /* --------------------------------------------------------------------------
- * DOM ready guard: wire revert links if HTML includes them
+ * DOM ready: wire revert links if HTML includes them
  * ----------------------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded",ensureRevertLinks);
