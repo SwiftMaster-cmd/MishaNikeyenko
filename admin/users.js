@@ -1,17 +1,21 @@
-// users.js
 (() => {
-  const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
+  const ROLES = window.ROLES || { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
   const roleBadge = r => `<span class="role-badge role-${r}">${r.toUpperCase()}</span>`;
 
+  // Use dynamic permission checks from admin.js
   function assertEdit() {
-    if (!window.currentRole || window.currentRole === ROLES.ME) throw "PERM_DENIED_EDIT";
+    if (!window.canEdit || !window.canEdit(window.currentRole)) throw "PERM_DENIED_EDIT";
   }
+
   function canEdit(role) {
-    return role !== ROLES.ME;
+    if (!window.canEdit) return false;
+    return window.canEdit(role);
   }
+
   function canDelete(role) {
-    return role === ROLES.DM || role === ROLES.ADMIN;
+    if (!window.canDelete) return false;
+    return window.canDelete(role);
   }
 
   function renderUsersSection(users, currentRole) {
@@ -83,7 +87,7 @@
   }
 
   async function deleteUser(uid) {
-    if (!canDelete(window.currentRole)) throw "PERM_DENIED_DELETE";
+    if (!window.canDelete || !window.canDelete(window.currentRole)) throw "PERM_DENIED_DELETE";
     if (confirm("Delete this user?")) {
       await window.db.ref(`users/${uid}`).remove();
       await window.renderAdminApp();

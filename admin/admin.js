@@ -4,14 +4,14 @@
 
 window.ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
-// Default permission rules, mutable live by admin UI
+// Default mutable permission rules (can be changed live)
 window.permissionRules = {
   canEdit:   { me: false, lead: true,  dm: true,  admin: true  },
   canDelete: { me: false, lead: false, dm: true,  admin: true  },
   canAssign: { me: false, lead: true,  dm: true,  admin: true  }
 };
 
-// Permission check helpers (case-insensitive role)
+// Permission check helpers (normalize role to lowercase)
 window.canEdit = function(role) {
   if (!role) return false;
   return !!window.permissionRules.canEdit[role.toLowerCase()];
@@ -26,9 +26,9 @@ window.canAssign = function(role) {
 };
 
 /**
- * Render Role Management section for admins only.
+ * Render Role Management UI (only for admins)
  * @param {string} currentRole
- * @returns {string} HTML string or empty string if not admin
+ * @returns {string} HTML or empty string if not admin
  */
 window.renderRoleManagementSection = function(currentRole) {
   if (!currentRole || currentRole.toLowerCase() !== window.ROLES.ADMIN) return '';
@@ -37,11 +37,11 @@ window.renderRoleManagementSection = function(currentRole) {
   const roles = Object.values(window.ROLES);
 
   const rows = roles.map(role => {
-    const roleLower = role.toLowerCase();
+    const r = role.toLowerCase();
     const cells = permTypes.map(perm => {
-      const checked = window.permissionRules[perm][roleLower] ? 'checked' : '';
+      const checked = window.permissionRules[perm][r] ? 'checked' : '';
       return `<td style="text-align:center;">
-        <input type="checkbox" data-role="${roleLower}" data-perm="${perm}" ${checked}>
+        <input type="checkbox" data-role="${r}" data-perm="${perm}" ${checked}>
       </td>`;
     }).join('');
     return `<tr>
@@ -80,18 +80,18 @@ window.renderRoleManagementSection = function(currentRole) {
   `;
 };
 
-// Live update permissions on checkbox change (event delegation)
+// Event delegation to update permissionRules on checkbox toggle
 document.addEventListener('change', (event) => {
   const el = event.target;
   if (!el.matches('.role-management-section input[type="checkbox"]')) return;
 
   const role = el.dataset.role;
   const perm = el.dataset.perm;
-  if (!role || !perm) return;
 
+  if (!role || !perm) return;
   if (window.permissionRules[perm] && role in window.permissionRules[perm]) {
     window.permissionRules[perm][role] = el.checked;
     console.log(`Permission updated: ${perm} for ${role} = ${el.checked}`);
-    // Optionally persist changes to backend here
+    // Optional: persist changes remotely here
   }
 });
