@@ -1,7 +1,7 @@
-window.renderStoreSection = function(stores, users) {
-/* ========================================================================
-   Stores Logic
-   ===================================================================== */
+// ==========================
+// Store Management Module
+// ==========================
+
 async function renderStoresSection(stores, users) {
   const storeRows = Object.entries(stores).map(([id, s]) => {
     const tl = users[s.teamLeadUid] || {};
@@ -14,7 +14,8 @@ async function renderStoresSection(stores, users) {
           <option value="">-- Unassigned --</option>
           ${Object.entries(users)
             .filter(([, u]) => [ROLES.LEAD, ROLES.DM].includes(u.role))
-            .map(([uid, u]) => `<option value="${uid}" ${s.teamLeadUid === uid ? 'selected' : ''}>${u.name || u.email}</option>`).join('')}
+            .map(([uid, u]) => `<option value="${uid}" ${s.teamLeadUid === uid ? 'selected' : ''}>${u.name || u.email}</option>`)
+            .join('')}
         </select>` : (tl.name || tl.email || '-')}
         ${tl.role ? roleBadge(tl.role) : ''}
       </td>
@@ -37,7 +38,8 @@ async function renderStoresSection(stores, users) {
     </section>`;
 }
 
-window.assignTL = async (storeId, uid) => {
+// ========== Store Actions ==========
+async function assignTL(storeId, uid) {
   assertEdit();
   const stores = (await db.ref("stores").get()).val() || {};
   for (const sId in stores)
@@ -50,38 +52,26 @@ window.assignTL = async (storeId, uid) => {
     await db.ref(`users/${uid}`).update({ store: num, role: ROLES.LEAD });
   }
   renderAdminApp();
-};
+}
 
-window.updateStoreNumber = async (id, val) => {
+async function updateStoreNumber(id, val) {
   assertEdit();
   await db.ref(`stores/${id}/storeNumber`).set(val);
   renderAdminApp();
-};
+}
 
-window.addStore = async () => {
+async function addStore() {
   assertEdit();
   const num = document.getElementById("newStoreNum").value.trim();
   if (!num) return alert("Enter store #");
   await db.ref("stores").push({ storeNumber: num, teamLeadUid: "" });
   renderAdminApp();
-};
+}
 
-window.editStorePrompt = async storeId => {
-  assertEdit();
-  const snap = await db.ref(`stores/${storeId}`).get();
-  const old = snap.val()?.storeNumber || "";
-  const nn = prompt("Edit store number:", old);
-  if (nn && nn !== old) {
-    await db.ref(`stores/${storeId}/storeNumber`).set(nn);
-    renderAdminApp();
-  }
-};
-
-window.deleteStore = async id => {
+async function deleteStore(id) {
   assertDelete();
   if (confirm("Delete this store?")) {
     await db.ref(`stores/${id}`).remove();
     renderAdminApp();
   }
 }
-};

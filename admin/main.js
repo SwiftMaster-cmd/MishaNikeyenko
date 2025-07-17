@@ -1,4 +1,7 @@
-// --- Firebase Init ---
+// ==========================
+// Firebase Init + RBAC Core
+// ==========================
+
 const firebaseConfig = {
   apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
@@ -10,44 +13,38 @@ const firebaseConfig = {
   measurementId: "G-9HWXNSBE1T"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+const db   = firebase.database();
 const auth = firebase.auth();
 
-// --- Auth + Load ---
+const adminAppDiv = document.getElementById("adminApp");
+
+// ===== ROLES =====
+const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
+let currentUid  = null;
+let currentRole = ROLES.ME;
+
+const canEdit   = r => r !== ROLES.ME;
+const canDelete = r => r === ROLES.DM || r === ROLES.ADMIN;
+const assertEdit   = () => { if (!canEdit(currentRole)) throw "PERM_DENIED_EDIT"; };
+const assertDelete = () => { if (!canDelete(currentRole)) throw "PERM_DENIED_DELETE"; };
+const roleBadge = r => `<span class="role-badge role-${r}">${r.toUpperCase()}</span>`;
+
+// ===== Auth Bootstrap =====
 auth.onAuthStateChanged(async user => {
   if (!user) return window.location.href = "index.html";
+
+  currentUid = user.uid;
   const snap = await db.ref("users/" + user.uid).get();
   const prof = snap.val() || {
-    role: "me",
-    name: user.displayName || user.email,
+    role : ROLES.ME,
+    name : user.displayName || user.email,
     email: user.email
   };
-  await db.ref("users/" + user.uid).update(prof);
 
-  window.currentUid = user.uid;
-  window.currentRole = prof.role;
+  await db.ref("users/" + user.uid).update(prof);
+  currentRole = prof.role || ROLES.ME;
+
   document.getElementById("logoutBtn")?.addEventListener("click", () => auth.signOut());
 
-  renderDashboard(); // Trigger full admin view
+  renderAdminApp(); // calls into main.js
 });
-
-// --- Master Render ---
-async function renderDashboard() {
-  const [storesSnap, usersSnap, reviewsSnap, guestSnap] = await Promise.all([
-    db.ref("stores").get(),
-    db.ref("users").get(),
-    db.ref("reviews").get(),
-    db.ref("guestinfo").get()
-  ]);
-  const stores = storesSnap.val() || {};
-  const users = usersSnap.val() || {};
-  const reviews = reviewsSnap.val() || {};
-  const guestinfo = guestSnap.val() || {};
-
-  document.getElementById("adminApp").innerHTML =
-    renderStoreSection(stores, users) +
-    renderUserSection(users) +
-    renderReviewSection(reviews) +
-    renderGuestInfoSection(guestinfo, users) +
-    renderGuestFormsSection();
-}
