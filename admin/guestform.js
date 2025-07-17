@@ -1,274 +1,260 @@
 (() => {
-  const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
+  const ROLES = { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
 
-  /* ------------------------------------------------------------------
-     Permission helpers
-     ------------------------------------------------------------------ */
-  function canEditStoreNumber(role) {
-    return role === ROLES.ADMIN;
-  }
-  function canAssignTL(role) {
-    return role === ROLES.ADMIN || role === ROLES.DM;
-  }
-  function canDelete(role) {
-    return role === ROLES.ADMIN || role === ROLES.DM;
-  }
-  function assertEdit() {
-    if (!window.currentRole || window.currentRole !== ROLES.ADMIN) throw "PERM_DENIED_EDIT";
-  }
-  function assertAssign() {
-    if (
-      !window.currentRole ||
-      !(window.currentRole === ROLES.ADMIN || window.currentRole === ROLES.DM)
-    ) {
-      throw "PERM_DENIED_ASSIGN";
-    }
-  }
-  function assertDelete() {
-    if (!canDelete(window.currentRole)) throw "PERM_DENIED_DELETE";
+  /* Path to detailed guest-info workflow page.
+     Adjust if you move the file. */
+  window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guest-info.html";
+
+  /* --------------------------------------------------------------
+     Role helpers
+     -------------------------------------------------------------- */
+  function isAdmin(role){ return role === ROLES.ADMIN; }
+  function isDM(role){ return role === ROLES.DM; }
+  function isLead(role){ return role === ROLES.LEAD; }
+  function isMe(role){ return role === ROLES.ME; }
+
+  function canDeleteForm(role){
+    return isAdmin(role) || isDM(role);
   }
 
-  const roleBadge = (r) => `<span class="role-badge role-${r}">${r.toUpperCase()}</span>`;
+  /* --------------------------------------------------------------
+     Visibility filter
+     - Admin / DM: all
+     - Lead / ME: unclaimed + claimedBy self
+     -------------------------------------------------------------- */
+  function visibleGuestForms(formsObj, currentRole, currentUid){
+    if (!formsObj) return {};
+    if (isAdmin(currentRole) || isDM(currentRole)) return formsObj;
 
-  /* ------------------------------------------------------------------
-     Normalize helpers
-     ------------------------------------------------------------------ */
-  const UNASSIGNED_KEY = "__UNASSIGNED__";
-
-  function normStore(sn) {
-    return (sn ?? "").toString().trim();
-  }
-
-  /**
-   * Try to derive the *canonical* storeNumber for a sale if missing/bad.
-   * Order:
-   *   1. sale.storeNumber (trimmed)
-   *   2. guestinfo[guestinfoKey].sale.storeNumber
-   *   3. users[guestinfo.userUid].store
-   *   4. match submitter's team lead -> that TL's store (if exactly one store uses that TL)
-   * Else UNASSIGNED_KEY.
-   */
-  function deriveStoreNumberForSale(sale, guestinfoObj, users, storesObj) {
-    let sn = normStore(sale.storeNumber);
-
-    if (!sn && sale.guestinfoKey && guestinfoObj) {
-      const g = guestinfoObj[sale.guestinfoKey];
-      if (g) {
-        sn = normStore(g.sale?.storeNumber);
-        if (!sn) sn = normStore(users?.[g.userUid]?.store);
-        if (!sn && g.userUid) {
-          // try via lead->store mapping
-          const submitter = users?.[g.userUid];
-          const leadUid = submitter?.assignedLead;
-          if (leadUid) {
-            // find a store with that teamLeadUid; if exactly one, use it
-            const matchStores = Object.values(storesObj || {}).filter(
-              (st) => st.teamLeadUid === leadUid
-            );
-            if (matchStores.length === 1) {
-              sn = normStore(matchStores[0].storeNumber);
-            }
-          }
-        }
-      }
-    }
-
-    if (!sn) sn = UNASSIGNED_KEY;
-    return sn;
-  }
-
-  /* ------------------------------------------------------------------
-     Sales summarizer (normalized)
-     ------------------------------------------------------------------ */
-  function summarizeSalesByStore(salesObj, storesObj, guestinfoObj, users) {
     const out = {};
-    if (!salesObj) return out;
-
-    for (const [, s] of Object.entries(salesObj)) {
-      const sn = deriveStoreNumberForSale(s, guestinfoObj, users, storesObj);
-      if (!out[sn]) out[sn] = { count: 0, units: 0 };
-      out[sn].count += 1;
-      out[sn].units += Number(s.units || 0);
+    for (const [id, f] of Object.entries(formsObj)){
+      const claimedBy = f.consumedBy || f.claimedBy;
+      const unclaimed = !claimedBy;
+      if (unclaimed || claimedBy === currentUid){
+        out[id] = f;
+      }
     }
     return out;
   }
 
-  /* ------------------------------------------------------------------
-     Get ME users tied to a store
-     - Primary: user.store === storeNumber
-     - Fallback: user.assignedLead === store.teamLeadUid
-     ------------------------------------------------------------------ */
-  function getMesForStore(users, storeNumber, teamLeadUid) {
-    const match = new Set();
-    const mes = [];
-
-    const sn = normStore(storeNumber);
-
-    for (const [uid, u] of Object.entries(users)) {
-      if (u.role !== ROLES.ME) continue;
-
-      // store match
-      if (sn && u.store && normStore(u.store) === sn) {
-        if (!match.has(uid)) {
-          match.add(uid);
-          mes.push({ uid, ...u });
-          continue;
-        }
-      }
-
-      // lead relationship fallback
-      if (teamLeadUid && u.assignedLead === teamLeadUid && !match.has(uid)) {
-        match.add(uid);
-        mes.push({ uid, ...u });
-      }
+  /* --------------------------------------------------------------
+     Duplicate flag helper (phone match in guestinfo)
+     -------------------------------------------------------------- */
+  function phoneDigits(str){
+    return (str||"").replace(/\D+/g,"");
+  }
+  function findGuestinfoByPhone(guestinfoObj, phone){
+    if (!phone) return null;
+    const pd = phoneDigits(phone);
+    if (!pd) return null;
+    for (const [gid,g] of Object.entries(guestinfoObj||{})){
+      if (phoneDigits(g.custPhone) === pd) return {gid,g};
     }
-    return mes;
+    return null;
   }
 
-  function fmtMesCell(mesArr) {
-    if (!mesArr || !mesArr.length) return "-";
-    const names = mesArr.map((u) => u.name || u.email || u.uid);
-    const shown = names.slice(0, 3).join(", ");
-    const extra = names.length > 3 ? ` +${names.length - 3}` : "";
-    return `${shown}${extra}`;
-  }
+  /* --------------------------------------------------------------
+     Render section
+     -------------------------------------------------------------- */
+  function renderGuestFormsSection(guestForms, currentRole, currentUid){
+    currentUid  = currentUid  || window.currentUid;
+    currentRole = currentRole || window.currentRole;
 
-  /* ------------------------------------------------------------------
-     Format sales cell: count / units
-     ------------------------------------------------------------------ */
-  function fmtSalesCell(summ) {
-    if (!summ) return "-";
-    return `${summ.count} / ${summ.units}u`;
-  }
+    const fullFormsObj = guestForms || {};
+    const visFormsObj  = visibleGuestForms(fullFormsObj, currentRole, currentUid);
 
-  /* ------------------------------------------------------------------
-     Render Stores
-     ------------------------------------------------------------------ */
-  function renderStoresSection(stores, users, currentRole, salesObj) {
-    // fallback to cached global objects
-    const _salesObj    = salesObj || window._sales     || {};
-    const _guestinfo   = window._guestinfo             || {};
-    const _users       = users                         || window._users || {};
-    const _stores      = stores                        || window._stores || {};
+    const guestinfoObj = window._guestinfo || {};
 
-    const salesSummary = summarizeSalesByStore(_salesObj, _stores, _guestinfo, _users);
+    const ids = Object.keys(visFormsObj);
+    if (!ids.length){
+      return `
+        <section class="admin-section guest-forms-section">
+          <h2>Guest Form Submissions</h2>
+          <p class="text-center">No new guest form submissions.</p>
+        </section>`;
+    }
 
-    const storeRows = Object.entries(stores).map(([id, s]) => {
-      const tl = users[s.teamLeadUid] || {};
-      const storeNumber = s.storeNumber || "";
-      const summ = salesSummary[normStore(storeNumber)];
-      const mesArr = getMesForStore(users, storeNumber, s.teamLeadUid);
-      const mesCell = fmtMesCell(mesArr);
+    // sort newest first
+    ids.sort((a,b) => (visFormsObj[b].timestamp||0) - (visFormsObj[a].timestamp||0));
 
-      return `<tr>
-        <td>${canEditStoreNumber(currentRole)
-          ? `<input type="text" value="${storeNumber}" onchange="window.stores.updateStoreNumber('${id}',this.value)">`
-          : storeNumber || '-'}</td>
-        <td>
-          ${canAssignTL(currentRole) ? `<select onchange="window.stores.assignTL('${id}',this.value)">
-            <option value="">-- Unassigned --</option>
-            ${Object.entries(users)
-              .filter(([, u]) => [ROLES.LEAD, ROLES.DM].includes(u.role))
-              .map(
-                ([uid, u]) =>
-                  `<option value="${uid}" ${s.teamLeadUid === uid ? 'selected' : ''}>${u.name || u.email}</option>`
-              )
-              .join("")}
-          </select>` : (tl.name || tl.email || '-')}
-          ${tl.role ? roleBadge(tl.role) : ''}
-        </td>
-        <td>${mesCell}</td>
-        <td>${fmtSalesCell(summ)}</td>
-        <td>${canDelete(currentRole)
-          ? `<button class="btn btn-danger" onclick="window.stores.deleteStore('${id}')">Delete</button>`
-          : ''}</td>
-      </tr>`;
-    }).join("");
+    // top controls: show/hide consumed (only if there are consumed)
+    const anyConsumed = ids.some(id => visFormsObj[id].guestinfoKey || visFormsObj[id].consumedBy);
+    const showAll = !isMe(currentRole) && !isLead(currentRole); // admin/dm default show all
+    // We'll set a data attr & let toggle button re-render by flipping global
+    if (typeof window._guestforms_showAll === "undefined"){
+      window._guestforms_showAll = showAll;
+    }
 
-    // Unassigned row?
-    const unassignedSumm = salesSummary[UNASSIGNED_KEY];
-    const unassignedRow = unassignedSumm
-      ? `<tr class="unassigned-row">
-          <td colspan="2"><i>Unassigned sales (no matching store)</i></td>
-          <td>-</td>
-          <td>${fmtSalesCell(unassignedSumm)}</td>
-          <td></td>
-        </tr>`
+    const rows = ids
+      .filter(id => {
+        if (window._guestforms_showAll) return true;
+        const f = visFormsObj[id];
+        return !(f.guestinfoKey || f.consumedBy); // only unclaimed
+      })
+      .map(id => {
+        const f = visFormsObj[id];
+        const ts = f.timestamp ? new Date(f.timestamp).toLocaleString() : "-";
+        const name = f.guestName || "-";
+        const phone = f.guestPhone || "-";
+        const consumed = !!(f.guestinfoKey || f.consumedBy);
+        const actionLabel = consumed ? "Open" : "Continue";
+
+        // dup?
+        const dup = findGuestinfoByPhone(guestinfoObj, f.guestPhone);
+        const dupBadge = dup ? `<span class="role-badge role-guest" title="Existing lead">DUP</span>` : "";
+
+        // claim info string
+        const claimInfo = consumed
+          ? `<small style="opacity:.7;">claimed</small>`
+          : `<small style="opacity:.7;">unclaimed</small>`;
+
+        const deleteBtn = canDeleteForm(currentRole)
+          ? `<button class="btn btn-danger btn-sm" onclick="window.guestforms.deleteGuestFormEntry('${id}')">Delete</button>`
+          : "";
+
+        return `<tr class="${consumed?'consumed':''}">
+          <td>${name} ${dupBadge}</td>
+          <td>${phone}</td>
+          <td>${ts}<br>${claimInfo}</td>
+          <td>
+            <button class="btn btn-primary btn-sm" onclick="window.guestforms.continueToGuestInfo('${id}')">${actionLabel}</button>
+            ${deleteBtn}
+          </td>
+        </tr>`;
+      })
+      .join("");
+
+    const toggleBtn = anyConsumed
+      ? `<button class="btn btn-secondary btn-sm" onclick="window.guestforms.toggleShowAll()">
+           ${window._guestforms_showAll ? "Hide Claimed" : "Show All"}
+         </button>`
       : "";
 
     return `
-      <section class="admin-section stores-section">
-        <h2>Stores</h2>
-        <table class="store-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Team Lead</th>
-              <th>Associates (MEs)</th>
-              <th>Sales<br><small>Cnt / Units</small></th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>${storeRows}${unassignedRow}</tbody>
-        </table>
-        ${currentRole === ROLES.ADMIN ? `
-          <div class="store-add">
-            <input id="newStoreNum" placeholder="New Store #">
-            <button onclick="window.stores.addStore()">Add Store</button>
-          </div>` : ''}
+      <section class="admin-section guest-forms-section">
+        <h2>Guest Form Submissions</h2>
+        <div class="review-controls" style="justify-content:flex-end;">${toggleBtn}</div>
+        <div class="guest-forms-table-wrap">
+          <table class="store-table guest-forms-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Submitted</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
       </section>
     `;
   }
 
-  /* ------------------------------------------------------------------
-     Actions
-     ------------------------------------------------------------------ */
-  async function assignTL(storeId, uid) {
-    assertAssign();
-    const stores = (await window.db.ref("stores").get()).val() || {};
-    for (const sId in stores) {
-      if (stores[sId].teamLeadUid === uid && sId !== storeId) {
-        await window.db.ref(`stores/${sId}/teamLeadUid`).set("");
+  /* --------------------------------------------------------------
+     Toggle show/hide consumed & re-render
+     -------------------------------------------------------------- */
+  function toggleShowAll(){
+    window._guestforms_showAll = !window._guestforms_showAll;
+    window.renderAdminApp();
+  }
+
+  /* --------------------------------------------------------------
+     Continue / Open flow
+     - If form already linked to guestinfoKey, just open page
+     - Else create new guestinfo record seeded w/ name/phone
+     - Mark form consumed
+     - Redirect (unless suppressed)
+     -------------------------------------------------------------- */
+  async function continueToGuestInfo(entryId){
+    const currentUid  = window.currentUid;
+    const currentRole = window.currentRole;
+
+    // read entry fresh
+    const entrySnap = await window.db.ref(`guestEntries/${entryId}`).get();
+    const entry = entrySnap.val();
+    if (!entry){
+      alert("Guest form not found.");
+      return;
+    }
+
+    // Already linked?
+    if (entry.guestinfoKey){
+      openGuestInfoPage(entry.guestinfoKey);
+      return;
+    }
+
+    // build guestinfo payload
+    const payload = {
+      custName:    entry.guestName || "",
+      custPhone:   entry.guestPhone || "",
+      submittedAt: entry.timestamp || Date.now(),
+      userUid:     currentUid || null,
+      status:      "new",
+      source: {
+        type: "guestForm",
+        entryId: entryId
       }
-    }
-    await window.db.ref(`stores/${storeId}/teamLeadUid`).set(uid);
-    if (uid) {
-      const num = (await window.db.ref(`stores/${storeId}/storeNumber`).get()).val();
-      await window.db.ref(`users/${uid}`).update({ store: num, role: ROLES.LEAD });
-    }
-    window.renderAdminApp();
-  }
+    };
 
-  async function updateStoreNumber(id, val) {
-    assertEdit();
-    await window.db.ref(`stores/${id}/storeNumber`).set(val);
-    window.renderAdminApp();
-  }
+    // write
+    const gRef = await window.db.ref("guestinfo").push(payload);
+    const guestKey = gRef.key;
 
-  async function addStore() {
-    assertEdit();
-    const num = document.getElementById("newStoreNum").value.trim();
-    if (!num) return alert("Enter store #");
-    await window.db.ref("stores").push({ storeNumber: num, teamLeadUid: "" });
-    window.renderAdminApp();
-  }
+    // back link on form
+    await window.db.ref(`guestEntries/${entryId}`).update({
+      guestinfoKey: guestKey,
+      consumedBy: currentUid || null,
+      consumedAt: Date.now()
+    });
 
-  async function deleteStore(id) {
-    assertDelete();
-    if (confirm("Delete this store?")) {
-      await window.db.ref(`stores/${id}`).remove();
-      window.renderAdminApp();
+    await window.renderAdminApp();
+
+    if (!window.GUESTFORMS_NO_REDIRECT){
+      openGuestInfoPage(guestKey);
     }
   }
 
-  // expose
-  window.stores = {
-    renderStoresSection,
-    assignTL,
-    updateStoreNumber,
-    addStore,
-    deleteStore,
-    summarizeSalesByStore,
-    getMesForStore
+  /* --------------------------------------------------------------
+     Delete form
+     - If linked, warn user we are only deleting the form intake;
+       the full guestinfo stays.
+     -------------------------------------------------------------- */
+  async function deleteGuestFormEntry(entryId){
+    const entrySnap = await window.db.ref(`guestEntries/${entryId}`).get();
+    const entry = entrySnap.val();
+    if (!entry) return;
+
+    const linked = !!entry.guestinfoKey;
+    const msg = linked
+      ? "Delete this guest form submission? (The full guest info record will NOT be deleted.)"
+      : "Delete this guest form submission?";
+    if (!confirm(msg)) return;
+
+    try {
+      await window.db.ref(`guestEntries/${entryId}`).remove();
+      await window.renderAdminApp();
+    } catch (err) {
+      alert("Error deleting form: " + err.message);
+    }
+  }
+
+  /* --------------------------------------------------------------
+     Helper: open guest info page
+     -------------------------------------------------------------- */
+  function openGuestInfoPage(guestKey){
+    const base = window.GUESTINFO_PAGE || "guest-info.html";
+    const sep  = base.includes("?") ? "&" : "?";
+    window.location.href = `${base}${sep}gid=${encodeURIComponent(guestKey)}`;
+  }
+
+  /* --------------------------------------------------------------
+     Expose
+     -------------------------------------------------------------- */
+  window.guestforms = {
+    renderGuestFormsSection,
+    toggleShowAll,
+    continueToGuestInfo,
+    deleteGuestFormEntry
   };
 })();
