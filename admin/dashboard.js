@@ -69,9 +69,10 @@ async function renderAdminApp() {
   const reviews = reviewsSnap.val() || {};
   const guestinfo = guestSnap.val() || {};
 
-  const storesHtml = window.stores?.renderStoresSection
+  // Hide stores section if role is ME
+  const storesHtml = (currentRole !== ROLES.ME && window.stores?.renderStoresSection)
     ? window.stores.renderStoresSection(stores, users, currentRole)
-    : `<p class="text-center">Stores module not loaded.</p>`;
+    : "";
 
   const usersHtml = window.users?.renderUsersSection
     ? window.users.renderUsersSection(users, currentRole, currentUid)
@@ -98,7 +99,6 @@ async function renderAdminApp() {
     ${roleMgmtHtml}
   `;
 
-  // Cache for filters and globals
   window._allReviews = Object.entries(reviews).sort(
     (a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0)
   );

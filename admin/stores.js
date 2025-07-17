@@ -53,13 +53,13 @@
 
   async function assignTL(storeId, uid) {
     assertEdit();
-    const stores=(await window.db.ref("stores").get()).val()||{};
-    for(const sId in stores) if(stores[sId].teamLeadUid===uid&&sId!==storeId)
+    const stores = (await window.db.ref("stores").get()).val()||{};
+    for(const sId in stores) if(stores[sId].teamLeadUid===uid && sId!==storeId)
       await window.db.ref(`stores/${sId}/teamLeadUid`).set("");
     await window.db.ref(`stores/${storeId}/teamLeadUid`).set(uid);
     if(uid){
-      const num=(await window.db.ref(`stores/${storeId}/storeNumber`).get()).val();
-      await window.db.ref(`users/${uid}`).update({store:num,role:ROLES.LEAD});
+      const num = (await window.db.ref(`stores/${storeId}/storeNumber`).get()).val();
+      await window.db.ref(`users/${uid}`).update({store: num, role: ROLES.LEAD});
     }
     window.renderAdminApp();
   }
@@ -72,9 +72,9 @@
 
   async function addStore() {
     assertEdit();
-    const num=document.getElementById("newStoreNum").value.trim();
-    if(!num)return alert("Enter store #");
-    await window.db.ref("stores").push({storeNumber:num,teamLeadUid:""});
+    const num = document.getElementById("newStoreNum").value.trim();
+    if(!num) return alert("Enter store #");
+    await window.db.ref("stores").push({storeNumber: num, teamLeadUid: ""});
     window.renderAdminApp();
   }
 
