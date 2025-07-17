@@ -1,22 +1,23 @@
-// guestforms.js
+// ==============================
+// Guest Info Management Module
+// ==============================
 
-window.renderGuestFormsSection = (guestinfo, users) => {
-  const entries = Object.entries(guestinfo).sort((a, b) => (b[1].submittedAt || 0) - (a[1].submittedAt || 0));
-
-  const links = entries.map(([id, g]) => `
-    <div class="guestform-card" onclick="window.location.href='employee/guest-portal.html?formId=${id}'">
-      <div><b>Customer:</b> ${g.custName || '-'} | <b>Phone:</b> ${g.custPhone || '-'}</div>
+async function renderGuestInfoSection(guestinfo, users) {
+  const guestEntries = Object.entries(guestinfo).sort((a, b) => (b[1].submittedAt || 0) - (a[1].submittedAt || 0));
+  const guestCards = guestEntries.map(([id, g]) => `
+    <div class="guest-card">
       <div><b>Submitted by:</b> ${users[g.userUid]?.name || users[g.userUid]?.email || g.userUid}</div>
+      <div><b>Customer:</b> ${g.custName || '-'} | <b>Phone:</b> ${g.custPhone || '-'}</div>
       <div><b>Type:</b> ${g.serviceType || '-'}</div>
-      <div><b>Submitted At:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : '-'}</div>
+      <div><b>Situation:</b> ${g.situation || '-'}</div>
+      <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : '-'}</div>
     </div>
   `).join('');
 
   return `
-    <section class="admin-section guestforms-section">
-      <h2>Guest Forms</h2>
-      <div class="guestforms-container">
-        ${links}
-      </div>
-    </section>`;
-};
+    <section class="admin-section guestinfo-section">
+      <h2>Guest Info</h2>
+      <div class="guestinfo-container">${guestCards}</div>
+    </section>
+  `;
+}
