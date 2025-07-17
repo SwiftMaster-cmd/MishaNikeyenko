@@ -17,7 +17,7 @@
     return window.canDelete(role);
   }
 
-  // Filter visible users based on current role and current user id
+  // Filter visible users based on role and current user ID
   function filterVisibleUsers(users, currentUid, currentRole) {
     if (!users || !currentUid || !currentRole) return [];
 
@@ -25,21 +25,18 @@
 
     return Object.entries(users).filter(([uid, u]) => {
       if (currentRole === ROLES.ADMIN) {
-        return true; // Admin sees all
+        return true;
       }
       if (currentRole === ROLES.DM) {
-        // DM sees all except Admins
         return u.role !== ROLES.ADMIN;
       }
       if (currentRole === ROLES.LEAD) {
-        // Lead sees ME assigned to them + their assigned DM + self
         if (u.role === ROLES.ME && u.assignedLead === currentUid) return true;
         if (u.role === ROLES.DM && currentUser.assignedDM === uid) return true;
         if (uid === currentUid) return true;
         return false;
       }
       if (currentRole === ROLES.ME) {
-        // ME sees self + their Lead + their DM
         if (uid === currentUid) return true;
         if (uid === currentUser.assignedLead) return true;
         if (uid === currentUser.assignedDM) return true;
@@ -49,8 +46,7 @@
     });
   }
 
-  // Render function now requires currentUid parameter
-  function renderUsersSection(users, currentUid, currentRole) {
+  function renderUsersSection(users, currentRole, currentUid) {
     const visibleUsers = filterVisibleUsers(users, currentUid, currentRole);
 
     return `
@@ -61,13 +57,11 @@
             const lead = users[u.assignedLead] || {};
             const dm = users[u.assignedDM] || {};
 
-            // Permissions per currentRole:
             const canEditRole = (currentRole === ROLES.ADMIN) || (currentRole === ROLES.DM && u.role !== ROLES.ADMIN);
             const canAssignLead = (currentRole === ROLES.ADMIN) || (currentRole === ROLES.DM);
             const canAssignDM = (currentRole === ROLES.ADMIN);
             const canDeleteUser = (currentRole === ROLES.ADMIN) || (currentRole === ROLES.DM);
 
-            // ME and Lead cannot edit or assign or delete
             const isEditable = canEditRole || canAssignLead || canAssignDM || canDeleteUser;
 
             return `<div class="user-card">

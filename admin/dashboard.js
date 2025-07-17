@@ -37,7 +37,6 @@ auth.onAuthStateChanged(async (user) => {
     name: user.displayName || user.email,
     email: user.email,
   };
-  // Normalize role to lowercase to avoid mismatch
   currentRole = (prof.role || ROLES.ME).toLowerCase();
   window.currentRole = currentRole;
 
@@ -45,7 +44,7 @@ auth.onAuthStateChanged(async (user) => {
 
   document.getElementById("logoutBtn")?.addEventListener("click", () => auth.signOut());
 
-  renderAdminApp();
+  await renderAdminApp();
 });
 
 function assertEdit() {
@@ -70,27 +69,22 @@ async function renderAdminApp() {
   const reviews = reviewsSnap.val() || {};
   const guestinfo = guestSnap.val() || {};
 
-  // Stores section
   const storesHtml = window.stores?.renderStoresSection
     ? window.stores.renderStoresSection(stores, users, currentRole)
     : `<p class="text-center">Stores module not loaded.</p>`;
 
-  // Users section
   const usersHtml = window.users?.renderUsersSection
-    ? window.users.renderUsersSection(users, currentRole)
+    ? window.users.renderUsersSection(users, currentRole, currentUid)
     : `<p class="text-center">Users module not loaded.</p>`;
 
-  // Reviews section
   const reviewsHtml = window.reviews?.renderReviewsSection
     ? window.reviews.renderReviewsSection(reviews, currentRole)
     : `<p class="text-center">Reviews module not loaded.</p>`;
 
-  // Guest info section
   const guestinfoHtml = window.guestinfo?.renderGuestinfoSection
     ? window.guestinfo.renderGuestinfoSection(guestinfo, users)
     : `<p class="text-center">Guest Info module not loaded.</p>`;
 
-  // Role Management section for admins only
   const roleMgmtHtml =
     typeof window.renderRoleManagementSection === "function"
       ? window.renderRoleManagementSection(currentRole)
