@@ -60,20 +60,27 @@
   <!-- Modal root (messages.js will populate) -->
   <div id="messagesModalRoot"></div>
 
+
+
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-  <!-- Core logic and modules -->
+  <!-- Core init FIRST -->
   <script src="admin.js"></script>
+
+  <!-- Other modules (can read window.db that admin.js exports) -->
   <script src="users.js"></script>
   <script src="reviews.js"></script>
   <script src="stores.js"></script>
   <script src="guestinfo.js"></script>
   <script src="guestform.js"></script>
-  <!-- NEW -->
+
+  <!-- Messages AFTER admin.js so firebase is ready -->
   <script src="messages.js"></script>
+
+  <!-- Dashboard renderer last -->
   <script src="dashboard.js"></script>
 </body>
 </html>
