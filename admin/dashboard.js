@@ -1,4 +1,4 @@
-<script>
+
 /* ========================================================================
    Dashboard Main Script (Realtime + Performance Highlights)
    Order: Guest Form Submissions → Guest Info → Stores → Users → Reviews → Role Mgmt
@@ -635,4 +635,3 @@ window.continueGuestFormToGuest = (id) => window.guestforms.continueToGuestInfo(
    Expose render for modules that call window.renderAdminApp()
    ------------------------------------------------------------------------ */
 window.renderAdminApp = renderAdminApp;
-</script>
