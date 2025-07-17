@@ -1,12 +1,18 @@
 /* ==========================================================================
-   DASHBOARD MOBILE-FIRST THEME
+   DASHBOARD v3 MOBILE-FIRST THEME
+   ==========================================================================
+   - Mobile first: 100% width, fluid spacing & type
+   - Prevent iOS input zoom (min 16px font-size at small screens)
+   - Non-repeating, full-cover background
+   - Scroll-safe tables; optional stack-to-cards via .table-stackable
+   - Unified buttons, cards, role badges
+   - Load LAST so it overrides legacy styles
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   Design Tokens (root)
+   Design Tokens
    -------------------------------------------------------------------------- */
 :root {
-  /* Color */
   --brand:            #1e90ff;
   --brand-hover:      #4aa8ff;
   --brand-focus-ring: rgba(30,144,255,.6);
@@ -37,13 +43,12 @@
 
   --table-stripe:     rgba(255,255,255,.03);
 
-  /* Radius */
   --radius-sm:        4px;
   --radius-md:        8px;
   --radius-lg:        16px;
   --radius-xl:        20px;
 
-  /* Spacing scale (mobile-first; scales w/ viewport) */
+  /* Spacing (mobile-first fluid) */
   --space-2xs: clamp(2px, .25vw, 4px);
   --space-xs:  clamp(4px, .5vw, 8px);
   --space-sm:  clamp(8px, 1vw, 12px);
@@ -51,7 +56,7 @@
   --space-lg:  clamp(24px, 4vw, 40px);
   --space-xl:  clamp(32px, 6vw, 64px);
 
-  /* Type */
+  /* Type scale */
   --fs-2xs: clamp(.7rem, 1.5vw, .75rem);
   --fs-xs:  clamp(.8rem, 1.8vw, .85rem);
   --fs-sm:  clamp(.9rem, 2vw, .95rem);
@@ -60,11 +65,9 @@
   --fs-xl:  clamp(1.6rem, 5vw, 1.75rem);
   --fs-xxl: clamp(2rem, 7vw, 2.5rem);
 
-  /* Layers */
   --z-header: 100;
   --z-modal:  1000;
 
-  /* Motion */
   --dur-fast: .12s;
   --dur-med:  .25s;
   --dur-slow: .4s;
@@ -72,7 +75,6 @@
   --ease-in:  cubic-bezier(.42,0,1,1);
   --ease-io:  cubic-bezier(.42,0,.58,1);
 
-  /* Shadows */
   --shadow-card:   0 4px 12px rgba(0,0,0,.6);
   --shadow-card-h: 0 8px 24px rgba(0,0,0,.8);
   --shadow-btn:    0 4px 14px rgba(30,144,255,.4);
@@ -83,9 +85,7 @@
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce){
-  :root {
-    --dur-fast:0ms; --dur-med:0ms; --dur-slow:0ms;
-  }
+  :root { --dur-fast:0ms; --dur-med:0ms; --dur-slow:0ms; }
   *{transition:none!important;animation:none!important;}
 }
 
@@ -93,13 +93,20 @@
    Base / Reset Extensions
    ========================================================================== */
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;}
+html,body{
+  height:100%;
+  min-height:100%;
+  background:linear-gradient(135deg,var(--bg-page-a) 0%,var(--bg-page-b) 100%) no-repeat;
+  background-size:cover;
+  background-attachment:scroll; /* change to fixed if you prefer parallax */
+  color:var(--text-med);
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+  max-width:100%;
+  overflow-x:hidden;
+}
 body{
   font-family:'Segoe UI','SF Pro',Arial,sans-serif;
-  background:linear-gradient(135deg,var(--bg-page-a) 0%,var(--bg-page-b) 100%);
-  color:var(--text-med);
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
   padding-bottom:var(--space-xl);
   font-size:var(--fs-md);
   line-height:1.4;
@@ -109,7 +116,7 @@ button{font-family:inherit;font-size:inherit;line-height:inherit;}
 a{color:var(--brand);text-decoration:none;}
 a:hover{text-decoration:underline;}
 
-/* Scrollbars (webkit) */
+/* Scrollbars */
 ::-webkit-scrollbar{width:10px;height:10px;}
 ::-webkit-scrollbar-track{background:rgba(255,255,255,.05);}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:5px;}
@@ -150,7 +157,7 @@ a:hover{text-decoration:underline;}
 }
 .admin-header button:hover{box-shadow:var(--shadow-btn-h);}
 
-/* Logout (header variant) */
+/* Logout */
 #logoutBtn{
   background:rgba(255,255,255,.1);
   color:var(--text-hi);
@@ -175,14 +182,12 @@ a:hover{text-decoration:underline;}
   grid-template-columns:1fr;
   gap:var(--space-lg);
 }
-
-/* Expand layout on larger screens */
 @media (min-width:768px){
   #adminApp{max-width:90%;gap:var(--space-xl);}
 }
 @media (min-width:1200px){
   #adminApp{max-width:1200px;}
-  /* Optional: 2-col; comment out if linear only */
+  /* opt-in for 2-col: uncomment if desired */
   /* #adminApp{grid-template-columns:1fr 1fr;} */
   /* #adminApp>.admin-section.section-span-2{grid-column:span 2;} */
 }
@@ -209,7 +214,7 @@ a:hover{text-decoration:underline;}
   margin-bottom:var(--space-md);
 }
 
-/* Collapsible (opt-in, JS sets data-open) */
+/* Collapsible (opt-in) */
 .admin-section.collapsible>.section-header{
   display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;
 }
@@ -235,8 +240,13 @@ input:focus,select:focus,textarea:focus{
   box-shadow:0 0 0 2px var(--brand-focus-ring);
 }
 
+/* iOS zoom prevention: ensure tap targets >=16px */
+@media (max-width:600px){
+  input,select,textarea,button,.btn,.gfield{font-size:16px!important;line-height:1.2;}
+}
+
 /* ==========================================================================
-   Buttons (Utility Classes)
+   Buttons
    ========================================================================== */
 button,.btn,.login-btn{
   border:none;
@@ -265,10 +275,18 @@ button,.btn,.login-btn{
 .btn-ghost{background:transparent;color:var(--brand);}
 .btn-ghost:hover{background:rgba(30,144,255,.15);}
 
-/* Make buttons full-width on very narrow screens where helpful */
+/* Make button stacks friendly on small screens */
 @media (max-width:480px){
-  .btn-responsive,.user-card-actions button,.store-add button,.guest-forms-table td button,.guest-card button{width:100%;margin-top:var(--space-xs);}
-  .guest-forms-table td button:first-child{margin-top:0;}
+  .btn-responsive,
+  .user-card-actions button,
+  .review-controls button,
+  .guest-card .guest-edit-form button,
+  .guest-forms-table td button,
+  .store-add button{
+    width:100%!important;
+    margin-top:var(--space-xs)!important;
+  }
+  .guest-forms-table td button:first-child{margin-top:0!important;}
 }
 
 /* ==========================================================================
@@ -293,12 +311,16 @@ button,.btn,.login-btn{
 /* ==========================================================================
    Tables (Global)
    ========================================================================== */
-.table-responsive-wrapper{
-  width:100%;
-  max-width:100%;
-  overflow-x:auto;
+/* Use wrapper div to contain horizontal scroll */
+.table-responsive-wrapper,
+.guest-forms-table-wrap,
+.store-table-wrap{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
   -webkit-overflow-scrolling:touch;
 }
+
 table{
   width:100%;
   border-collapse:collapse;
@@ -315,7 +337,15 @@ td{color:var(--text-med);}
 tr:nth-child(odd){background:var(--table-stripe);}
 td:last-child{text-align:right;}
 
-/* Stackable tables (opt-in) */
+/* Optional smaller min-width override for very narrow screens */
+@media (max-width:400px){
+  .guest-forms-table,
+  .store-table{
+    min-width:360px;
+  }
+}
+
+/* Stackable tables (opt-in via .table-stackable) */
 @media (max-width:600px){
   .table-stackable,
   .table-stackable thead,
@@ -481,8 +511,6 @@ td:last-child{text-align:right;}
   color:var(--text-muted);
 }
 .review-meta b{color:var(--text-med);}
-
-/* Small screens verticalize */
 @media (max-width:600px){
   .review-header{flex-direction:column;align-items:flex-start;}
   .review-meta{flex-direction:column;gap:var(--space-xs);}
@@ -500,7 +528,6 @@ td:last-child{text-align:right;}
   overflow-x:auto;
   -webkit-overflow-scrolling:touch;
 }
-
 .guest-forms-table{
   width:100%;
   border-collapse:collapse;
@@ -521,7 +548,6 @@ td:last-child{text-align:right;}
 .guest-forms-table tr.consumed td{opacity:.7;}
 .guest-forms-table tr.linked td{background:var(--success-bg);}
 
-/* Stack when opt-in */
 @media (max-width:640px){
   .guest-forms-table.table-stackable,
   .guest-forms-table.table-stackable thead,
@@ -588,13 +614,11 @@ td:last-child{text-align:right;}
   color:var(--text-med);
 }
 .guest-card .guest-display b{color:var(--text-hi);}
-
 .guest-card .guest-sale-summary{
   margin-top:var(--space-xs);
   font-size:var(--fs-xs);
   color:var(--success);
 }
-
 .guest-card form.guest-edit-form{
   margin-top:var(--space-sm);
   padding-top:var(--space-sm);
@@ -625,5 +649,5 @@ td:last-child{text-align:right;}
 .w-100{width:100%!important;}
 .section-span-2{grid-column:span 2;}
 
-/* Debug */
+/* Debug helper */
 /* *{outline:1px dashed rgba(255,0,0,.2);} */

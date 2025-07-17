@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <title>OSL Admin Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Mobile viewport: prevents iOS auto-zoom quirks; allows full-bleed into safe areas -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+  <!-- Optional: improve mobile status bar / color scheme -->
+  <meta name="theme-color" content="#0f1117" />
+  <meta name="color-scheme" content="dark light" />
+
   <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
@@ -12,9 +19,7 @@
     <button id="logoutBtn">Logout</button>
   </div>
 
-  <div id="adminApp" class="admin-app-container">
-
-  </div>
+  <div id="adminApp" class="admin-app-container"></div>
 
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -22,14 +27,12 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <!-- Core logic and modules -->
-
-
-<script src="admin.js"></script>          <!-- Role Management & permissionRules -->
-<script src="users.js"></script>
-<script src="reviews.js"></script>
-<script src="stores.js"></script>
-<script src="guestinfo.js"></script>
-<script src="guestform.js"></script> <!-- NEW -->
-<script src="dashboard.js"></script>      <!-- This file -->
+  <script src="admin.js"></script>
+  <script src="users.js"></script>
+  <script src="reviews.js"></script>
+  <script src="stores.js"></script>
+  <script src="guestinfo.js"></script>
+  <script src="guestform.js"></script>
+  <script src="dashboard.js"></script>
 </body>
 </html>
