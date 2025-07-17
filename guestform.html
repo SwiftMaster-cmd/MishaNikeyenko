@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Guest Form</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 24px;
+      background: #f4f6fa;
+      color: #222;
+    }
+    input, button, label {
+      display: block;
+      margin: 16px 0;
+      font-size: 16px;
+      width: 100%;
+      max-width: 400px;
+      padding: 10px;
+    }
+    button {
+      background: #1976d2;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>Guest Form</h2>
+  <form id="guestForm">
+    <input type="text" id="guestName" placeholder="Your name" required>
+    <input type="tel" id="guestPhone" placeholder="Phone number" required>
+
+    <label>
+      <input type="checkbox" id="agreeTerms" required>
+      I agree to the <a href="terms.html" target="_blank">terms</a>.
+    </label>
+
+    <button type="submit">Submit</button>
+  </form>
+
+  <!-- Firebase + Logic -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+      authDomain: "osls-644fd.firebaseapp.com",
+      databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
+      projectId: "osls-644fd",
+      storageBucket: "osls-644fd.appspot.com",
+      messagingSenderId: "798578046321",
+      appId: "1:798578046321:web:8758776701786a2fccf2d0"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const form = document.getElementById("guestForm");
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const guestName = document.getElementById("guestName").value.trim();
+      const guestPhone = document.getElementById("guestPhone").value.trim();
+      const agree = document.getElementById("agreeTerms").checked;
+
+      if (!guestName || !guestPhone || !agree) {
+        alert("Please fill out all fields and agree to the terms.");
+        return;
+      }
+
+      const entry = {
+        guestName,
+        guestPhone,
+        timestamp: Date.now()
+      };
+
+      try {
+        await db.ref("guestEntries").push(entry);
+        alert("Submitted successfully.");
+        form.reset();
+      } catch (err) {
+        alert("Error submitting: " + err.message);
+      }
+    };
+  </script>
+</body>
+</html>
