@@ -7,6 +7,12 @@
   <link rel="stylesheet" href="guest-portal.css" />
 </head>
 <body>
+  <!-- Small top header with Back button -->
+  <header class="guest-header">
+    <!-- Plain href works even if JS fails -->
+    <a id="backToDash" class="guest-back-btn" href="../admin/admin.html" aria-label="Back to Dashboard">← Dashboard</a>
+  </header>
+
   <div class="guest-box">
 
     <!-- Step 1: only name & phone -->
@@ -24,7 +30,7 @@
       <div class="g-status" id="status1"></div>
     </form>
 
-    <!-- Step 2: evaluate now includes serviceType & situation -->
+    <!-- Step 2: evaluate -->
     <form id="step2Form" class="hidden">
       <div class="guest-title">Step 2: Evaluate</div>
 
@@ -55,7 +61,7 @@
       <div class="g-status" id="status2"></div>
     </form>
 
-    <!-- Step 3: solution unchanged -->
+    <!-- Step 3: solution -->
     <form id="step3Form" class="hidden">
       <div class="guest-title">Step 3: Solution</div>
 
@@ -73,6 +79,23 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <script>
+    /* Optional: centralize dashboard URL. If you ever move it,
+       change in ONE place (here or set before this inline script). */
+    window.DASHBOARD_URL = window.DASHBOARD_URL || "../admin/admin.html";
+    window.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("backToDash");
+      if (btn && window.DASHBOARD_URL) {
+        btn.addEventListener("click", (e) => {
+          // allow modifier-clicks to open in new tab
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          e.preventDefault();
+          window.location.href = window.DASHBOARD_URL;
+        });
+      }
+    });
+  </script>
 
   <script src="guest-portal.js"></script>
 </body>
