@@ -2,7 +2,7 @@
   const ROLES = { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
 
   /* Path to detailed guest-info workflow page (correct w/ hyphen). */
-  window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guest-info.html";
+  window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guestinfo.html";
 
   /* --------------------------------------------------------------
      Role helpers
