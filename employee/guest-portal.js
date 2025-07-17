@@ -1,6 +1,6 @@
-// guest-portal.js
+// employee/guest-portal.js
 
-// Initialize Firebase
+// Firebase init guard (employee pages may load after dashboard)
 const firebaseConfig = {
   apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
@@ -11,29 +11,28 @@ const firebaseConfig = {
   appId: "1:798578046321:web:8758776701786a2fccf2d0",
   measurementId: "G-9HWXNSBE1T"
 };
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
 const db   = firebase.database();
 const auth = firebase.auth();
 
-let currentEntryKey = null;  // guestinfo/<key>
+let currentEntryKey = null; // guestinfo/<key>
 
-// --- helpers ---
 function qs(name) {
   const params = new URLSearchParams(window.location.search);
   return params.get(name);
 }
-function show(id)  { document.getElementById(id)?.classList.remove('hidden'); }
-function hide(id)  { document.getElementById(id)?.classList.add('hidden');  }
-function setStatus(id, msg, cls='') {
+function show(id) { document.getElementById(id)?.classList.remove('hidden'); }
+function hide(id) { document.getElementById(id)?.classList.add('hidden'); }
+function statusMsg(id, msg, cls='') {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = msg;
   el.className   = 'g-status';
   if (cls) el.classList.add(cls);
 }
-
-// Prefill summary (optional UI injection)
 function injectPrefillSummary(name, phone) {
   const step2 = document.getElementById('step2Form');
   if (!step2) return;
@@ -48,50 +47,47 @@ function injectPrefillSummary(name, phone) {
   summary.innerHTML = `<b>Customer:</b> ${name || '-'} &nbsp; <b>Phone:</b> ${phone || '-'}`;
 }
 
-// 1️⃣ Auth guard: only redirect if NOT signed in
+// Auth guard
 auth.onAuthStateChanged(async user => {
   if (!user) {
-    window.location.href = "login.html";
+    window.location.href = "../login.html";
     return;
   }
-
-  // Check for ?entry=guestinfoKey -- if present we *load* and skip Step 1
-  const existingKey = qs('entry');
-  if (existingKey) {
+  const entryParam = qs('entry');
+  if (entryParam) {
     try {
-      const snap = await db.ref(`guestinfo/${existingKey}`).get();
+      const snap = await db.ref(`guestinfo/${entryParam}`).get();
       const data = snap.val();
       if (data) {
-        currentEntryKey = existingKey;
-        // hide Step 1, go to Step 2
+        currentEntryKey = entryParam;
+        // hide Step 1, show Step 2, prefill summary
         hide('step1Form');
         show('step2Form');
         injectPrefillSummary(data.custName, data.custPhone);
-        return; // stop here; Step1 handler will never run
-      } else {
-        console.warn('guest-portal: entry not found; fallback to Step 1 flow');
+        return;
       }
     } catch (e) {
-      console.error('guest-portal load error', e);
+      console.error("guest-portal: load error", e);
     }
   }
-  // otherwise stay on Step1 normal flow
+  // fallback: show Step 1
+  show('step1Form');
 });
 
-// 2️⃣ STEP 1 → push only name & phone (only when no existing entry)
+/* -------------------------------------------------------------
+   STEP 1 (only used if no ?entry= param)
+------------------------------------------------------------- */
 document.getElementById('step1Form')
   .addEventListener('submit', async e => {
     e.preventDefault();
     const s1 = document.getElementById('status1');
-    s1.textContent = '';
-    s1.className = 'g-status';
+    statusMsg('status1', '', '');
 
     const custName  = document.getElementById('custName').value.trim();
     const custPhone = document.getElementById('custPhone').value.trim();
 
     if (!custName || !custPhone) {
-      s1.classList.add('error');
-      s1.textContent = 'Please fill both name and phone.';
+      statusMsg('status1','Please fill both name and phone.','error');
       return;
     }
 
@@ -103,25 +99,22 @@ document.getElementById('step1Form')
         userUid: auth.currentUser?.uid || null
       });
       currentEntryKey = refPush.key;
-      s1.classList.add('success');
-      s1.textContent = 'Step 1 saved!';
-      // advance to Step 2
-      document.getElementById('step1Form').classList.add('hidden');
-      document.getElementById('step2Form').classList.remove('hidden');
+      statusMsg('status1','Step 1 saved!','success');
+      hide('step1Form');
+      show('step2Form');
       injectPrefillSummary(custName, custPhone);
     } catch (err) {
-      s1.classList.add('error');
-      s1.textContent = 'Error: ' + err.message;
+      statusMsg('status1','Error: ' + err.message,'error');
     }
-  }); 
+  });
 
-// 3️⃣ STEP 2 → captures serviceType, situation, carrierInfo, requirements
+/* -------------------------------------------------------------
+   STEP 2
+------------------------------------------------------------- */
 document.getElementById('step2Form')
   .addEventListener('submit', async e => {
     e.preventDefault();
-    const s2 = document.getElementById('status2');
-    s2.textContent = '';
-    s2.className = 'g-status';
+    statusMsg('status2','', '');
 
     const serviceType  = document.getElementById('serviceType').value;
     const situation    = document.getElementById('situation').value.trim();
@@ -129,13 +122,11 @@ document.getElementById('step2Form')
     const requirements = document.getElementById('evalRequirements').value.trim();
 
     if (!serviceType || !situation) {
-      s2.classList.add('error');
-      s2.textContent = 'Service type & situation are required.';
+      statusMsg('status2','Service type & situation are required.','error');
       return;
     }
     if (!currentEntryKey) {
-      s2.classList.add('error');
-      s2.textContent = 'Missing guest record.';
+      statusMsg('status2','Missing guest record.','error');
       return;
     }
 
@@ -146,34 +137,29 @@ document.getElementById('step2Form')
         carrierInfo,
         requirements
       });
-      s2.classList.add('success');
-      s2.textContent = 'Step 2 saved!';
-      // advance to Step 3
-      document.getElementById('step2Form').classList.add('hidden');
-      document.getElementById('step3Form').classList.remove('hidden');
+      statusMsg('status2','Step 2 saved!','success');
+      hide('step2Form');
+      show('step3Form');
     } catch (err) {
-      s2.classList.add('error');
-      s2.textContent = 'Error: ' + err.message;
+      statusMsg('status2','Error: ' + err.message,'error');
     }
   });
 
-// 4️⃣ STEP 3 → solution
+/* -------------------------------------------------------------
+   STEP 3
+------------------------------------------------------------- */
 document.getElementById('step3Form')
   .addEventListener('submit', async e => {
     e.preventDefault();
-    const s3 = document.getElementById('status3');
-    s3.textContent = '';
-    s3.className = 'g-status';
+    statusMsg('status3','', '');
 
     const solution = document.getElementById('solutionText').value.trim();
     if (!solution) {
-      s3.classList.add('error');
-      s3.textContent = 'Please describe the solution.';
+      statusMsg('status3','Please describe the solution.','error');
       return;
     }
     if (!currentEntryKey) {
-      s3.classList.add('error');
-      s3.textContent = 'Missing guest record.';
+      statusMsg('status3','Missing guest record.','error');
       return;
     }
 
@@ -182,11 +168,8 @@ document.getElementById('step3Form')
         text: solution,
         completedAt: Date.now()
       });
-      s3.classList.add('success');
-      s3.textContent = 'All steps completed! Thanks.';
-      // you could hide the form here if desired
+      statusMsg('status3','All steps completed! Thanks.','success');
     } catch (err) {
-      s3.classList.add('error');
-      s3.textContent = 'Error: ' + err.message;
+      statusMsg('status3','Error: ' + err.message,'error');
     }
   });
