@@ -1,20 +1,9 @@
 /* gp-app.js =================================================================
  * OSL Guest Portal main controller
  * ---------------------------------------------------------------------------
- * Responsibilities
- *  • Initialize Firebase (guarded; reuse existing app if present)
- *  • Determine context: ?gid (existing), ?entry (seed from kiosk), or new
- *  • Normalize + push data into DOM (via gpUI) and keep local state
- *  • Live preview & autosave (idle + blur debounces)
- *  • Status escalation (optional)
- *  • Link kiosk intake record → guestinfo on first save
- *  • Write /completion scoring snapshot
- *  • Revert-to-step actions
- *  • Expose small API under window.gpApp
- * ---------------------------------------------------------------------------
- * DEPENDS ON:
- *    - gp-core.js (scoring + data utils)
- *    - gp-ui.js   (DOM helpers, progress bar, step nav, NBQ, etc.)
+ * See header notes in previous rev. This version decouples UI step from
+ * data-derived status so users can advance to Step 2 immediately after Step 1
+ * even before any eval data exists (fixes "stuck on Step 1" issue).
  * ------------------------------------------------------------------------ */
 
 /* ---------------------------------------------------------------------------
@@ -44,6 +33,10 @@ let currentGuestObj = null;   // normalized
 let currentGuestKey = null;   // guestinfo/<gid>
 let seedEntryId     = null;   // guestEntries/<eid> if we arrived from kiosk only
 
+/* current UI step (user navigation wins; never auto-downgrade) */
+const GP_STEPS = ["step1","step2","step3"];
+let _uiStep    = "step1";
+
 /* timers */
 let _idleTO        = null;
 let _autosaveTO    = null;
@@ -54,6 +47,38 @@ const AUTO_STATUS_ESCALATE   = true;
 const AUTOSAVE_DEBOUNCE_MS   = 600;
 const AUTOSAVE_IDLE_MS       = 3000;
 const COMPLETION_DEBOUNCE_MS = 900;
+
+/* ---------------------------------------------------------------------------
+ * Small helpers
+ * ------------------------------------------------------------------------ */
+const stepRank = s => Math.max(0, GP_STEPS.indexOf(s));
+function nextStep(s){
+  const i = stepRank(s);
+  return GP_STEPS[Math.min(i+1, GP_STEPS.length-1)] || "step3";
+}
+
+/* Map status -> *minimum* step that should be visible */
+function statusToStep(status){
+  switch((status||"").toLowerCase()){
+    case "working":  return "step2";
+    case "proposal":
+    case "sold":     return "step3";
+    default:         return "step1";
+  }
+}
+
+/* Advance UI if status implies *later* step than user is on; never downgrade */
+function maybeAdvanceUiStepFromStatus(status){
+  const minStep = statusToStep(status);
+  if (stepRank(minStep) > stepRank(_uiStep)){
+    _uiStep = minStep;
+    gpUI.markStepActive(_uiStep);
+    gpUI.gotoStep(_uiStep);
+  } else {
+    // keep user's step; still refresh active marker in case UI mutated
+    gpUI.markStepActive(_uiStep);
+  }
+}
 
 /* ---------------------------------------------------------------------------
  * URL helpers
@@ -199,9 +224,8 @@ async function doAutosaveNow(){
   _completionTO = setTimeout(()=>writeCompletion(currentGuestKey,currentGuestObj),
                              COMPLETION_DEBOUNCE_MS);
 
-  // adjust step nav highlight
-  const st = gpCore.detectStatus(currentGuestObj);
-  gpUI.markStepActive(st==="new"?"step1":(st==="working"?"step2":"step3"));
+  // *** IMPORTANT: don't snap backwards! ***
+  maybeAdvanceUiStepFromStatus(currentGuestObj.status);
 }
 
 /* ---------------------------------------------------------------------------
@@ -239,9 +263,8 @@ async function revertTo(step){
     currentGuestObj.evaluate = {};
     delete currentGuestObj.solution;
     currentGuestObj.status = "new";
+    _uiStep = "step1";
     syncUi();
-    gpUI.gotoStep("step1");
-    gpUI.setProgressPreview(null);
     await writeCompletion(currentGuestKey,currentGuestObj);
   }else if(step === "step2"){
     if(!confirm("Revert to Step 2? Solution will be cleared.")) return;
@@ -249,9 +272,8 @@ async function revertTo(step){
     delete currentGuestObj.solution;
     currentGuestObj.solution = {};
     currentGuestObj.status = "working";
+    _uiStep = "step2";
     syncUi();
-    gpUI.gotoStep("step2");
-    gpUI.setProgressPreview(null);
     await writeCompletion(currentGuestKey,currentGuestObj);
   }
 }
@@ -276,9 +298,9 @@ function syncUi(){
   gpUI.setProgressPreview(null);
   gpUI.updateNbqChips(g);
 
-  const s = gpCore.detectStatus(g);
-  gpUI.markStepActive(s==="new"?"step1":(s==="working"?"step2":"step3"));
-  gpUI.gotoStep(s==="new"?"step1":(s==="working"?"step2":"step3"));
+  // Don't override user step; only bump forward if status demands it.
+  maybeAdvanceUiStepFromStatus(g.status);
+  gpUI.gotoStep(_uiStep);
 }
 
 /* ---------------------------------------------------------------------------
@@ -299,8 +321,11 @@ async function loadContext(){
         currentGuestObj = gpCore.normGuest(data);
         // backfill source if entry param present
         if (entry && !data?.source?.entryId){
-          gpDb.ref(`guestinfo/${gid}/source`).set({type:"guestForm",entryId:entry}).catch(()=>{});
+          gpDb.ref(`guestinfo/${gid}/source`)
+              .set({type:"guestForm",entryId:entry})
+              .catch(()=>{});
         }
+        _uiStep = statusToStep(currentGuestObj.status || "new");
         return "guestinfo";
       }
     }catch(err){
@@ -325,6 +350,8 @@ async function loadContext(){
           solution: {},
           source: {type:"guestForm",entryId:entry}
         };
+        currentGuestKey = null; // will create on first save
+        _uiStep = "step1";      // user must still confirm fields
         return "seed-entry";
       }
     }catch(err){
@@ -334,6 +361,9 @@ async function loadContext(){
 
   // 3) brand new
   currentGuestObj = { status:"new", evaluate:{}, solution:{} };
+  currentGuestKey = null;
+  seedEntryId     = null;
+  _uiStep         = "step1";
   return "new";
 }
 
@@ -363,16 +393,25 @@ gpAuth.onAuthStateChanged(async user=>{
       gpUI.updateNbqChips(live);
       scheduleIdleAutosave();
     },
-    onBlur: scheduleBlurAutosave
+    onBlur: scheduleBlurAutosave,
+    // Optional nav callback if gpUI supports; keep UI state in sync:
+    onNav: step=>{
+      if (!GP_STEPS.includes(step)) return;
+      _uiStep = step;
+      gpUI.markStepActive(_uiStep);
+      gpUI.gotoStep(_uiStep);
+    }
   });
 
   // Load context + sync
   const ctx = await loadContext();
   syncUi();
 
-  // If we *didn't* load an existing guestinfo, start at step1 explicitly
+  // If we *didn't* load an existing guestinfo, ensure we start on step1
   if (ctx !== "guestinfo"){
-    gpUI.gotoStep("step1");
+    _uiStep = "step1";
+    gpUI.markStepActive(_uiStep);
+    gpUI.gotoStep(_uiStep);
   }
 });
 
@@ -380,18 +419,20 @@ gpAuth.onAuthStateChanged(async user=>{
  * Manual form submit fallbacks
  * (Autosave should normally have already created/updated.)
  * ------------------------------------------------------------------------ */
-function wireSubmitFallback(id, nextStep){
+function wireSubmitFallback(id){
   const frm = document.getElementById(id);
   if(!frm) return;
   frm.addEventListener("submit", async e=>{
     e.preventDefault();
     await doAutosaveNow();
-    gpUI.gotoStep(nextStep);
+    _uiStep = nextStep(_uiStep);
+    gpUI.markStepActive(_uiStep);
+    gpUI.gotoStep(_uiStep);
   });
 }
-wireSubmitFallback("step1Form","step2");
-wireSubmitFallback("step2Form","step3");
-wireSubmitFallback("step3Form","step3"); // stays
+wireSubmitFallback("step1Form");
+wireSubmitFallback("step2Form");
+wireSubmitFallback("step3Form"); // stays
 
 /* ---------------------------------------------------------------------------
  * Manual recompute / debug
@@ -412,9 +453,16 @@ window.gpRecomputeCompletion = gpRecomputeCompletion;
 window.gpApp = {
   get guestKey(){ return currentGuestKey; },
   get guest(){ return currentGuestObj; },
+  get uiStep(){ return _uiStep; },
   saveNow: doAutosaveNow,
   writeCompletion,
   revertTo,
   syncUi,
-  buildGuestFromDom
+  buildGuestFromDom,
+  gotoStep(step){
+    if (!GP_STEPS.includes(step)) return;
+    _uiStep = step;
+    gpUI.markStepActive(_uiStep);
+    gpUI.gotoStep(_uiStep);
+  }
 };
