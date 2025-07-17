@@ -15,7 +15,7 @@ firebase.initializeApp(firebaseConfig);
 const db   = firebase.database();
 const auth = firebase.auth();
 
-window.db = db; // expose for users.js and others
+window.db = db; // expose for modules
 
 const adminAppDiv = document.getElementById("adminApp");
 
@@ -26,15 +26,12 @@ const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 let currentUid  = null;
 let currentRole = ROLES.ME;
 
-// abilities
 const canEdit   = r => r !== ROLES.ME;
 const canDelete = r => r === ROLES.DM || r === ROLES.ADMIN;
 
-// guard rails (blocks console hacking)
-function assertEdit()   { if (!canEdit(currentRole))   throw "PERM_DENIED_EDIT";   }
+function assertEdit()   { if (!canEdit(currentRole))   throw "PERM_DENIED_EDIT"; }
 function assertDelete() { if (!canDelete(currentRole)) throw "PERM_DENIED_DELETE"; }
 
-// label
 const roleBadge = r => `<span class="role-badge role-${r}">${r.toUpperCase()}</span>`;
 
 /* ========================================================================
@@ -50,11 +47,10 @@ auth.onAuthStateChanged(async user => {
     name : user.displayName || user.email,
     email: user.email
   };
-  // ensure record
   await db.ref("users/"+user.uid).update(prof);
 
   currentRole = prof.role || ROLES.ME;
-  window.currentRole = currentRole; // for users.js
+  window.currentRole = currentRole; // for users.js and reviews.js
 
   document.getElementById("logoutBtn")?.addEventListener("click", () => auth.signOut());
 
@@ -105,20 +101,9 @@ async function renderAdminApp() {
     : `<p class="text-center">Users module not loaded.</p>`;
 
   /* ------------------ REVIEWS ------------------ */
-  const reviewEntries = Object.entries(reviews).sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));
-  const reviewCards = reviewEntries.map(([id,r])=>`
-    <div class="review-card">
-      <div class="review-header">
-        <span class="review-star ${r.starred?'':'inactive'}" ${canEdit(currentRole)?`onclick="toggleStar('${id}',${!!r.starred})"`:''}>&#9733;</span>
-        <div><b>Store:</b> ${r.store||'-'}</div>
-        <div><b>Associate:</b> ${r.associate||'-'}</div>
-        ${canDelete(currentRole)?`<button class="btn btn-danger btn-sm" onclick="deleteReview('${id}')">Delete</button>`:''}
-      </div>
-      <div class="review-rating">${'★'.repeat(r.rating||0)}</div>
-      <div class="review-comment">${r.comment||''}</div>
-      <div class="review-meta"><b>When:</b> ${r.timestamp?new Date(r.timestamp).toLocaleString():'-'}</div>
-      <div class="review-meta"><b>Referral:</b> ${r.refName?`${r.refName} / ${r.refPhone}`:'-'}</div>
-    </div>`).join('');
+  const reviewsHtml = window.reviews?.renderReviewsSection
+    ? window.reviews.renderReviewsSection(reviews, currentRole)
+    : `<p class="text-center">Reviews module not loaded.</p>`;
 
   /* ------------------ GUEST INFO ------------------ */
   const guestCards = Object.entries(guestinfo)
@@ -149,11 +134,7 @@ async function renderAdminApp() {
 
     ${usersHtml}
 
-    <section class="admin-section reviews-section">
-      <h2>Reviews</h2>
-      <div class="review-controls"><button onclick="renderAdminApp()">Reload</button></div>
-      <div class="reviews-container">${reviewCards}</div>
-    </section>
+    ${reviewsHtml}
 
     <section class="admin-section guestinfo-section">
       <h2>Guest Info</h2>
@@ -161,8 +142,8 @@ async function renderAdminApp() {
     </section>`;
 
   // cache for filters
-  window._allReviews     = reviewEntries;
-  window._allReviewsHtml = reviewCards;
+  window._allReviews     = Object.entries(reviews).sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));
+  window._allReviewsHtml = reviewsHtml;
   window._users          = users;
   window._stores         = stores;
 }
@@ -170,9 +151,13 @@ async function renderAdminApp() {
 /* ========================================================================
    Action handlers (RBAC enforced)
    ===================================================================== */
-// Delegate user handlers to users.js
+// Delegate user handlers
 window.assignLeadToGuest = (guestUid, leadUid) => window.users.assignLeadToGuest(guestUid, leadUid);
 window.assignDMToLead    = (leadUid, dmUid)    => window.users.assignDMToLead(leadUid, dmUid);
+
+// Delegate review handlers
+window.toggleStar   = (id, starred) => window.reviews.toggleStar(id, starred);
+window.deleteReview = (id)           => window.reviews.deleteReview(id);
 
 // Store actions
 window.assignTL = async (storeId,uid)=>{
@@ -223,27 +208,12 @@ window.editUserStore = async uid =>{
   renderAdminApp();
 };
 
-// Reviews actions
-window.toggleStar     = async(id,starred)=>{assertEdit(); await db.ref(`reviews/${id}/starred`).set(!starred); renderAdminApp();};
+// Store deletions
 window.deleteStore    = async id => {assertDelete(); if(confirm("Delete this store?"))  {await db.ref(`stores/${id}`).remove(); renderAdminApp();}};
-window.deleteReview   = async id => {assertDelete(); if(confirm("Delete this review?")) {await db.ref(`reviews/${id}`).remove(); renderAdminApp();}};
 
 /* ========================================================================
    Review filter helpers (read-only)
    ===================================================================== */
-window.filterReviewsByStore     = store  => document.querySelector(".reviews-container").innerHTML = reviewsToHtml(_allReviews.filter(([,r])=>r.store===store));
-window.filterReviewsByAssociate = name   => document.querySelector(".reviews-container").innerHTML = reviewsToHtml(_allReviews.filter(([,r])=>r.associate===name));
-window.clearReviewFilter        = ()     => document.querySelector(".reviews-container").innerHTML = _allReviewsHtml;
-window.reviewsToHtml            = entries=> entries.length ? entries.map(([id,r])=>`
-  <div class="review-card">
-    <div class="review-header">
-      <span class="review-star ${r.starred?'':'inactive'}" ${canEdit(currentRole)?`onclick="toggleStar('${id}',${!!r.starred})"`:''}>&#9733;</span>
-      <div><b>Store:</b> ${r.store||'-'}</div>
-      <div><b>Associate:</b> ${r.associate||'-'}</div>
-      ${canDelete(currentRole)?`<button class="btn btn-danger btn-sm" onclick="deleteReview('${id}')">Delete</button>`:''}
-    </div>
-    <div class="review-rating">${'★'.repeat(r.rating||0)}</div>
-    <div class="review-comment">${r.comment||''}</div>
-    <div class="review-meta"><b>When:</b> ${r.timestamp?new Date(r.timestamp).toLocaleString():'-'}</div>
-    <div class="review-meta"><b>Referral:</b> ${r.refName?`${r.refName} / ${r.refPhone}`:'-'}</div>
-  </div>`).join('') : `<p class="text-center">No reviews.</p>`;
+window.filterReviewsByStore     = store  => document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(window._allReviews.filter(([,r])=>r.store===store));
+window.filterReviewsByAssociate = name   => document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(window._allReviews.filter(([,r])=>r.associate===name));
+window.clearReviewFilter        = ()     => document.querySelector(".reviews-container").innerHTML = window._allReviewsHtml;
