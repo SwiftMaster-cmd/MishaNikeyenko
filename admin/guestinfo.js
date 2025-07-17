@@ -8,20 +8,18 @@
     return [ROLES.ADMIN, ROLES.DM, ROLES.LEAD].includes(role);
   }
 
-  // Editable if not just a random ME. ME can edit their own.
+  // legacy global (per-entry refined below)
   function canEdit(role) {
-    return role !== ROLES.ME || true; // legacy; refined per-entry below
+    return role !== ROLES.ME || true;
   }
 
-  // Can mark sold? (same logic as edit-entry)
   function canMarkSold(currentRole, entryOwnerUid, currentUid) {
     if (currentRole === ROLES.ADMIN || currentRole === ROLES.DM || currentRole === ROLES.LEAD) return true;
-    // ME can only mark their own
     return currentRole === ROLES.ME && entryOwnerUid === currentUid;
   }
 
   /* ------------------------------------------------------------------
-     Helper: get users under this DM (leads + ME)
+     Helper: users under DM
      ------------------------------------------------------------------ */
   function getUsersUnderDM(users, dmUid) {
     const leads = Object.entries(users)
@@ -34,7 +32,7 @@
   }
 
   /* ------------------------------------------------------------------
-     Filter guestinfo by visibility rules per role
+     Visibility filter
      ------------------------------------------------------------------ */
   function filterGuestinfo(guestinfo, users, currentUid, currentRole) {
     if (!guestinfo || !users || !currentUid || !currentRole) return {};
@@ -44,9 +42,7 @@
     if (currentRole === ROLES.DM) {
       const underUsers = getUsersUnderDM(users, currentUid);
       underUsers.add(currentUid);
-      return Object.fromEntries(
-        Object.entries(guestinfo).filter(([, g]) => underUsers.has(g.userUid))
-      );
+      return Object.fromEntries(Object.entries(guestinfo).filter(([, g]) => underUsers.has(g.userUid)));
     }
 
     if (currentRole === ROLES.LEAD) {
@@ -54,22 +50,18 @@
         .filter(([, u]) => u.role === ROLES.ME && u.assignedLead === currentUid)
         .map(([uid]) => uid);
       const visibleUsers = new Set([...mesUnderLead, currentUid]);
-      return Object.fromEntries(
-        Object.entries(guestinfo).filter(([, g]) => visibleUsers.has(g.userUid))
-      );
+      return Object.fromEntries(Object.entries(guestinfo).filter(([, g]) => visibleUsers.has(g.userUid)));
     }
 
     if (currentRole === ROLES.ME) {
-      return Object.fromEntries(
-        Object.entries(guestinfo).filter(([, g]) => g.userUid === currentUid)
-      );
+      return Object.fromEntries(Object.entries(guestinfo).filter(([, g]) => g.userUid === currentUid));
     }
 
     return {};
   }
 
   /* ------------------------------------------------------------------
-     Escape for HTML inputs (simple)
+     Simple HTML escape
      ------------------------------------------------------------------ */
   function escapeHtml(str) {
     return (str || '')
@@ -85,8 +77,9 @@
   function renderGuestinfoSection(guestinfo, users, currentUid, currentRole) {
     const visibleGuestinfo = filterGuestinfo(guestinfo, users, currentUid, currentRole);
 
-    if (Object.keys(visibleGuestinfo).length === 0)
+    if (Object.keys(visibleGuestinfo).length === 0) {
       return `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">No guest info found.</p></section>`;
+    }
 
     const guestCards = Object.entries(visibleGuestinfo)
       .sort((a, b) => (b[1].submittedAt || 0) - (a[1].submittedAt || 0))
@@ -96,26 +89,27 @@
         const canEditEntry   = currentRole !== ROLES.ME || g.userUid === currentUid;
         const isSold         = (g.status === "sold") || !!g.sale;
 
-        // sale summary (if sold)
+        // sale summary
         let saleSummaryHtml = "";
         if (isSold && g.sale) {
           const soldAt = g.sale.soldAt ? new Date(g.sale.soldAt).toLocaleString() : "";
           const units  = g.sale.units ?? "";
-          const amt    = g.sale.amount != null ? `$${Number(g.sale.amount).toFixed(2)}` : "";
           saleSummaryHtml = `
             <div class="guest-sale-summary" style="margin-top:8px; font-size:.9rem; color:#0f0;">
-              <b>Sold:</b> ${soldAt} &bull; Units: ${units} ${amt ? "&bull; " + amt : ""}
+              <b>Sold:</b> ${soldAt} &bull; Units: ${units}
             </div>`;
         }
 
         // action buttons row (view mode)
         const displayActions = [
-          canEditEntry ? `<button class="btn btn-primary btn-sm" onclick="window.guestinfo.toggleEdit('${id}')">Edit</button>` : "",
+          canEditEntry
+            ? `<button class="btn btn-primary btn-sm" onclick="window.guestinfo.toggleEdit('${id}')">Edit</button>`
+            : "",
           (!isSold && canMarkSold(currentRole, g.userUid, currentUid))
             ? `<button class="btn btn-success btn-sm" style="margin-left:8px;" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>`
             : "",
-          (isSold && g.sale?.saleId)
-            ? `<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="window.sales?.openSaleModal && window.sales.openSaleModal('${id}','${submitter?.store||""}')">View / Edit Sale</button>`
+          (isSold && canMarkSold(currentRole, g.userUid, currentUid))
+            ? `<button class="btn btn-warning btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>`
             : ""
         ].filter(Boolean).join("");
 
@@ -176,14 +170,9 @@
     const displayDiv = document.querySelector(`#guest-card-${id} .guest-display`);
     const editForm   = document.getElementById(`guest-edit-form-${id}`);
     if (!displayDiv || !editForm) return;
-
-    if (editForm.style.display === "none") {
-      editForm.style.display = "block";
-      displayDiv.style.display = "none";
-    } else {
-      editForm.style.display = "none";
-      displayDiv.style.display = "block";
-    }
+    const show = (editForm.style.display === "none");
+    editForm.style.display   = show ? "block" : "none";
+    displayDiv.style.display = show ? "none"  : "block";
   }
 
   function cancelEdit(id) {
@@ -235,18 +224,16 @@
   }
 
   /* ------------------------------------------------------------------
-     MARK SOLD FLOW (quick prompt-driven)
+     MARK SOLD FLOW (units only)
      ------------------------------------------------------------------ */
   async function markSold(id) {
     try {
-      // Load guestinfo record
       const snap = await window.db.ref(`guestinfo/${id}`).get();
       const g = snap.val();
       if (!g) {
         alert("Guest record not found.");
         return;
       }
-      // Permission check
       if (!canMarkSold(window.currentRole, g.userUid, window.currentUid)) {
         alert("You don't have permission to mark this sold.");
         return;
@@ -257,11 +244,6 @@
       if (unitsStr === null) return; // cancel
       let units = parseInt(unitsStr, 10);
       if (isNaN(units) || units < 0) units = 0;
-
-      // Optional amount
-      let amtStr = prompt("Sale amount (optional $)", "");
-      let amount = parseFloat(amtStr);
-      if (isNaN(amount)) amount = null;
 
       // Determine storeNumber: prefer submitter’s user record
       const users = window._users || {};
@@ -278,7 +260,6 @@
         storeNumber,
         repUid: window.currentUid || null,
         units,
-        amount: amount ?? 0,
         createdAt: Date.now()
       };
       const saleRef = await window.db.ref("sales").push(salePayload);
@@ -289,25 +270,84 @@
         saleId,
         soldAt: Date.now(),
         storeNumber,
-        units,
-        amount: amount ?? 0
+        units
       });
       await window.db.ref(`guestinfo/${id}/status`).set("sold");
 
-      // Credit store ledger
+      // Credit store ledger (best-effort; may be restricted by rules)
       if (storeNumber) {
-        await window.db.ref(`storeCredits/${storeNumber}`).push({
-          saleId,
-          guestinfoKey: id,
-          creditedAt: Date.now(),
-          units,
-          amount: amount ?? 0
-        });
+        try {
+          await window.db.ref(`storeCredits/${storeNumber}`).push({
+            saleId,
+            guestinfoKey: id,
+            creditedAt: Date.now(),
+            units
+          });
+        } catch (ledgerErr) {
+          console.warn("storeCredits push failed:", ledgerErr);
+        }
       }
 
       await window.renderAdminApp();
     } catch (err) {
       alert("Error marking sold: " + err.message);
+    }
+  }
+
+  /* ------------------------------------------------------------------
+     DELETE SALE (undo sale)
+     ------------------------------------------------------------------ */
+  async function deleteSale(id) {
+    try {
+      const snap = await window.db.ref(`guestinfo/${id}`).get();
+      const g = snap.val();
+      if (!g) {
+        alert("Guest record not found.");
+        return;
+      }
+      if (!canMarkSold(window.currentRole, g.userUid, window.currentUid)) {
+        alert("You don't have permission to modify this sale.");
+        return;
+      }
+      if (!g.sale || !g.sale.saleId) {
+        alert("No sale recorded.");
+        return;
+      }
+      if (!confirm("Delete this sale? This will remove credit.")) return;
+
+      const saleId      = g.sale.saleId;
+      const storeNumber = g.sale.storeNumber;
+
+      // Remove sale record
+      await window.db.ref(`sales/${saleId}`).remove();
+
+      // Remove from guestinfo
+      await window.db.ref(`guestinfo/${id}/sale`).remove();
+
+      // Reset status: if evaluation exists -> 'working', else 'new'
+      const hasEval = !!g.evaluate;
+      await window.db.ref(`guestinfo/${id}/status`).set(hasEval ? "working" : "new");
+
+      // Remove related storeCredits entries (best-effort)
+      if (storeNumber) {
+        try {
+          const creditsSnap = await window.db.ref(`storeCredits/${storeNumber}`).get();
+          const creditsObj = creditsSnap.val() || {};
+          const ops = [];
+          for (const [cid, c] of Object.entries(creditsObj)) {
+            if (c.saleId === saleId) {
+              ops.push(window.db.ref(`storeCredits/${storeNumber}/${cid}`).remove());
+            }
+          }
+          await Promise.all(ops);
+        } catch (ledgerErr) {
+          console.warn("storeCredits cleanup failed:", ledgerErr);
+        }
+      }
+
+      await window.renderAdminApp();
+    } catch (err) {
+      alert("Error deleting sale: " + err.message);
     }
   }
 
@@ -320,6 +360,7 @@
     cancelEdit,
     saveEdit,
     deleteGuestInfo,
-    markSold
+    markSold,
+    deleteSale
   };
 })();
