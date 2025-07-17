@@ -1,6 +1,7 @@
 /* ==========================================================================
-   OSL Guest Portal CSS  (mobile-first)
-   --------------------------------------------------------------------------
+   OSL Guest Portal CSS  (mobile-first, dark theme)
+   ==========================================================================
+
    Highlights:
    • Compact, readable layout that scales up nicely
    • Dark theme w/ translucency + blur
@@ -8,6 +9,8 @@
    • Sticky top "← Dashboard" header (respects safe-area on iPhone notch)
    • Step forms hidden via .hidden
    • Prefill summary styling for Step 2+
+   • Progress bar + Step Nav + Coaching Chips
+   • Collapsible "extra" evaluation question group styling
    • Strong focus-visible accessibility outlines
    -------------------------------------------------------------------------- */
 
@@ -158,6 +161,7 @@ body {
   text-align: center;
   color: var(--text-primary);
   margin-bottom: 0.25rem;
+  line-height: 1.3;
 }
 
 @media (min-width: 480px) {
@@ -165,6 +169,23 @@ body {
     font-size: 1.5rem;
     margin-bottom: 0.5rem;
   }
+}
+
+/* Optional inline revert link in title headers */
+.gp-revert-link {
+  font-size: 0.8rem;
+  opacity: 0.75;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  text-decoration: underline;
+  color: var(--accent-light);
+}
+.gp-revert-link:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+.gp-revert-link.hidden {
+  display: none !important;
 }
 
 /* ==========================================================================
@@ -351,6 +372,168 @@ input[type="number"].gfield::-webkit-outer-spin-button {
 }
 
 /* ==========================================================================
+   Progress Bar (Pitch Quality)
+   ========================================================================== */
+.gp-progress {
+  width: 100%;
+  margin: 1rem auto 1.5rem;
+  max-width: 480px;
+  text-align: center;
+  font-family: inherit;
+}
+.gp-progress-label {
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+.gp-progress-preview {
+  margin-left: 0.5em;
+  font-weight: 400;
+  opacity: 0.8;
+  font-size: 0.9em;
+}
+.gp-progress-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+  position: relative;
+}
+.gp-progress-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 0.25s;
+  background: #82caff;
+}
+.gp-progress-fill.gp-progress-green { background: #00c853; }
+.gp-progress-fill.gp-progress-yellow{ background: #ffb300; }
+.gp-progress-fill.gp-progress-red   { background: #ff5252; }
+
+/* ==========================================================================
+   Step Navigation Pills
+   ========================================================================== */
+.gp-step-nav {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.25rem auto 1rem;
+  max-width: 480px;
+  flex-wrap: wrap;
+}
+.gp-step-nav button {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.05);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.gp-step-nav button:hover {
+  background: rgba(255,255,255,.1);
+}
+.gp-step-nav button.active {
+  background: rgba(130,202,255,.25);
+  border-color: rgba(130,202,255,.6);
+  color: var(--accent-light);
+}
+
+/* ==========================================================================
+   Points Hint Badges
+   ========================================================================== */
+.gp-pts {
+  opacity: 0.6;
+  font-weight: 400;
+  font-size: 0.85em;
+  margin-left: 0.25em;
+  color: var(--accent-light);
+}
+
+/* ==========================================================================
+   Injected Rows (JS-added eval questions)
+   ========================================================================== */
+.gp-injected {
+  display: block;
+  margin-top: 0.75rem;
+}
+
+/* ==========================================================================
+   Next Best Question Chips
+   ========================================================================== */
+.gp-nbq {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: -0.5rem auto 1rem;
+  max-width: 480px;
+  text-align: center;
+}
+.nbq-chip {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.05);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.nbq-chip:hover {
+  background: rgba(255,255,255,.1);
+}
+.nbq-chip.tier-high { border-color:#ffb300; color:#ffb300; }
+.nbq-chip.tier-med  { border-color:#82caff; color:#82caff; }
+.nbq-chip.tier-low  { border-color:rgba(255,255,255,.35); color:rgba(255,255,255,.85); }
+
+/* ==========================================================================
+   Collapsible "Extra Questions" Group (use <details class="gp-extra">)
+   ========================================================================== */
+.gp-extra {
+  margin-top: 1.25rem;
+  width: 100%;
+}
+.gp-extra > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(30, 144, 255, 0.08);
+  border: 1px solid rgba(30, 144, 255, 0.3);
+  border-radius: var(--radius);
+  position: relative;
+}
+.gp-extra > summary::-webkit-details-marker { display: none; }
+.gp-extra > summary::after {
+  content: "▼";
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+  transition: transform 0.15s;
+  font-size: 0.8em;
+  opacity: 0.75;
+}
+.gp-extra[open] > summary::after {
+  transform: translateY(-50%) rotate(0deg);
+}
+.gp-extra .gp-extra-inner {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* If you prefer class toggling instead of <details>: */
+.gp-extra-collapsed .gp-extra-inner { display:none; }
+.gp-extra-open .gp-extra-inner { display:flex; }
+
+/* ==========================================================================
    Reduced Motion
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
@@ -370,7 +553,11 @@ input[type="number"].gfield::-webkit-outer-spin-button {
     padding: 0;
   }
   .guest-header,
-  .guest-back-btn {
+  .guest-back-btn,
+  .gp-progress,
+  .gp-step-nav,
+  .gp-nbq,
+  .gp-revert-link {
     display: none !important;
   }
   .guest-box {
