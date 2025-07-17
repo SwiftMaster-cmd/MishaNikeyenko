@@ -483,17 +483,48 @@
    * guestKey: guestinfo key (if known)
    * entryId:  originating guestEntries id (optional; improves prefill & analytics)
    * ================================================================ */
+  /* ================================================================
+   * Open guest info page helper (existing lead or new)
+   *  - Computes uistart hint so gp-app can jump directly:
+   *      proposal|sold        -> step3
+   *      else if Step1 data   -> step2
+   *      else                 -> step1
+   *    Step1 data = prefilledStep1 || custName || custPhone || intake row has guestName/guestPhone.
+   * ================================================================ */
   function openGuestInfoPage(guestKey, entryId){
-    const base = window.GUESTINFO_PAGE || "../html/guest-info.html";
+    const base = window.GUESTINFO_PAGE || "../html/guestinfo.html";
+
+    let uistart = "step1";
+
+    if (guestKey){
+      const g = _guestinfoLive[guestKey] || (window._guestinfo && window._guestinfo[guestKey]) || null;
+      if (g){
+        const st = (g.status || "").toLowerCase();
+        if (st === "proposal" || st === "sold"){
+          uistart = "step3";
+        }else if (g.prefilledStep1 || g.custName || g.custPhone){
+          uistart = "step2";
+        }
+      }else if (entryId){
+        // fallback: peek at intake row if we can't see guestinfo yet (race after push)
+        const f = _formsCache[entryId];
+        if (f && (f.guestName || f.guestPhone)) uistart = "step2";
+      }
+    }else if (entryId){
+      // new lead from intake row (no guestKey yet)
+      const f = _formsCache[entryId];
+      if (f && (f.guestName || f.guestPhone)) uistart = "step2";
+    }
 
     // Build query string robustly.
-    let params = [];
+    const params = [];
     if (guestKey) params.push(`gid=${encodeURIComponent(guestKey)}`);
-    if (entryId) params.push(`entry=${encodeURIComponent(entryId)}`);
+    if (entryId)  params.push(`entry=${encodeURIComponent(entryId)}`);
+    params.push(`uistart=${uistart}`);
 
     const url = params.length
-      ? `${base}${base.includes('?')?'&':'?'}${params.join('&')}`
-      : base; // pure new-lead
+      ? `${base}${base.includes('?') ? '&' : '?'}${params.join('&')}`
+      : base; // pure new-lead, still sends ?uistart=step1 if you prefer (see below)
 
     try { localStorage.setItem("last_guestinfo_key", guestKey || ""); } catch(_){}
 
