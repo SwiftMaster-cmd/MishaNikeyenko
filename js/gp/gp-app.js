@@ -1,10 +1,11 @@
 /* gp-app.js =================================================================
  * OSL Guest Portal main controller
  * ---------------------------------------------------------------------------
- * Decouples UI step from data-derived status so users can advance to Step 2
- * immediately after Step 1, even before eval data exists (fixes "stuck" bug).
- * This rev also fixes a race where saved guests failed to populate on reload
- * when the script executed before the form DOM was present.
+ * Decouples UI step from data-derived status. This rev also:
+ * - Forces landing on Step 1 when coming from dashboard intake (entry param).
+ * - Honors guestinfo.prefilledStep1 to start at Step 1.
+ * - Adds DOM-ready guard so data reliably populates before user sees form.
+ * - Stores last_guestinfo_key for recovery / deep-linking.
  * ------------------------------------------------------------------------ */
 
 /* ---------------------------------------------------------------------------
@@ -32,7 +33,7 @@ const gpAuth = firebase.auth();
  * ------------------------------------------------------------------------ */
 let currentGuestObj = null;   // normalized
 let currentGuestKey = null;   // guestinfo/<gid>
-let seedEntryId     = null;   // guestEntries/<eid> if we arrived from kiosk only
+let seedEntryId     = null;   // guestEntries/<eid> if we arrived from kiosk/intake
 
 /* current UI step (user navigation wins; never auto-downgrade) */
 const GP_STEPS = ["step1","step2","step3"];
@@ -49,12 +50,11 @@ const AUTOSAVE_DEBOUNCE_MS   = 600;
 const AUTOSAVE_IDLE_MS       = 3000;
 const COMPLETION_DEBOUNCE_MS = 900;
 
-/* DOM-sync guard ----------------------------------------------------------- */
-let _domSyncedOnce = false;
+/* DOM-ready helper --------------------------------------------------------- */
 function domReady(cb){
   if (document.readyState === "complete" || document.readyState === "interactive"){
     cb();
-  } else {
+  }else{
     document.addEventListener("DOMContentLoaded", cb, {once:true});
   }
 }
@@ -177,15 +177,13 @@ async function doAutosaveNow(){
     });
     currentGuestKey = pushRef.key;
     currentGuestObj = gpCore.normGuest(g);
-
-    // remember last visited guest
     try{ localStorage.setItem("last_guestinfo_key", currentGuestKey); }catch(_){}
 
     gpUI.statusMsg("status1","Saved.","success");
     gpUI.statusMsg("status2","Saved.","success");
     gpUI.statusMsg("status3","Saved.","success");
 
-    /* link kiosk entry if present */
+    /* link kiosk/intake entry if present */
     if (seedEntryId){
       try{
         await gpDb.ref(`guestEntries/${seedEntryId}`).update({
@@ -291,10 +289,10 @@ async function revertTo(step){
     await writeCompletion(currentGuestKey,currentGuestObj);
   }
 }
-window.gpRevertTo = revertTo; // for gpUI revert link hooks
+window.gpRevertTo = revertTo;
 
 /* ---------------------------------------------------------------------------
- * Sync UI from currentGuestObj  (unsafe direct call; use syncUiSafe() normally)
+ * Sync UI from currentGuestObj (core)
  * ------------------------------------------------------------------------ */
 function syncUi(){
   const g = currentGuestObj || {};
@@ -313,22 +311,17 @@ function syncUi(){
   gpUI.setProgressPreview(null);
   gpUI.updateNbqChips(g);
 
-  // Don't override user step; only bump forward if status demands it.
   maybeAdvanceUiStepFromStatus(g.status);
   gpUI.gotoStep(_uiStep);
 }
 
-/* Safe sync: wait for form DOM; run once then allow manual calls ------------- */
+/* Safe sync (waits for DOM) ------------------------------------------------ */
 function syncUiSafe(){
-  // if key form element missing, defer
-  if (!document.getElementById("step1Form") &&
-      !document.getElementById("custName")){
-    // retry shortly; cap by first success
+  if (!document.getElementById("custName") && !document.getElementById("step1Form")){
     setTimeout(syncUiSafe, 40);
     return;
   }
   syncUi();
-  _domSyncedOnce = true;
 }
 
 /* ---------------------------------------------------------------------------
@@ -357,17 +350,23 @@ async function loadContext(){
               .set({type:"guestForm",entryId:entry})
               .catch(()=>{});
         }
-        _uiStep = statusToStep(currentGuestObj.status || "new");
+
+        // *** FORCE STEP 1 WHEN COMING FROM DASHBOARD INTAKE ***
+        // Dashboard "Open"/"Continue" passes ?entry=... when launched.
+        // Also if the guest record was seeded w/ prefilledStep1 flag, respect that.
+        if (entry || data.prefilledStep1){
+          _uiStep = "step1";
+        }else{
+          _uiStep = statusToStep(currentGuestObj.status || "new");
+        }
         return "guestinfo";
-      } else {
-        console.warn("Guest Portal: gid not found:", gid);
       }
     }catch(err){
       console.error("Guest Portal: load gid error",err);
     }
   }
 
-  // 2) kiosk entry seed
+  // 2) kiosk / intake entry seed (no guestinfo yet)
   if (entry){
     try{
       const esnap = await gpDb.ref(`guestEntries/${entry}`).get();
@@ -385,7 +384,7 @@ async function loadContext(){
           source: {type:"guestForm",entryId:entry}
         };
         currentGuestKey = null; // will create on first save
-        _uiStep = "step1";      // user must still confirm fields
+        _uiStep = "step1";      // user must confirm fields
         return "seed-entry";
       }
     }catch(err){
@@ -410,7 +409,7 @@ gpAuth.onAuthStateChanged(async user=>{
     return;
   }
 
-  // UI chrome immediately (safe pre-DOM; creates if needed later)
+  // UI chrome immediately
   gpUI.ensureProgressBar();
   gpUI.ensureStepNav();
   gpUI.ensureEvalExtrasWrap();
@@ -428,7 +427,6 @@ gpAuth.onAuthStateChanged(async user=>{
       scheduleIdleAutosave();
     },
     onBlur: scheduleBlurAutosave,
-    // Optional nav callback if gpUI supports; keep UI state in sync:
     onNav: step=>{
       if (!GP_STEPS.includes(step)) return;
       _uiStep = step;
@@ -440,13 +438,12 @@ gpAuth.onAuthStateChanged(async user=>{
   // Load context
   const ctx = await loadContext();
 
-  // Delay sync until DOM guaranteed
+  // Sync once DOM ready
   domReady(syncUiSafe);
 
   // If we *didn't* load an existing guestinfo, ensure we start on step1
   if (ctx !== "guestinfo"){
     _uiStep = "step1";
-    // we let syncUiSafe handle actual nav once DOM ready
   }
 });
 
