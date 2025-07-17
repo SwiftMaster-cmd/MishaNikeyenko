@@ -1,5 +1,5 @@
 <!-- employee/guest-portal.js -->
-<script>
+
 /* =======================================================================
  * Guest Portal (multi-step, weighted, revertable)
  * ======================================================================= */
@@ -832,4 +832,3 @@ window.gpRevertTo = revertTo;
  * Optional: wire any <span id="gp-revert-step1">Revert</span> etc if present
  * -------------------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded",ensureRevertLinks);
-</script>
