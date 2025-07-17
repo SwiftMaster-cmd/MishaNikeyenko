@@ -1,26 +1,37 @@
+// guestinfo.js
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
-  /* ------------------------------------------------------------------
-     Basic permission checks
-     ------------------------------------------------------------------ */
+  /* --------------------------------------------------------------
+   * Resolve path to full guest workflow page
+   * -------------------------------------------------------------- */
+  const GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guestinfo.html";
+
+  /* --------------------------------------------------------------
+   * Permission helpers
+   * -------------------------------------------------------------- */
+  const isAdmin = r => r === ROLES.ADMIN;
+  const isDM    = r => r === ROLES.DM;
+  const isLead  = r => r === ROLES.LEAD;
+  const isMe    = r => r === ROLES.ME;
+
   function canDelete(role) {
-    return [ROLES.ADMIN, ROLES.DM, ROLES.LEAD].includes(role);
+    return isAdmin(role) || isDM(role) || isLead(role);
   }
-
-  // legacy global (per-entry refined below)
-  function canEdit(role) {
-    return role !== ROLES.ME || true;
+  // Inline edit allowed for everyone except ME editing *others*
+  function canEditEntry(currentRole, entryOwnerUid, currentUid) {
+    if (!currentRole) return false;
+    if (isAdmin(currentRole) || isDM(currentRole) || isLead(currentRole)) return true;
+    return entryOwnerUid === currentUid; // ME -> own only
   }
-
   function canMarkSold(currentRole, entryOwnerUid, currentUid) {
-    if (currentRole === ROLES.ADMIN || currentRole === ROLES.DM || currentRole === ROLES.LEAD) return true;
-    return currentRole === ROLES.ME && entryOwnerUid === currentUid;
+    // same rule as edit
+    return canEditEntry(currentRole, entryOwnerUid, currentUid);
   }
 
-  /* ------------------------------------------------------------------
-     Helper: users under DM
-     ------------------------------------------------------------------ */
+  /* --------------------------------------------------------------
+   * Hierarchy helpers
+   * -------------------------------------------------------------- */
   function getUsersUnderDM(users, dmUid) {
     const leads = Object.entries(users)
       .filter(([, u]) => u.role === ROLES.LEAD && u.assignedDM === dmUid)
@@ -31,163 +42,221 @@
     return new Set([...leads, ...mes]);
   }
 
-  /* ------------------------------------------------------------------
-     Visibility filter
-     ------------------------------------------------------------------ */
+  /* --------------------------------------------------------------
+   * Visibility filter by role
+   * -------------------------------------------------------------- */
   function filterGuestinfo(guestinfo, users, currentUid, currentRole) {
     if (!guestinfo || !users || !currentUid || !currentRole) return {};
 
-    if (currentRole === ROLES.ADMIN) return guestinfo;
+    if (isAdmin(currentRole)) return guestinfo;
 
-    if (currentRole === ROLES.DM) {
-      const underUsers = getUsersUnderDM(users, currentUid);
-      underUsers.add(currentUid);
-      return Object.fromEntries(Object.entries(guestinfo).filter(([, g]) => underUsers.has(g.userUid)));
+    if (isDM(currentRole)) {
+      const under = getUsersUnderDM(users, currentUid);
+      under.add(currentUid);
+      return Object.fromEntries(
+        Object.entries(guestinfo).filter(([, g]) => under.has(g.userUid))
+      );
     }
 
-    if (currentRole === ROLES.LEAD) {
+    if (isLead(currentRole)) {
       const mesUnderLead = Object.entries(users)
         .filter(([, u]) => u.role === ROLES.ME && u.assignedLead === currentUid)
         .map(([uid]) => uid);
-      const visibleUsers = new Set([...mesUnderLead, currentUid]);
-      return Object.fromEntries(Object.entries(guestinfo).filter(([, g]) => visibleUsers.has(g.userUid)));
+      const visible = new Set([...mesUnderLead, currentUid]);
+      return Object.fromEntries(
+        Object.entries(guestinfo).filter(([, g]) => visible.has(g.userUid))
+      );
     }
 
-    if (currentRole === ROLES.ME) {
-      return Object.fromEntries(Object.entries(guestinfo).filter(([, g]) => g.userUid === currentUid));
+    // ME: own only
+    if (isMe(currentRole)) {
+      return Object.fromEntries(
+        Object.entries(guestinfo).filter(([, g]) => g.userUid === currentUid)
+      );
     }
 
     return {};
   }
 
-  /* ------------------------------------------------------------------
-     Simple HTML escape
-     ------------------------------------------------------------------ */
-  function escapeHtml(str) {
-    return (str || '')
+  /* --------------------------------------------------------------
+   * Escape HTML
+   * -------------------------------------------------------------- */
+  function esc(str) {
+    return (str || "")
+      .toString()
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
-  /* ------------------------------------------------------------------
-     Render Guest Info section
-     ------------------------------------------------------------------ */
+  /* --------------------------------------------------------------
+   * Status Badge
+   * -------------------------------------------------------------- */
+  function statusBadge(status) {
+    const s = (status || "new").toLowerCase();
+    let cls = "role-badge role-guest", label = "NEW";
+    if (s === "working")  { cls = "role-badge role-lead";  label = "WORKING"; }
+    else if (s === "proposal") { cls = "role-badge role-dm"; label = "PROPOSAL"; }
+    else if (s === "sold")     { cls = "role-badge role-admin"; label = "SOLD"; }
+    return `<span class="${cls}">${label}</span>`;
+  }
+
+  /* --------------------------------------------------------------
+   * Build inline card HTML
+   * -------------------------------------------------------------- */
   function renderGuestinfoSection(guestinfo, users, currentUid, currentRole) {
     const visibleGuestinfo = filterGuestinfo(guestinfo, users, currentUid, currentRole);
 
-    if (Object.keys(visibleGuestinfo).length === 0) {
-      return `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">No guest info found.</p></section>`;
+    if (!Object.keys(visibleGuestinfo).length) {
+      return `
+        <section class="admin-section guestinfo-section">
+          <h2>Guest Info</h2>
+          <p class="text-center">No guest info found.</p>
+        </section>`;
     }
 
-    const guestCards = Object.entries(visibleGuestinfo)
-      .sort((a, b) => (b[1].submittedAt || 0) - (a[1].submittedAt || 0))
-      .map(([id, g]) => {
-        const submitter = users[g.userUid];
-        const canDeleteEntry = canDelete(currentRole);
-        const canEditEntry   = currentRole !== ROLES.ME || g.userUid === currentUid;
-        const isSold         = (g.status === "sold") || !!g.sale;
-
-        // sale summary
-        let saleSummaryHtml = "";
-        if (isSold && g.sale) {
-          const soldAt = g.sale.soldAt ? new Date(g.sale.soldAt).toLocaleString() : "";
-          const units  = g.sale.units ?? "";
-          saleSummaryHtml = `
-            <div class="guest-sale-summary" style="margin-top:8px; font-size:.9rem; color:#0f0;">
-              <b>Sold:</b> ${soldAt} &bull; Units: ${units}
-            </div>`;
-        }
-
-        // action buttons row (view mode)
-        const displayActions = [
-          canEditEntry
-            ? `<button class="btn btn-primary btn-sm" onclick="window.guestinfo.toggleEdit('${id}')">Edit</button>`
-            : "",
-          (!isSold && canMarkSold(currentRole, g.userUid, currentUid))
-            ? `<button class="btn btn-success btn-sm" style="margin-left:8px;" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>`
-            : "",
-          (isSold && canMarkSold(currentRole, g.userUid, currentUid))
-            ? `<button class="btn btn-warning btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>`
-            : ""
-        ].filter(Boolean).join("");
-
-        return `
-          <div class="guest-card" id="guest-card-${id}">
-            <div class="guest-display" style="display: block;">
-              <div><b>Submitted by:</b> ${submitter?.name || submitter?.email || g.userUid}</div>
-              <div><b>Customer:</b> ${escapeHtml(g.custName) || "-"} | <b>Phone:</b> ${escapeHtml(g.custPhone) || "-"}</div>
-              <div><b>Type:</b> ${escapeHtml(g.serviceType) || "-"}</div>
-              <div><b>Situation:</b> ${escapeHtml(g.situation) || "-"}</div>
-              <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : "-"}</div>
-              ${saleSummaryHtml}
-              <div style="margin-top:8px;">${displayActions}</div>
-            </div>
-
-            <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none; margin-top: 8px;">
-              <label>
-                Customer Name:<br>
-                <input type="text" name="custName" value="${escapeHtml(g.custName)}" />
-              </label><br>
-              <label>
-                Customer Phone:<br>
-                <input type="text" name="custPhone" value="${escapeHtml(g.custPhone)}" />
-              </label><br>
-              <label>
-                Service Type:<br>
-                <input type="text" name="serviceType" value="${escapeHtml(g.serviceType)}" />
-              </label><br>
-              <label>
-                Situation:<br>
-                <textarea name="situation">${escapeHtml(g.situation)}</textarea>
-              </label><br>
-              <button type="button" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
-              <button type="button" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
-              ${
-                canDeleteEntry
-                  ? `<button type="button" style="margin-left:10px;" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete</button>`
-                  : ""
-              }
-            </form>
-          </div>
-        `;
-      })
+    const cardsHtml = Object.entries(visibleGuestinfo)
+      .sort((a,b) => (b[1].submittedAt||0) - (a[1].submittedAt||0))
+      .map(([id, g]) => guestCardHtml(id, g, users, currentUid, currentRole))
       .join("");
 
     return `
       <section class="admin-section guestinfo-section">
         <h2>Guest Info</h2>
-        <div class="guestinfo-container">${guestCards}</div>
+        <div class="guestinfo-container">${cardsHtml}</div>
       </section>
     `;
   }
 
-  /* ------------------------------------------------------------------
-     View/Edit toggle
-     ------------------------------------------------------------------ */
+  function guestCardHtml(id, g, users, currentUid, currentRole) {
+    const submitter = users[g.userUid];
+    const allowDelete = canDelete(currentRole);
+    const allowEdit   = canEditEntry(currentRole, g.userUid, currentUid);
+    const allowSold   = canMarkSold(currentRole, g.userUid, currentUid);
+
+    // unify service/eval fields: prefer top-level (legacy), else evaluate.*
+    const serviceType = g.serviceType ?? g.evaluate?.serviceType ?? "";
+    const situation   = g.situation   ?? g.evaluate?.situation   ?? "";
+    // for inline preview, truncate long situation
+    const sitPreview  = situation && situation.length > 140
+      ? situation.slice(0,137) + "…"
+      : situation;
+
+    const status      = g.status || (g.sale ? "sold" : (g.evaluate ? "working" : "new"));
+    const statBadge   = statusBadge(status);
+
+    const isSold = status === "sold" || !!g.sale;
+    const units  = isSold ? (g.sale?.units ?? "") : "";
+    const soldAt = isSold && g.sale?.soldAt ? new Date(g.sale.soldAt).toLocaleString() : "";
+
+    const saleSummary = isSold
+      ? `<div class="guest-sale-summary"><b>Sold:</b> ${soldAt || ""} &bull; Units: ${units}</div>`
+      : "";
+
+    /* ---- Action Row (View Mode) ----------------------------------- */
+    const actions = [];
+
+    // Continue/Open workflow page
+    actions.push(
+      `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">
+         ${g.evaluate || g.solution || g.sale ? "Open" : "Continue"}
+       </button>`
+    );
+
+    if (allowEdit) {
+      actions.push(
+        `<button class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>`
+      );
+    }
+
+    if (!isSold && allowSold) {
+      actions.push(
+        `<button class="btn btn-success btn-sm" style="margin-left:8px;" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>`
+      );
+    }
+
+    if (isSold && allowSold) {
+      actions.push(
+        `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>`
+      );
+    }
+
+    if (allowDelete) {
+      actions.push(
+        `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>`
+      );
+    }
+
+    const actionRow = actions.join("");
+
+    /* ---- Quick Edit Form ------------------------------------------ */
+    // (top-level fields only; deeper evaluate/solution done in workflow page)
+    return `
+      <div class="guest-card" id="guest-card-${id}">
+        <div class="guest-display">
+          <div><b>Status:</b> ${statBadge}</div>
+          <div><b>Submitted by:</b> ${esc(submitter?.name || submitter?.email || g.userUid)}</div>
+          <div><b>Customer:</b> ${esc(g.custName) || "-"} &nbsp; | &nbsp; <b>Phone:</b> ${esc(g.custPhone) || "-"}</div>
+          <div><b>Type:</b> ${esc(serviceType) || "-"}</div>
+          <div><b>Situation:</b> ${esc(sitPreview) || "-"}</div>
+          <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : "-"}</div>
+          ${saleSummary}
+          <div class="guest-card-actions" style="margin-top:8px;">${actionRow}</div>
+        </div>
+
+        <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
+          <label>Customer Name
+            <input type="text" name="custName" value="${esc(g.custName)}" />
+          </label>
+          <label>Customer Phone
+            <input type="text" name="custPhone" value="${esc(g.custPhone)}" />
+          </label>
+          <label>Service Type
+            <input type="text" name="serviceType" value="${esc(serviceType)}" />
+          </label>
+          <label>Situation
+            <textarea name="situation">${esc(situation)}</textarea>
+          </label>
+          <div style="margin-top:8px;">
+            <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `;
+  }
+
+  /* --------------------------------------------------------------
+   * Toggle Quick Edit
+   * -------------------------------------------------------------- */
   function toggleEdit(id) {
-    const displayDiv = document.querySelector(`#guest-card-${id} .guest-display`);
-    const editForm   = document.getElementById(`guest-edit-form-${id}`);
-    if (!displayDiv || !editForm) return;
-    const show = (editForm.style.display === "none");
-    editForm.style.display   = show ? "block" : "none";
-    displayDiv.style.display = show ? "none"  : "block";
+    const card      = document.getElementById(`guest-card-${id}`);
+    if (!card) return;
+    const display   = card.querySelector(".guest-display");
+    const form      = card.querySelector(".guest-edit-form");
+    if (!display || !form) return;
+    const showForm = form.style.display === "none";
+    form.style.display    = showForm ? "block" : "none";
+    display.style.display = showForm ? "none"  : "block";
   }
-
   function cancelEdit(id) {
-    const form       = document.getElementById(`guest-edit-form-${id}`);
-    const displayDiv = document.querySelector(`#guest-card-${id} .guest-display`);
-    if (!form || !displayDiv) return;
-    form.style.display = "none";
-    displayDiv.style.display = "block";
+    const card    = document.getElementById(`guest-card-${id}`);
+    if (!card) return;
+    const display = card.querySelector(".guest-display");
+    const form    = card.querySelector(".guest-edit-form");
+    if (!display || !form) return;
+    form.style.display    = "none";
+    display.style.display = "block";
   }
 
-  /* ------------------------------------------------------------------
-     Save edits
-     ------------------------------------------------------------------ */
+  /* --------------------------------------------------------------
+   * Save Quick Edit (top-level fields only)
+   * -------------------------------------------------------------- */
   async function saveEdit(id) {
-    const form = document.getElementById(`guest-edit-form-${id}`);
+    const card = document.getElementById(`guest-card-${id}`);
+    const form = card?.querySelector(".guest-edit-form");
     if (!form) return alert("Edit form not found.");
 
     const data = {
@@ -195,26 +264,27 @@
       custPhone:   form.custPhone.value.trim(),
       serviceType: form.serviceType.value.trim(),
       situation:   form.situation.value.trim(),
+      updatedAt:   Date.now()
     };
 
     try {
       await window.db.ref(`guestinfo/${id}`).update(data);
       cancelEdit(id);
-      await window.renderAdminApp();
+      await window.renderAdminApp(); // full refresh
     } catch (e) {
       alert("Error saving changes: " + e.message);
     }
   }
 
-  /* ------------------------------------------------------------------
-     Delete guest info
-     ------------------------------------------------------------------ */
+  /* --------------------------------------------------------------
+   * Delete Lead
+   * -------------------------------------------------------------- */
   async function deleteGuestInfo(id) {
     if (!canDelete(window.currentRole)) {
       alert("You don't have permission to delete.");
       return;
     }
-    if (!confirm("Delete this guest info?")) return;
+    if (!confirm("Delete this guest lead? This cannot be undone.")) return;
     try {
       await window.db.ref(`guestinfo/${id}`).remove();
       await window.renderAdminApp();
@@ -223,9 +293,9 @@
     }
   }
 
-  /* ------------------------------------------------------------------
-     MARK SOLD FLOW (units only)
-     ------------------------------------------------------------------ */
+  /* --------------------------------------------------------------
+   * Mark Sold (units only)
+   * -------------------------------------------------------------- */
   async function markSold(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -239,7 +309,6 @@
         return;
       }
 
-      // Units prompt
       let unitsStr = prompt("How many units were sold?", "1");
       if (unitsStr === null) return; // cancel
       let units = parseInt(unitsStr, 10);
@@ -254,13 +323,15 @@
       }
       storeNumber = storeNumber.toString().trim();
 
+      const now = Date.now();
+
       // Create sale
       const salePayload = {
         guestinfoKey: id,
         storeNumber,
         repUid: window.currentUid || null,
         units,
-        createdAt: Date.now()
+        createdAt: now
       };
       const saleRef = await window.db.ref("sales").push(salePayload);
       const saleId  = saleRef.key;
@@ -268,19 +339,19 @@
       // Attach to guestinfo
       await window.db.ref(`guestinfo/${id}/sale`).set({
         saleId,
-        soldAt: Date.now(),
+        soldAt: now,
         storeNumber,
         units
       });
       await window.db.ref(`guestinfo/${id}/status`).set("sold");
 
-      // Credit store ledger (best-effort; may be restricted by rules)
+      // Credit store ledger (best-effort)
       if (storeNumber) {
         try {
           await window.db.ref(`storeCredits/${storeNumber}`).push({
             saleId,
             guestinfoKey: id,
-            creditedAt: Date.now(),
+            creditedAt: now,
             units
           });
         } catch (ledgerErr) {
@@ -294,9 +365,9 @@
     }
   }
 
-  /* ------------------------------------------------------------------
-     DELETE SALE (undo sale)
-     ------------------------------------------------------------------ */
+  /* --------------------------------------------------------------
+   * Delete Sale (undo)
+   * -------------------------------------------------------------- */
   async function deleteSale(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -313,19 +384,17 @@
         alert("No sale recorded.");
         return;
       }
-      if (!confirm("Delete this sale? This will remove credit.")) return;
+      if (!confirm("Delete this sale? This will remove store credit.")) return;
 
       const saleId      = g.sale.saleId;
       const storeNumber = g.sale.storeNumber;
+      const hasEval     = !!g.evaluate;
 
       // Remove sale record
       await window.db.ref(`sales/${saleId}`).remove();
-
       // Remove from guestinfo
       await window.db.ref(`guestinfo/${id}/sale`).remove();
-
-      // Reset status: if evaluation exists -> 'working', else 'new'
-      const hasEval = !!g.evaluate;
+      // Reset status
       await window.db.ref(`guestinfo/${id}/status`).set(hasEval ? "working" : "new");
 
       // Remove related storeCredits entries (best-effort)
@@ -351,9 +420,20 @@
     }
   }
 
-  /* ------------------------------------------------------------------
-     Expose
-     ------------------------------------------------------------------ */
+  /* --------------------------------------------------------------
+   * Open full workflow page (Step UI)
+   * -------------------------------------------------------------- */
+  function openGuestInfoPage(guestKey) {
+    const base = GUESTINFO_PAGE;
+    const sep  = base.includes("?") ? "&" : "?";
+    const url  = `${base}${sep}gid=${encodeURIComponent(guestKey)}`;
+    try { localStorage.setItem("last_guestinfo_key", guestKey); } catch(_) {}
+    window.location.href = url;
+  }
+
+  /* --------------------------------------------------------------
+   * Expose public API
+   * -------------------------------------------------------------- */
   window.guestinfo = {
     renderGuestinfoSection,
     toggleEdit,
@@ -361,6 +441,7 @@
     saveEdit,
     deleteGuestInfo,
     markSold,
-    deleteSale
+    deleteSale,
+    openGuestInfoPage
   };
 })();
