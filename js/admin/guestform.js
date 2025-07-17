@@ -484,7 +484,7 @@
    * entryId:  originating guestEntries id (optional; improves prefill & analytics)
    * ================================================================ */
   function openGuestInfoPage(guestKey, entryId){
-    const base = window.GUESTINFO_PAGE || "guest-info.html";
+    const base = window.GUESTINFO_PAGE || "../html/guest-info.html";
 
     // Build query string robustly.
     let params = [];
