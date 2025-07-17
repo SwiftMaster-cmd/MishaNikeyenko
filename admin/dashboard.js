@@ -54,42 +54,22 @@ function assertDelete() {
   if (!window.canDelete || !window.canDelete(currentRole)) throw "PERM_DENIED_DELETE";
 }
 
-function renderGuestFormSection() {
-  return `
-    <section class="admin-section guest-form-section">
-      <h2>Guest Form</h2>
-      <form id="guestForm">
-        <label>
-          Guest Name:<br />
-          <input type="text" name="guestName" id="guestName" required />
-        </label><br />
-        <label>
-          Guest Phone:<br />
-          <input type="tel" name="guestPhone" id="guestPhone" required />
-        </label><br />
-        <label>
-          <input type="checkbox" id="agreeTerms" name="agreeTerms" required /> I agree to the terms
-        </label><br /><br />
-        <button type="submit">Submit</button>
-      </form>
-    </section>
-  `;
-}
-
 async function renderAdminApp() {
   adminAppDiv.innerHTML = "<div>Loading data…</div>";
 
-  const [storesSnap, usersSnap, reviewsSnap, guestSnap] = await Promise.all([
+  const [storesSnap, usersSnap, reviewsSnap, guestSnap, guestFormsSnap] = await Promise.all([
     db.ref("stores").get(),
     db.ref("users").get(),
     db.ref("reviews").get(),
     db.ref("guestinfo").get(),
+    db.ref("guestEntries").get(),          // <-- NEW: public guest form submissions
   ]);
 
-  const stores = storesSnap.val() || {};
-  const users = usersSnap.val() || {};
-  const reviews = reviewsSnap.val() || {};
-  const guestinfo = guestSnap.val() || {};
+  const stores     = storesSnap.val()     || {};
+  const users      = usersSnap.val()      || {};
+  const reviews    = reviewsSnap.val()    || {};
+  const guestinfo  = guestSnap.val()      || {};
+  const guestForms = guestFormsSnap.val() || {};
 
   const storesHtml = (currentRole !== ROLES.ME && window.stores?.renderStoresSection)
     ? window.stores.renderStoresSection(stores, users, currentRole)
@@ -107,6 +87,11 @@ async function renderAdminApp() {
     ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
     : `<p class="text-center">Guest Info module not loaded.</p>`;
 
+  // NEW: guest form submissions section
+  const guestFormsHtml = window.guestforms?.renderGuestFormsSection
+    ? window.guestforms.renderGuestFormsSection(guestForms, currentRole)
+    : `<p class="text-center">Guest Form submissions module not loaded.</p>`;
+
   const roleMgmtHtml =
     typeof window.renderRoleManagementSection === "function"
       ? window.renderRoleManagementSection(currentRole)
@@ -117,10 +102,11 @@ async function renderAdminApp() {
     ${usersHtml}
     ${reviewsHtml}
     ${guestinfoHtml}
-    ${renderGuestFormSection()}
+    ${guestFormsHtml}
     ${roleMgmtHtml}
   `;
 
+  // Cache objects for filters
   if (window.reviews?.filterReviewsByRole) {
     window._filteredReviews = Object.entries(
       window.reviews.filterReviewsByRole(reviews, users, currentUid, currentRole)
@@ -133,31 +119,39 @@ async function renderAdminApp() {
   window._stores = stores;
 }
 
-// Action handlers
+/* ========================================================================
+   Action handlers delegated to modules
+   ===================================================================== */
+
+// Stores
 window.assignTL = (storeId, uid) => window.stores.assignTL(storeId, uid);
 window.updateStoreNumber = (id, val) => window.stores.updateStoreNumber(id, val);
 window.addStore = () => window.stores.addStore();
 window.deleteStore = (id) => window.stores.deleteStore(id);
 
+// Users
 window.assignLeadToGuest = (guestUid, leadUid) => window.users.assignLeadToGuest(guestUid, leadUid);
 window.assignDMToLead = (leadUid, dmUid) => window.users.assignDMToLead(leadUid, dmUid);
 window.editUserStore = async (uid) => {
   if (window.users?.editUserStore) return window.users.editUserStore(uid);
 };
 
+// Reviews
 window.toggleStar = (id, starred) => window.reviews.toggleStar(id, starred);
 window.deleteReview = (id) => window.reviews.deleteReview(id);
 
+// Review filters (use filtered reviews)
 window.filterReviewsByStore = (store) => {
   const filtered = window._filteredReviews.filter(([, r]) => r.store === store);
   document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(filtered);
 };
-
 window.filterReviewsByAssociate = (name) => {
   const filtered = window._filteredReviews.filter(([, r]) => r.associate === name);
   document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(filtered);
 };
-
 window.clearReviewFilter = () => {
   document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(window._filteredReviews);
 };
+
+// Guest Form submissions
+window.deleteGuestFormEntry = (id) => window.guestforms.deleteGuestFormEntry(id);

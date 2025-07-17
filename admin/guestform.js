@@ -1,43 +1,75 @@
 (() => {
-  // Initialize Firebase Database ref (assumes firebase is already initialized)
-  const db = window.db;
+  const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
-  async function submitGuestForm(event) {
-    event.preventDefault();
+  function canDelete(role) {
+    return role === ROLES.ADMIN || role === ROLES.DM;
+  }
 
-    const form = event.target;
-    const guestName = form.guestName.value.trim();
-    const guestPhone = form.guestPhone.value.trim();
-    const agree = form.agreeTerms.checked;
+  // Render submissions list
+  function renderGuestFormsSection(entriesObj, currentRole) {
+    const entries = Object.entries(entriesObj || {}).sort(
+      (a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0)
+    );
 
-    if (!guestName || !guestPhone || !agree) {
-      alert("Please fill out all fields and agree to the terms.");
-      return;
+    if (!entries.length) {
+      return `
+        <section class="admin-section guest-forms-section">
+          <h2>Guest Form Submissions</h2>
+          <p class="text-center">No guest submissions yet.</p>
+        </section>
+      `;
     }
 
-    const entry = {
-      guestName,
-      guestPhone,
-      timestamp: Date.now(),
-      // Optionally add userUid or other metadata if logged-in user info is accessible
-    };
+    const rows = entries.map(([id, g]) => {
+      const when = g.timestamp ? new Date(g.timestamp).toLocaleString() : "-";
+      return `
+        <tr>
+          <td>${g.guestName || "-"}</td>
+          <td>${g.guestPhone || "-"}</td>
+          <td>${when}</td>
+          <td style="text-align:center;">
+            ${canDelete(currentRole)
+              ? `<button class="btn btn-danger btn-sm" onclick="window.guestforms.deleteGuestFormEntry('${id}')">Delete</button>`
+              : ""}
+          </td>
+        </tr>
+      `;
+    }).join("");
 
+    return `
+      <section class="admin-section guest-forms-section">
+        <h2>Guest Form Submissions</h2>
+        <table class="guest-forms-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Submitted</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </section>
+    `;
+  }
+
+  async function deleteGuestFormEntry(id) {
+    if (!canDelete(window.currentRole)) {
+      alert("You don't have permission to delete guest submissions.");
+      return;
+    }
+    if (!confirm("Delete this guest submission?")) return;
     try {
-      await db.ref("guestEntries").push(entry);
-      alert("Submitted successfully.");
-      form.reset();
+      await window.db.ref(`guestEntries/${id}`).remove();
+      await window.renderAdminApp();
     } catch (err) {
-      alert("Error submitting: " + err.message);
+      alert("Error deleting: " + err.message);
     }
   }
 
-  // Attach submit handler when DOM loaded
-  document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById("guestForm");
-    if (form) form.addEventListener("submit", submitGuestForm);
-  });
-
-  window.guestform = {
-    submitGuestForm
+  window.guestforms = {
+    renderGuestFormsSection,
+    deleteGuestFormEntry,
   };
 })();
