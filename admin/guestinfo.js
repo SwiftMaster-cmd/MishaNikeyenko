@@ -152,12 +152,12 @@
   }
 
   /* ------------------------------------------------------------------
-   * Controls bar (filters, proposals toggle, sales toggle)
+   * Controls bar (time-frame, follow-ups, sales, new lead)
    * ------------------------------------------------------------------ */
   function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly){
-    const showWeek = filterMode === "week";
-    const weekLabel = showWeek ? "Showing: This Week" : "Showing: All";
-    const weekBtnLabel = showWeek ? "All" : "This Week";
+    const weekActive = filterMode === "week";
+    const weekCls = weekActive ? "btn-primary"   : "btn-secondary";
+    const allCls  = !weekActive ? "btn-primary"  : "btn-secondary";
 
     // Follow-Ups toggle button: when open, become "Back to Leads"
     const proposalBtnCls = showProposals ? "btn-secondary" : (proposalCount ? "btn-warning" : "btn-secondary");
@@ -165,16 +165,17 @@
       ? "Back to Leads"
       : `⚠ Follow-Ups (${proposalCount})`;
 
-    // Sales button label shows count
+    // Sales button label shows count / Back to Leads when active
     const soldBtnLabel = soldOnly ? "Back to Leads" : `Sales (${soldCount})`;
-    const soldBtnCls   = soldOnly ? "btn-secondary" : "btn-secondary";
+    const soldBtnCls   = "btn-secondary";
 
     return `
       <div class="guestinfo-controls review-controls" style="justify-content:flex-start;flex-wrap:wrap;">
-        <button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleWeekAll()">${weekBtnLabel}</button>
-        <span style="align-self:center;margin:0 8px;font-size:.85em;opacity:.7;">${weekLabel}</span>
+        <button class="btn ${weekCls} btn-sm" onclick="window.guestinfo.setFilterMode('week')">This Week</button>
+        <button class="btn ${allCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.setFilterMode('all')">All</button>
         <button class="btn ${proposalBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleShowProposals()">${proposalBtnLabel}</button>
         <button class="btn ${soldBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleSoldOnly()">${soldBtnLabel}</button>
+        <button class="btn btn-success btn-sm" style="margin-left:auto;" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
       </div>`;
   }
 
@@ -567,14 +568,14 @@
   }
 
   /* ------------------------------------------------------------------
-   * Filter toggles (called from controls bar)
+   * Filter setters / toggles
    * ------------------------------------------------------------------ */
-  function toggleWeekAll(){
-    window._guestinfo_filterMode = (window._guestinfo_filterMode === "week") ? "all" : "week";
+  function setFilterMode(mode){
+    window._guestinfo_filterMode = (mode === "all" ? "all" : "week");
     window.renderAdminApp();
   }
   function toggleShowProposals(){
-    // turning on Follow-Ups hides other groups; also turn off Sales view
+    // turning on Follow-Ups hides Sales view
     if (!window._guestinfo_showProposals){
       window._guestinfo_soldOnly = false;
     }
@@ -591,7 +592,19 @@
   }
 
   /* ------------------------------------------------------------------
-   * Open full workflow page (Step UI)
+   * Create New Lead (launch step workflow w/out gid param)
+   * ------------------------------------------------------------------ */
+  function createNewLead(){
+    // no gid param -> guest workflow shows Step 1
+    const base = GUESTINFO_PAGE;
+    // ensure we don't accidentally carry ?gid= from location; open clean
+    const url = base.split("?")[0]; // strip existing query if any
+    try { localStorage.removeItem("last_guestinfo_key"); } catch(_) {}
+    window.location.href = url;
+  }
+
+  /* ------------------------------------------------------------------
+   * Open full workflow page (Step UI) for existing record
    * ------------------------------------------------------------------ */
   function openGuestInfoPage(guestKey) {
     const base = GUESTINFO_PAGE;
@@ -613,8 +626,11 @@
     markSold,
     deleteSale,
     openGuestInfoPage,
-    toggleWeekAll,
+    // filters
+    setFilterMode,
     toggleShowProposals,
-    toggleSoldOnly
+    toggleSoldOnly,
+    // new lead
+    createNewLead
   };
 })();
