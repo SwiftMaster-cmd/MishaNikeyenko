@@ -7,7 +7,7 @@
   /* ------------------------------------------------------------------
    * Config: path to full step workflow page
    * ------------------------------------------------------------------ */
-  const GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guestinfo.html";
+  const GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../html/guestinfo.html";
 
   /* ------------------------------------------------------------------
    * UI state (persist on window so survives re-renders)
