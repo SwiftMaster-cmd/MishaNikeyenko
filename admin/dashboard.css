@@ -1148,3 +1148,227 @@ td:last-child{text-align:right;}
   .dashboard-congrats{animation:none;}
   .dc-card{transition:none;}
 }
+
+/* =======================================================================
+   STORES PERFORMANCE HIGHLIGHTS  (collapsed Stores summary mode)
+   -----------------------------------------------------------------------
+   Expected markup (emitted by JS when all stores are "good"):
+     <section class="admin-section stores-highlight-section">
+       <h2>Stores Performance</h2>
+       <div class="stores-hl-grid">
+         <div class="sh-card sh-met" onclick="...">
+            <div class="sh-card-head">
+              <span class="sh-store-num">#1234</span>
+              <span class="sh-staff-pills">
+                <span class="sh-pill sh-pill-lead" title="Leads">L1</span>
+                <span class="sh-pill sh-pill-me"   title="MEs">M2</span>
+              </span>
+            </div>
+            <div class="sh-rating-row">
+              <span class="sh-stars" data-stars="4.9">★★★★☆</span>
+              <span class="sh-rating-val">4.9</span>
+            </div>
+            <div class="sh-progress-wrap">
+              <div class="sh-progress-bar">
+                <div class="sh-progress-fill" style="--sh-pct:92%;"></div>
+              </div>
+              <div class="sh-progress-label">92% • 92/100u</div>
+            </div>
+            <div class="sh-card-cta">View Details</div>
+         </div>
+         ...
+       </div>
+     </section>
+   -----------------------------------------------------------------------
+   Color states: .sh-met (≥goal), .sh-under (<goal), .sh-nogoal (goal=0)
+   ----------------------------------------------------------------------- */
+
+.stores-highlight-section {
+  text-align:center;
+  padding-top:var(--space-lg);
+  padding-bottom:var(--space-xl);
+}
+
+.stores-highlight-section > h2 {
+  margin-bottom:var(--space-md);
+  display:inline-block;
+  position:relative;
+}
+
+/* grid --------------------------------------------------------------- */
+.stores-hl-grid{
+  width:100%;
+  max-width:860px;
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));
+  gap:var(--space-lg);
+}
+@media (max-width:480px){
+  .stores-hl-grid{gap:var(--space-md);}
+}
+
+/* card --------------------------------------------------------------- */
+.sh-card{
+  position:relative;
+  cursor:pointer;
+  padding:var(--space-lg) var(--space-md) var(--space-xl);
+  border-radius:var(--radius-xl);
+  background:var(--bg-card);
+  border:1px solid var(--border-strong);
+  box-shadow:var(--shadow-card);
+  transition:transform var(--dur-fast) var(--ease-out),
+             box-shadow var(--dur-fast) var(--ease-out),
+             background var(--dur-fast) var(--ease-out);
+}
+.sh-card:hover,
+.sh-card:focus-visible{
+  transform:translateY(-2px) scale(1.01);
+  box-shadow:var(--shadow-card-h);
+  background:var(--bg-card-hover);
+  outline:none;
+}
+.sh-card:active{transform:translateY(0) scale(.97);}
+
+/* state color accents (thin top bar) */
+.sh-card::before{
+  content:"";
+  position:absolute;
+  top:0;left:0;right:0;
+  height:4px;
+  border-top-left-radius:inherit;
+  border-top-right-radius:inherit;
+  background:transparent;
+}
+.sh-card.sh-met::before   {background:var(--success);}
+.sh-card.sh-under::before {background:var(--warning);}
+.sh-card.sh-nogoal::before{background:var(--text-muted);}
+
+/* header row (store # + staff mix) ---------------------------------- */
+.sh-card-head{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:var(--space-sm);
+  margin-bottom:var(--space-sm);
+  flex-wrap:wrap;
+}
+.sh-store-num{
+  font-size:var(--fs-lg);
+  font-weight:700;
+  color:var(--text-hi);
+  line-height:1;
+}
+
+.sh-staff-pills{
+  display:inline-flex;
+  gap:var(--space-xs);
+  align-items:center;
+}
+.sh-pill{
+  display:inline-block;
+  padding:2px 8px;
+  font-size:var(--fs-xs);
+  font-weight:700;
+  border-radius:999px;
+  line-height:1.2;
+  white-space:nowrap;
+  box-shadow:0 0 0 1px var(--border-color) inset;
+}
+.sh-pill-lead{background:rgba(30,200,120,.85);color:#fff;}
+.sh-pill-me{background:rgba(180,180,200,.6);color:#fff;}
+/* optional DM pill if needed */
+.sh-pill-dm{background:rgba(60,120,255,.85);color:#fff;}
+
+/* rating row --------------------------------------------------------- */
+.sh-rating-row{
+  display:flex;
+  justify-content:center;
+  align-items:baseline;
+  gap:var(--space-xs);
+  margin-bottom:var(--space-sm);
+}
+.sh-stars{
+  font-size:clamp(1.25rem,4vw,1.75rem);
+  line-height:1;
+  color:gold;
+  letter-spacing:1px;
+}
+.sh-rating-val{
+  font-size:var(--fs-sm);
+  color:var(--text-med);
+}
+
+/* progress ----------------------------------------------------------- */
+.sh-progress-wrap{
+  width:100%;
+  max-width:220px;
+  margin:0 auto var(--space-md);
+}
+.sh-progress-bar{
+  width:100%;
+  height:8px;
+  background:rgba(255,255,255,.08);
+  border-radius:999px;
+  overflow:hidden;
+  position:relative;
+}
+.sh-progress-fill{
+  position:absolute;
+  top:0;left:0;
+  height:100%;
+  width:var(--sh-pct,0%);
+  background:var(--brand);
+  transition:width var(--dur-med) var(--ease-out);
+}
+.sh-card.sh-met   .sh-progress-fill{background:var(--success);}
+.sh-card.sh-under .sh-progress-fill{background:var(--warning);}
+.sh-card.sh-nogoal .sh-progress-fill{background:var(--text-muted);}
+
+.sh-progress-label{
+  margin-top:var(--space-xs);
+  font-size:var(--fs-xs);
+  color:var(--text-muted);
+  line-height:1.2;
+}
+
+/* CTA --------------------------------------------------------------- */
+.sh-card-cta{
+  margin-top:var(--space-xs);
+  font-size:var(--fs-sm);
+  font-weight:600;
+  color:var(--brand);
+  text-decoration:underline;
+  text-underline-offset:2px;
+  pointer-events:none; /* card handles click */
+}
+.sh-card:hover .sh-card-cta{color:var(--brand-hover);}
+
+/* empty / all-good message ------------------------------------------ */
+.stores-highlight-empty{
+  margin-top:var(--space-md);
+  font-size:var(--fs-md);
+  color:var(--text-muted);
+}
+.stores-highlight-empty strong{color:var(--text-hi);}
+
+/* close button variant (if you place an X in header) ---------------- */
+.stores-highlight-section .sh-close-btn{
+  position:absolute;
+  top:var(--space-sm);
+  right:var(--space-sm);
+  z-index:1;
+  background:transparent;
+  color:var(--text-med);
+  border:none;
+  padding:var(--space-xs);
+  line-height:1;
+  cursor:pointer;
+}
+.stores-highlight-section .sh-close-btn:hover{color:var(--text-hi);}
+
+/* reduced motion ---------------------------------------------------- */
+@media (prefers-reduced-motion:reduce){
+  .sh-card{transition:none;}
+  .sh-progress-fill{transition:none;}
+}
