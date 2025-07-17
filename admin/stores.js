@@ -32,7 +32,7 @@
 
   /* ------------------------------------------------------------------
      Sales summarizer
-     salesObj: { saleId: {storeNumber, units, amount, ...}, ... }
+     salesObj: { saleId: {storeNumber, units, amount?, ...}, ... }
      Returns { [storeNumber]: {count, units, amount} }
      ------------------------------------------------------------------ */
   function summarizeSalesByStore(salesObj) {
@@ -44,24 +44,62 @@
       if (!out[sn]) out[sn] = { count: 0, units: 0, amount: 0 };
       out[sn].count += 1;
       out[sn].units += Number(s.units || 0);
-      out[sn].amount += Number(s.amount || 0);
+      out[sn].amount += Number(s.amount || 0); // kept for possible reporting even if UI hides $
     }
     return out;
   }
 
   /* ------------------------------------------------------------------
-     Format helpers
+     Get ME users tied to a store
+     - Primary: user.store === storeNumber (string compare)
+     - Backup:  if teamLeadUid exists, include MEs whose assignedLead === teamLeadUid
+     Deduped; returns array of user objects
      ------------------------------------------------------------------ */
-  function fmtMoney(n) {
-    const v = Number(n || 0);
-    return v
-      .toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 0 });
+  function getMesForStore(users, storeNumber, teamLeadUid) {
+    const match = new Set();
+    const mes = [];
+
+    const sn = (storeNumber || "").toString().trim();
+
+    for (const [uid, u] of Object.entries(users)) {
+      if (u.role !== ROLES.ME) continue;
+
+      // store match
+      if (sn && u.store && u.store.toString().trim() === sn) {
+        if (!match.has(uid)) {
+          match.add(uid);
+          mes.push({ uid, ...u });
+          continue;
+        }
+      }
+
+      // lead relationship fallback
+      if (teamLeadUid && u.assignedLead === teamLeadUid) {
+        if (!match.has(uid)) {
+          match.add(uid);
+          mes.push({ uid, ...u });
+        }
+      }
+    }
+    return mes;
   }
+
+  function fmtMesCell(mesArr) {
+    if (!mesArr || !mesArr.length) return "-";
+    // Shorten: show up to 3 names, then +N
+    const names = mesArr.map((u) => u.name || u.email || u.uid);
+    const shown = names.slice(0, 3).join(", ");
+    const extra = names.length > 3 ? ` +${names.length - 3}` : "";
+    return `${shown}${extra}`;
+  }
+
+  /* ------------------------------------------------------------------
+     Format sales cell: count / units
+     ------------------------------------------------------------------ */
   function fmtSalesCell(summ) {
     if (!summ) return "-";
-    const { count, units, amount } = summ;
-    // Example: "3 / 5u / $750"
-    return `${count} / ${units}u / ${fmtMoney(amount)}`;
+    const { count, units } = summ;
+    return `${count} / ${units}u`;
   }
 
   /* ------------------------------------------------------------------
@@ -76,6 +114,9 @@
       const tl = users[s.teamLeadUid] || {};
       const storeNumber = s.storeNumber || "";
       const summ = salesSummary[storeNumber];
+      const mesArr = getMesForStore(users, storeNumber, s.teamLeadUid);
+      const mesCell = fmtMesCell(mesArr);
+
       return `<tr>
         <td>${canEditStoreNumber(currentRole)
           ? `<input type="text" value="${storeNumber}" onchange="window.stores.updateStoreNumber('${id}',this.value)">`
@@ -87,13 +128,13 @@
               .filter(([, u]) => [ROLES.LEAD, ROLES.DM].includes(u.role))
               .map(
                 ([uid, u]) =>
-                  `<option value="${uid}" ${s.teamLeadUid === uid ? 'selected' : ''}>${u.name || u.email
-                  }</option>`
+                  `<option value="${uid}" ${s.teamLeadUid === uid ? 'selected' : ''}>${u.name || u.email}</option>`
               )
               .join("")}
           </select>` : (tl.name || tl.email || '-')}
           ${tl.role ? roleBadge(tl.role) : ''}
         </td>
+        <td>${mesCell}</td>
         <td>${fmtSalesCell(summ)}</td>
         <td>${canDelete(currentRole)
           ? `<button class="btn btn-danger" onclick="window.stores.deleteStore('${id}')">Delete</button>`
@@ -109,7 +150,8 @@
             <tr>
               <th>#</th>
               <th>Team Lead</th>
-              <th>Sales<br><small>Count / Units / $</small></th>
+              <th>Associates (MEs)</th>
+              <th>Sales<br><small>Cnt / Units</small></th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -172,6 +214,7 @@
     updateStoreNumber,
     addStore,
     deleteStore,
-    summarizeSalesByStore // exported in case you need charts later
+    summarizeSalesByStore,
+    getMesForStore // export in case you want usage elsewhere
   };
 })();
