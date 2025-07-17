@@ -69,7 +69,6 @@ async function renderAdminApp() {
   const reviews = reviewsSnap.val() || {};
   const guestinfo = guestSnap.val() || {};
 
-  // Hide stores section if role is ME
   const storesHtml = (currentRole !== ROLES.ME && window.stores?.renderStoresSection)
     ? window.stores.renderStoresSection(stores, users, currentRole)
     : "";
@@ -78,12 +77,13 @@ async function renderAdminApp() {
     ? window.users.renderUsersSection(users, currentRole, currentUid)
     : `<p class="text-center">Users module not loaded.</p>`;
 
+  // Pass users and current info for filtering
   const reviewsHtml = window.reviews?.renderReviewsSection
-    ? window.reviews.renderReviewsSection(reviews, currentRole)
+    ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
     : `<p class="text-center">Reviews module not loaded.</p>`;
 
   const guestinfoHtml = window.guestinfo?.renderGuestinfoSection
-    ? window.guestinfo.renderGuestinfoSection(guestinfo, users)
+    ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
     : `<p class="text-center">Guest Info module not loaded.</p>`;
 
   const roleMgmtHtml =
@@ -99,17 +99,20 @@ async function renderAdminApp() {
     ${roleMgmtHtml}
   `;
 
-  window._allReviews = Object.entries(reviews).sort(
-    (a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0)
-  );
-  window._allReviewsHtml = reviewsHtml;
+  // Store filtered reviews for filtering actions
+  if (window.reviews?.filterReviewsByRole) {
+    window._filteredReviews = Object.entries(
+      window.reviews.filterReviewsByRole(reviews, users, currentUid, currentRole)
+    ).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
+  } else {
+    window._filteredReviews = Object.entries(reviews).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
+  }
+
   window._users = users;
   window._stores = stores;
 }
 
-/* ========================================================================
-   Action handlers delegated to modules
-   ===================================================================== */
+// --- Action handlers ---
 
 // Stores
 window.assignTL = (storeId, uid) => window.stores.assignTL(storeId, uid);
@@ -128,13 +131,17 @@ window.editUserStore = async (uid) => {
 window.toggleStar = (id, starred) => window.reviews.toggleStar(id, starred);
 window.deleteReview = (id) => window.reviews.deleteReview(id);
 
-// Review filters
-window.filterReviewsByStore = (store) =>
-  (document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(
-    window._allReviews.filter(([, r]) => r.store === store)
-  ));
-window.filterReviewsByAssociate = (name) =>
-  (document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(
-    window._allReviews.filter(([, r]) => r.associate === name)
-  ));
-window.clearReviewFilter = () => (document.querySelector(".reviews-container").innerHTML = window._allReviewsHtml);
+// Review filters (use filtered reviews)
+window.filterReviewsByStore = (store) => {
+  const filtered = window._filteredReviews.filter(([, r]) => r.store === store);
+  document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(filtered);
+};
+
+window.filterReviewsByAssociate = (name) => {
+  const filtered = window._filteredReviews.filter(([, r]) => r.associate === name);
+  document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(filtered);
+};
+
+window.clearReviewFilter = () => {
+  document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(window._filteredReviews);
+};
