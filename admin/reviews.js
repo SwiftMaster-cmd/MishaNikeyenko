@@ -1,26 +1,52 @@
 (() => {
-  // Permissions must sync with admin.js
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
-  function canEdit(role) {
-    return role !== ROLES.ME;
-  }
-
   function canDelete(role) {
-    return role === ROLES.DM || role === ROLES.ADMIN;
-  }
-
-  function assertEdit() {
-    if (!window.currentRole || window.currentRole === ROLES.ME) throw "PERM_DENIED_EDIT";
+    return role === ROLES.ADMIN;
   }
 
   function assertDelete() {
     if (!canDelete(window.currentRole)) throw "PERM_DENIED_DELETE";
   }
 
-  // Render reviews section HTML
-  function renderReviewsSection(reviews, currentRole) {
-    const reviewEntries = Object.entries(reviews).sort((a,b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
+  // Filter reviews by store based on user role and their assigned stores
+  function filterReviewsByRole(reviews, users, currentUid, currentRole) {
+    if (!reviews || !users || !currentUid || !currentRole) return {};
+
+    const currentUser = users[currentUid] || {};
+
+    // Admin sees all
+    if (currentRole === ROLES.ADMIN) return reviews;
+
+    // Helper: collect store numbers user manages/sees
+    let visibleStores = new Set();
+
+    if (currentRole === ROLES.DM) {
+      // All stores assigned to DM (where store.teamLeadUid is a Lead with assignedDM = currentUid)
+      for (const [uid, user] of Object.entries(users)) {
+        if (user.role === ROLES.LEAD && user.assignedDM === currentUid && user.store) {
+          visibleStores.add(user.store);
+        }
+      }
+    } else if (currentRole === ROLES.LEAD) {
+      // Lead sees reviews for their store only
+      if (currentUser.store) visibleStores.add(currentUser.store);
+    } else if (currentRole === ROLES.ME) {
+      // ME sees reviews for their store only
+      if (currentUser.store) visibleStores.add(currentUser.store);
+    }
+
+    // Filter reviews to only those stores
+    return Object.fromEntries(
+      Object.entries(reviews).filter(([id, r]) => visibleStores.has(r.store))
+    );
+  }
+
+  function renderReviewsSection(reviews, currentRole, users, currentUid) {
+    // Apply store-based filtering per role
+    const filteredReviews = filterReviewsByRole(reviews, users, currentUid, currentRole);
+    const reviewEntries = Object.entries(filteredReviews).sort((a,b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
+
     if (!reviewEntries.length) return `<p class="text-center">No reviews.</p>`;
 
     return `
@@ -31,7 +57,7 @@
           ${reviewEntries.map(([id,r]) => `
             <div class="review-card">
               <div class="review-header">
-                <span class="review-star ${r.starred ? '' : 'inactive'}" ${canEdit(currentRole) ? `onclick="window.reviews.toggleStar('${id}',${!!r.starred})"` : ''}>&#9733;</span>
+                <span class="review-star">&#9733;</span>
                 <div><b>Store:</b> ${r.store || '-'}</div>
                 <div><b>Associate:</b> ${r.associate || '-'}</div>
                 ${canDelete(currentRole) ? `<button class="btn btn-danger btn-sm" onclick="window.reviews.deleteReview('${id}')">Delete</button>` : ''}
@@ -46,12 +72,6 @@
     `;
   }
 
-  async function toggleStar(id, starred) {
-    assertEdit();
-    await window.db.ref(`reviews/${id}/starred`).set(!starred);
-    await window.renderAdminApp();
-  }
-
   async function deleteReview(id) {
     assertDelete();
     if (confirm("Delete this review?")) {
@@ -60,14 +80,12 @@
     }
   }
 
-  // Helper for reload button - just calls main render
   function renderReviewsReload() {
     window.renderAdminApp();
   }
 
   window.reviews = {
     renderReviewsSection,
-    toggleStar,
     deleteReview,
     renderReviewsReload
   };
