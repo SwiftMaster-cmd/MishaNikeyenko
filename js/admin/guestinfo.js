@@ -714,14 +714,37 @@
   /* ------------------------------------------------------------------
    * Open full workflow page (Step UI) for existing record
    * ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------
+   * Open full workflow page (Step UI) for existing record
+   *  - Sends a uistart hint so gp-app can jump directly to the best step.
+   *    Logic:
+   *      proposal|sold  -> step3
+   *      else if any Step1 data present OR g.prefilledStep1 -> step2
+   *      else -> step1
+   * ------------------------------------------------------------------ */
   function openGuestInfoPage(guestKey) {
     const base = GUESTINFO_PAGE;
+    const g = (window._guestinfo && window._guestinfo[guestKey]) || null;
+
+    let uistart = "step1";
+    if (g) {
+      const status = (g.status || "").toLowerCase();
+      if (status === "proposal" || status === "sold") {
+        uistart = "step3";
+      } else {
+        const hasStep1 =
+          (g.custName && g.custName.trim() !== "") ||
+          (g.custPhone && g.custPhone.trim() !== "") ||
+          g.prefilledStep1; // seeded from intake
+        uistart = hasStep1 ? "step2" : "step1";
+      }
+    }
+
     const sep  = base.includes("?") ? "&" : "?";
-    const url  = `${base}${sep}gid=${encodeURIComponent(guestKey)}`;
+    const url  = `${base}${sep}gid=${encodeURIComponent(guestKey)}&uistart=${uistart}`;
     try { localStorage.setItem("last_guestinfo_key", guestKey); } catch(_) {}
     window.location.href = url;
   }
-
   /* ------------------------------------------------------------------
    * Inject minimal CSS for pitch pills (only once)
    * ------------------------------------------------------------------ */
