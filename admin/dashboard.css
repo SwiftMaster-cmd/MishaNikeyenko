@@ -1,576 +1,770 @@
 /* ==========================================================================
-   Reset & Dark Base
+   DASHBOARD THEME v2
+   ==========================================================================
+   Load AFTER legacy CSS to override, or replace legacy entirely.
    ========================================================================== */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-html, body {
-  height: 100%;
-}
-body {
-  font-family: 'Segoe UI', 'SF Pro', Arial, sans-serif;
-  background: linear-gradient(135deg, #14151a 0%, #1e2027 100%);
-  color: #e2e8f0;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  padding-bottom: 80px;
+
+/* --------------------------------------------------------------------------
+   CSS Custom Properties (Design Tokens)
+   Tune these for rebranding without hunting CSS.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Brand / Accent */
+  --brand:            #1e90ff;
+  --brand-hover:      #4aa8ff;
+  --brand-focus-ring: rgba(30,144,255,.6);
+
+  /* Semantic */
+  --success:          #00c853;
+  --success-bg:       rgba(0,200,83,.15);
+  --warning:          #ffb300;
+  --warning-bg:       rgba(255,179,0,.15);
+  --danger:           #ff5252;
+  --danger-hover:     #ff1744;
+  --danger-bg:        rgba(255,82,82,.15);
+  --info:             #82caff;
+
+  /* Surfaces */
+  --bg-page-a:        #0f1117;
+  --bg-page-b:        #1a1c24;
+  --bg-card:          rgba(26,28,36,.75);    /* fallback if no backdrop */
+  --bg-card-solid:    #1b1d25;
+  --bg-card-hover:    rgba(26,28,36,.95);
+
+  /* Borders */
+  --border-color:     rgba(255,255,255,.08);
+  --border-strong:    rgba(255,255,255,.18);
+
+  /* Text */
+  --text-hi:          #ffffff;
+  --text-med:         #e2e8f0;
+  --text-lo:          #a0aec0;
+  --text-muted:       #718096;
+  --text-invert:      #0f1117;
+
+  /* Tables */
+  --table-stripe:     rgba(255,255,255,.03);
+
+  /* Radius */
+  --radius-sm:        6px;
+  --radius-md:        12px;
+  --radius-lg:        16px;
+  --radius-xl:        20px;
+
+  /* Spacing scale (clamp for fluid) */
+  --space-2xs: clamp(2px, 0.25vw, 4px);
+  --space-xs:  clamp(4px, 0.5vw, 8px);
+  --space-sm:  clamp(8px, 0.8vw, 12px);
+  --space-md:  clamp(16px, 1vw, 20px);
+  --space-lg:  clamp(24px, 2vw, 32px);
+  --space-xl:  clamp(32px, 3vw, 48px);
+
+  /* Typography scale */
+  --fs-2xs: clamp(.7rem, 1.5vw, .75rem);
+  --fs-xs:  clamp(.8rem, 1.6vw, .85rem);
+  --fs-sm:  clamp(.9rem, 1.8vw, .95rem);
+  --fs-md:  clamp(1rem, 2vw, 1.05rem);
+  --fs-lg:  clamp(1.2rem, 2.5vw, 1.4rem);
+  --fs-xl:  clamp(1.6rem, 3vw, 1.75rem);
+  --fs-xxl: clamp(2rem, 4vw, 2.5rem);
+
+  /* Z layers */
+  --z-header:      100;
+  --z-modal:       1000;
+  --z-tooltip:     1010;
+
+  /* Motion */
+  --dur-fast:      .12s;
+  --dur-med:       .25s;
+  --dur-slow:      .4s;
+  --ease-out:      cubic-bezier(.25,.8,.25,1);
+  --ease-in:       cubic-bezier(.42,0,1,1);
+  --ease-in-out:   cubic-bezier(.42,0,.58,1);
+
+  /* Shadows */
+  --shadow-card:   0 4px 16px rgba(0,0,0,.6);
+  --shadow-card-h: 0 8px 24px rgba(0,0,0,.8);
+  --shadow-btn:    0 4px 14px rgba(30,144,255,.4);
+  --shadow-btn-h:  0 6px 20px rgba(30,144,255,.6);
+  --shadow-danger: 0 4px 14px rgba(255,82,82,.4);
+  --shadow-success:0 4px 14px rgba(0,200,83,.4);
 }
 
-/* ==========================================================================
-   Glassy Header
-   ========================================================================== */
+/* Reduced motion honoring */
+@media (prefers-reduced-motion: reduce){
+  :root {
+    --dur-fast:.01ms;
+    --dur-med:.01ms;
+    --dur-slow:.01ms;
+  }
+  * { transition-duration:0ms !important; animation-duration:0ms !important; }
+}
+
+/* --------------------------------------------------------------------------
+   Base Reset additions (keep your existing reset; these augment)
+   -------------------------------------------------------------------------- */
+html,body {
+  background: var(--bg-page-a);
+  color: var(--text-med);
+  line-height: 1.4;
+}
+body {
+  padding-bottom: var(--space-xl);
+  font-size: var(--fs-md);
+}
+img,svg,video,canvas { max-width:100%; height:auto; }
+button { font-family:inherit; font-size:inherit; }
+
+/* Scrollbar subtle dark (webkit) */
+::-webkit-scrollbar { width:10px; height:10px; }
+::-webkit-scrollbar-track { background:rgba(255,255,255,.05); }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,.25); border-radius:5px; }
+::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.4); }
+
+/* --------------------------------------------------------------------------
+   Header
+   -------------------------------------------------------------------------- */
 .admin-header {
   position: sticky;
   top: 0;
-  z-index: 100;
-  display: flex;
+  z-index: var(--z-header);
+  display:flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 20px 36px;
-  background: rgba(30, 32, 39, 0.6);
+  align-items:center;
+  padding: var(--space-md) var(--space-lg);
+  background: rgba(26,28,36,.65);
   backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom:1px solid var(--border-color);
 }
 .admin-header h2 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #fff;
+  margin:0;
+  font-size: var(--fs-xl);
+  font-weight:700;
+  color: var(--text-hi);
 }
 .admin-header button {
-  padding: 10px 22px;
-  border: none;
-  border-radius: 12px;
-  background: rgba(30,144,255,0.8);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--brand);
+  color: var(--text-hi);
+  font-weight:600;
+  border:none;
+  cursor:pointer;
   backdrop-filter: blur(6px);
-  box-shadow: 0 4px 16px rgba(30,144,255,0.4);
-  transition: box-shadow .25s;
+  box-shadow: var(--shadow-btn);
+  transition: box-shadow var(--dur-med) var(--ease-out);
 }
 .admin-header button:hover {
-  box-shadow: 0 6px 20px rgba(30,144,255,0.6);
+  box-shadow: var(--shadow-btn-h);
 }
 
-/* ==========================================================================
-   Main Container
-   ========================================================================== */
+/* --------------------------------------------------------------------------
+   Main Layout Grid
+   -------------------------------------------------------------------------- */
 #adminApp {
-  max-width: 1200px;
-  margin: 40px auto;
-  padding: 0 16px;
-  display: grid;
-  gap: 24px;
+  max-width: 90rem;
+  width:100%;
+  margin: var(--space-xl) auto;
+  padding: 0 var(--space-md);
+  display:grid;
+  gap: var(--space-lg);
+  grid-template-columns:1fr;
+}
+@media (min-width: 768px){
+  #adminApp {
+    grid-template-columns: 1fr; /* still single column; change if you want split UI */
+  }
+}
+@media (min-width:1200px){
+  #adminApp {
+    /* optional 2-col masonry: comment out if you prefer linear flow */
+    grid-template-columns: 1fr 1fr;
+  }
+  #adminApp > .admin-section {
+    /* full-width sections override by adding .section-span-2 in markup */
+    grid-column: span 2;
+  }
 }
 
-/* ==========================================================================
-   Generic Glassy Section
-   ========================================================================== */
+/* --------------------------------------------------------------------------
+   Section Card Shell
+   -------------------------------------------------------------------------- */
 .admin-section {
-  background: rgba(25,26,32,0.6);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 20px;
-  padding: 30px;
+  position:relative;
+  background: var(--bg-card);
+  border:1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-card);
   backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-  transition: box-shadow .3s;
+  transition: box-shadow var(--dur-med) var(--ease-out),
+              background var(--dur-med) var(--ease-out);
 }
 .admin-section:hover {
-  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+  box-shadow: var(--shadow-card-h);
+  background: var(--bg-card-hover);
 }
 .admin-section h2,
 .section-title {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 16px;
+  font-size: var(--fs-lg);
+  font-weight:700;
+  color: var(--text-hi);
+  margin-bottom: var(--space-md);
 }
 
-/* ==========================================================================
-   Logout Button
-   ========================================================================== */
+/* Collapsible sections (optional class) */
+.admin-section.collapsible > .section-header {
+  display:flex; justify-content:space-between; align-items:center;
+  cursor:pointer; user-select:none;
+}
+.admin-section.collapsible[data-open="false"] > *:not(.section-header){
+  display:none;
+}
+
+/* --------------------------------------------------------------------------
+   Logout Button (header variant)
+   -------------------------------------------------------------------------- */
 #logoutBtn {
-  background: rgba(255,255,255,0.1);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.3);
-  padding: 8px 16px;
-  font-size: .9rem;
-  border-radius: 12px;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.6);
-  transition: background .3s, transform .2s;
+  background: rgba(255,255,255,.1);
+  color: var(--text-hi);
+  border:1px solid rgba(255,255,255,.3);
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-md);
+  cursor:pointer;
+  box-shadow: var(--shadow-card);
+  transition: background var(--dur-med) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
 }
 #logoutBtn:hover {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,.2);
   transform: translateY(-1px);
 }
 
-/* ==========================================================================
-   Stores Section
-   ========================================================================== */
-.stores-section { margin-bottom: 32px; }
-.store-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 16px;
-}
-.store-table th,
-.store-table td {
-  padding: 12px;
-  color: #ddd;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-.store-table th {
-  font-weight: 600;
-  font-size: .95rem;
-}
-.store-table input,
-.store-table select {
-  width: 100%;
-  padding: 8px 12px;
-  background: rgba(30,32,39,0.6);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  color: #e2e8f0;
-  backdrop-filter: blur(8px);
-  transition: border .3s;
-}
-.store-table input:focus,
-.store-table select:focus {
-  border-color: rgba(30,144,255,0.8);
-  outline: none;
-}
-.store-add {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-.store-add input {
-  flex: 1;
-}
-.store-add button {
-  padding: 10px 20px;
-  font-weight: 600;
-  background: rgba(30,144,255,0.8);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 4px 14px rgba(30,144,255,0.4);
-  transition: box-shadow .3s;
-}
-.store-add button:hover {
-  box-shadow: 0 6px 18px rgba(30,144,255,0.6);
-}
-@media (max-width: 600px) {
-  .store-add { flex-direction: column; }
-}
-
-/* ==========================================================================
-   Inputs & Selects (Fallback)
-   ========================================================================== */
+/* --------------------------------------------------------------------------
+   Shared Input Styles
+   -------------------------------------------------------------------------- */
 input,
-select {
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
-  padding: 8px 12px;
-  font-size: .98rem;
-  background: rgba(30,32,39,0.6);
-  color: #e2e8f0;
-  backdrop-filter: blur(8px);
-  transition: border .3s;
+select,
+textarea {
+  border-radius: var(--radius-md);
+  border:1px solid var(--border-color);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--fs-md);
+  background: rgba(255,255,255,.06);
+  color: var(--text-med);
+  width:100%;
+  transition: border var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
 }
 input:focus,
-select:focus {
-  border-color: rgba(30,144,255,0.8);
-  outline: none;
+select:focus,
+textarea:focus {
+  outline:none;
+  border-color: var(--brand);
+  background: rgba(255,255,255,.1);
+  box-shadow: 0 0 0 2px var(--brand-focus-ring);
 }
 
-/* ==========================================================================
-   Role Badges
-   ========================================================================== */
-.role-badge {
-  display: inline-block;
-  padding: 3px 12px;
-  font-weight: 600;
-  font-size: .95rem;
-  border-radius: 14px;
-  text-transform: uppercase;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
-}
-.role-dm    { background: rgba(60,120,255,0.8); color: #fff; }
-.role-lead  { background: rgba(30,200,120,0.8); color: #fff; }
-.role-guest { background: rgba(180,180,200,0.5); color: #e2e8f0; }
-
-/* ==========================================================================
-   Buttons (Generic)
-   ========================================================================== */
+/* --------------------------------------------------------------------------
+   Button System
+   -------------------------------------------------------------------------- */
 button,
-.login-btn {
-  padding: 12px 20px;
-  font-weight: 600;
-  background: rgba(30,144,255,0.8);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 4px 14px rgba(30,144,255,0.4);
-  transition: box-shadow .3s;
-}
-button:hover,
-.login-btn:hover {
-  box-shadow: 0 6px 18px rgba(30,144,255,0.6);
+.login-btn,
+.btn {
+  border:none;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-weight:600;
+  cursor:pointer;
+  line-height:1.2;
+  transition: transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
 }
 
-/* ==========================================================================
-   Clickable Links/Filters
-   ========================================================================== */
-.clickable {
-  color: #5ebaff;
-  cursor: pointer;
-  transition: color .2s;
+.btn-sm   { padding: var(--space-xs) var(--space-sm); font-size: var(--fs-sm); }
+.btn-lg   { padding: var(--space-md) var(--space-lg); font-size: var(--fs-md); }
+
+.btn-primary {
+  background: var(--brand);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-btn);
 }
-.clickable:hover {
-  color: #82caff;
+.btn-primary:hover { background: var(--brand-hover); box-shadow: var(--shadow-btn-h); }
+
+.btn-secondary {
+  background: rgba(255,255,255,.15);
+  color: var(--text-med);
+}
+.btn-secondary:hover { background: rgba(255,255,255,.25); }
+
+.btn-success {
+  background: var(--success);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-success);
+}
+.btn-success:hover { filter:brightness(1.1); }
+
+.btn-danger,
+.btn-danger-outline {
+  background: var(--danger);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-danger);
+}
+.btn-danger:hover,
+.btn-danger-outline:hover { background: var(--danger-hover); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--brand);
+}
+.btn-ghost:hover { background: rgba(30,144,255,.15); }
+
+/* Reset legacy inline .user-card-actions etc */
+.user-card-actions button,
+.review-header .btn-danger,
+.store-add button,
+.guest-forms-table td button,
+.guest-card button {
+  all: unset;
+  /* restore base button */
+  display:inline-block;
+  border:none;
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--fs-sm);
+  font-weight:600;
+  cursor:pointer;
+  line-height:1.2;
+}
+.user-card-actions button.btn-danger,
+.review-header .btn-danger,
+.guest-card button.btn-danger,
+.guest-forms-table td button.btn-danger {
+  background: var(--danger);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-danger);
+  padding: var(--space-xs) var(--space-sm);
+}
+.user-card-actions button.btn-danger:hover,
+.review-header .btn-danger:hover,
+.guest-card button.btn-danger:hover,
+.guest-forms-table td button.btn-danger:hover {
+  background: var(--danger-hover);
 }
 
-/* ==========================================================================
-   Users Section -- Glassy Cards
-   ========================================================================== */
+/* Primary apply for scattered inline markup */
+.user-card-actions button:not(.btn-danger),
+.review-header button:not(.btn-danger),
+.store-add button,
+.guest-forms-table td button:not(.btn-danger),
+.guest-card button:not(.btn-danger) {
+  background: var(--brand);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-btn);
+}
+.user-card-actions button:not(.btn-danger):hover,
+.review-header button:not(.btn-danger):hover,
+.store-add button:hover,
+.guest-forms-table td button:not(.btn-danger):hover,
+.guest-card button:not(.btn-danger):hover {
+  background: var(--brand-hover);
+  box-shadow: var(--shadow-btn-h);
+}
+
+/* --------------------------------------------------------------------------
+   Role Badges (unified)
+   -------------------------------------------------------------------------- */
+.role-badge {
+  display:inline-block;
+  padding:2px 10px;
+  font-size: var(--fs-xs);
+  font-weight:600;
+  border-radius:999px;
+  line-height:1.2;
+  box-shadow:0 0 0 1px var(--border-color) inset;
+  vertical-align:middle;
+}
+.role-badge + .role-badge { margin-left:var(--space-xs); }
+
+.role-admin { background:var(--brand); color:var(--text-hi); }
+.role-dm    { background:rgba(60,120,255,.8); color:#fff; }
+.role-lead  { background:rgba(30,200,120,.8); color:#fff; }
+.role-me    { background:rgba(180,180,200,.4); color:#fff; }
+.role-guest { background:rgba(180,180,200,.5); color:var(--text-med); }
+
+/* --------------------------------------------------------------------------
+   Tables General
+   -------------------------------------------------------------------------- */
+.store-table,
+.guest-forms-table {
+  width:100%;
+  border-collapse:collapse;
+  margin-bottom: var(--space-md);
+  font-size: var(--fs-sm);
+}
+.store-table th,
+.store-table td,
+.guest-forms-table th,
+.guest-forms-table td {
+  padding: var(--space-sm);
+  border-bottom:1px solid var(--border-color);
+  text-align:left;
+  white-space:nowrap;
+}
+.store-table th,
+.guest-forms-table th {
+  color: var(--text-hi);
+  font-weight:600;
+}
+.store-table tbody tr:nth-child(odd),
+.guest-forms-table tbody tr:nth-child(odd){
+  background: var(--table-stripe);
+}
+.store-table td:last-child,
+.guest-forms-table td:last-child { text-align:right; }
+
+/* Horizontal scroll wrapper (mobile safe) */
+.guest-forms-table-wrap,
+.guest-forms-table-wrapper,
+.store-table-wrap {
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* Responsive collapse to cards (opt-in w/ .table-stackable) */
+@media (max-width:640px){
+  .table-stackable,
+  .table-stackable thead,
+  .table-stackable tbody,
+  .table-stackable th,
+  .table-stackable td,
+  .table-stackable tr {
+    display:block;
+    width:100%;
+  }
+  .table-stackable thead { display:none; }
+  .table-stackable tr {
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow-card);
+  }
+  .table-stackable td {
+    padding: var(--space-xs) 0;
+    border:none;
+    white-space:normal;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap: var(--space-sm);
+  }
+  .table-stackable td::before {
+    content: attr(data-label);
+    font-weight:600;
+    color: var(--text-hi);
+    flex:0 0 auto;
+  }
+  .table-stackable td:last-child {
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    margin-top: var(--space-xs);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Stores Section Specific
+   -------------------------------------------------------------------------- */
+.stores-section { margin-bottom: var(--space-lg); }
+.store-add {
+  display:flex;
+  gap: var(--space-sm);
+  align-items:flex-start;
+}
+@media (max-width:600px){
+  .store-add { flex-direction:column; width:100%; }
+  .store-add input { width:100%; }
+}
+
+/* --------------------------------------------------------------------------
+   Users Section (cards)
+   -------------------------------------------------------------------------- */
 .users-section .users-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px,1fr));
-  gap: 24px;
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(min(320px,100%),1fr));
+  gap: var(--space-lg);
 }
 .user-card {
-  background: rgba(25,26,32,0.6);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px;
-  padding: 24px;
-  backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-  transition: box-shadow .3s;
+  background: var(--bg-card);
+  border:1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--dur-med) var(--ease-out),
+              background var(--dur-med) var(--ease-out);
 }
 .user-card:hover {
-  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+  box-shadow: var(--shadow-card-h);
+  background: var(--bg-card-hover);
 }
 .user-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom: var(--space-md);
 }
 .user-name {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #fff;
+  font-size: var(--fs-md);
+  font-weight:700;
+  color: var(--text-hi);
 }
 .user-email {
-  font-size: .9rem;
-  color: #ccc;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
 }
 .user-card-info {
-  display: grid;
-  grid-template-columns: repeat(2,1fr);
-  gap: 8px 16px;
-  margin-bottom: 20px;
-  color: #ddd;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+  gap: var(--space-xs) var(--space-md);
+  margin-bottom: var(--space-md);
+  color: var(--text-med);
+  font-size: var(--fs-sm);
 }
-.user-card-info b {
-  color: #fff;
-}
+.user-card-info b { color: var(--text-hi); }
 .user-card-actions {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  align-items: start;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap: var(--space-sm);
+  align-items:start;
 }
-.user-card-actions label {
-  display: flex;
-  flex-direction: column;
-  font-size: .9rem;
-  color: #ddd;
-}
-.user-card-actions select {
-  margin-top: 6px;
-  padding: 8px 12px;
-  background: rgba(30,32,39,0.6);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  backdrop-filter: blur(8px);
-  color: #e2e8f0;
-  transition: border .3s;
-}
-.user-card-actions select:focus {
-  border-color: rgba(30,144,255,0.8);
-  outline: none;
-}
-.user-card-actions .btn-danger,
-.user-card-actions .btn-danger-outline {
-  padding: 8px 16px;
-  font-size: .9rem;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  background: rgba(255,80,80,0.8);
-  color: #fff;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 4px 14px rgba(255,80,80,0.4);
-  transition: background .25s, box-shadow .3s;
-}
-.user-card-actions .btn-danger:hover,
-.user-card-actions .btn-danger-outline:hover {
-  background: rgba(255,80,80,1);
-  box-shadow: 0 6px 18px rgba(255,80,80,0.6);
-}
-@media (max-width: 600px) {
-  .user-card-actions { grid-template-columns: 1fr; }
-  .user-card-info { grid-template-columns: 1fr; }
+@media (max-width:600px){
+  .user-card-actions { grid-template-columns:1fr; }
+  .user-card-info { grid-template-columns:1fr; }
 }
 
-/* ==========================================================================
-   Reviews Section -- Glassy Cards
-   ========================================================================== */
-.reviews-section h2 {
-  margin-bottom: 16px;
-}
+/* --------------------------------------------------------------------------
+   Reviews Section
+   -------------------------------------------------------------------------- */
+.reviews-section h2 { margin-bottom: var(--space-md); }
 .review-controls {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.review-controls button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 12px;
-  background: rgba(30,144,255,0.8);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 4px 14px rgba(30,144,255,0.4);
-  transition: box-shadow .25s;
-}
-.review-controls button:hover {
-  box-shadow: 0 6px 18px rgba(30,144,255,0.6);
+  display:flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  flex-wrap:wrap;
+  justify-content:flex-end;
 }
 .reviews-container {
-  display: grid;
-  gap: 20px;
+  display:grid;
+  gap: var(--space-md);
 }
 .review-card {
-  background: rgba(25,26,32,0.6);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px;
-  padding: 24px;
-  backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-  transition: box-shadow .3s;
+  background: var(--bg-card);
+  border:1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--dur-med) var(--ease-out),
+              background var(--dur-med) var(--ease-out);
 }
 .review-card:hover {
-  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+  box-shadow: var(--shadow-card-h);
+  background: var(--bg-card-hover);
 }
 .review-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom: var(--space-sm);
+  gap: var(--space-sm);
+  flex-wrap:wrap;
 }
 .review-header .left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display:flex;
+  align-items:center;
+  gap: var(--space-xs);
 }
 .review-star {
-  font-size: 1.2rem;
-  color: gold;
-  cursor: pointer;
-  transition: color .2s;
+  font-size:1.2rem;
+  color:gold;
+  cursor:pointer;
+  transition:transform var(--dur-fast) var(--ease-out);
 }
-.review-star.inactive {
-  color: rgba(255,255,255,0.3);
-}
+.review-star.inactive { color:rgba(255,255,255,.3); }
+.review-star:hover { transform:scale(1.1); }
 .review-header .info {
-  font-size: .95rem;
-  color: #ddd;
+  font-size: var(--fs-sm);
+  color: var(--text-med);
 }
-.review-header .info b {
-  color: #fff;
-}
-.review-header .btn-danger {
-  padding: 6px 14px;
-  font-size: .9rem;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  background: rgba(255,80,80,0.8);
-  color: #fff;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 4px 14px rgba(255,80,80,0.4);
-  transition: background .25s, box-shadow .3s;
-}
-.review-header .btn-danger:hover {
-  background: rgba(255,80,80,1);
-  box-shadow: 0 6px 18px rgba(255,80,80,0.6);
-}
+.review-header .info b { color: var(--text-hi); }
 .review-rating {
-  display: inline-block;
-  margin-bottom: 16px;
-  font-size: 1.1rem;
-  color: gold;
+  margin-bottom: var(--space-sm);
+  font-size: var(--fs-md);
+  color:gold;
 }
 .review-comment {
-  font-size: .96rem;
-  line-height: 1.5;
-  color: #e2e8f0;
-  margin-bottom: 16px;
+  font-size: var(--fs-md);
+  line-height:1.5;
+  color: var(--text-med);
+  margin-bottom: var(--space-md);
 }
 .review-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  font-size: .85rem;
-  color: #aaa;
+  display:flex;
+  flex-wrap:wrap;
+  gap: var(--space-md);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
 }
-.review-meta b {
-  color: #fff;
+.review-meta b { color: var(--text-med); }
+@media (max-width:600px){
+  .review-header { flex-direction:column; align-items:flex-start; }
+  .review-meta { flex-direction:column; gap:var(--space-xs); }
 }
-@media (max-width: 600px) {
-  .review-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .review-meta {
-    flex-direction: column;
-    gap: 8px;
-  }
-}
-/* ==========================================================================
+
+/* --------------------------------------------------------------------------
    Guest Form Submissions (Dashboard)
-   ========================================================================== */
-.guest-forms-section {
-  margin-top: 8px;
-}
-.guest-forms-section h2 {
-  margin-bottom: 16px;
-}
+   -------------------------------------------------------------------------- */
+.guest-forms-section { margin-top: var(--space-sm); }
+.guest-forms-section h2 { margin-bottom: var(--space-md); }
 
-/* Scroll wrapper safety (optional but recommended) */
-.guest-forms-table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
+.guest-forms-table-wrap { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
 
-/* Desktop / default table */
 .guest-forms-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 420px; /* keeps columns from collapsing too tight */
-  font-size: .95rem;
+  width:100%;
+  border-collapse:collapse;
+  min-width:420px;
+  font-size: var(--fs-sm);
 }
 .guest-forms-table th,
 .guest-forms-table td {
-  padding: 12px;
-  color: #ddd;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  text-align: left;
-  vertical-align: middle;
-  white-space: nowrap;
+  padding: var(--space-sm);
+  color: var(--text-med);
+  border-bottom:1px solid var(--border-color);
+  text-align:left;
+  vertical-align:middle;
+  white-space:nowrap;
 }
-.guest-forms-table th {
-  font-weight: 600;
-  font-size: .95rem;
-  color: #fff;
-}
-.guest-forms-table td:last-child {
-  text-align: right;
-}
-.guest-forms-table td button {
-  margin-left: 4px;
-}
+.guest-forms-table th { color:var(--text-hi); font-weight:600; }
+.guest-forms-table td:last-child { text-align:right; }
+.guest-forms-table td button { margin-left:var(--space-xs); }
+.guest-forms-table tr.consumed td { opacity:.7; }
+.guest-forms-table tr.linked td { background: var(--success-bg); }
 
-/* Linked submission visual */
-.guest-forms-table tr.linked td {
-  background: rgba(30,200,120,0.06);
-}
-
-/* --------------------------------------------
-   Mobile Stack (<= 640px) turns rows into cards
-   -------------------------------------------- */
-@media (max-width: 640px) {
-  .guest-forms-table,
-  .guest-forms-table thead,
-  .guest-forms-table tbody,
-  .guest-forms-table th,
-  .guest-forms-table td,
-  .guest-forms-table tr {
-    display: block;
-    width: 100%;
+@media (max-width:640px){
+  .guest-forms-table.table-stackable,
+  .guest-forms-table.table-stackable thead,
+  .guest-forms-table.table-stackable tbody,
+  .guest-forms-table.table-stackable th,
+  .guest-forms-table.table-stackable td,
+  .guest-forms-table.table-stackable tr {
+    display:block;
+    width:100%;
   }
-  .guest-forms-table thead {
-    display: none;
+  .guest-forms-table.table-stackable thead { display:none; }
+  .guest-forms-table.table-stackable tr {
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+    border:1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow-card);
   }
-  .guest-forms-table tr {
-    margin-bottom: 16px;
-    padding: 16px;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    background: rgba(25,26,32,0.8);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+  .guest-forms-table.table-stackable td {
+    padding: var(--space-xs) 0;
+    border:none;
+    white-space:normal;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap: var(--space-sm);
   }
-  .guest-forms-table td {
-    padding: 6px 0;
-    border: none;
-    white-space: normal;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: .95rem;
-  }
-  .guest-forms-table td::before {
+  .guest-forms-table.table-stackable td::before {
     content: attr(data-label);
-    font-weight: 600;
-    color: #fff;
-    flex: 0 0 auto;
+    font-weight:600;
+    color: var(--text-hi);
+    flex:0 0 auto;
   }
-  .guest-forms-table td:last-child {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 8px;
+  .guest-forms-table.table-stackable td:last-child {
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    margin-top: var(--space-xs);
   }
-  .guest-forms-table td:last-child::before {
-    content: "Actions";
-  }
-  .guest-forms-table td button {
-    margin: 0;
-    padding: 8px 14px;
-    font-size: .85rem;
+  .guest-forms-table.table-stackable td button {
+    margin:0;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--fs-xs);
   }
 }
-/* ==========================================================================
+
+/* --------------------------------------------------------------------------
    Guest Info Cards
-   ========================================================================== */
+   -------------------------------------------------------------------------- */
 .guest-card {
-  background: rgba(25,26,32,0.6);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px;
-  padding: 24px;
-  backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-  transition: box-shadow .3s;
+  background: var(--bg-card);
+  border:1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--dur-med) var(--ease-out),
+              background var(--dur-med) var(--ease-out);
+  margin-bottom: var(--space-md);
 }
 .guest-card:hover {
-  box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+  box-shadow: var(--shadow-card-h);
+  background: var(--bg-card-hover);
 }
-/* You can style .guest-card content similarly to .review-meta */ css overhaul things are overlapping and doesn’t fit mobile well 
+.guest-card + .guest-card { margin-top: var(--space-md); }
+
+.guest-card .guest-display > div {
+  margin-bottom: var(--space-xs);
+  font-size: var(--fs-sm);
+  color: var(--text-med);
+}
+.guest-card .guest-display b { color: var(--text-hi); }
+
+.guest-card form.guest-edit-form {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top:1px solid var(--border-color);
+  font-size: var(--fs-sm);
+}
+.guest-card form.guest-edit-form label {
+  display:block;
+  margin-bottom: var(--space-sm);
+}
+.guest-card form.guest-edit-form input,
+.guest-card form.guest-edit-form textarea {
+  margin-top: var(--space-2xs);
+}
+.guest-card form.guest-edit-form button {
+  margin-right: var(--space-xs);
+}
+
+/* Sale summary */
+.guest-sale-summary {
+  margin-top: var(--space-xs);
+  font-size: var(--fs-xs);
+  color: var(--success);
+}
+
+/* --------------------------------------------------------------------------
+   Utilities
+   -------------------------------------------------------------------------- */
+.text-center { text-align:center !important; }
+.u-hide       { display:none !important; }
+.u-show-inline{ display:inline-block !important; }
+.mt-sm        { margin-top:var(--space-sm) !important; }
+.mt-md        { margin-top:var(--space-md) !important; }
+.mt-lg        { margin-top:var(--space-lg) !important; }
+.w-100        { width:100% !important; }
+
+/* Allow modules to apply .section-span-2 to stretch wide in large screens */
+.section-span-2 { grid-column:span 2; }
+
+/* Debug outline (enable if needed) */
+/*
+* { outline:1px solid rgba(255,0,0,.1); }
+*/
