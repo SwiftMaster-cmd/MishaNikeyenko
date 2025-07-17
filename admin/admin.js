@@ -1,134 +1,98 @@
 /* ========================================================================
-   Dashboard Main Script
+   Role Management & Permissions Admin Module
    ===================================================================== */
-const firebaseConfig = {
-  apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
-  authDomain: "osls-644fd.firebaseapp.com",
-  databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
-  projectId: "osls-644fd",
-  storageBucket: "osls-644fd.appspot.com",
-  messagingSenderId: "798578046321",
-  appId: "1:798578046321:web:8758776701786a2fccf2d0",
-  measurementId: "G-9HWXNSBE1T"
-};
-firebase.initializeApp(firebaseConfig);
-const db   = firebase.database();
-const auth = firebase.auth();
-
-window.db = db; // expose for modules
-
-const adminAppDiv = document.getElementById("adminApp");
 
 const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
-let currentUid  = null;
-let currentRole = ROLES.ME;
 
-auth.onAuthStateChanged(async user => {
-  if (!user) {
-    window.location.href = "index.html";
-    return;
-  }
-  currentUid = user.uid;
-  const snap = await db.ref("users/" + user.uid).get();
-  const prof = snap.val() || {
-    role : ROLES.ME,
-    name : user.displayName || user.email,
-    email: user.email
-  };
-  await db.ref("users/" + user.uid).update(prof);
-
-  currentRole = prof.role || ROLES.ME;
-  window.currentRole = currentRole;
-
-  document.getElementById("logoutBtn")?.addEventListener("click", () => auth.signOut());
-
-  renderAdminApp();
-});
-
-function assertEdit() {
-  if (!window.canEdit || !window.canEdit(currentRole)) throw "PERM_DENIED_EDIT";
-}
-function assertDelete() {
-  if (!window.canDelete || !window.canDelete(currentRole)) throw "PERM_DENIED_DELETE";
-}
-
-async function renderAdminApp() {
-  adminAppDiv.innerHTML = "<div>Loading data…</div>";
-
-  const [storesSnap, usersSnap, reviewsSnap, guestSnap] = await Promise.all([
-    db.ref("stores").get(),
-    db.ref("users").get(),
-    db.ref("reviews").get(),
-    db.ref("guestinfo").get()
-  ]);
-
-  const stores    = storesSnap.val()  || {};
-  const users     = usersSnap.val()   || {};
-  const reviews   = reviewsSnap.val() || {};
-  const guestinfo = guestSnap.val()   || {};
-
-  // Stores section
-  const storesHtml = window.stores?.renderStoresSection
-    ? window.stores.renderStoresSection(stores, users, currentRole)
-    : `<p class="text-center">Stores module not loaded.</p>`;
-
-  // Users section
-  const usersHtml = window.users?.renderUsersSection
-    ? window.users.renderUsersSection(users, currentRole)
-    : `<p class="text-center">Users module not loaded.</p>`;
-
-  // Reviews section
-  const reviewsHtml = window.reviews?.renderReviewsSection
-    ? window.reviews.renderReviewsSection(reviews, currentRole)
-    : `<p class="text-center">Reviews module not loaded.</p>`;
-
-  // Guest info section
-  const guestinfoHtml = window.guestinfo?.renderGuestinfoSection
-    ? window.guestinfo.renderGuestinfoSection(guestinfo, users)
-    : `<p class="text-center">Guest Info module not loaded.</p>`;
-
-  // Role Management section (admins only)
-  const roleMgmtHtml = window.renderRoleManagementSection
-    ? window.renderRoleManagementSection(currentRole)
-    : '';
-
-  adminAppDiv.innerHTML = `
-    ${storesHtml}
-    ${usersHtml}
-    ${reviewsHtml}
-    ${guestinfoHtml}
-    ${roleMgmtHtml}
-  `;
-
-  // Cache for filters and globals
-  window._allReviews     = Object.entries(reviews).sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));
-  window._allReviewsHtml = reviewsHtml;
-  window._users          = users;
-  window._stores         = stores;
-}
-
-/* ========================================================================
-   Action handlers delegated to modules
-   ===================================================================== */
-
-// Stores
-window.assignTL          = (storeId, uid) => window.stores.assignTL(storeId, uid);
-window.updateStoreNumber = (id, val)     => window.stores.updateStoreNumber(id, val);
-window.addStore          = ()             => window.stores.addStore();
-window.deleteStore       = (id)           => window.stores.deleteStore(id);
-
-// Users
-window.assignLeadToGuest = (guestUid, leadUid) => window.users.assignLeadToGuest(guestUid, leadUid);
-window.assignDMToLead    = (leadUid, dmUid)    => window.users.assignDMToLead(leadUid, dmUid);
-window.editUserStore     = async uid => {
-  if(window.users?.editUserStore) return window.users.editUserStore(uid);
+// Default permission rules (editable live)
+window.permissionRules = {
+  canEdit:   { me: false, lead: true,  dm: true,  admin: true  },
+  canDelete: { me: false, lead: false, dm: true,  admin: true  },
+  canAssign: { me: false, lead: true,  dm: true,  admin: true  }
 };
 
-// Reviews
-window.toggleStar        = (id, starred) => window.reviews.toggleStar(id, starred);
-window.deleteReview      = (id)           => window.reviews.deleteReview(id);
+// Permission check functions exposed globally
+window.canEdit = role => {
+  if (!role) return false;
+  return window.permissionRules.canEdit[role.toLowerCase()] || false;
+};
+window.canDelete = role => {
+  if (!role) return false;
+  return window.permissionRules.canDelete[role.toLowerCase()] || false;
+};
+window.canAssign = role => {
+  if (!role) return false;
+  return window.permissionRules.canAssign[role.toLowerCase()] || false;
+};
 
-// Review filters
-window.filterReviewsByStore     = store  => document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(window._allReviews.filter(([,r])=>r.store===store));
-window.filterReviewsByAssociate = name   => document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(window._allReviews.filter(([,r])=>r.associate===name));
-window.clearReviewFilter        = ()     => document.querySelector(".reviews-container").innerHTML = window._allReviewsHtml;
+/**
+ * Renders the Role Management UI section.
+ * Only admins see this.
+ * Called from dashboard.js inside main render.
+ */
+window.renderRoleManagementSection = function(currentRole) {
+  if (!currentRole || currentRole.toLowerCase() !== ROLES.ADMIN) return '';
+
+  const permTypes = Object.keys(window.permissionRules);
+  const roles = Object.values(ROLES);
+
+  const rows = roles.map(role => {
+    const roleLower = role.toLowerCase();
+    const cells = permTypes.map(perm => {
+      const allowed = window.permissionRules[perm][roleLower];
+      return `<td style="text-align:center;">
+        <input type="checkbox" data-role="${roleLower}" data-perm="${perm}" ${allowed ? 'checked' : ''}>
+      </td>`;
+    }).join('');
+    return `<tr>
+      <td><b>${role.toUpperCase()}</b></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  return `
+    <section class="admin-section role-management-section" style="
+      margin-top: 2rem;
+      border: 2px solid #4a90e2;
+      padding: 16px;
+      background: #f0f8ff;
+      color: #222;
+      max-width: 700px;
+      font-family: Arial, sans-serif;
+    ">
+      <h2 style="margin-bottom: 12px; font-weight: 700; color: #003366;">Role Management</h2>
+      <table border="1" cellspacing="0" cellpadding="6" style="width: 100%; border-collapse: collapse;">
+        <thead style="background: #d9eaff;">
+          <tr>
+            <th style="width: 100px; text-align: left;">Role</th>
+            ${permTypes.map(perm => `<th style="text-transform: capitalize;">${perm}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+      <p style="margin-top: 12px; font-size: 0.85em; color: #555;">
+        Toggle permissions for each role. Changes apply immediately across the dashboard.
+      </p>
+    </section>
+  `;
+};
+
+// Listen for changes on checkboxes and update permissionRules live
+document.addEventListener('change', e => {
+  if (!e.target.matches('.role-management-section input[type="checkbox"]')) return;
+
+  const role = e.target.dataset.role;
+  const perm = e.target.dataset.perm;
+  const checked = e.target.checked;
+
+  if (
+    role && perm &&
+    window.permissionRules[perm] &&
+    role in window.permissionRules[perm]
+  ) {
+    window.permissionRules[perm][role] = checked;
+    console.log(`Permission updated: ${perm} for ${role} = ${checked}`);
+  }
+});
