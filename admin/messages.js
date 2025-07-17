@@ -6,7 +6,7 @@
   const ROLES = window.ROLES || { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
   const db    = window.db    || firebase.database();
   const auth  = firebase.auth();
-
+ 
   /* --------------------------------------------------------------------
    * Local state
    * ------------------------------------------------------------------ */
