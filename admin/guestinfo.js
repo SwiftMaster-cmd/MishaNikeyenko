@@ -153,29 +153,53 @@
 
   /* ------------------------------------------------------------------
    * Controls bar (time-frame, follow-ups, sales, new lead)
+   *  - Hide All + Sales for ME
+   *  - Hide Follow-Ups button if no proposals (unless currently viewing)
    * ------------------------------------------------------------------ */
-  function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly){
+  function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole){
     const weekActive = filterMode === "week";
-    const weekCls = weekActive ? "btn-primary"   : "btn-secondary";
-    const allCls  = !weekActive ? "btn-primary"  : "btn-secondary";
+    const weekCls = weekActive ? "btn-primary" : "btn-secondary";
 
-    // Follow-Ups toggle button: when open, become "Back to Leads"
-    const proposalBtnCls = showProposals ? "btn-secondary" : (proposalCount ? "btn-warning" : "btn-secondary");
-    const proposalBtnLabel = showProposals
-      ? "Back to Leads"
-      : `⚠ Follow-Ups (${proposalCount})`;
+    // For ME: no All button; locked to week.
+    const allCls  = !weekActive ? "btn-primary" : "btn-secondary";
+    const allBtn  = isMe(currentRole) ? "" :
+      `<button class="btn ${allCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.setFilterMode('all')">All</button>`;
 
-    // Sales button label shows count / Back to Leads when active
-    const soldBtnLabel = soldOnly ? "Back to Leads" : `Sales (${soldCount})`;
-    const soldBtnCls   = "btn-secondary";
+    // Follow-Ups button shows only if proposals exist OR currently in proposals view.
+    const showFollowBtn = (proposalCount > 0) || showProposals;
+    let proposalBtn = "";
+    if (showFollowBtn){
+      const proposalBtnCls = showProposals ? "btn-secondary" : (proposalCount ? "btn-warning" : "btn-secondary");
+      const proposalBtnLabel = showProposals ? "Back to Leads" : `⚠ Follow-Ups (${proposalCount})`;
+      proposalBtn = `<button class="btn ${proposalBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleShowProposals()">${proposalBtnLabel}</button>`;
+    }
+
+    // Sales button hidden for ME; show for others always (count in label).
+    let soldBtn = "";
+    if (!isMe(currentRole)){
+      const soldBtnLabel = soldOnly ? "Back to Leads" : `Sales (${soldCount})`;
+      soldBtn = `<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleSoldOnly()">${soldBtnLabel}</button>`;
+    }
 
     return `
       <div class="guestinfo-controls review-controls" style="justify-content:flex-start;flex-wrap:wrap;">
         <button class="btn ${weekCls} btn-sm" onclick="window.guestinfo.setFilterMode('week')">This Week</button>
-        <button class="btn ${allCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.setFilterMode('all')">All</button>
-        <button class="btn ${proposalBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleShowProposals()">${proposalBtnLabel}</button>
-        <button class="btn ${soldBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleSoldOnly()">${soldBtnLabel}</button>
+        ${allBtn}
+        ${proposalBtn}
+        ${soldBtn}
         <button class="btn btn-success btn-sm" style="margin-left:auto;" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
+      </div>`;
+  }
+
+  /* ------------------------------------------------------------------
+   * Motivational empty-state (centered)
+   * ------------------------------------------------------------------ */
+  function emptyMotivationHtml(msg="No guest leads in this view."){
+    return `
+      <div class="guestinfo-empty-all text-center" style="margin-top:16px;">
+        <p><b>${esc(msg)}</b></p>
+        <p style="opacity:.8;">Let's start a conversation and create a new lead.</p>
+        <button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
       </div>`;
   }
 
@@ -183,10 +207,13 @@
    * Main renderer
    * ------------------------------------------------------------------ */
   function renderGuestinfoSection(guestinfo, users, currentUid, currentRole) {
+    /* Force ME to week-only */
+    if (isMe(currentRole)) window._guestinfo_filterMode = "week";
+
     const vis = filterGuestinfo(guestinfo, users, currentUid, currentRole);
 
-    // apply filter mode (week vs all)
-    const filterWeek = window._guestinfo_filterMode === "week";
+    // apply filter mode (week vs all) -- ME always week
+    const filterWeek = isMe(currentRole) ? true : (window._guestinfo_filterMode === "week");
     const visFiltered = filterWeek
       ? Object.fromEntries(Object.entries(vis).filter(([,g]) => inCurrentWeek(g)))
       : vis;
@@ -200,33 +227,35 @@
     const showProposals = window._guestinfo_showProposals;
     const soldOnly      = window._guestinfo_soldOnly;
 
-    const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly);
+    const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole);
 
-    // If "Sales Only" -> show just sold
-    if (soldOnly){
+    /* ----- Sales Only view ----- */
+    if (soldOnly && !isMe(currentRole)){
       const soldHtml = statusSectionHtml("Sales", groups.sold, currentUid, currentRole, "sold");
+      const none = !groups.sold.length ? emptyMotivationHtml("No sales in this view.") : "";
       return `
         <section class="admin-section guestinfo-section" id="guestinfo-section">
           <h2>Guest Info</h2>
           ${controlsHtml}
           ${soldHtml}
-          ${!groups.sold.length ? `<p class="text-center">No sales in this view.</p>` : ""}
+          ${none}
         </section>`;
     }
 
-    // If "Show Follow-Ups" -> show ONLY proposals (your request)
+    /* ----- Follow-Ups (Proposals) only ----- */
     if (showProposals){
       const proposalHtml = statusSectionHtml("Follow-Ups (Proposals)", groups.proposal, currentUid, currentRole, "proposal", true);
+      const none = !groups.proposal.length ? emptyMotivationHtml("No follow-ups in this view.") : "";
       return `
         <section class="admin-section guestinfo-section" id="guestinfo-section">
           <h2>Guest Info</h2>
           ${controlsHtml}
           ${proposalHtml}
-          ${!groups.proposal.length ? `<p class="text-center">No follow-ups in this view.</p>` : ""}
+          ${none}
         </section>`;
     }
 
-    // Default view: New + Working + collapsed proposal alert (if any)
+    /* ----- Default view: New + Working (proposal collapsed alert if any) ----- */
     const newHtml     = statusSectionHtml("New",      groups.new,      currentUid, currentRole, "new");
     const workingHtml = statusSectionHtml("Working",  groups.working,  currentUid, currentRole, "working");
 
@@ -239,8 +268,9 @@
         </div>`
       : "";
 
-    const hasAny = groups.new.length || groups.working.length || groups.proposal.length;
-    const emptyHtml = hasAny ? "" : `<p class="text-center">No guest leads in this view.</p>`;
+    // empty motivational state if no New & no Working & no Proposals
+    const showEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
+    const emptyHtml = showEmpty ? emptyMotivationHtml("You're all caught up!") : "";
 
     return `
       <section class="admin-section guestinfo-section" id="guestinfo-section">
@@ -256,6 +286,7 @@
 
   /* ------------------------------------------------------------------
    * Build a status subsection
+   * (kept even when empty in Follow-Ups/Sales views; in default we show real empty state)
    * ------------------------------------------------------------------ */
   function statusSectionHtml(title, rows, currentUid, currentRole, statusKey, highlight=false){
     const hasRows = rows && rows.length;
@@ -571,7 +602,12 @@
    * Filter setters / toggles
    * ------------------------------------------------------------------ */
   function setFilterMode(mode){
-    window._guestinfo_filterMode = (mode === "all" ? "all" : "week");
+    // ME locked to week
+    if (isMe(window.currentRole)) {
+      window._guestinfo_filterMode = "week";
+    } else {
+      window._guestinfo_filterMode = (mode === "all" ? "all" : "week");
+    }
     window.renderAdminApp();
   }
   function toggleShowProposals(){
