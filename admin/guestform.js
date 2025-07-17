@@ -1,16 +1,16 @@
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
-  // Path to employee guest-info page (override globally if needed)
-  const GUEST_INFO_PAGE = window.GUEST_INFO_PAGE || "employee/guestinfo.html";
+  // UPDATE: path to the employee guest info workflow page
+  // Override by defining window.GUEST_INFO_PAGE before this script loads.
+  const GUEST_INFO_PAGE = window.GUEST_INFO_PAGE || "/employee/guestinfo.html";
 
   function canDelete(role) {
     return role === ROLES.ADMIN || role === ROLES.DM;
   }
 
-  // Allow all signed-in roles to continue working leads; change if needed
   function canContinue(role) {
-    return true;
+    return true; // let all signed-in roles work submissions; change if needed
   }
 
   function renderGuestFormsSection(entriesObj, currentRole) {
@@ -70,7 +70,6 @@
     `;
   }
 
-  // Continue flow: create guestinfo if needed; then go to employee/guest-info.html
   async function continueToGuestInfo(entryId) {
     const role = window.currentRole;
     if (!canContinue(role)) {
@@ -85,26 +84,26 @@
         return;
       }
 
-      // already linked? just open
+      // Already linked? Go there.
       if (formEntry.guestinfoKey) {
         openLinkedGuestInfo(formEntry.guestinfoKey);
         return;
       }
 
-      // Step 1 seed -> guestinfo
+      // Seed guestinfo record from submission
       const payload = {
-        custName:  formEntry.guestName  || "",
-        custPhone: formEntry.guestPhone || "",
+        custName:    formEntry.guestName  || "",
+        custPhone:   formEntry.guestPhone || "",
         submittedAt: Date.now(),
-        userUid: window.currentUid || null,
-        source: "guestform",
+        userUid:     window.currentUid || null,
+        source:      "guestform",
         sourceEntry: entryId,
       };
 
-      const refPush = await window.db.ref("guestinfo").push(payload);
+      const refPush      = await window.db.ref("guestinfo").push(payload);
       const guestinfoKey = refPush.key;
 
-      // link back to avoid duplicates
+      // Link back to submission
       await window.db.ref(`guestEntries/${entryId}`).update({
         guestinfoKey,
         consumedAt: Date.now(),
