@@ -1158,3 +1158,135 @@ td:last-child{text-align:right;}
   .sh-card{transition:none;}
   .sh-progress-fill{transition:none;}
 }
+
+/* ================================================================
+   PERFORMANCE HIGHLIGHTS ROW (Ratings / Staffing / Budget buttons)
+   ----------------------------------------------------------------
+   Usage markup example:
+
+   <div class="perf-hl-row">
+     <button type="button" class="perf-hl-btn good" onclick="...">
+       <span class="ph-icon">⭐</span>
+       <span class="ph-label">Ratings</span>
+       <span class="ph-val">4.8 avg</span>
+     </button>
+     <button type="button" class="perf-hl-btn good" onclick="...">
+       <span class="ph-icon">👥</span>
+       <span class="ph-label">Staffing</span>
+       <span class="ph-val">2 / 2</span>
+     </button>
+     <button type="button" class="perf-hl-btn good" onclick="...">
+       <span class="ph-icon">📈</span>
+       <span class="ph-label">Budget</span>
+       <span class="ph-val">105%</span>
+     </button>
+   </div>
+
+   State classes: .good  .warn  .bad  (color accents)
+   ---------------------------------------------------------------- */
+.perf-hl-row{
+  display:flex;
+  justify-content:center;
+  align-items:stretch;
+  gap:var(--space-sm);
+  margin:var(--space-md) auto;
+  width:100%;
+  max-width:640px;
+  flex-wrap:wrap; /* wrap on small screens */
+}
+
+.perf-hl-btn{
+  flex:1 1 160px;
+  min-width:140px;
+  max-width:220px;
+  padding:var(--space-md) var(--space-sm);
+  border-radius:var(--radius-lg);
+  border:1px solid var(--border-color);
+  background:var(--bg-card);
+  box-shadow:var(--shadow-card);
+  text-align:center;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  gap:var(--space-xs);
+  line-height:1.2;
+  font-size:var(--fs-sm);
+  color:var(--text-med);
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.perf-hl-btn:hover,
+.perf-hl-btn:focus-visible{
+  transform:translateY(-2px) scale(1.01);
+  background:var(--bg-card-hover);
+  box-shadow:var(--shadow-card-h);
+  outline:none;
+}
+
+.perf-hl-btn:active{
+  transform:translateY(0) scale(.97);
+}
+
+/* focus ring */
+.perf-hl-btn:focus-visible{
+  box-shadow:0 0 0 2px var(--brand-focus-ring),var(--shadow-card-h);
+}
+
+/* icon */
+.perf-hl-btn .ph-icon{
+  font-size:clamp(1.5rem,5vw,2rem);
+  line-height:1;
+}
+
+/* label */
+.perf-hl-btn .ph-label{
+  font-size:var(--fs-xs);
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  color:var(--text-hi);
+}
+
+/* value */
+.perf-hl-btn .ph-val{
+  font-size:var(--fs-md);
+  font-weight:700;
+  color:inherit; /* state colors below */
+}
+
+/* states ---------------------------------------------------------- */
+.perf-hl-btn.good{
+  border-color:var(--success);
+  color:var(--success);
+}
+.perf-hl-btn.good .ph-label{color:var(--success);}
+
+.perf-hl-btn.warn{
+  border-color:var(--warning);
+  color:var(--warning);
+}
+.perf-hl-btn.warn .ph-label{color:var(--warning);}
+
+.perf-hl-btn.bad{
+  border-color:var(--danger);
+  color:var(--danger);
+}
+.perf-hl-btn.bad .ph-label{color:var(--danger);}
+
+/* subtle background tint per state (on hover we already brighten) */
+.perf-hl-btn.good{background:rgba(0,200,83,.08);}
+.perf-hl-btn.warn{background:rgba(255,179,0,.08);}
+.perf-hl-btn.bad{background:rgba(255,82,82,.08);}
+
+.perf-hl-btn.good:hover,
+.perf-hl-btn.good:focus-visible{background:rgba(0,200,83,.18);}
+.perf-hl-btn.warn:hover,
+.perf-hl-btn.warn:focus-visible{background:rgba(255,179,0,.18);}
+.perf-hl-btn.bad:hover,
+.perf-hl-btn.bad:focus-visible{background:rgba(255,82,82,.18);}

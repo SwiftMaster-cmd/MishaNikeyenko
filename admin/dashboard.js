@@ -258,25 +258,27 @@ function _avgRatingVisible(reviewsArr){
 function _visibleStoresArray(stores, role, uid){
   if (_isAdmin(role) || _isDM(role)) return Object.entries(stores||{});
   if (_isLead(role)){
-    return Object.entries(stores||{}).filter(([,s])=>s.teamLeadUid===uid || (s.storeNumber && window._users && Object.values(window._users).some(u=>u.role===ROLES.ME && u.store===s.storeNumber && u.assignedLead===uid)));
+    return Object.entries(stores||{}).filter(([,s])=>s.teamLeadUid===uid);
   }
   return []; // ME no stores
 }
+
+/* Count people per store */
 function _storePeopleCounts(storeRec, users){
   const sn = (storeRec.storeNumber||"").toString().trim();
   const tlUid = storeRec.teamLeadUid;
   let leads=0, mes=0;
-  for (const [,u] of Object.entries(users||{})){
+  for (const [uid,u] of Object.entries(users||{})){
     if (u.role===ROLES.LEAD){
-      if ((tlUid && u.uid===tlUid) || (sn && u.store===sn)) leads++;
+      if ((tlUid && uid===tlUid) || (sn && u.store===sn)) leads++;
     } else if (u.role===ROLES.ME){
       if ((sn && u.store===sn) || (tlUid && u.assignedLead===tlUid)) mes++;
     }
   }
-  // some user objects may not carry uid; ensure leads counts at least 1 if tlUid set
-  if (tlUid && leads===0) leads=1;
+  if (tlUid && leads===0) leads=1; // assume 1 TL if assigned but not counted
   return {leads, mes, total: leads+mes};
 }
+
 /* Staffing met? goal = storeRec.staffGoal || 2 */
 function _storeStaffingMet(storeRec, users){
   const goal = Number(storeRec.staffGoal ?? 2);
@@ -284,12 +286,11 @@ function _storeStaffingMet(storeRec, users){
   return {met: total >= goal, goal, total};
 }
 
-/* Budget MTD using stores.js summarizer if available */
+/* Budget MTD map using stores.js summarizer if available */
 function _salesMtdMap(){
   if (window.stores?.summarizeSalesByStoreMTD){
     return window.stores.summarizeSalesByStoreMTD(window._sales, window._stores, window._guestinfo, window._users);
   }
-  // fallback quick build
   const out={};
   const mStart = (d=>{d.setDate(1);d.setHours(0,0,0,0);return d.getTime();})(new Date());
   for (const [,s] of Object.entries(window._sales||{})){
@@ -343,34 +344,78 @@ function _performanceStatus(reviews, stores, users, role, uid){
     allGood: ratingsGood && staffingGood && budgetGood,
     avgRating,
     staffTotal, staffGoalTotal,
-    budgetUnits, budgetGoal
+    budgetUnits, budgetGoal,
+    reviewCount: rvArr.length,
+    storeCount: stArr.length
   };
 }
 
-/* Performance Highlights HTML */
-/* Performance Highlights HTML (no New Lead button) */
+/* ------------------------------------------------------------------------
+   State helper -> good/warn/bad class
+   ------------------------------------------------------------------------ */
+function _stateClassFromBool(b, fallbackWarn=true){
+  return b ? "good" : (fallbackWarn ? "warn" : "bad");
+}
+function _stateClassFromRatio(r, goodThr=1, warnThr=.5){
+  if (isNaN(r)) return "warn";
+  if (r >= goodThr) return "good";
+  if (r >= warnThr) return "warn";
+  return "bad";
+}
+
+/* ========================================================================
+   PERFORMANCE HIGHLIGHTS HTML (3 horizontal buttons, no New Lead btn)
+   ===================================================================== */
 function _perfHighlightsHtml(ps, role){
-  // skip if ME (no store view)
-  const showStores = (role !== ROLES.ME);
+  // Ratings
   const avg = ps.avgRating!=null ? ps.avgRating.toFixed(1) : "–";
+  const ratState = ps.avgRating==null
+    ? "warn"
+    : (ps.avgRating>=4.7?"good":(ps.avgRating>=4?"warn":"bad"));
+
+  // Staffing (mgmt tiers only)
+  const showStores = (role !== ROLES.ME);
+  const staffRatio = ps.staffGoalTotal>0 ? (ps.staffTotal/ps.staffGoalTotal) : null;
+  const stState = !showStores ? "warn" : (
+    ps.staffGoalTotal===0 ? "warn" : _stateClassFromRatio(staffRatio,1,.5)
+  );
   const staffLbl = showStores ? `${ps.staffTotal}/${ps.staffGoalTotal||"?"}` : "";
-  const budLbl   = showStores ? (ps.budgetGoal? `${ps.budgetUnits}/${ps.budgetGoal}u` : `${ps.budgetUnits}u`) : "";
 
-  const ratCls = ps.ratingsGood ? "good" : "warn";
-  const stfCls = ps.staffingGood? "good":"warn";
-  const budCls = ps.budgetGood ? "good":"warn";
+  // Budget
+  const budRatio = ps.budgetGoal>0 ? (ps.budgetUnits/ps.budgetGoal) : null;
+  const budState = !showStores ? "warn" : (
+    ps.budgetGoal===0 ? "good" : _stateClassFromRatio(budRatio,1,.7)
+  );
+  const budPct = ps.budgetGoal>0 ? Math.round((ps.budgetUnits/ps.budgetGoal)*100) : null;
+  const budLbl = showStores
+    ? (ps.budgetGoal>0 ? `${budPct}%` : `${ps.budgetUnits}u`)
+    : "";
 
-  const revClick = `onclick="window.perfToggleReviews()"`;
-  const stClick  = `onclick="window.perfToggleStores()"`;
-  const usClick  = `onclick="window.perfToggleUsers()"`;
+  const ratClick = `onclick="window.perfToggleReviews()"`;
+  const stClick  = `onclick="window.perfToggleUsers()"`;   // staffing shows Users
+  const budClick = `onclick="window.perfToggleStores()"`;  // budget shows Stores
 
   return `
     <section class="admin-section perf-highlights-section" id="perf-highlights-section">
       <h2>Performance Highlights</h2>
-      <div class="perf-highlights-grid">
-        <div class="perf-highlight rating ${ratCls}" ${revClick} title="Click to view full reviews">★ ${avg}</div>
-        ${showStores? `<div class="perf-highlight staffing ${stfCls}" ${usClick} title="Click to view staffing/users">${staffLbl} staffed</div>`:""}
-        ${showStores? `<div class="perf-highlight budget ${budCls}" ${stClick} title="Click to view stores/budget">${budLbl} MTD</div>`:""}
+      <div class="perf-hl-row">
+        <button type="button" class="perf-hl-btn ${ratState}" ${ratClick} aria-label="View Reviews">
+          <span class="ph-icon">⭐</span>
+          <span class="ph-label">Ratings</span>
+          <span class="ph-val">${avg}</span>
+        </button>
+        ${showStores ? `
+        <button type="button" class="perf-hl-btn ${stState}" ${stClick} aria-label="View Staffing">
+          <span class="ph-icon">👥</span>
+          <span class="ph-label">Staffing</span>
+          <span class="ph-val">${staffLbl}</span>
+        </button>`:""}
+        ${showStores ? `
+        <button type="button" class="perf-hl-btn ${budState}" ${budClick} aria-label="View Budget Progress">
+          <span class="ph-icon">📈</span>
+          <span class="ph-label">Budget</span>
+          <span class="ph-val">${budLbl}</span>
+        </button>`:""}
       </div>
     </section>`;
 }
@@ -428,7 +473,7 @@ function renderAdminApp() {
   let reviewsHtml= "";
 
   if (perfGood) {
-    // show highlight card instead of full sections
+    // show highlight buttons instead of full sections
     perfHighlightsHtml = _perfHighlightsHtml(perf, currentRole);
 
     // Render expanded sections ONLY if toggled
