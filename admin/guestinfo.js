@@ -1,4 +1,6 @@
-// guestinfo.js  -- dashboard inline Guest Info cards grouped by status, with filters + Stage-aware Pitch Score
+// guestinfo.js  -- dashboard inline Guest Info cards grouped by status,
+// unified Pitch Quality % (shared util), with filters.
+//
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
@@ -15,45 +17,15 @@
   if (typeof window._guestinfo_soldOnly === "undefined") window._guestinfo_soldOnly = false;
 
   /* ------------------------------------------------------------------
-   * Field Weights (points if answered)
-   * Update here to change contribution of each question.
+   * Shared pitch util handles weights & cascade.
+   * Make safe fallbacks if script not yet loaded.
    * ------------------------------------------------------------------ */
-  const FIELD_WEIGHTS = {
-    custName:       10,
-    custPhone:      10,
-    serviceType:    20,
-    situation:      20,
-    carrierInfo:    10,
-    requirements:   10,
-    solutionText:   20
-  };
-
-  /* Map field -> logical step */
-  const FIELD_STEP = {
-    custName:     "step1",
-    custPhone:    "step1",
-    serviceType:  "step2",
-    situation:    "step2",
-    carrierInfo:  "step2",
-    requirements: "step2",
-    solutionText: "step3"
-  };
-
-  /* Status -> included steps (denominator set) */
-  const STATUS_STEPS = {
-    new:      ["step1"],
-    working:  ["step1","step2"],
-    proposal: ["step1","step2","step3"],
-    sold:     ["step1","step2","step3"]
-  };
-
-  /* Derive per-step max & grand max */
-  const STEP_MAX = {step1:0,step2:0,step3:0};
-  Object.entries(FIELD_WEIGHTS).forEach(([k,w])=>{
-    const st = FIELD_STEP[k] || "step1";
-    STEP_MAX[st] = (STEP_MAX[st]||0) + w;
-  });
-  const FULL_MAX = Object.values(STEP_MAX).reduce((a,b)=>a+b,0);
+  const computePQ = window.computeGuestPitchQuality
+    ? window.computeGuestPitchQuality
+    : (g)=>({pct:0,steps:{},fields:{}});
+  const normGuest = window.normalizeGuestForCompletion
+    ? window.normalizeGuestForCompletion
+    : (g)=>g||{};
 
   /* ------------------------------------------------------------------
    * Role helpers
@@ -190,110 +162,43 @@
   }
 
   /* ------------------------------------------------------------------
-   * Pitch Score computation
-   *  - Fixed field weights
-   *  - Display % denominator depends on CURRENT STATUS
-   *    (New => step1 max only; Working => step1+2; Proposal/Sold => all)
-   *  - Skipped question gives 0 (no bump)
-   *  - If record stores pitchPct/pitchScore & pitchStage matching current
-   *    status, show saved; else recompute.
+   * Pitch badge decoration (color thresholds)
    * ------------------------------------------------------------------ */
-  function _has(v){ return v!=null && String(v).trim()!==""; }
-
-  function computePitchScore(g){
-    const status = detectStatus(g);
-    const stepsIncluded = STATUS_STEPS[status] || ["step1"];
-    const stageMax = stepsIncluded.reduce((sum,st)=>sum+(STEP_MAX[st]||0),0);
-
-    // If record has saved pitch & matching pitchStage, use those
-    if (typeof g.pitchPct === "number" && g.pitchStage === status) {
-      const pct = clampPct(g.pitchPct);
-      const score = Math.round(stageMax * pct/100);
-      return decoratePitch(pct, score, stageMax, FULL_MAX, status, true);
-    }
-
-    // Gather values
-    const ev  = g.evaluate || {};
-    const sol = g.solution || {};
-    const vals = {
-      custName:     g.custName,
-      custPhone:    g.custPhone,
-      serviceType:  g.serviceType ?? ev.serviceType,
-      situation:    g.situation   ?? ev.situation,
-      carrierInfo:  ev.carrierInfo,
-      requirements: ev.requirements,
-      solutionText: sol.text
-    };
-
-    // compute earned points *only* for steps in denominator
-    let earned = 0;
-    const parts = [];
-    for (const [field,wt] of Object.entries(FIELD_WEIGHTS)){
-      const st = FIELD_STEP[field] || "step1";
-      if (!stepsIncluded.includes(st)) continue;        // not in denominator
-      if (_has(vals[field])) {
-        earned += wt;
-        parts.push([field, wt]);
-      }
-    }
-
-    const pct = stageMax ? Math.round((earned / stageMax)*100) : 0;
-    return decoratePitch(pct, earned, stageMax, FULL_MAX, status, false, parts);
-  }
-
-  function clampPct(n){
-    if (typeof n!=="number" || isNaN(n)) return 0;
-    if (n<0) return 0;
-    if (n>100) return 100;
-    return Math.round(n);
-  }
-
-  function decoratePitch(stagePct, stageScore, stageMax, fullMax, status, isSaved=false, parts=[]){
+  function decoratePitch(pct, status, compObj){
+    const p = Math.max(0, Math.min(100, Math.round(pct)));
     let cls = "pitch-low";
-    if (stagePct >= 70) cls = "pitch-good";
-    else if (stagePct >= 40) cls = "pitch-warn";
+    if (p >= 75) cls = "pitch-good";
+    else if (p >= 40) cls = "pitch-warn";
 
-    // optional breakdown
-    const humanParts = Array.isArray(parts) && parts.length
-      ? parts.map(([f,w])=>`${f}+${w}`).join(", ")
-      : "";
-
-    const tooltip = [
-      `Stage: ${status.toUpperCase()}`,
-      `${stageScore}/${stageMax} pts`,
-      `(${stagePct}%)`,
-      fullMax && stageMax!==fullMax ? `Full max ${fullMax}` : "",
-      humanParts
-    ].filter(Boolean).join(" • ");
-
-    return {
-      stagePct,
-      stageScore,
-      stageMax,
-      fullMax,
-      status,
-      isSaved,
-      cls,
-      tooltip
-    };
+    // tooltip lines
+    const lines = [];
+    lines.push(`Pitch Quality: ${p}%`);
+    if (status) lines.push(`Status: ${status.toUpperCase()}`);
+    if (compObj?.steps){
+      const stLines = [];
+      for (const [sk,sd] of Object.entries(compObj.steps)){
+        // show effectivePct to reflect cascade
+        const pctStr = typeof sd.effectivePct === "number"
+          ? Math.round(sd.effectivePct) + "%"
+          : Math.round(sd.pctWithin||0) + "%";
+        stLines.push(`${sk} ${pctStr}`);
+      }
+      if (stLines.length) lines.push(stLines.join(" | "));
+    }
+    return {pct:p,cls,tooltip:lines.join(" • ")};
   }
 
   /* ------------------------------------------------------------------
    * Controls bar
-   *  - Hide All + Sales for ME
-   *  - Hide Follow-Ups button if none (unless currently viewing)
-   *  - showCreateBtn param to suppress top "+ New Lead" when caught-up
    * ------------------------------------------------------------------ */
   function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, showCreateBtn=true){
     const weekActive = filterMode === "week";
     const weekCls = weekActive ? "btn-primary" : "btn-secondary";
 
-    // All button only if NOT ME
     const allCls  = !weekActive ? "btn-primary" : "btn-secondary";
     const allBtn  = isMe(currentRole) ? "" :
       `<button class="btn ${allCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.setFilterMode('all')">All</button>`;
 
-    // Follow-Ups button if proposals exist OR currently viewing
     const showFollowBtn = (proposalCount > 0) || showProposals;
     let proposalBtn = "";
     if (showFollowBtn){
@@ -302,7 +207,6 @@
       proposalBtn = `<button class="btn ${proposalBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleShowProposals()">${proposalBtnLabel}</button>`;
     }
 
-    // Sales button only if NOT ME
     let soldBtn = "";
     if (!isMe(currentRole)){
       const soldBtnLabel = soldOnly ? "Back to Leads" : `Sales (${soldCount})`;
@@ -460,12 +364,15 @@
     const status      = detectStatus(g);
     const statBadge   = statusBadge(status);
 
-    // Pitch Score (stage aware)
-    const pitch = computePitchScore(g);
+    // Pitch Score (shared util / stored pct)
+    const savedPct = typeof g.completion?.pct === "number" ? g.completion.pct : null;
+    const compObj  = savedPct!=null ? {pct:savedPct} : computePQ(g); // compute if absent
+    const pct      = savedPct!=null ? savedPct : compObj.pct;
+    const pitch    = decoratePitch(pct, status, savedPct!=null?null:compObj);
     const pitchHtml = `
       <span class="guest-pitch-pill ${pitch.cls}"
             title="${esc(pitch.tooltip)}">
-        ${pitch.stagePct}%
+        ${pitch.pct}%
       </span>`;
 
     const isSold = status === "sold";
@@ -574,7 +481,7 @@
 
   /* ------------------------------------------------------------------
    * Save Quick Edit (top-level fields only)
-   * Also triggers pitch recompute server-side by writing updatedAt.
+   * Also recomputes & writes Pitch Quality.
    * ------------------------------------------------------------------ */
   async function saveEdit(id) {
     const card = document.getElementById(`guest-card-${id}`);
@@ -591,6 +498,7 @@
 
     try {
       await window.db.ref(`guestinfo/${id}`).update(data);
+      await recomputePitch(id);  // keep completion in sync
       cancelEdit(id);
       await window.renderAdminApp(); // full refresh
     } catch (e) {
@@ -616,7 +524,7 @@
   }
 
   /* ------------------------------------------------------------------
-   * Mark Sold (units only)
+   * Mark Sold (units only) + recompute pitch
    * ------------------------------------------------------------------ */
   async function markSold(id) {
     try {
@@ -681,6 +589,7 @@
         }
       }
 
+      await recomputePitch(id);
       await window.renderAdminApp();
     } catch (err) {
       alert("Error marking sold: " + err.message);
@@ -688,7 +597,7 @@
   }
 
   /* ------------------------------------------------------------------
-   * Delete Sale (undo)
+   * Delete Sale (undo) + recompute pitch
    * ------------------------------------------------------------------ */
   async function deleteSale(id) {
     try {
@@ -736,9 +645,31 @@
         }
       }
 
+      await recomputePitch(id);
       await window.renderAdminApp();
     } catch (err) {
       alert("Error deleting sale: " + err.message);
+    }
+  }
+
+  /* ------------------------------------------------------------------
+   * Recompute & persist Pitch Quality for a single guest
+   * (Used after quick edits / status changes.)
+   * ------------------------------------------------------------------ */
+  async function recomputePitch(id){
+    try{
+      const snap = await window.db.ref(`guestinfo/${id}`).get();
+      const data = snap.val() || {};
+      const gNorm = normGuest(data);
+      const comp  = computePQ(gNorm);
+      await window.db.ref(`guestinfo/${id}/completion`).set({
+        pct: Math.round(comp.pct),
+        steps: comp.steps,
+        fields: comp.fields,
+        updatedAt: Date.now()
+      });
+    }catch(err){
+      console.warn("guestinfo: recomputePitch failed", err);
     }
   }
 
@@ -837,7 +768,9 @@
     toggleSoldOnly,
     // new lead
     createNewLead,
-    // pitch util (exported for other modules)
-    computePitchScore
+    // pitch util (exported for other modules / batch jobs)
+    recomputePitch,
+    // quick access to compute (stateless)
+    computePitchScore: computePQ
   };
 })();
