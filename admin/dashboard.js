@@ -1,8 +1,10 @@
 /* ========================================================================
    Dashboard Main Script (Realtime)  -- Performance Highlights + Caught-Up
+   + Messages Overlay Integration
    ===================================================================== */
 
 const ROLES = window.ROLES || { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
+window.ROLES = ROLES; // ensure global for other modules (messages.js expects)
 
 /* ------------------------------------------------------------------------
    Firebase Init (guarded)
@@ -82,7 +84,13 @@ auth.onAuthStateChanged(async (user) => {
 
   // initial load + realtime bind
   await initialLoad();
-  ensureRealtime();                  // attach global listeners
+
+  // *** MESSAGES *** bootstrap after initial data (users loaded for recipient list)
+  if (window.messages?.initMessages) {
+    window.messages.initMessages(currentUid, currentRole);
+  }
+
+  ensureRealtime();                      // attach global listeners
   window.guestforms?.ensureRealtime?.(); // module-specific (safe if double-bound)
 });
 
@@ -585,6 +593,10 @@ function ensureRealtime() {
     if (snap.key === currentUid) {
       currentRole = (snap.val()?.role || ROLES.ME).toLowerCase();
       window.currentRole = currentRole;
+      // *** MESSAGES *** update my role in messages module so recipient list stays fresh
+      if (window.messages?.initMessages) {
+        window.messages.initMessages(currentUid, currentRole);
+      }
     }
     scheduleRealtimeRender();
   });
