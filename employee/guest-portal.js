@@ -1,6 +1,8 @@
 // employee/guest-portal.js
 
-// Firebase init guard (employee pages may load after dashboard)
+/* =======================================================================
+   Firebase init (guarded in case dashboard loaded first)
+   ======================================================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
@@ -14,12 +16,12 @@ const firebaseConfig = {
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
-
 const db   = firebase.database();
 const auth = firebase.auth();
 
-let currentEntryKey = null; // guestinfo/<key>
-
+/* =======================================================================
+   DOM helpers
+   ======================================================================= */
 function qs(name) {
   const params = new URLSearchParams(window.location.search);
   return params.get(name);
@@ -47,40 +49,110 @@ function injectPrefillSummary(name, phone) {
   summary.innerHTML = `<b>Customer:</b> ${name || '-'} &nbsp; <b>Phone:</b> ${phone || '-'}`;
 }
 
-// Auth guard
+/* =======================================================================
+   State
+   ======================================================================= */
+let currentEntryKey = null;         // guestinfo/<key>
+let currentGuestObj = null;         // loaded guestinfo snapshot data
+
+/* =======================================================================
+   Load existing guestinfo if query param present
+   Accepts ?gid=<key> (new) or ?entry=<key> (back compat)
+   ======================================================================= */
+async function loadExistingGuestIfParam() {
+  const gidParam   = qs('gid');
+  const entryParam = qs('entry');
+  const key = gidParam || entryParam;
+  if (!key) return false;
+
+  try {
+    const snap = await db.ref(`guestinfo/${key}`).get();
+    const data = snap.val();
+    if (data) {
+      currentEntryKey = key;
+      currentGuestObj = data;
+      return true;
+    }
+  } catch (e) {
+    console.error("guest-portal: load error", e);
+  }
+  return false;
+}
+
+/* =======================================================================
+   Prefill UI based on loaded guestinfo record
+   Steps:
+     Step1 always hidden (already done)
+     Step2 shown if no evaluate; else Step3
+     Step2 fields prefilled if evaluate exists (let user edit)
+     Step3 field prefilled if solution exists (let user edit)
+   ======================================================================= */
+function syncUiToLoadedGuest() {
+  if (!currentGuestObj) return;
+
+  // Hide Step 1 always when editing existing guest
+  hide('step1Form');
+  injectPrefillSummary(currentGuestObj.custName, currentGuestObj.custPhone);
+
+  const hasEval     = !!currentGuestObj.evaluate;
+  const hasSolution = !!currentGuestObj.solution;
+
+  // Prefill Step 2 values
+  if (hasEval) {
+    const ev = currentGuestObj.evaluate;
+    const stEl  = document.getElementById('serviceType');
+    const sitEl = document.getElementById('situation');
+    const carEl = document.getElementById('evalCarrier');
+    const reqEl = document.getElementById('evalRequirements');
+    if (stEl)  stEl.value  = ev.serviceType  || '';
+    if (sitEl) sitEl.value = ev.situation    || '';
+    if (carEl) carEl.value = ev.carrierInfo  || '';
+    if (reqEl) reqEl.value = ev.requirements || '';
+  }
+
+  // Prefill Step 3
+  if (hasSolution) {
+    const solEl = document.getElementById('solutionText');
+    if (solEl) solEl.value = currentGuestObj.solution.text || '';
+  }
+
+  // Show correct step
+  if (!hasEval) {
+    show('step2Form');
+    hide('step3Form');
+  } else {
+    hide('step2Form');
+    show('step3Form');
+  }
+}
+
+/* =======================================================================
+   Auth guard
+   ======================================================================= */
 auth.onAuthStateChanged(async user => {
   if (!user) {
     window.location.href = "../login.html";
     return;
   }
-  const entryParam = qs('entry');
-  if (entryParam) {
-    try {
-      const snap = await db.ref(`guestinfo/${entryParam}`).get();
-      const data = snap.val();
-      if (data) {
-        currentEntryKey = entryParam;
-        // hide Step 1, show Step 2, prefill summary
-        hide('step1Form');
-        show('step2Form');
-        injectPrefillSummary(data.custName, data.custPhone);
-        return;
-      }
-    } catch (e) {
-      console.error("guest-portal: load error", e);
-    }
+
+  const found = await loadExistingGuestIfParam();
+  if (found) {
+    syncUiToLoadedGuest();
+    return;
   }
-  // fallback: show Step 1
+
+  // no existing record param -> start Step 1
   show('step1Form');
 });
 
-/* -------------------------------------------------------------
-   STEP 1 (only used if no ?entry= param)
-------------------------------------------------------------- */
+/* =======================================================================
+   STEP 1 Handler
+   If editing an existing record (currentEntryKey set), update Step 1 fields
+   instead of pushing a new record.
+   ======================================================================= */
 document.getElementById('step1Form')
   .addEventListener('submit', async e => {
     e.preventDefault();
-    const s1 = document.getElementById('status1');
     statusMsg('status1', '', '');
 
     const custName  = document.getElementById('custName').value.trim();
@@ -92,13 +164,30 @@ document.getElementById('step1Form')
     }
 
     try {
-      const refPush = await db.ref('guestinfo').push({
-        custName,
-        custPhone,
-        submittedAt: Date.now(),
-        userUid: auth.currentUser?.uid || null
-      });
-      currentEntryKey = refPush.key;
+      if (currentEntryKey) {
+        // update existing Step 1
+        await db.ref(`guestinfo/${currentEntryKey}`).update({
+          custName,
+          custPhone,
+          updatedAt: Date.now()
+        });
+      } else {
+        // create new guestinfo record
+        const refPush = await db.ref('guestinfo').push({
+          custName,
+          custPhone,
+          submittedAt: Date.now(),
+          userUid: auth.currentUser?.uid || null,
+          status: "new"
+        });
+        currentEntryKey = refPush.key;
+      }
+
+      // reflect local state
+      if (!currentGuestObj) currentGuestObj = {};
+      currentGuestObj.custName  = custName;
+      currentGuestObj.custPhone = custPhone;
+
       statusMsg('status1','Step 1 saved!','success');
       hide('step1Form');
       show('step2Form');
@@ -108,9 +197,10 @@ document.getElementById('step1Form')
     }
   });
 
-/* -------------------------------------------------------------
-   STEP 2
-------------------------------------------------------------- */
+/* =======================================================================
+   STEP 2 Handler
+   Writes /evaluate + status "working"
+   ======================================================================= */
 document.getElementById('step2Form')
   .addEventListener('submit', async e => {
     e.preventDefault();
@@ -131,12 +221,22 @@ document.getElementById('step2Form')
     }
 
     try {
-      await db.ref(`guestinfo/${currentEntryKey}/evaluate`).set({
+      const updates = {};
+      updates[`guestinfo/${currentEntryKey}/evaluate`] = {
         serviceType,
         situation,
         carrierInfo,
         requirements
-      });
+      };
+      updates[`guestinfo/${currentEntryKey}/status`]    = "working";
+      updates[`guestinfo/${currentEntryKey}/updatedAt`] = Date.now();
+      await db.ref().update(updates);
+
+      // local reflect
+      if (!currentGuestObj) currentGuestObj = {};
+      currentGuestObj.evaluate = {serviceType,situation,carrierInfo,requirements};
+      currentGuestObj.status   = "working";
+
       statusMsg('status2','Step 2 saved!','success');
       hide('step2Form');
       show('step3Form');
@@ -145,9 +245,10 @@ document.getElementById('step2Form')
     }
   });
 
-/* -------------------------------------------------------------
-   STEP 3
-------------------------------------------------------------- */
+/* =======================================================================
+   STEP 3 Handler
+   Writes /solution + status "proposal"
+   ======================================================================= */
 document.getElementById('step3Form')
   .addEventListener('submit', async e => {
     e.preventDefault();
@@ -164,10 +265,21 @@ document.getElementById('step3Form')
     }
 
     try {
-      await db.ref(`guestinfo/${currentEntryKey}/solution`).set({
+      const now = Date.now();
+      const updates = {};
+      updates[`guestinfo/${currentEntryKey}/solution`] = {
         text: solution,
-        completedAt: Date.now()
-      });
+        completedAt: now
+      };
+      updates[`guestinfo/${currentEntryKey}/status`]    = "proposal";
+      updates[`guestinfo/${currentEntryKey}/updatedAt`] = now;
+      await db.ref().update(updates);
+
+      // local reflect
+      if (!currentGuestObj) currentGuestObj = {};
+      currentGuestObj.solution = {text:solution,completedAt:now};
+      currentGuestObj.status   = "proposal";
+
       statusMsg('status3','All steps completed! Thanks.','success');
     } catch (err) {
       statusMsg('status3','Error: ' + err.message,'error');
