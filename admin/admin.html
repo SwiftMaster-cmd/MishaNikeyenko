@@ -4,22 +4,61 @@
   <meta charset="UTF-8" />
   <title>OSL Admin Dashboard</title>
 
-  <!-- Mobile viewport: prevents iOS auto-zoom quirks; allows full-bleed into safe areas -->
+  <!-- Mobile viewport -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-  <!-- Optional: improve mobile status bar / color scheme -->
   <meta name="theme-color" content="#0f1117" />
   <meta name="color-scheme" content="dark light" />
 
   <link rel="stylesheet" href="dashboard.css" />
+  <style>
+    /* Messages btn + badge lightweight styles (can move to dashboard.css) */
+    .admin-header-actions{display:flex;align-items:center;gap:.5rem;}
+    #messagesBtn{
+      position:relative;
+      padding:.25rem .75rem;
+      font-size:.9rem;
+      font-weight:600;
+      border:1px solid rgba(255,255,255,.25);
+      background:rgba(255,255,255,.05);
+      color:#fff;
+      border-radius:4px;
+      cursor:pointer;
+    }
+    #messagesBtn:hover{background:rgba(255,255,255,.15);}
+    #messagesBadge{
+      position:absolute;
+      top:-6px;right:-6px;
+      min-width:18px;
+      padding:0 4px;
+      height:18px;
+      line-height:18px;
+      font-size:11px;
+      font-weight:700;
+      text-align:center;
+      border-radius:9px;
+      background:#ff5252;
+      color:#fff;
+      display:none;
+    }
+  </style>
 </head>
 <body>
   <div class="admin-header">
     <h2>OSL Admin Dashboard</h2>
-    <button id="logoutBtn">Logout</button>
+    <div class="admin-header-actions">
+      <button id="messagesBtn" type="button" aria-live="polite" aria-label="Messages (0 unread)">
+        Messages
+        <span id="messagesBadge">0</span>
+      </button>
+      <button id="logoutBtn">Logout</button>
+    </div>
   </div>
 
   <div id="adminApp" class="admin-app-container"></div>
+
+  <!-- Modal root (messages.js will populate) -->
+  <div id="messagesModalRoot"></div>
 
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -33,6 +72,8 @@
   <script src="stores.js"></script>
   <script src="guestinfo.js"></script>
   <script src="guestform.js"></script>
+  <!-- NEW -->
+  <script src="messages.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>
