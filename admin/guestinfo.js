@@ -99,11 +99,6 @@
    * ------------------------------------------------------------------ */
   function nowMs(){ return Date.now(); }
   function msNDaysAgo(n){ return nowMs() - n*24*60*60*1000; } // rolling n days
-  function inCurrentWeek(g){
-    // Filter basis: most recent activity timestamp
-    const ts = latestActivityTs(g);
-    return ts >= msNDaysAgo(7); // rolling 7 days labelled "This Week"
-  }
   function latestActivityTs(g){
     return Math.max(
       g.updatedAt || 0,
@@ -111,6 +106,11 @@
       g.sale?.soldAt || 0,
       g.solution?.completedAt || 0
     );
+  }
+  function inCurrentWeek(g){
+    // Filter basis: most recent activity timestamp
+    const ts = latestActivityTs(g);
+    return ts >= msNDaysAgo(7); // rolling 7 days labelled "This Week"
   }
 
   /* ------------------------------------------------------------------
@@ -132,7 +132,7 @@
       if (!groups[st]) groups[st] = []; // safeguard
       groups[st].push([id,g]);
     }
-    // sort each group newest -> oldest by submittedAt fallback updatedAt
+    // sort each group newest -> oldest by latest activity
     for (const k in groups){
       groups[k].sort((a,b)=>(latestActivityTs(b[1]) - latestActivityTs(a[1])));
     }
@@ -154,20 +154,27 @@
   /* ------------------------------------------------------------------
    * Controls bar (filters, proposals toggle, sales toggle)
    * ------------------------------------------------------------------ */
-  function controlsBarHtml(filterMode, proposalCount, soldCount){
+  function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly){
     const showWeek = filterMode === "week";
     const weekLabel = showWeek ? "Showing: This Week" : "Showing: All";
     const weekBtnLabel = showWeek ? "All" : "This Week";
-    const proposalBtnCls = proposalCount ? "btn-warning" : "btn-secondary";
-    const proposalBtnLabel = `⚠ Needs Follow-Up (${proposalCount})`;
-    const soldBtnLabel = `Sales (${soldCount})`;
+
+    // Follow-Ups toggle button: when open, become "Back to Leads"
+    const proposalBtnCls = showProposals ? "btn-secondary" : (proposalCount ? "btn-warning" : "btn-secondary");
+    const proposalBtnLabel = showProposals
+      ? "Back to Leads"
+      : `⚠ Follow-Ups (${proposalCount})`;
+
+    // Sales button label shows count
+    const soldBtnLabel = soldOnly ? "Back to Leads" : `Sales (${soldCount})`;
+    const soldBtnCls   = soldOnly ? "btn-secondary" : "btn-secondary";
 
     return `
       <div class="guestinfo-controls review-controls" style="justify-content:flex-start;flex-wrap:wrap;">
         <button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleWeekAll()">${weekBtnLabel}</button>
         <span style="align-self:center;margin:0 8px;font-size:.85em;opacity:.7;">${weekLabel}</span>
         <button class="btn ${proposalBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleShowProposals()">${proposalBtnLabel}</button>
-        <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleSoldOnly()">${soldBtnLabel}</button>
+        <button class="btn ${soldBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleSoldOnly()">${soldBtnLabel}</button>
       </div>`;
   }
 
@@ -189,38 +196,49 @@
     const proposalCount = groups.proposal.length;
     const soldCount     = groups.sold.length;
 
-    // if soldOnly ON, override groups to show only sold section
-    let newHtml="", workingHtml="", proposalHtml="", soldHtml="";
-    if (window._guestinfo_soldOnly){
-      newHtml = ""; workingHtml=""; proposalHtml="";
-      soldHtml = statusSectionHtml("Sales", groups.sold, currentUid, currentRole, "sold");
-    } else {
-      newHtml = statusSectionHtml("New",      groups.new,      currentUid, currentRole, "new");
-      workingHtml = statusSectionHtml("Working",  groups.working,  currentUid, currentRole, "working");
+    const showProposals = window._guestinfo_showProposals;
+    const soldOnly      = window._guestinfo_soldOnly;
 
-      // proposals hidden behind caution toggle
-      if (window._guestinfo_showProposals){
-        proposalHtml = statusSectionHtml("Needs Follow-Up (Proposals)", groups.proposal, currentUid, currentRole, "proposal", true);
-      } else if (proposalCount){
-        // collapsed alert placeholder (visual, not interactive; button above controls)
-        proposalHtml = `
-          <div class="guestinfo-proposal-alert">
-            <span>⚠ ${proposalCount} lead${proposalCount===1?"":"s"} awaiting follow-up.</span>
-            <span style="opacity:.7;font-size:.85em;margin-left:8px;">Use the button above to view.</span>
-          </div>`;
-      }
+    const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly);
 
-      // we *don't* show sold in main view unless user toggles soldOnly
-      soldHtml = "";
+    // If "Sales Only" -> show just sold
+    if (soldOnly){
+      const soldHtml = statusSectionHtml("Sales", groups.sold, currentUid, currentRole, "sold");
+      return `
+        <section class="admin-section guestinfo-section" id="guestinfo-section">
+          <h2>Guest Info</h2>
+          ${controlsHtml}
+          ${soldHtml}
+          ${!groups.sold.length ? `<p class="text-center">No sales in this view.</p>` : ""}
+        </section>`;
     }
 
-    const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount);
+    // If "Show Follow-Ups" -> show ONLY proposals (your request)
+    if (showProposals){
+      const proposalHtml = statusSectionHtml("Follow-Ups (Proposals)", groups.proposal, currentUid, currentRole, "proposal", true);
+      return `
+        <section class="admin-section guestinfo-section" id="guestinfo-section">
+          <h2>Guest Info</h2>
+          ${controlsHtml}
+          ${proposalHtml}
+          ${!groups.proposal.length ? `<p class="text-center">No follow-ups in this view.</p>` : ""}
+        </section>`;
+    }
 
-    // if nothing after filtering + view choices
-    const hasAny =
-      (!window._guestinfo_soldOnly && (groups.new.length || groups.working.length || proposalCount)) ||
-      (window._guestinfo_soldOnly && soldCount);
+    // Default view: New + Working + collapsed proposal alert (if any)
+    const newHtml     = statusSectionHtml("New",      groups.new,      currentUid, currentRole, "new");
+    const workingHtml = statusSectionHtml("Working",  groups.working,  currentUid, currentRole, "working");
 
+    // collapsed alert placeholder if proposals exist
+    const proposalHtml = groups.proposal.length
+      ? `
+        <div class="guestinfo-proposal-alert">
+          <span>⚠ ${groups.proposal.length} follow-up lead${groups.proposal.length===1?"":"s"} awaiting action.</span>
+          <span style="opacity:.7;font-size:.85em;margin-left:8px;">Tap "Follow-Ups" above to view.</span>
+        </div>`
+      : "";
+
+    const hasAny = groups.new.length || groups.working.length || groups.proposal.length;
     const emptyHtml = hasAny ? "" : `<p class="text-center">No guest leads in this view.</p>`;
 
     return `
@@ -230,7 +248,6 @@
         ${newHtml}
         ${workingHtml}
         ${proposalHtml}
-        ${soldHtml}
         ${emptyHtml}
       </section>
     `;
@@ -557,10 +574,18 @@
     window.renderAdminApp();
   }
   function toggleShowProposals(){
+    // turning on Follow-Ups hides other groups; also turn off Sales view
+    if (!window._guestinfo_showProposals){
+      window._guestinfo_soldOnly = false;
+    }
     window._guestinfo_showProposals = !window._guestinfo_showProposals;
     window.renderAdminApp();
   }
   function toggleSoldOnly(){
+    // turning on Sales hides Follow-Ups
+    if (!window._guestinfo_soldOnly){
+      window._guestinfo_showProposals = false;
+    }
     window._guestinfo_soldOnly = !window._guestinfo_soldOnly;
     window.renderAdminApp();
   }
