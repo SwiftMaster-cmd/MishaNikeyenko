@@ -1,15 +1,22 @@
-// guestinfo.js
+// guestinfo.js  -- dashboard inline Guest Info cards grouped by status, with filters
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
-  /* --------------------------------------------------------------
-   * Resolve path to full guest workflow page
-   * -------------------------------------------------------------- */
+  /* ------------------------------------------------------------------
+   * Config: path to full step workflow page
+   * ------------------------------------------------------------------ */
   const GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guestinfo.html";
 
-  /* --------------------------------------------------------------
-   * Permission helpers
-   * -------------------------------------------------------------- */
+  /* ------------------------------------------------------------------
+   * UI state (persist on window so survives re-renders)
+   * ------------------------------------------------------------------ */
+  if (typeof window._guestinfo_filterMode === "undefined") window._guestinfo_filterMode = "week"; // 'week' | 'all'
+  if (typeof window._guestinfo_showProposals === "undefined") window._guestinfo_showProposals = false;
+  if (typeof window._guestinfo_soldOnly === "undefined") window._guestinfo_soldOnly = false;
+
+  /* ------------------------------------------------------------------
+   * Role helpers
+   * ------------------------------------------------------------------ */
   const isAdmin = r => r === ROLES.ADMIN;
   const isDM    = r => r === ROLES.DM;
   const isLead  = r => r === ROLES.LEAD;
@@ -18,20 +25,16 @@
   function canDelete(role) {
     return isAdmin(role) || isDM(role) || isLead(role);
   }
-  // Inline edit allowed for everyone except ME editing *others*
   function canEditEntry(currentRole, entryOwnerUid, currentUid) {
     if (!currentRole) return false;
     if (isAdmin(currentRole) || isDM(currentRole) || isLead(currentRole)) return true;
-    return entryOwnerUid === currentUid; // ME -> own only
+    return entryOwnerUid === currentUid; // ME own only
   }
-  function canMarkSold(currentRole, entryOwnerUid, currentUid) {
-    // same rule as edit
-    return canEditEntry(currentRole, entryOwnerUid, currentUid);
-  }
+  const canMarkSold = canEditEntry; // same logic
 
-  /* --------------------------------------------------------------
-   * Hierarchy helpers
-   * -------------------------------------------------------------- */
+  /* ------------------------------------------------------------------
+   * Hierarchy helpers (DM visibility)
+   * ------------------------------------------------------------------ */
   function getUsersUnderDM(users, dmUid) {
     const leads = Object.entries(users)
       .filter(([, u]) => u.role === ROLES.LEAD && u.assignedDM === dmUid)
@@ -42,9 +45,9 @@
     return new Set([...leads, ...mes]);
   }
 
-  /* --------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Visibility filter by role
-   * -------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   function filterGuestinfo(guestinfo, users, currentUid, currentRole) {
     if (!guestinfo || !users || !currentUid || !currentRole) return {};
 
@@ -78,9 +81,9 @@
     return {};
   }
 
-  /* --------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Escape HTML
-   * -------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   function esc(str) {
     return (str || "")
       .toString()
@@ -91,45 +94,173 @@
       .replace(/'/g, "&#39;");
   }
 
-  /* --------------------------------------------------------------
+  /* ------------------------------------------------------------------
+   * Date helpers
+   * ------------------------------------------------------------------ */
+  function nowMs(){ return Date.now(); }
+  function msNDaysAgo(n){ return nowMs() - n*24*60*60*1000; } // rolling n days
+  function inCurrentWeek(g){
+    // Filter basis: most recent activity timestamp
+    const ts = latestActivityTs(g);
+    return ts >= msNDaysAgo(7); // rolling 7 days labelled "This Week"
+  }
+  function latestActivityTs(g){
+    return Math.max(
+      g.updatedAt || 0,
+      g.submittedAt || 0,
+      g.sale?.soldAt || 0,
+      g.solution?.completedAt || 0
+    );
+  }
+
+  /* ------------------------------------------------------------------
+   * Status detection & grouping
+   * ------------------------------------------------------------------ */
+  function detectStatus(g){
+    // trust stored status if exists
+    if (g.status) return g.status.toLowerCase();
+    if (g.sale) return "sold";
+    if (g.solution) return "proposal";
+    if (g.evaluate) return "working";
+    return "new";
+  }
+
+  function groupByStatus(guestMap){
+    const groups = { new:[], working:[], proposal:[], sold:[] };
+    for (const [id,g] of Object.entries(guestMap)){
+      const st = detectStatus(g);
+      if (!groups[st]) groups[st] = []; // safeguard
+      groups[st].push([id,g]);
+    }
+    // sort each group newest -> oldest by submittedAt fallback updatedAt
+    for (const k in groups){
+      groups[k].sort((a,b)=>(latestActivityTs(b[1]) - latestActivityTs(a[1])));
+    }
+    return groups;
+  }
+
+  /* ------------------------------------------------------------------
    * Status Badge
-   * -------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   function statusBadge(status) {
     const s = (status || "new").toLowerCase();
     let cls = "role-badge role-guest", label = "NEW";
-    if (s === "working")  { cls = "role-badge role-lead";  label = "WORKING"; }
-    else if (s === "proposal") { cls = "role-badge role-dm"; label = "PROPOSAL"; }
-    else if (s === "sold")     { cls = "role-badge role-admin"; label = "SOLD"; }
+    if (s === "working")     { cls = "role-badge role-lead";  label = "WORKING"; }
+    else if (s === "proposal"){ cls = "role-badge role-dm";    label = "PROPOSAL"; }
+    else if (s === "sold")    { cls = "role-badge role-admin"; label = "SOLD"; }
     return `<span class="${cls}">${label}</span>`;
   }
 
-  /* --------------------------------------------------------------
-   * Build inline card HTML
-   * -------------------------------------------------------------- */
-  function renderGuestinfoSection(guestinfo, users, currentUid, currentRole) {
-    const visibleGuestinfo = filterGuestinfo(guestinfo, users, currentUid, currentRole);
-
-    if (!Object.keys(visibleGuestinfo).length) {
-      return `
-        <section class="admin-section guestinfo-section">
-          <h2>Guest Info</h2>
-          <p class="text-center">No guest info found.</p>
-        </section>`;
-    }
-
-    const cardsHtml = Object.entries(visibleGuestinfo)
-      .sort((a,b) => (b[1].submittedAt||0) - (a[1].submittedAt||0))
-      .map(([id, g]) => guestCardHtml(id, g, users, currentUid, currentRole))
-      .join("");
+  /* ------------------------------------------------------------------
+   * Controls bar (filters, proposals toggle, sales toggle)
+   * ------------------------------------------------------------------ */
+  function controlsBarHtml(filterMode, proposalCount, soldCount){
+    const showWeek = filterMode === "week";
+    const weekLabel = showWeek ? "Showing: This Week" : "Showing: All";
+    const weekBtnLabel = showWeek ? "All" : "This Week";
+    const proposalBtnCls = proposalCount ? "btn-warning" : "btn-secondary";
+    const proposalBtnLabel = `⚠ Needs Follow-Up (${proposalCount})`;
+    const soldBtnLabel = `Sales (${soldCount})`;
 
     return `
-      <section class="admin-section guestinfo-section">
+      <div class="guestinfo-controls review-controls" style="justify-content:flex-start;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleWeekAll()">${weekBtnLabel}</button>
+        <span style="align-self:center;margin:0 8px;font-size:.85em;opacity:.7;">${weekLabel}</span>
+        <button class="btn ${proposalBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleShowProposals()">${proposalBtnLabel}</button>
+        <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleSoldOnly()">${soldBtnLabel}</button>
+      </div>`;
+  }
+
+  /* ------------------------------------------------------------------
+   * Main renderer
+   * ------------------------------------------------------------------ */
+  function renderGuestinfoSection(guestinfo, users, currentUid, currentRole) {
+    const vis = filterGuestinfo(guestinfo, users, currentUid, currentRole);
+
+    // apply filter mode (week vs all)
+    const filterWeek = window._guestinfo_filterMode === "week";
+    const visFiltered = filterWeek
+      ? Object.fromEntries(Object.entries(vis).filter(([,g]) => inCurrentWeek(g)))
+      : vis;
+
+    // group by status
+    const groups = groupByStatus(visFiltered);
+
+    const proposalCount = groups.proposal.length;
+    const soldCount     = groups.sold.length;
+
+    // if soldOnly ON, override groups to show only sold section
+    let newHtml="", workingHtml="", proposalHtml="", soldHtml="";
+    if (window._guestinfo_soldOnly){
+      newHtml = ""; workingHtml=""; proposalHtml="";
+      soldHtml = statusSectionHtml("Sales", groups.sold, currentUid, currentRole, "sold");
+    } else {
+      newHtml = statusSectionHtml("New",      groups.new,      currentUid, currentRole, "new");
+      workingHtml = statusSectionHtml("Working",  groups.working,  currentUid, currentRole, "working");
+
+      // proposals hidden behind caution toggle
+      if (window._guestinfo_showProposals){
+        proposalHtml = statusSectionHtml("Needs Follow-Up (Proposals)", groups.proposal, currentUid, currentRole, "proposal", true);
+      } else if (proposalCount){
+        // collapsed alert placeholder (visual, not interactive; button above controls)
+        proposalHtml = `
+          <div class="guestinfo-proposal-alert">
+            <span>⚠ ${proposalCount} lead${proposalCount===1?"":"s"} awaiting follow-up.</span>
+            <span style="opacity:.7;font-size:.85em;margin-left:8px;">Use the button above to view.</span>
+          </div>`;
+      }
+
+      // we *don't* show sold in main view unless user toggles soldOnly
+      soldHtml = "";
+    }
+
+    const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount);
+
+    // if nothing after filtering + view choices
+    const hasAny =
+      (!window._guestinfo_soldOnly && (groups.new.length || groups.working.length || proposalCount)) ||
+      (window._guestinfo_soldOnly && soldCount);
+
+    const emptyHtml = hasAny ? "" : `<p class="text-center">No guest leads in this view.</p>`;
+
+    return `
+      <section class="admin-section guestinfo-section" id="guestinfo-section">
         <h2>Guest Info</h2>
-        <div class="guestinfo-container">${cardsHtml}</div>
+        ${controlsHtml}
+        ${newHtml}
+        ${workingHtml}
+        ${proposalHtml}
+        ${soldHtml}
+        ${emptyHtml}
       </section>
     `;
   }
 
+  /* ------------------------------------------------------------------
+   * Build a status subsection
+   * ------------------------------------------------------------------ */
+  function statusSectionHtml(title, rows, currentUid, currentRole, statusKey, highlight=false){
+    const hasRows = rows && rows.length;
+    if (!hasRows){
+      return `
+        <div class="guestinfo-subsection guestinfo-subsection-empty status-${statusKey}">
+          <h3>${esc(title)}</h3>
+          <div class="guestinfo-empty-msg"><i>None.</i></div>
+        </div>`;
+    }
+
+    const cardsHtml = rows.map(([id,g]) => guestCardHtml(id, g, window._users || {}, currentUid, currentRole)).join("");
+
+    return `
+      <div class="guestinfo-subsection status-${statusKey} ${highlight?"guestinfo-subsection-highlight":""}">
+        <h3>${esc(title)}</h3>
+        <div class="guestinfo-container">${cardsHtml}</div>
+      </div>`;
+  }
+
+  /* ------------------------------------------------------------------
+   * Build guest card (inline preview + quick edit)
+   * ------------------------------------------------------------------ */
   function guestCardHtml(id, g, users, currentUid, currentRole) {
     const submitter = users[g.userUid];
     const allowDelete = canDelete(currentRole);
@@ -139,15 +270,14 @@
     // unify service/eval fields: prefer top-level (legacy), else evaluate.*
     const serviceType = g.serviceType ?? g.evaluate?.serviceType ?? "";
     const situation   = g.situation   ?? g.evaluate?.situation   ?? "";
-    // for inline preview, truncate long situation
     const sitPreview  = situation && situation.length > 140
       ? situation.slice(0,137) + "…"
       : situation;
 
-    const status      = g.status || (g.sale ? "sold" : (g.evaluate ? "working" : "new"));
+    const status      = detectStatus(g);
     const statBadge   = statusBadge(status);
 
-    const isSold = status === "sold" || !!g.sale;
+    const isSold = status === "sold";
     const units  = isSold ? (g.sale?.units ?? "") : "";
     const soldAt = isSold && g.sale?.soldAt ? new Date(g.sale.soldAt).toLocaleString() : "";
 
@@ -155,7 +285,7 @@
       ? `<div class="guest-sale-summary"><b>Sold:</b> ${soldAt || ""} &bull; Units: ${units}</div>`
       : "";
 
-    /* ---- Action Row (View Mode) ----------------------------------- */
+    /* Action Row --------------------------------------------------- */
     const actions = [];
 
     // Continue/Open workflow page
@@ -191,8 +321,7 @@
 
     const actionRow = actions.join("");
 
-    /* ---- Quick Edit Form ------------------------------------------ */
-    // (top-level fields only; deeper evaluate/solution done in workflow page)
+    /* Quick Edit Form ---------------------------------------------- */
     return `
       <div class="guest-card" id="guest-card-${id}">
         <div class="guest-display">
@@ -228,9 +357,9 @@
     `;
   }
 
-  /* --------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Toggle Quick Edit
-   * -------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   function toggleEdit(id) {
     const card      = document.getElementById(`guest-card-${id}`);
     if (!card) return;
@@ -251,9 +380,9 @@
     display.style.display = "block";
   }
 
-  /* --------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Save Quick Edit (top-level fields only)
-   * -------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   async function saveEdit(id) {
     const card = document.getElementById(`guest-card-${id}`);
     const form = card?.querySelector(".guest-edit-form");
@@ -276,9 +405,9 @@
     }
   }
 
-  /* --------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Delete Lead
-   * -------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   async function deleteGuestInfo(id) {
     if (!canDelete(window.currentRole)) {
       alert("You don't have permission to delete.");
@@ -293,9 +422,9 @@
     }
   }
 
-  /* --------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Mark Sold (units only)
-   * -------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   async function markSold(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -365,9 +494,9 @@
     }
   }
 
-  /* --------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Delete Sale (undo)
-   * -------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   async function deleteSale(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -420,9 +549,25 @@
     }
   }
 
-  /* --------------------------------------------------------------
+  /* ------------------------------------------------------------------
+   * Filter toggles (called from controls bar)
+   * ------------------------------------------------------------------ */
+  function toggleWeekAll(){
+    window._guestinfo_filterMode = (window._guestinfo_filterMode === "week") ? "all" : "week";
+    window.renderAdminApp();
+  }
+  function toggleShowProposals(){
+    window._guestinfo_showProposals = !window._guestinfo_showProposals;
+    window.renderAdminApp();
+  }
+  function toggleSoldOnly(){
+    window._guestinfo_soldOnly = !window._guestinfo_soldOnly;
+    window.renderAdminApp();
+  }
+
+  /* ------------------------------------------------------------------
    * Open full workflow page (Step UI)
-   * -------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   function openGuestInfoPage(guestKey) {
     const base = GUESTINFO_PAGE;
     const sep  = base.includes("?") ? "&" : "?";
@@ -431,9 +576,9 @@
     window.location.href = url;
   }
 
-  /* --------------------------------------------------------------
+  /* ------------------------------------------------------------------
    * Expose public API
-   * -------------------------------------------------------------- */
+   * ------------------------------------------------------------------ */
   window.guestinfo = {
     renderGuestinfoSection,
     toggleEdit,
@@ -442,6 +587,9 @@
     deleteGuestInfo,
     markSold,
     deleteSale,
-    openGuestInfoPage
+    openGuestInfoPage,
+    toggleWeekAll,
+    toggleShowProposals,
+    toggleSoldOnly
   };
 })();
