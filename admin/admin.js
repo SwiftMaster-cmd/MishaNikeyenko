@@ -2,97 +2,96 @@
    Role Management & Permissions Admin Module
    ===================================================================== */
 
-const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
+window.ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
-// Default permission rules (editable live)
+// Default permission rules, mutable live by admin UI
 window.permissionRules = {
   canEdit:   { me: false, lead: true,  dm: true,  admin: true  },
   canDelete: { me: false, lead: false, dm: true,  admin: true  },
   canAssign: { me: false, lead: true,  dm: true,  admin: true  }
 };
 
-// Permission check functions exposed globally
-window.canEdit = role => {
+// Permission check helpers (case-insensitive role)
+window.canEdit = function(role) {
   if (!role) return false;
-  return window.permissionRules.canEdit[role.toLowerCase()] || false;
+  return !!window.permissionRules.canEdit[role.toLowerCase()];
 };
-window.canDelete = role => {
+window.canDelete = function(role) {
   if (!role) return false;
-  return window.permissionRules.canDelete[role.toLowerCase()] || false;
+  return !!window.permissionRules.canDelete[role.toLowerCase()];
 };
-window.canAssign = role => {
+window.canAssign = function(role) {
   if (!role) return false;
-  return window.permissionRules.canAssign[role.toLowerCase()] || false;
+  return !!window.permissionRules.canAssign[role.toLowerCase()];
 };
 
 /**
- * Renders the Role Management UI section.
- * Only admins see this.
- * Called from dashboard.js inside main render.
+ * Render Role Management section for admins only.
+ * @param {string} currentRole
+ * @returns {string} HTML string or empty string if not admin
  */
 window.renderRoleManagementSection = function(currentRole) {
-  if (!currentRole || currentRole.toLowerCase() !== ROLES.ADMIN) return '';
+  if (!currentRole || currentRole.toLowerCase() !== window.ROLES.ADMIN) return '';
 
   const permTypes = Object.keys(window.permissionRules);
-  const roles = Object.values(ROLES);
+  const roles = Object.values(window.ROLES);
 
   const rows = roles.map(role => {
     const roleLower = role.toLowerCase();
     const cells = permTypes.map(perm => {
-      const allowed = window.permissionRules[perm][roleLower];
+      const checked = window.permissionRules[perm][roleLower] ? 'checked' : '';
       return `<td style="text-align:center;">
-        <input type="checkbox" data-role="${roleLower}" data-perm="${perm}" ${allowed ? 'checked' : ''}>
+        <input type="checkbox" data-role="${roleLower}" data-perm="${perm}" ${checked}>
       </td>`;
     }).join('');
     return `<tr>
-      <td><b>${role.toUpperCase()}</b></td>
+      <td style="font-weight:bold;">${role.toUpperCase()}</td>
       ${cells}
     </tr>`;
   }).join('');
 
   return `
     <section class="admin-section role-management-section" style="
-      margin-top: 2rem;
-      border: 2px solid #4a90e2;
-      padding: 16px;
-      background: #f0f8ff;
-      color: #222;
+      margin: 2rem auto;
       max-width: 700px;
+      border: 2px solid #4a90e2;
+      border-radius: 8px;
+      background: #f0f8ff;
+      padding: 20px;
       font-family: Arial, sans-serif;
+      color: #222;
     ">
-      <h2 style="margin-bottom: 12px; font-weight: 700; color: #003366;">Role Management</h2>
-      <table border="1" cellspacing="0" cellpadding="6" style="width: 100%; border-collapse: collapse;">
+      <h2 style="margin-bottom: 16px; color: #003366;">Role Management</h2>
+      <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse;">
         <thead style="background: #d9eaff;">
           <tr>
-            <th style="width: 100px; text-align: left;">Role</th>
-            ${permTypes.map(perm => `<th style="text-transform: capitalize;">${perm}</th>`).join('')}
+            <th style="width: 110px; text-align: left;">Role</th>
+            ${permTypes.map(p => `<th style="text-transform: capitalize;">${p}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
           ${rows}
         </tbody>
       </table>
-      <p style="margin-top: 12px; font-size: 0.85em; color: #555;">
-        Toggle permissions for each role. Changes apply immediately across the dashboard.
+      <p style="margin-top: 12px; font-size: 0.9em; color: #555;">
+        Toggle permissions per role. Changes apply immediately.
       </p>
     </section>
   `;
 };
 
-// Listen for changes on checkboxes and update permissionRules live
-document.addEventListener('change', e => {
-  if (!e.target.matches('.role-management-section input[type="checkbox"]')) return;
+// Live update permissions on checkbox change (event delegation)
+document.addEventListener('change', (event) => {
+  const el = event.target;
+  if (!el.matches('.role-management-section input[type="checkbox"]')) return;
 
-  const role = e.target.dataset.role;
-  const perm = e.target.dataset.perm;
-  const checked = e.target.checked;
+  const role = el.dataset.role;
+  const perm = el.dataset.perm;
+  if (!role || !perm) return;
 
-  if (
-    role && perm &&
-    window.permissionRules[perm] &&
-    role in window.permissionRules[perm]
-  ) {
-    window.permissionRules[perm][role] = checked;
-    console.log(`Permission updated: ${perm} for ${role} = ${checked}`);
+  if (window.permissionRules[perm] && role in window.permissionRules[perm]) {
+    window.permissionRules[perm][role] = el.checked;
+    console.log(`Permission updated: ${perm} for ${role} = ${el.checked}`);
+    // Optionally persist changes to backend here
   }
 });
