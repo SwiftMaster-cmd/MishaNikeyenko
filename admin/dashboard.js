@@ -1,16 +1,15 @@
 /* ========================================================================
    Dashboard Main Script (Realtime)  -- Performance Highlights + Caught-Up
-   + Messages Overlay Integration
+   Now with role-scoped Messaging overlay integration.
    ===================================================================== */
 
 const ROLES = window.ROLES || { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
-window.ROLES = ROLES; // ensure global for other modules (messages.js expects)
 
 /* ------------------------------------------------------------------------
    Firebase Init (guarded)
    ------------------------------------------------------------------------ */
 const firebaseConfig = {
-  apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+  apiKey: "AIzaSyD9fILTNJQ0wsPkdLrhRGV9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
   databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
   projectId: "osls-644fd",
@@ -25,6 +24,57 @@ if (!firebase.apps.length) {
 const db   = firebase.database();
 const auth = firebase.auth();
 window.db  = db; // expose for modules
+
+/* ------------------------------------------------------------------------
+   Inject header Messages button (idempotent)
+   ------------------------------------------------------------------------ */
+function ensureMessagesButton() {
+  const hdr = document.querySelector(".admin-header");
+  if (!hdr) return null;
+
+  // If already present, just wire badge & click and return existing.
+  let msgBtn = document.getElementById("messagesBtn");
+  if (!msgBtn) {
+    msgBtn = document.createElement("button");
+    msgBtn.id = "messagesBtn";
+    msgBtn.className = "admin-msg-btn";
+    msgBtn.type = "button";
+    msgBtn.innerHTML = `
+      Messages
+      <span class="admin-msg-badge" id="messagesBadge"></span>
+    `;
+    // Insert before logout if found, else append
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn && logoutBtn.parentNode === hdr) {
+      hdr.insertBefore(msgBtn, logoutBtn);
+    } else {
+      hdr.appendChild(msgBtn);
+    }
+  }
+
+  // Wire click -> open overlay
+  msgBtn.onclick = () => window.messages?.openOverlay?.();
+
+  // Pass badge element to messages module so it can update counts
+  const badgeEl = document.getElementById("messagesBadge");
+  window.messages?.setBadgeEl?.(badgeEl);
+
+  return msgBtn;
+}
+
+/* Fallback CSS for Messages button/badge if dashboard.css doesn't cover */
+(function injectDashboardMsgCss(){
+  if (document.getElementById("dash-msg-css")) return;
+  const css = `
+    .admin-header{position:relative;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;}
+    .admin-header .admin-msg-btn{position:relative;padding:4px 12px;font-size:.9rem;font-weight:600;cursor:pointer;}
+    .admin-header .admin-msg-badge{position:absolute;top:-6px;right:-6px;min-width:18px;padding:0 4px;height:18px;line-height:18px;font-size:11px;text-align:center;border-radius:9px;background:#ff5252;color:#fff;display:none;}
+  `;
+  const tag = document.createElement("style");
+  tag.id = "dash-msg-css";
+  tag.textContent = css;
+  document.head.appendChild(tag);
+})();
 
 /* ------------------------------------------------------------------------
    DOM refs
@@ -80,18 +130,18 @@ auth.onAuthStateChanged(async (user) => {
   // ensure existence / normalization
   await db.ref("users/" + user.uid).update(prof);
 
+  // Logout button
   document.getElementById("logoutBtn")?.addEventListener("click", () => auth.signOut());
+
+  // Messages button (make sure header exists first)
+  ensureMessagesButton();
+  // Initialize messages module (safe if undefined)
+  window.messages?.init?.(currentUid, currentRole);
 
   // initial load + realtime bind
   await initialLoad();
-
-  // *** MESSAGES *** bootstrap after initial data (users loaded for recipient list)
-  if (window.messages?.initMessages) {
-    window.messages.initMessages(currentUid, currentRole);
-  }
-
-  ensureRealtime();                      // attach global listeners
-  window.guestforms?.ensureRealtime?.(); // module-specific (safe if double-bound)
+  ensureRealtime();                       // attach global listeners
+  window.guestforms?.ensureRealtime?.();  // module-specific (safe if double-bound)
 });
 
 /* ========================================================================
@@ -546,6 +596,9 @@ function renderAdminApp() {
       (a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0)
     );
   }
+
+  // Ensure messages button stays wired after each re-render (header may not rerender but safe)
+  ensureMessagesButton();
 }
 
 /* ========================================================================
@@ -593,10 +646,8 @@ function ensureRealtime() {
     if (snap.key === currentUid) {
       currentRole = (snap.val()?.role || ROLES.ME).toLowerCase();
       window.currentRole = currentRole;
-      // *** MESSAGES *** update my role in messages module so recipient list stays fresh
-      if (window.messages?.initMessages) {
-        window.messages.initMessages(currentUid, currentRole);
-      }
+      // Update messages module with any role change
+      window.messages?.init?.(currentUid, currentRole);
     }
     scheduleRealtimeRender();
   });
@@ -625,6 +676,8 @@ function ensureRealtime() {
   salesRef.on("child_added", snap => { window._sales[snap.key] = snap.val(); scheduleRealtimeRender(); });
   salesRef.on("child_changed", snap => { window._sales[snap.key] = snap.val(); scheduleRealtimeRender(); });
   salesRef.on("child_removed", snap => { delete window._sales[snap.key]; scheduleRealtimeRender(); });
+
+  /* NOTE: messages realtime handled inside messages.js */
 }
 
 /* ========================================================================
