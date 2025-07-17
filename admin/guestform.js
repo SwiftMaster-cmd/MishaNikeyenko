@@ -8,6 +8,7 @@
    - Removes from list automatically when linked guest becomes proposal/sold
    - Today/All toggle (hidden when nothing older)
    - Empty-state motivational CTA to create a new lead
+   - Robust navigation: always try to include BOTH guestinfo key & entry id
    ======================================================================= */
 (() => {
   const ROLES = { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
@@ -183,6 +184,10 @@
       ? `<button class="btn btn-danger btn-sm" onclick="window.guestforms.deleteGuestFormEntry('${id}')">Delete</button>`
       : "";
 
+    /* We *always* call continueToGuestInfo(id). That helper now handles:
+       - if linked: openGuestInfoPage(gid, id)
+       - else: create guestinfo, then open
+    */
     return `<tr class="${isClaimed?'claimed':''}">
       <td data-label="Name">${name}</td>
       <td data-label="Phone">${phone}</td>
@@ -236,19 +241,19 @@
   /* ================================================================
    * Main renderer
    * ================================================================ */
-  function renderGuestFormsSection(_unused_forms, currentRole, currentUid){
-    currentUid  = currentUid  || window.currentUid;
-    currentRole = currentRole || window.currentRole;
+  function renderGuestFormsSection(_unused_forms, pRole, pUid){
+    const role = (pRole || window.currentRole || ROLES.ME);
+    const uid  = (pUid  || window.currentUid   || null);
 
     const formsObj = Object.keys(_formsCache).length ? _formsCache : (_unused_forms || {});
-    const visForms = visibleFormsForRole(formsObj, currentRole, currentUid);
+    const visForms = visibleFormsForRole(formsObj, role, uid);
     const {unclaimed, claimed} = partitionForms(visForms);
 
     const unclaimedFilt = applyTodayFilter(unclaimed);
     const claimedFilt   = applyTodayFilter(claimed);
 
-    const unclaimedRowsHtml = unclaimedFilt.map(([id,f])=>rowHtml(id,f,currentRole,currentUid)).join("");
-    const claimedRowsHtml   = claimedFilt.map(([id,f])=>rowHtml(id,f,currentRole,currentUid)).join("");
+    const unclaimedRowsHtml = unclaimedFilt.map(([id,f])=>rowHtml(id,f,role,uid)).join("");
+    const claimedRowsHtml   = claimedFilt.map(([id,f])=>rowHtml(id,f,role,uid)).join("");
 
     const unclaimedSec = subsectionHtml("Unclaimed", unclaimedRowsHtml);
     const claimedSec   = subsectionHtml("Claimed",   claimedRowsHtml);
@@ -354,7 +359,7 @@
    * Continue / Open flow
    * ================================================================ */
   async function continueToGuestInfo(entryId){
-    const currentUid = window.currentUid;
+    const uid = window.currentUid;
     if (!window.db){
       alert("Database not ready.");
       return;
@@ -369,15 +374,16 @@
 
     // Already linked?
     if (entry.guestinfoKey){
-      openGuestInfoPage(entry.guestinfoKey);
+      openGuestInfoPage(entry.guestinfoKey, entryId);
       return;
     }
 
+    // Create new guestinfo from intake form
     const payload = {
       custName:    entry.guestName || "",
       custPhone:   entry.guestPhone || "",
       submittedAt: entry.timestamp || Date.now(),
-      userUid:     currentUid || null,
+      userUid:     uid || null,
       status:      "new",
       source: { type: "guestForm", entryId }
     };
@@ -387,14 +393,14 @@
 
     await window.db.ref(`guestEntries/${entryId}`).update({
       guestinfoKey: guestKey,
-      consumedBy: currentUid || null,
+      consumedBy: uid || null,
       consumedAt: Date.now()
     });
 
     scheduleRerender();
 
     if (!window.GUESTFORMS_NO_REDIRECT){
-      openGuestInfoPage(guestKey);
+      openGuestInfoPage(guestKey, entryId);
     }
   }
 
@@ -428,23 +434,28 @@
    * Start new lead (empty workflow page)
    * ================================================================ */
   function startNewLead(){
-    const base = window.GUESTINFO_PAGE || "guest-info.html";
-    // no gid param => new record
-    window.location.href = base;
+    openGuestInfoPage(null, null); // no gid, no entry
   }
 
   /* ================================================================
    * Open guest info page helper (existing lead)
+   * guestKey: guestinfo key (if known)
+   * entryId:  originating guestEntries id (optional; improves prefill & analytics)
    * ================================================================ */
-  function openGuestInfoPage(guestKey){
+  function openGuestInfoPage(guestKey, entryId){
     const base = window.GUESTINFO_PAGE || "guest-info.html";
-    if (!guestKey){
-      startNewLead();
-      return;
-    }
-    const sep  = base.includes("?") ? "&" : "?";
-    const url  = `${base}${sep}gid=${encodeURIComponent(guestKey)}&entry=${encodeURIComponent(guestKey)}`;
-    try { localStorage.setItem("last_guestinfo_key", guestKey); } catch(_){}
+
+    // Build query string robustly.
+    let params = [];
+    if (guestKey) params.push(`gid=${encodeURIComponent(guestKey)}`);
+    if (entryId) params.push(`entry=${encodeURIComponent(entryId)}`);
+
+    const url = params.length
+      ? `${base}${base.includes('?')?'&':'?'}${params.join('&')}`
+      : base; // pure new-lead
+
+    try { localStorage.setItem("last_guestinfo_key", guestKey || ""); } catch(_){}
+
     window.location.href = url;
   }
 
@@ -457,7 +468,8 @@
     continueToGuestInfo,
     deleteGuestFormEntry,
     ensureRealtime,
-    startNewLead
+    startNewLead,
+    openGuestInfoPage // exposed for debugging / manual links
   };
 
   /* auto-bind if firebase already loaded */
