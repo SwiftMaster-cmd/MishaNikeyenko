@@ -1,12 +1,10 @@
+/* ==========================================================================
+ * OSL Guest Portal  –  Autosave, Weighted Pitch, Revertable Steps
+ * ========================================================================== */
 
-
-/* =======================================================================
- * Guest Portal (multi-step, weighted, revertable, coached)
- * ======================================================================= */
-
-/* -----------------------------------------------------------------------
+/* --------------------------------------------------------------------------
  * Firebase init (guarded)
- * -------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
@@ -21,46 +19,50 @@ if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db   = firebase.database();
 const auth = firebase.auth();
 
-/* -----------------------------------------------------------------------
- * Configurable Weights
- *  - Adjust values; total auto-sums.
- *  - Keys must match field accessors in getFieldValue().
- *  - serviceType/situation/carrierInfo/requirements kept for legacy; 0 pts.
- * -------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ * Tunables
+ * ----------------------------------------------------------------------- */
+const AUTO_STATUS_ESCALATE = true;       // auto bump status based on data
+const AUTOSAVE_DEBOUNCE_MS = 600;        // wait after blur/change group
+const AUTOSAVE_IDLE_MS     = 3000;       // type idle (no blur) -> autosave
+const COMPLETION_DEBOUNCE_MS = 900;      // write /completion after save
+
+/* --------------------------------------------------------------------------
+ * Pitch Weights (adjust to taste; totals auto-sum)
+ * ----------------------------------------------------------------------- */
 const PITCH_WEIGHTS = {
-  /* Step 1 */
+  // Step 1
   custName:      8,
   custPhone:     7,
 
-  /* Step 2 core pillars (Tier A) */
+  // Step 2 (core pillars first 5 = "bundle")
   currentCarrier:12,
   numLines:      8,
   coverageZip:   8,
   deviceStatus:  8,
   finPath:       12,
 
-  /* Step 2 extras (Tier B) */
+  // Optional extras (collapsed / details)
   billPain:      4,
   dataNeed:      4,
   hotspotNeed:   2,
   intlNeed:      2,
 
-  /* Step 2 legacy free-text (Tier C / 0pt) */
+  // Legacy (0 pts – historical notes)
   serviceType:   0,
   situation:     0,
   carrierInfo:   0,
   requirements:  0,
 
-  /* Step 3 */
+  // Step 3
   solutionText:  25
 };
 
-/* Coaching tiers ------------------------------------------------------ */
-const TIER_A_FIELDS = ["currentCarrier","numLines","coverageZip","deviceStatus","finPath"];
-const TIER_B_FIELDS = ["billPain","dataNeed","hotspotNeed","intlNeed"];
-/* Everything else = Tier C */
+/* Tier groupings for coaching chips */
+const TIER_A_FIELDS = ["currentCarrier","numLines","coverageZip","deviceStatus","finPath"]; // Must
+const TIER_B_FIELDS = ["billPain","dataNeed","hotspotNeed","intlNeed"];                     // Should
 
-/* Field -> step ------------------------------------------------------ */
+/* Field -> step */
 const FIELD_STEP = {
   custName:"step1", custPhone:"step1",
   currentCarrier:"step2", numLines:"step2", coverageZip:"step2",
@@ -70,7 +72,7 @@ const FIELD_STEP = {
   solutionText:"step3"
 };
 
-/* Status -> expected steps (for stage % if ever needed) -------------- */
+/* Status -> expected steps (only used if you need stage %) */
 const STATUS_STEPS = {
   new:["step1"],
   working:["step1","step2"],
@@ -78,26 +80,73 @@ const STATUS_STEPS = {
   sold:["step1","step2","step3"]
 };
 
-/* =====================================================================
- * STATUS / VALUE HELPERS
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * Utilities
+ * ----------------------------------------------------------------------- */
+const $  = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+function qs(name){ return new URLSearchParams(window.location.search).get(name); }
+function show(id){ document.getElementById(id)?.classList.remove('hidden'); }
+function hide(id){ document.getElementById(id)?.classList.add('hidden'); }
+function statusMsg(id,msg,cls=''){
+  const el=document.getElementById(id); if(!el)return;
+  el.textContent=msg;
+  el.className='g-status';
+  if(cls)el.classList.add(cls);
+}
+
 function detectStatus(g){
   const s=(g?.status||"").toLowerCase();
   if (s) return s;
   if (g?.sale) return "sold";
-  if (g?.solution) return "proposal";
-  if (g?.evaluate) return "working";
+  if (g?.solution && g.solution.text) return "proposal";
+  if (g?.evaluate && hasAnyEvalData(g.evaluate)) return "working";
   return "new";
 }
+function normGuest(g){
+  const out = g ? JSON.parse(JSON.stringify(g)) : {};
+  out.evaluate = out.evaluate || {};
+  out.solution = out.solution || {};
+  return out;
+}
+function hasVal(v){
+  if (v==null) return false;
+  if (typeof v==="string") return v.trim()!=="";
+  if (typeof v==="number") return true;
+  if (typeof v==="boolean") return v; // only true counts
+  if (Array.isArray(v)) return v.length>0;
+  if (typeof v==="object") return Object.keys(v).length>0;
+  return false;
+}
+function hasAnyEvalData(e){
+  if (!e) return false;
+  return (
+    hasVal(e.currentCarrier) ||
+    hasVal(e.numLines)       ||
+    hasVal(e.coverageZip)    ||
+    hasVal(e.deviceStatus)   ||
+    hasVal(e.finPath)        ||
+    hasVal(e.billPain)       ||
+    hasVal(e.dataNeed)       ||
+    hasVal(e.hotspotNeed)    ||
+    hasVal(e.intlNeed)       ||
+    hasVal(e.serviceType)    ||
+    hasVal(e.situation)      ||
+    hasVal(e.carrierInfo)    ||
+    hasVal(e.requirements)
+  );
+}
 
+/* --------------------------------------------------------------------------
+ * Field accessors (guest object)
+ * ----------------------------------------------------------------------- */
 function getFieldValue(g, key){
   const e=g?.evaluate||{};
   const sol=g?.solution||{};
   switch(key){
-    /* Step1 */
     case "custName":      return g?.custName;
     case "custPhone":     return g?.custPhone;
-    /* Step2 structured */
+
     case "currentCarrier":return e.currentCarrier ?? e.carrierInfo ?? "";
     case "numLines":      return e.numLines;
     case "coverageZip":   return e.coverageZip;
@@ -107,33 +156,20 @@ function getFieldValue(g, key){
     case "dataNeed":      return e.dataNeed;
     case "hotspotNeed":   return e.hotspotNeed;
     case "intlNeed":      return e.intlNeed;
-    /* Step2 legacy */
+
     case "serviceType":   return e.serviceType;
     case "situation":     return e.situation;
     case "carrierInfo":   return e.carrierInfo;
     case "requirements":  return e.requirements;
-    /* Step3 */
+
     case "solutionText":  return sol.text;
     default:              return undefined;
   }
 }
 
-/* Count "answered" ---------------------------------------------------- */
-/* NOTE: Boolean false *counts as answered* (user explicitly said No).  */
-function hasVal(v){
-  if (v === null || v === undefined) return false;
-  if (typeof v === "string") return v.trim() !== "";
-  if (typeof v === "number") return true;     /* 0 counts */
-  if (typeof v === "boolean") return true;    /* false counts */
-  if (Array.isArray(v)) return v.length>0;
-  if (typeof v === "object") return Object.keys(v).length>0;
-  return false;
-}
-
-/* =====================================================================
- * PITCH COMPUTATIONS
- * =================================================================== */
-/* Full % across *all* weighted fields */
+/* --------------------------------------------------------------------------
+ * Pitch computation
+ * ----------------------------------------------------------------------- */
 function computePitchFull(g, weights=PITCH_WEIGHTS){
   const steps={step1:{earned:0,max:0},step2:{earned:0,max:0},step3:{earned:0,max:0}};
   const fields={};
@@ -150,40 +186,19 @@ function computePitchFull(g, weights=PITCH_WEIGHTS){
   const pctFull = fullMax? Math.round(earnedFull/fullMax*100):0;
   return {pctFull, earnedFull, fullMax, steps, fields};
 }
-
-/* Stage % limited to steps expected for current status */
 function computePitchStage(g, weights=PITCH_WEIGHTS){
-  const status=detectStatus(g);
-  const inc=STATUS_STEPS[status]||["step1"];
+  const s=detectStatus(g);
+  const inc=STATUS_STEPS[s]||["step1"];
   const comp=computePitchFull(g,weights);
   let stageMax=0, stageEarn=0;
   inc.forEach(st=>{stageMax+=comp.steps[st].max; stageEarn+=comp.steps[st].earned;});
   const pctStage = stageMax? Math.round(stageEarn/stageMax*100):0;
-  return {...comp,status,pctStage,stageMax,stageEarn};
+  return {...comp,status:s,pctStage,stageMax,stageEarn};
 }
 
-/* =====================================================================
- * STATE + DOM HELPERS
- * =================================================================== */
-function normGuest(g){
-  const out=g?JSON.parse(JSON.stringify(g)):{};
-  out.evaluate=out.evaluate||{};
-  out.solution=out.solution||{};
-  return out;
-}
-
-function qs(name){ return new URLSearchParams(window.location.search).get(name); }
-const $ = sel => document.querySelector(sel);
-function show(id){ document.getElementById(id)?.classList.remove('hidden'); }
-function hide(id){ document.getElementById(id)?.classList.add('hidden'); }
-function statusMsg(id,msg,cls=''){
-  const el=document.getElementById(id); if(!el)return;
-  el.textContent=msg;
-  el.className='g-status';
-  if(cls)el.classList.add(cls);
-}
-
-/* Step1 summary under Step2 ------------------------------------------ */
+/* --------------------------------------------------------------------------
+ * Prefill summary (Step 2+)
+ * ----------------------------------------------------------------------- */
 function injectPrefillSummary(name,phone){
   const step2=$("#step2Form"); if(!step2)return;
   let summary=$("#prefillSummary");
@@ -197,9 +212,9 @@ function injectPrefillSummary(name,phone){
   summary.innerHTML=`<b>Customer:</b> ${name||'-'} &nbsp; <b>Phone:</b> ${phone||'-'}`;
 }
 
-/* =====================================================================
- * PROGRESS BAR
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * Progress bar
+ * ----------------------------------------------------------------------- */
 function ensureProgressBar(){
   let bar=$("#gp-progress"); if(bar)return bar;
   bar=document.createElement('div');
@@ -242,9 +257,9 @@ function setProgressPreview(pOrNull){
   wrap.style.display='';
 }
 
-/* =====================================================================
- * STEP NAV + REVERT
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * Step Navigation
+ * ----------------------------------------------------------------------- */
 function ensureStepNav(){
   let nav=$("#gp-step-nav"); if(nav)return nav;
   nav=document.createElement('div');
@@ -269,171 +284,206 @@ function markStepActive(step){
     btn.classList.toggle('active',btn.dataset.step===step);
   });
 }
+
+/* --------------------------------------------------------------------------
+ * Revert link binding (if spans exist in HTML)
+ * ----------------------------------------------------------------------- */
 function ensureRevertLinks(){
   const rev1=$("#gp-revert-step1");
   const rev2=$("#gp-revert-step2");
   if(rev1)rev1.onclick=()=>revertTo("step1");
   if(rev2)rev2.onclick=()=>revertTo("step2");
 }
-function updateRevertVis(){
-  const g=currentGuestObj||{};
-  const evFilled = Object.keys(g.evaluate||{}).length>0;
-  const solFilled= !!g.solution?.text;
-  const rev1=$("#gp-revert-step1");
-  const rev2=$("#gp-revert-step2");
-  if(rev1)rev1.classList.toggle('hidden',!evFilled && !solFilled);
-  if(rev2)rev2.classList.toggle('hidden',!solFilled);
-}
 
-/* =====================================================================
- * OPTIONAL INJECTION OF EVAL EXTRAS
- * (Won't duplicate if inputs already exist in HTML.)
- * ------------------------------------------------------------------ */
-function ensureEvalExtras(){
+/* --------------------------------------------------------------------------
+ * Collapsible "extra eval" support (optional)
+ * If your HTML already wraps extras in <details.gp-extra>, skip.
+ * This is non-destructive; it won't double-wrap.
+ * ----------------------------------------------------------------------- */
+function ensureEvalExtrasWrap(){
   const frm=$("#step2Form"); if(!frm)return;
+  if(frm.querySelector('.gp-extra')) return; // already wrapped
 
-  /* If currentCarrierSel exists we assume all markup is present. */
-  if (document.getElementById("currentCarrierSel")) return;
+  // Identify nodes after the first 5 bundle questions (currentCarrier..finPath)
+  const extraIds = [
+    'billPain','dataNeed','hotspotNeed','intlNeed',
+    'serviceType','situation','evalCarrier','evalRequirements'
+  ];
+  const extras = extraIds.map(id=>document.getElementById(id)?.closest('.glabel')||null).filter(Boolean);
+  if(!extras.length) return;
 
-  const pts = p=>` <span class="gp-pts">(${p}pt${p===1?'':'s'})</span>`;
+  const det=document.createElement('details');
+  det.className='gp-extra';
+  det.id='gp-eval-extra';
+  det.innerHTML=`<summary>Show Extra Questions (optional)</summary><div class="gp-extra-inner"></div>`;
+  const inner=det.querySelector('.gp-extra-inner');
 
-  function addRow(id,labelHtml,ctrlHtml){
-    const wrap=document.createElement('label');
-    wrap.className='glabel gp-injected';
-    wrap.id=`row-${id}`;
-    wrap.innerHTML=`${labelHtml}${ctrlHtml}`;
-    frm.insertBefore(wrap,frm.lastElementChild); /* before submit btn */
-  }
+  // insert det before first extra element
+  const firstExtra=extras[0];
+  frm.insertBefore(det, firstExtra);
 
-  addRow("currentCarrier",
-    `Current Carrier${pts(PITCH_WEIGHTS.currentCarrier||0)}`,
-    `<select class="gfield" id="currentCarrierSel">
-       <option value="">Select...</option>
-       <option>Verizon</option><option>AT&T</option><option>T-Mobile</option>
-       <option>Cricket</option><option>Metro</option><option>Boost</option>
-       <option>Tracfone/Prepaid</option><option>None / New</option><option>Unknown</option>
-     </select>`);
-
-  addRow("numLines",
-    `Lines to Move${pts(PITCH_WEIGHTS.numLines||0)}`,
-    `<input class="gfield" type="number" min="1" max="20" id="numLines" placeholder="# lines" />`);
-
-  addRow("coverageZip",
-    `Customer ZIP / Area${pts(PITCH_WEIGHTS.coverageZip||0)}`,
-    `<input class="gfield" type="text" pattern="\\d{5}" id="coverageZip" placeholder="##### (optional)" />`);
-
-  addRow("deviceStatus",
-    `Devices Paid Off?${pts(PITCH_WEIGHTS.deviceStatus||0)}`,
-    `<select class="gfield" id="deviceStatus">
-       <option value="">Select...</option>
-       <option value="PaidOff">All Paid Off</option>
-       <option value="Owe">Owe Balance</option>
-       <option value="Lease">Lease</option>
-       <option value="Mixed">Mixed</option>
-       <option value="Unknown">Unknown</option>
-     </select>`);
-
-  addRow("finPath",
-    `Financial Path${pts(PITCH_WEIGHTS.finPath||0)}`,
-    `<select class="gfield" id="finPath">
-       <option value="">Select...</option>
-       <option value="PostpaidOK">Postpaid OK</option>
-       <option value="Prepaid">Prefer Prepaid / Cash</option>
-       <option value="CreditConcern">Credit Concern / Not Sure</option>
-       <option value="Unknown">Unknown</option>
-     </select>`);
-
-  addRow("billPain",
-    `Current Bill / Pain${pts(PITCH_WEIGHTS.billPain||0)}`,
-    `<input class="gfield" type="text" id="billPain" placeholder="$ / Too high / Unknown" />`);
-
-  addRow("dataNeed",
-    `Data Needs${pts(PITCH_WEIGHTS.dataNeed||0)}`,
-    `<select class="gfield" id="dataNeed">
-       <option value="">Select...</option>
-       <option value="Light">Light</option>
-       <option value="Moderate">Moderate</option>
-       <option value="Heavy">Heavy</option>
-       <option value="Unlimited">Unlimited Required</option>
-     </select>`);
-
-  addRow("hotspotNeed",
-    `Needs Hotspot?${pts(PITCH_WEIGHTS.hotspotNeed||0)}`,
-    `<select class="gfield" id="hotspotNeed">
-       <option value="">Select...</option>
-       <option value="true">Yes</option>
-       <option value="false">No</option>
-     </select>`);
-
-  addRow("intlNeed",
-    `International Use?${pts(PITCH_WEIGHTS.intlNeed||0)}`,
-    `<select class="gfield" id="intlNeed">
-       <option value="">Select...</option>
-       <option value="true">Yes</option>
-       <option value="false">No</option>
-     </select>`);
+  extras.forEach(node=>inner.appendChild(node));
 }
 
-/* =====================================================================
- * LIVE PREVIEW
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * Live preview & autosave binding
+ * ----------------------------------------------------------------------- */
 let _liveBound=false;
+let _idleTO=null;
+let _autosaveTO=null;
+let _completionTO=null;
 function bindLivePreview(){
   if(_liveBound)return;
   _liveBound=true;
   const ids=[
-    'custName','custPhone','serviceType','situation','evalCarrier','evalRequirements','solutionText',
-    'currentCarrierSel','numLines','coverageZip','deviceStatus','finPath','billPain','dataNeed','hotspotNeed','intlNeed'
+    // step1
+    'custName','custPhone',
+    // bundle (top 5)
+    'currentCarrierSel','numLines','coverageZip','deviceStatus','finPath',
+    // extras
+    'billPain','dataNeed','hotspotNeed','intlNeed',
+    'serviceType','situation','evalCarrier','evalRequirements',
+    // step3
+    'solutionText'
   ];
   ids.forEach(id=>{
     const el=document.getElementById(id); if(!el)return;
-    const evt=(el.tagName==="SELECT" || el.type==="number")?"change":"input";
-    el.addEventListener(evt,handleLivePreview);
+    const type=el.tagName==="SELECT"||el.type==="number"?"change":"input";
+    el.addEventListener(type,handleLiveInput,{passive:true});
+    el.addEventListener('blur',handleFieldBlur,{passive:true});
   });
 }
-function buildGuestFromForms(){
-  const g=currentGuestObj?JSON.parse(JSON.stringify(currentGuestObj)):{status:"new",evaluate:{},solution:{}};
-  g.evaluate=g.evaluate||{};
-  g.solution=g.solution||{};
 
-  /* Step1 */
+/* Called on keystroke/change – update preview but don't save yet */
+function handleLiveInput(){
+  // preview % from form data
+  const live = buildGuestFromForms();
+  const comp = computePitchFull(live);
+  const savedPct = currentGuestObj? computePitchFull(currentGuestObj).pctFull : 0;
+  const diff = Math.abs(comp.pctFull - savedPct);
+  setProgressPreview(diff>1?comp.pctFull:null);
+  updateNbqChips(live);
+
+  // idle autosave if user pauses typing
+  if(_idleTO) clearTimeout(_idleTO);
+  _idleTO = setTimeout(()=>commitAutosaveFromDom(), AUTOSAVE_IDLE_MS);
+}
+
+/* Called when user leaves a field – commit sooner */
+function handleFieldBlur(){
+  commitAutosaveFromDom();
+}
+
+/* Build guest object from current form field values */
+function buildGuestFromForms(){
+  const g = currentGuestObj? JSON.parse(JSON.stringify(currentGuestObj)) : {status:"new",evaluate:{},solution:{}};
+  g.evaluate = g.evaluate || {};
+  g.solution = g.solution || {};
+
+  // Step1
   const nameEl=$("#custName"); if(nameEl)g.custName=nameEl.value.trim();
   const phoneEl=$("#custPhone"); if(phoneEl)g.custPhone=phoneEl.value.trim();
 
-  /* Step2 legacy */
-  const stEl=$("#serviceType"); if(stEl)g.evaluate.serviceType=stEl.value;
-  const sitEl=$("#situation"); if(sitEl)g.evaluate.situation=sitEl.value.trim();
-  const carEl=$("#evalCarrier"); if(carEl)g.evaluate.carrierInfo=carEl.value.trim();
-  const reqEl=$("#evalRequirements"); if(reqEl)g.evaluate.requirements=reqEl.value.trim();
-
-  /* Step2 structured */
+  // Structured Step2 bundle
   const curEl=$("#currentCarrierSel"); if(curEl)g.evaluate.currentCarrier=curEl.value;
-  const linesEl=$("#numLines"); if(linesEl)g.evaluate.numLines=(linesEl.value===""?null:Number(linesEl.value));
+  const linesEl=$("#numLines"); if(linesEl)g.evaluate.numLines=linesEl.value?Number(linesEl.value):null;
   const zipEl=$("#coverageZip"); if(zipEl)g.evaluate.coverageZip=zipEl.value.trim();
   const devEl=$("#deviceStatus"); if(devEl)g.evaluate.deviceStatus=devEl.value;
   const finEl=$("#finPath"); if(finEl)g.evaluate.finPath=finEl.value;
+
+  // extras
   const billEl=$("#billPain"); if(billEl)g.evaluate.billPain=billEl.value.trim();
   const dataEl=$("#dataNeed"); if(dataEl)g.evaluate.dataNeed=dataEl.value;
   const hotEl=$("#hotspotNeed"); if(hotEl){const v=hotEl.value; g.evaluate.hotspotNeed=(v===""?null:(v==="true")); }
   const intlEl=$("#intlNeed"); if(intlEl){const v=intlEl.value; g.evaluate.intlNeed=(v===""?null:(v==="true")); }
 
-  /* Step3 */
-  const solEl=$("#solutionText"); if(solEl)g.solution.text=solEl.value.trim();
+  // legacy free text
+  const stEl=$("#serviceType"); if(stEl)g.evaluate.serviceType=stEl.value;
+  const sitEl=$("#situation"); if(sitEl)g.evaluate.situation=sitEl.value.trim();
+  const carEl=$("#evalCarrier"); if(carEl)g.evaluate.carrierInfo=carEl.value.trim();
+  const reqEl=$("#evalRequirements"); if(reqEl)g.evaluate.requirements=reqEl.value.trim();
 
+  // Step3
+  const solEl=$("#solutionText"); if(solEl) { g.solution.text=solEl.value.trim(); }
+
+  // escalate status if configured
+  if (AUTO_STATUS_ESCALATE) {
+    let next = detectStatus(g); // will derive from data if no explicit
+    g.status = next;
+  } else {
+    g.status = currentGuestObj?.status || detectStatus(g);
+  }
   return g;
 }
-function handleLivePreview(){
-  const live=buildGuestFromForms();
-  const comp=computePitchFull(live);
-  const savedPct=currentGuestObj?computePitchFull(currentGuestObj).pctFull:0;
-  const diff=Math.abs(comp.pctFull-savedPct);
-  setProgressPreview(diff>1?comp.pctFull:null);
-  updateNbqChips(live);
+
+/* Debounced autosave aggregator */
+function commitAutosaveFromDom(){
+  if(_idleTO){clearTimeout(_idleTO);_idleTO=null;}
+  if(_autosaveTO) clearTimeout(_autosaveTO);
+  _autosaveTO = setTimeout(doAutosaveFromDom, AUTOSAVE_DEBOUNCE_MS);
+}
+async function doAutosaveFromDom(){
+  _autosaveTO=null;
+  const g = buildGuestFromForms();
+
+  // create record if needed
+  if(!currentEntryKey){
+    const refPush = await db.ref('guestinfo').push({
+      custName:g.custName||"",
+      custPhone:g.custPhone||"",
+      submittedAt:Date.now(),
+      userUid:auth.currentUser?.uid||null,
+      status:detectStatus(g) || "new",
+      evaluate:g.evaluate||{},
+      solution:g.solution||null
+    });
+    currentEntryKey=refPush.key;
+    currentGuestObj=normGuest(g);
+    statusMsg('status1','Saved.','success');
+  }else{
+    // patch update (write minimal)
+    const now=Date.now();
+    const updates={};
+    updates[`guestinfo/${currentEntryKey}/custName`] = g.custName||"";
+    updates[`guestinfo/${currentEntryKey}/custPhone`] = g.custPhone||"";
+    updates[`guestinfo/${currentEntryKey}/evaluate`] = g.evaluate||{};
+    if (hasVal(g.solution?.text)) {
+      updates[`guestinfo/${currentEntryKey}/solution`] = {text:g.solution.text,completedAt: currentGuestObj?.solution?.completedAt || now};
+    } else {
+      updates[`guestinfo/${currentEntryKey}/solution`] = null;
+    }
+    updates[`guestinfo/${currentEntryKey}/status`] = detectStatus(g);
+    updates[`guestinfo/${currentEntryKey}/updatedAt`] = now;
+    try {
+      await db.ref().update(updates);
+      statusMsg('status1','Saved.','success');
+      statusMsg('status2','Saved.','success');
+      statusMsg('status3','Saved.','success');
+    } catch(err){
+      console.warn("autosave update failed",err);
+      statusMsg('status1','Autosave error','error');
+    }
+    currentGuestObj = normGuest(g);
+  }
+
+  // update saved progress bar
+  const comp = computePitchFull(currentGuestObj);
+  setProgressSaved(comp.pctFull);
+  setProgressPreview(null);
+  updateNbqChips(currentGuestObj);
+
+  // schedule completion doc write separately
+  if(_completionTO) clearTimeout(_completionTO);
+  _completionTO = setTimeout(()=>writeCompletionPct(currentEntryKey,currentGuestObj), COMPLETION_DEBOUNCE_MS);
+
+  // adjust UI step highlight
+  const s=detectStatus(currentGuestObj);
+  markStepActive(s==="new"?"step1":(s==="working"?"step2":"step3"));
 }
 
-/* =====================================================================
- * NEXT BEST QUESTION COACHING
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * Next Best Question (coaching chips)
+ * ----------------------------------------------------------------------- */
 function ensureNbqContainer(){
   let c=$("#gp-nbq"); if(c)return c;
   c=document.createElement('div');
@@ -467,35 +517,10 @@ function fieldToInputId(field){
 function focusField(field){
   const id=fieldToInputId(field); if(!id)return;
   const el=document.getElementById(id); if(!el)return;
+  // jump to correct step
   const st=FIELD_STEP[field]; if(st)gotoStep(st);
   el.focus({preventScroll:false});
   el.scrollIntoView({behavior:"smooth",block:"center"});
-}
-function updateNbqChips(guestForEval){
-  const c=ensureNbqContainer();
-  const comp=computePitchFull(guestForEval);
-
-  const missing=[];
-  const addMissing=list=>{
-    list.forEach(f=>{
-      if(!comp.fields[f])return;
-      if(!comp.fields[f].ok)missing.push(f);
-    });
-  };
-  addMissing(TIER_A_FIELDS);
-  addMissing(TIER_B_FIELDS);
-  if(comp.steps.step2.earned >= (comp.steps.step2.max*0.6)) addMissing(["solutionText"]);
-
-  const top=missing.slice(0,3);
-  if(!top.length){ c.innerHTML=""; return; }
-
-  const btns=top.map(f=>{
-    const wt=PITCH_WEIGHTS[f]||0;
-    const lbl=fieldLabelShort(f);
-    const tier=TIER_A_FIELDS.includes(f)?"high":(TIER_B_FIELDS.includes(f)?"med":"low");
-    return `<button type="button" data-field="${f}" class="nbq-chip tier-${tier}">${lbl} (+${wt})</button>`;
-  }).join("");
-  c.innerHTML=btns;
 }
 function fieldLabelShort(f){
   switch(f){
@@ -503,7 +528,7 @@ function fieldLabelShort(f){
     case "numLines":return "# lines";
     case "coverageZip":return "ZIP";
     case "deviceStatus":return "Devices paid?";
-    case "finPath":return "Postpaid/Prepaid?";
+    case "finPath":return "Postpaid / Prepaid?";
     case "billPain":return "Bill $";
     case "dataNeed":return "Data need";
     case "hotspotNeed":return "Hotspot?";
@@ -514,26 +539,43 @@ function fieldLabelShort(f){
     default:return f;
   }
 }
+function updateNbqChips(guestForEval){
+  const c=ensureNbqContainer();
+  const comp=computePitchFull(guestForEval);
+  const missing=[];
+  const pushMissing=(arr)=>arr.forEach(f=>{if(!comp.fields[f])return; if(!comp.fields[f].ok)missing.push(f);});
+  pushMissing(TIER_A_FIELDS);
+  pushMissing(TIER_B_FIELDS);
+  if(comp.steps.step2.earned >= (comp.steps.step2.max*0.6)) pushMissing(["solutionText"]);
+  const top=missing.slice(0,3);
+  if(!top.length){ c.innerHTML=""; return; }
+  const btns=top.map(f=>{
+    const wt=PITCH_WEIGHTS[f]||0;
+    const lbl=fieldLabelShort(f);
+    const tier=TIER_A_FIELDS.includes(f)?"high":(TIER_B_FIELDS.includes(f)?"med":"low");
+    return `<button type="button" data-field="${f}" class="nbq-chip tier-${tier}">${lbl} (+${wt})</button>`;
+  }).join("");
+  c.innerHTML=btns;
+}
 
-/* =====================================================================
- * STEP SWITCH
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * Step show/hide
+ * ----------------------------------------------------------------------- */
 function gotoStep(step){
   markStepActive(step);
   const s1=$("#step1Form"),s2=$("#step2Form"),s3=$("#step3Form");
-  if(s1) s1.classList.toggle('hidden',step!=="step1");
-  if(s2) s2.classList.toggle('hidden',step!=="step2");
-  if(s3) s3.classList.toggle('hidden',step!=="step3");
+  if(s1) (step==="step1")?s1.classList.remove('hidden'):s1.classList.add('hidden');
+  if(s2) (step==="step2")?s2.classList.remove('hidden'):s2.classList.add('hidden');
+  if(s3) (step==="step3")?s3.classList.remove('hidden'):s3.classList.add('hidden');
 }
 
-/* =====================================================================
- * REVERT (clears downstream data in Firebase + local state)
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * Revert (clear downstream data & downgrade status)
+ * ----------------------------------------------------------------------- */
 async function revertTo(step){
   if(!currentEntryKey)return;
   const now=Date.now();
   const ref=db.ref(`guestinfo/${currentEntryKey}`);
-
   if(step==="step1"){
     if(!confirm("Revert to Step 1? Evaluation & Solution will be cleared."))return;
     await ref.update({evaluate:null,solution:null,status:"new",updatedAt:now});
@@ -551,14 +593,17 @@ async function revertTo(step){
     setProgressPreview(null); await writeCompletionPct(currentEntryKey,currentGuestObj);
   }
 }
+window.gpRevertTo = revertTo;
 
-/* =====================================================================
- * STATE
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * State
+ * ----------------------------------------------------------------------- */
 let currentEntryKey=null;
 let currentGuestObj=null;
 
-/* Load existing guest ------------------------------------------------ */
+/* --------------------------------------------------------------------------
+ * Load existing guest by ?gid or ?entry
+ * ----------------------------------------------------------------------- */
 async function loadExistingGuestIfParam(){
   const key=qs('gid')||qs('entry'); if(!key)return false;
   try{
@@ -573,8 +618,11 @@ async function loadExistingGuestIfParam(){
   return false;
 }
 
-/* Persist completion snapshot ---------------------------------------- */
+/* --------------------------------------------------------------------------
+ * Write completion snapshot (/completion) – called after autosaves
+ * ----------------------------------------------------------------------- */
 async function writeCompletionPct(gid,g){
+  if(!gid) return;
   const comp=computePitchFull(g);
   try{
     await db.ref(`guestinfo/${gid}/completion`).set({
@@ -587,15 +635,16 @@ async function writeCompletionPct(gid,g){
   setProgressPreview(null);
   setProgressSaved(comp.pctFull);
   updateNbqChips(g);
-  updateRevertVis();
 }
 
-/* Sync UI from loaded guest ------------------------------------------ */
+/* --------------------------------------------------------------------------
+ * Sync UI from loaded guest record
+ * ----------------------------------------------------------------------- */
 function syncUiToLoadedGuest(){
   ensureProgressBar();
   ensureStepNav();
   ensureRevertLinks();
-  ensureEvalExtras();
+  ensureEvalExtrasWrap();
   bindLivePreview();
 
   const g=currentGuestObj||{};
@@ -603,25 +652,17 @@ function syncUiToLoadedGuest(){
   setProgressSaved(comp.pctFull);
   setProgressPreview(null);
   updateNbqChips(g);
-  updateRevertVis();
 
-  /* Step nav active by status */
+  // Step nav active by status
   const s=detectStatus(g);
-  const active = s==="new"?"step1":(s==="working"?"step2":"step3");
-  markStepActive(active);
+  markStepActive(s==="new"?"step1":(s==="working"?"step2":"step3"));
 
-  /* Step1 */
+  // Step1 fields
   const nEl=$("#custName"); if(nEl)nEl.value=g.custName||"";
   const pEl=$("#custPhone"); if(pEl)pEl.value=g.custPhone||"";
 
-  /* Step2 legacy */
+  // Step2 structured bundle + extras
   const e=g.evaluate||{};
-  const stEl=$("#serviceType"); if(stEl)stEl.value=e.serviceType||"";
-  const sitEl=$("#situation"); if(sitEl)sitEl.value=e.situation||"";
-  const carEl=$("#evalCarrier"); if(carEl)carEl.value=e.carrierInfo||"";
-  const reqEl=$("#evalRequirements"); if(reqEl)reqEl.value=e.requirements||"";
-
-  /* Step2 structured */
   const curEl=$("#currentCarrierSel"); if(curEl)curEl.value=e.currentCarrier||"";
   const linesEl=$("#numLines"); if(linesEl)linesEl.value=(e.numLines!=null?e.numLines:"");
   const zipEl=$("#coverageZip"); if(zipEl)zipEl.value=e.coverageZip||"";
@@ -632,143 +673,67 @@ function syncUiToLoadedGuest(){
   const hotEl=$("#hotspotNeed"); if(hotEl)hotEl.value=(e.hotspotNeed==null?"":String(!!e.hotspotNeed));
   const intlEl=$("#intlNeed"); if(intlEl)intlEl.value=(e.intlNeed==null?"":String(!!e.intlNeed));
 
-  /* Step3 */
+  // legacy free text
+  const stEl=$("#serviceType"); if(stEl)stEl.value=e.serviceType||"";
+  const sitEl=$("#situation"); if(sitEl)sitEl.value=e.situation||"";
+  const carEl=$("#evalCarrier"); if(carEl)carEl.value=e.carrierInfo||"";
+  const reqEl=$("#evalRequirements"); if(reqEl)reqEl.value=e.requirements||"";
+
+  // Step3
   const sol=g.solution||{};
   const solEl=$("#solutionText"); if(solEl)solEl.value=sol.text||"";
 
   injectPrefillSummary(g.custName,g.custPhone);
-  gotoStep(active);
+
+  // Show/hide forms (all viewable via nav; default active based on status)
+  gotoStep(s==="new"?"step1":(s==="working"?"step2":"step3"));
 }
 
-/* =====================================================================
- * AUTH GUARD
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * Auth guard
+ * ----------------------------------------------------------------------- */
 auth.onAuthStateChanged(async user=>{
   if(!user){ window.location.href="../login.html"; return; }
 
+  // structural DOM extras before load
   ensureProgressBar();
   ensureStepNav();
-  ensureEvalExtras();
+  ensureEvalExtrasWrap();
   ensureRevertLinks();
   bindLivePreview();
 
   const found=await loadExistingGuestIfParam();
   if(found){ syncUiToLoadedGuest(); return; }
 
-  /* New record start */
-  currentGuestObj={status:"new",evaluate:{},solution:{}};
+  // new record start @ step1 (not yet created in DB; created on first autosave)
+  currentGuestObj = { status:"new", evaluate:{}, solution:{} };
   setProgressSaved(0);
   updateNbqChips(currentGuestObj);
-  updateRevertVis();
   gotoStep("step1");
 });
 
-/* =====================================================================
- * STEP 1 SUBMIT
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * Manual submit fallbacks (still supported)
+ * ----------------------------------------------------------------------- */
 document.getElementById('step1Form').addEventListener('submit',async e=>{
   e.preventDefault();
-  statusMsg('status1','', '');
-  const custName=$("#custName")?.value.trim()||"";
-  const custPhone=$("#custPhone")?.value.trim()||"";
-  try{
-    if(currentEntryKey){
-      await db.ref(`guestinfo/${currentEntryKey}`).update({
-        custName,custPhone,updatedAt:Date.now()
-      });
-    }else{
-      const refPush=await db.ref('guestinfo').push({
-        custName,custPhone,
-        submittedAt:Date.now(),
-        userUid:auth.currentUser?.uid||null,
-        status:"new"
-      });
-      currentEntryKey=refPush.key;
-    }
-    currentGuestObj=currentGuestObj||{};
-    currentGuestObj.custName=custName;
-    currentGuestObj.custPhone=custPhone;
-    currentGuestObj.status=currentGuestObj.status||"new";
-    statusMsg('status1','Saved.','success');
-    await writeCompletionPct(currentEntryKey,currentGuestObj);
-    injectPrefillSummary(custName,custPhone);
-    gotoStep("step2");
-  }catch(err){
-    statusMsg('status1','Error: '+err.message,'error');
-  }
+  await doAutosaveFromDom(); // ensures record created & saved
+  gotoStep("step2");
 });
-
-/* =====================================================================
- * STEP 2 SUBMIT
- * =================================================================== */
 document.getElementById('step2Form').addEventListener('submit',async e=>{
   e.preventDefault();
-  statusMsg('status2','', '');
-  if(!currentEntryKey){ statusMsg('status2','Missing guest record.','error');return; }
-
-  /* gather */
-  const eObj={};
-  eObj.serviceType   = $("#serviceType")?.value||"";
-  eObj.situation     = $("#situation")?.value.trim()||"";
-  eObj.carrierInfo   = $("#evalCarrier")?.value.trim()||"";
-  eObj.requirements  = $("#evalRequirements")?.value.trim()||"";
-  eObj.currentCarrier= $("#currentCarrierSel")?.value||"";
-  const nl=$("#numLines")?.value; eObj.numLines=(nl===""?null:Number(nl));
-  eObj.coverageZip   = $("#coverageZip")?.value.trim()||"";
-  eObj.deviceStatus  = $("#deviceStatus")?.value||"";
-  eObj.finPath       = $("#finPath")?.value||"";
-  eObj.billPain      = $("#billPain")?.value.trim()||"";
-  eObj.dataNeed      = $("#dataNeed")?.value||"";
-  const hot=$("#hotspotNeed")?.value; eObj.hotspotNeed=(hot===""?null:(hot==="true"));
-  const intl=$("#intlNeed")?.value; eObj.intlNeed=(intl===""?null:(intl==="true"));
-
-  try{
-    const now=Date.now();
-    await db.ref(`guestinfo/${currentEntryKey}`).update({
-      evaluate:eObj,
-      status:"working",
-      updatedAt:now
-    });
-    currentGuestObj=currentGuestObj||{};
-    currentGuestObj.evaluate=eObj;
-    currentGuestObj.status="working";
-    statusMsg('status2','Saved.','success');
-    await writeCompletionPct(currentEntryKey,currentGuestObj);
-    gotoStep("step3");
-  }catch(err){
-    statusMsg('status2','Error: '+err.message,'error');
-  }
+  await doAutosaveFromDom();
+  gotoStep("step3");
 });
-
-/* =====================================================================
- * STEP 3 SUBMIT
- * =================================================================== */
 document.getElementById('step3Form').addEventListener('submit',async e=>{
   e.preventDefault();
-  statusMsg('status3','', '');
-  if(!currentEntryKey){ statusMsg('status3','Missing guest record.','error');return; }
-  const solutionText=$("#solutionText")?.value.trim()||"";
-  try{
-    const now=Date.now();
-    await db.ref(`guestinfo/${currentEntryKey}`).update({
-      solution:{text:solutionText,completedAt:now},
-      status:"proposal",
-      updatedAt:now
-    });
-    currentGuestObj=currentGuestObj||{};
-    currentGuestObj.solution={text:solutionText,completedAt:now};
-    currentGuestObj.status="proposal";
-    statusMsg('status3','Saved.','success');
-    await writeCompletionPct(currentEntryKey,currentGuestObj);
-    gotoStep("step3");
-  }catch(err){
-    statusMsg('status3','Error: '+err.message,'error');
-  }
+  await doAutosaveFromDom();
+  gotoStep("step3");
 });
 
-/* =====================================================================
- * PUBLIC HELPERS
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * Manual recompute global (for console)
+ * ----------------------------------------------------------------------- */
 window.gpRecomputeCompletion = async function(gid){
   const key=gid||currentEntryKey; if(!key)return;
   const snap=await db.ref(`guestinfo/${key}`).get();
@@ -776,12 +741,11 @@ window.gpRecomputeCompletion = async function(gid){
   currentGuestObj=normGuest(data);
   await writeCompletionPct(key,currentGuestObj);
 };
-window.gpRevertTo = revertTo;
 
-/* =====================================================================
- * CSS (inject if not present)
- * =================================================================== */
-(function injectCss(){
+/* --------------------------------------------------------------------------
+ * Minimal CSS injection safety (if not already loaded in main CSS file)
+ * ----------------------------------------------------------------------- */
+(function injectCssIfMissing(){
   if(document.getElementById('gp-progress-css'))return;
   const css=`
     .gp-progress{width:100%;margin:1rem auto 1.5rem;max-width:480px;text-align:center;font-family:inherit;}
@@ -792,29 +756,28 @@ window.gpRevertTo = revertTo;
     .gp-progress-fill.gp-progress-green{background:#00c853;}
     .gp-progress-fill.gp-progress-yellow{background:#ffb300;}
     .gp-progress-fill.gp-progress-red{background:#ff5252;}
-
     .gp-step-nav{display:flex;justify-content:center;gap:.5rem;margin:.25rem auto 1rem;max-width:480px;}
     .gp-step-nav button{padding:.25rem .75rem;font-size:.9rem;border-radius:4px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);cursor:pointer;}
     .gp-step-nav button.active{background:rgba(130,202,255,.25);border-color:rgba(130,202,255,.6);}
-
     .gp-pts{opacity:.6;font-weight:400;font-size:.85em;margin-left:.25em;}
     .gp-injected{display:block;margin-top:.75rem;}
-
     .gp-nbq{display:flex;justify-content:center;flex-wrap:wrap;gap:.5rem;margin:-.5rem auto 1rem;max-width:480px;text-align:center;}
     .nbq-chip{padding:.25rem .75rem;font-size:.85rem;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.05);cursor:pointer;}
     .nbq-chip.tier-high{border-color:#ffb300;color:#ffb300;}
     .nbq-chip.tier-med{border-color:#82caff;color:#82caff;}
     .nbq-chip.tier-low{border-color:rgba(255,255,255,.35);color:rgba(255,255,255,.85);}
-
     .gp-revert-link{font-size:.8rem;opacity:.75;margin-left:.5rem;cursor:pointer;text-decoration:underline;}
+    .gp-extra{margin-top:1.25rem;width:100%;}
+    .gp-extra>summary{list-style:none;cursor:pointer;padding:.5rem .75rem;margin-bottom:.5rem;font-size:.95rem;font-weight:600;color:var(--accent,#4daaff);background:rgba(30,144,255,.08);border:1px solid rgba(30,144,255,.3);border-radius:12px;position:relative;}
+    .gp-extra>summary::-webkit-details-marker{display:none;}
+    .gp-extra>summary::after{content:"\\25BC";position:absolute;right:.75rem;top:50%;transform:translateY(-50%) rotate(-90deg);transition:transform .15s;font-size:.8em;opacity:.75;}
+    .gp-extra[open]>summary::after{transform:translateY(-50%) rotate(0deg);}
+    .gp-extra .gp-extra-inner{margin-top:.75rem;display:flex;flex-direction:column;gap:1.25rem;}
   `;
-  const tag=document.createElement('style');
-  tag.id='gp-progress-css';
-  tag.textContent=css;
-  document.head.appendChild(tag);
+  const tag=document.createElement('style');tag.id='gp-progress-css';tag.textContent=css;document.head.appendChild(tag);
 })();
 
-/* =====================================================================
- * Wire HTML-provided revert links once DOM ready
- * =================================================================== */
+/* --------------------------------------------------------------------------
+ * DOM ready guard: wire revert links if HTML includes them
+ * ----------------------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded",ensureRevertLinks);
