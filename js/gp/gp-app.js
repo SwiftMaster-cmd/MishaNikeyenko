@@ -1,10 +1,12 @@
 /* gp-app.js =================================================================
- * OSL Guest Portal main controller (NO AUTOSAVE VERSION)
+ * OSL Guest Portal main controller (NO AUTOSAVE VERSION, dashboard reopen fix)
  * ---------------------------------------------------------------------------
- * - Autosave removed: data persists ONLY on explicit form submit
- *   (Step buttons) or gpApp.saveNow() calls.
- * - Step state decoupled from status; dashboard can prefill & jump.
+ * - Autosave removed: data persists ONLY on explicit form submit or gpApp.saveNow().
+ * - Robust param parsing: supports ?... and #... fragments; reads gid, entry, uistart.
+ * - Honors dashboard uistart hint (step1|step2|step3).
+ * - Prefill Step1 -> start Step2 when appropriate (even if status=new).
  * - Duplicate prevention: only push new record once; afterwards update.
+ * - Remembers last opened gid in localStorage (fallback when params missing).
  * ------------------------------------------------------------------------ */
 
 /* ---------------------------------------------------------------------------
@@ -41,6 +43,44 @@ let _uiStep    = "step1";
 /* tunables */
 const AUTO_STATUS_ESCALATE = true; // still escalate status when saving
 
+/* debug helpers ----------------------------------------------------- */
+const DBG = ()=>!!window.GP_DEBUG;
+function dlog(...args){ if (DBG()) console.log("[gp-app]",...args); }
+
+/* ---------------------------------------------------------------------------
+ * Param parsing (search + hash) ---------------------------------------------
+ * Supports links like:
+ *   guestinfo.html?gid=...&uistart=step2
+ *   guestinfo.html#gid=...&entry=...   (hash only)
+ *   guestinfo.html?#gid=...            (mixed)
+ * ------------------------------------------------------------------------ */
+function parseAllParams(){
+  const out = {};
+  const push = kv=>{
+    if(!kv) return;
+    const i = kv.indexOf("=");
+    if(i<0) return;
+    const k = decodeURIComponent(kv.slice(0,i));
+    const v = decodeURIComponent(kv.slice(i+1));
+    if(k) out[k]=v;
+  };
+  let s = window.location.search;
+  if (s && s.length>1){
+    s.slice(1).split("&").forEach(push);
+  }
+  let h = window.location.hash;
+  if (h){
+    h = h.replace(/^#/,"");
+    if (h.startsWith("?")) h = h.slice(1);
+    h.split("&").forEach(push);
+  }
+  return out;
+}
+function qs(name){
+  const p = parseAllParams();
+  return p[name] ?? null;
+}
+
 /* ---------------------------------------------------------------------------
  * Small helpers
  * ------------------------------------------------------------------------ */
@@ -59,13 +99,16 @@ function statusToStep(status){
     default:         return "step1";
   }
 }
+function hasPrefilledStep1(g){
+  return !!(g?.prefilledStep1 || g?.custName || g?.custPhone);
+}
 
-/* Determine initial UI step w/ overrides for intake-prefill */
-function initialUiStepForRecord(g, ctx){
+/* Determine initial UI step.
+ * Priority: explicit uistart param > statusToStep > prefill bump to step2 */
+function initialUiStepForRecord(g, ctx, uistartParam){
+  if (GP_STEPS.includes(uistartParam)) return uistartParam;
   let st = statusToStep(g?.status || "new");
-  // If we arrived from intake seed OR record flagged prefilledStep1, allow Step2 jump.
-  const hasPrefill = !!(g?.prefilledStep1 || g?.custName || g?.custPhone);
-  if ((ctx === "seed-entry" || hasPrefill) && stepRank("step2") > stepRank(st)){
+  if ((ctx === "seed-entry" || hasPrefilledStep1(g)) && stepRank("step2") > stepRank(st)){
     st = "step2";
   }
   return st;
@@ -83,11 +126,9 @@ function maybeAdvanceUiStepFromStatus(status){
   }
 }
 
-/* ---------------------------------------------------------------------------
- * URL helpers
- * ------------------------------------------------------------------------ */
-function qs(name){
-  return new URLSearchParams(window.location.search).get(name);
+/* remember last guest for resume convenience */
+function rememberLastGuestKey(gid){
+  try{ localStorage.setItem("last_guestinfo_key", gid || ""); }catch(_){}
 }
 
 /* ---------------------------------------------------------------------------
@@ -127,6 +168,10 @@ function buildGuestFromDom(){
   } else {
     base.status = currentGuestObj?.status || gpCore.detectStatus(base);
   }
+
+  // mark Step1 prefill if we have customer info
+  if (base.custName || base.custPhone) base.prefilledStep1 = true;
+
   return base;
 }
 
@@ -154,11 +199,12 @@ async function saveGuestNow(){
                      ? {text:g.solution.text,completedAt:now}
                      : null,
       source:      seedEntryId ? {type:"guestForm",entryId:seedEntryId} : null,
-      prefilledStep1: !!(g.custName || g.custPhone) // remember we got Step1 data
+      prefilledStep1: hasPrefilledStep1(g)
     };
     try{
       const pushRef = await gpDb.ref("guestinfo").push(payload);
       currentGuestKey = pushRef.key;
+      dlog("created guestinfo",currentGuestKey);
     }catch(err){
       console.error("[gp-app] create guestinfo failed",err);
       gpUI.statusMsg("status1","Save error","error");
@@ -167,7 +213,7 @@ async function saveGuestNow(){
       return;
     }
 
-    // link kiosk entry if present
+    // link intake entry if present
     if (seedEntryId){
       try{
         await gpDb.ref(`guestEntries/${seedEntryId}`).update({
@@ -196,13 +242,11 @@ async function saveGuestNow(){
     }
     updates[`guestinfo/${currentGuestKey}/status`]    = gpCore.detectStatus(g);
     updates[`guestinfo/${currentGuestKey}/updatedAt`] = now;
-    // maintain prefilledStep1 once true
-    if (g.custName || g.custPhone){
-      updates[`guestinfo/${currentGuestKey}/prefilledStep1`] = true;
-    }
+    if (hasPrefilledStep1(g)) updates[`guestinfo/${currentGuestKey}/prefilledStep1`] = true;
 
     try{
       await gpDb.ref().update(updates);
+      dlog("updated guestinfo",currentGuestKey);
     }catch(err){
       console.error("[gp-app] update guestinfo failed",err);
       gpUI.statusMsg("status1","Save error","error");
@@ -223,7 +267,7 @@ async function saveGuestNow(){
   gpUI.statusMsg("status3","Saved.","success");
 
   // remember last guest
-  try{ localStorage.setItem("last_guestinfo_key", currentGuestKey||""); }catch(_){}
+  rememberLastGuestKey(currentGuestKey);
 
   // *** IMPORTANT: don't snap backwards! ***
   maybeAdvanceUiStepFromStatus(currentGuestObj.status);
@@ -305,12 +349,14 @@ function syncUi(){
 }
 
 /* ---------------------------------------------------------------------------
- * Context bootstrap (gid > entry > new)
- * Returns {ctx:"guestinfo"|"seed-entry"|"new"}
+ * Context bootstrap (gid > entry > last_saved > new)
+ * Returns {ctx:"guestinfo"|"seed-entry"|"resume"|"new"}
  * ------------------------------------------------------------------------ */
 async function loadContext(){
-  const gid   = qs("gid");
-  const entry = qs("entry");
+  const gid     = qs("gid");
+  const entry   = qs("entry");
+  const uiStart = qs("uistart");
+  dlog("params",{gid,entry,uiStart});
 
   // 1) explicit guestinfo key
   if (gid){
@@ -320,13 +366,15 @@ async function loadContext(){
       if (data){
         currentGuestKey = gid;
         currentGuestObj = gpCore.normGuest(data);
+        rememberLastGuestKey(gid);
         // backfill source if entry param present
         if (entry && !data?.source?.entryId){
           gpDb.ref(`guestinfo/${gid}/source`)
               .set({type:"guestForm",entryId:entry})
               .catch(()=>{});
         }
-        _uiStep = initialUiStepForRecord(currentGuestObj, "guestinfo");
+        _uiStep = initialUiStepForRecord(currentGuestObj, "guestinfo", uiStart);
+        dlog("loaded guestinfo",gid,"start",_uiStep);
         return {ctx:"guestinfo"};
       }
     }catch(err){
@@ -353,7 +401,8 @@ async function loadContext(){
           source: {type:"guestForm",entryId:entry}
         };
         currentGuestKey = null; // will create on first explicit save
-        _uiStep = initialUiStepForRecord(currentGuestObj, "seed-entry");
+        _uiStep = initialUiStepForRecord(currentGuestObj, "seed-entry", uiStart);
+        dlog("seed-entry start",_uiStep);
         return {ctx:"seed-entry"};
       }
     }catch(err){
@@ -361,11 +410,30 @@ async function loadContext(){
     }
   }
 
-  // 3) brand new
+  // 3) fallback resume from last opened gid (if present & allowed)
+  try{
+    const lastKey = localStorage.getItem("last_guestinfo_key");
+    if (lastKey){
+      const snap = await gpDb.ref(`guestinfo/${lastKey}`).get();
+      const data = snap.val();
+      if (data){
+        currentGuestKey = lastKey;
+        currentGuestObj = gpCore.normGuest(data);
+        _uiStep = initialUiStepForRecord(currentGuestObj, "resume", uiStart);
+        dlog("resumed last guest",lastKey,"start",_uiStep);
+        return {ctx:"resume"};
+      }else{
+        localStorage.removeItem("last_guestinfo_key");
+      }
+    }
+  }catch(_){}
+
+  // 4) brand new
   currentGuestObj = { status:"new", evaluate:{}, solution:{} };
   currentGuestKey = null;
   seedEntryId     = null;
-  _uiStep         = "step1";
+  _uiStep         = initialUiStepForRecord(currentGuestObj, "new", uiStart);
+  dlog("new lead start",_uiStep);
   return {ctx:"new"};
 }
 
@@ -408,7 +476,7 @@ gpAuth.onAuthStateChanged(async user=>{
   const {ctx} = await loadContext();
   syncUi();
 
-  // If we *didn't* load an existing guestinfo, ensure step1 or initial override already set.
+  // If we *didn't* load an existing guestinfo, ensure _uiStep already set.
   if (ctx !== "guestinfo"){
     gpUI.markStepActive(_uiStep);
     gpUI.gotoStep(_uiStep);
@@ -428,12 +496,9 @@ function wireSubmitHandler(id, advance=true){
     await saveGuestNow();
     if (advance){
       _uiStep = nextStep(_uiStep);
-      gpUI.markStepActive(_uiStep);
-      gpUI.gotoStep(_uiStep);
-    }else{
-      gpUI.markStepActive(_uiStep);
-      gpUI.gotoStep(_uiStep);
     }
+    gpUI.markStepActive(_uiStep);
+    gpUI.gotoStep(_uiStep);
   });
 }
 wireSubmitHandler("step1Form", true);
