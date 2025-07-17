@@ -34,7 +34,7 @@ auth.onAuthStateChanged(async (user) => {
     return;
   }
   currentUid = user.uid;
-  window.currentUid = currentUid;     // <-- expose globally for modules
+  window.currentUid = currentUid; // expose globally
 
   const snap = await db.ref("users/" + user.uid).get();
   const prof = snap.val() || {
@@ -76,37 +76,50 @@ async function renderAdminApp() {
   const guestinfo  = guestSnap.val()      || {};
   const guestForms = guestFormsSnap.val() || {};
 
-  const storesHtml = (currentRole !== ROLES.ME && window.stores?.renderStoresSection)
-    ? window.stores.renderStoresSection(stores, users, currentRole)
-    : "";
+  /* ---------------------------------------------------------------
+     Build each section's HTML
+     --------------------------------------------------------------- */
 
-  const usersHtml = window.users?.renderUsersSection
-    ? window.users.renderUsersSection(users, currentRole, currentUid)
-    : `<p class="text-center">Users module not loaded.</p>`;
-
-  const reviewsHtml = window.reviews?.renderReviewsSection
-    ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
-    : `<p class="text-center">Reviews module not loaded.</p>`;
-
-  const guestinfoHtml = window.guestinfo?.renderGuestinfoSection
-    ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
-    : `<p class="text-center">Guest Info module not loaded.</p>`;
-
+  // Guest Form Submissions (always show; read-only if no module)
   const guestFormsHtml = window.guestforms?.renderGuestFormsSection
     ? window.guestforms.renderGuestFormsSection(guestForms, currentRole)
     : `<section class="admin-section guest-forms-section"><h2>Guest Form Submissions</h2><p class="text-center">Module not loaded.</p></section>`;
 
+  // Guest Info (role-filtered inside module)
+  const guestinfoHtml = window.guestinfo?.renderGuestinfoSection
+    ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
+    : `<p class="text-center">Guest Info module not loaded.</p>`;
+
+  // Stores (hidden for ME)
+  const storesHtml = (currentRole !== ROLES.ME && window.stores?.renderStoresSection)
+    ? window.stores.renderStoresSection(stores, users, currentRole)
+    : "";
+
+  // Users
+  const usersHtml = window.users?.renderUsersSection
+    ? window.users.renderUsersSection(users, currentRole, currentUid)
+    : `<p class="text-center">Users module not loaded.</p>`;
+
+  // Reviews
+  const reviewsHtml = window.reviews?.renderReviewsSection
+    ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
+    : `<p class="text-center">Reviews module not loaded.</p>`;
+
+  // Role Mgmt
   const roleMgmtHtml =
     typeof window.renderRoleManagementSection === "function"
       ? window.renderRoleManagementSection(currentRole)
       : "";
 
+  /* ---------------------------------------------------------------
+     ORDER: Form → Info → Store → User → Review
+     --------------------------------------------------------------- */
   adminAppDiv.innerHTML = `
+    ${guestFormsHtml}
+    ${guestinfoHtml}
     ${storesHtml}
     ${usersHtml}
     ${reviewsHtml}
-    ${guestinfoHtml}
-    ${guestFormsHtml}
     ${roleMgmtHtml}
   `;
 
