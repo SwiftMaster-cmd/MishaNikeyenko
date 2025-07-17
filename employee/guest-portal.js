@@ -1,5 +1,14 @@
 /* ==========================================================================
  * OSL Guest Portal  –  Autosave, Weighted Pitch, Revertable Steps
+ * --------------------------------------------------------------------------
+ * Supports three entry modes via URL params:
+ *   ?gid=<guestinfoKey>           -> load existing guestinfo record
+ *   ?entry=<guestEntriesKey>      -> seed from kiosk intake; create guestinfo
+ *   (neither)                     -> completely new; create guestinfo on first save
+ *
+ * Works with guestinfo.html markup you provided (custName, custPhone, etc).
+ * Extra evaluation questions are automatically collapsed into a <details>
+ * "Extra Questions (optional)" wrapper if not already wrapped.
  * ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -15,42 +24,40 @@ const firebaseConfig = {
   appId: "1:798578046321:web:8758776701786a2fccf2d0",
   measurementId: "G-9HWXNSBE1T"
 };
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db   = firebase.database();
 const auth = firebase.auth();
 
 /* --------------------------------------------------------------------------
  * Tunables
  * ----------------------------------------------------------------------- */
-const AUTO_STATUS_ESCALATE   = true;   // auto bump status based on data
-const AUTOSAVE_DEBOUNCE_MS   = 600;    // group debounce after blur
-const AUTOSAVE_IDLE_MS       = 3000;   // idle typing timeout
-const COMPLETION_DEBOUNCE_MS = 900;    // completion snapshot delay
+const AUTO_STATUS_ESCALATE   = true;   // auto bump status based on data present
+const AUTOSAVE_DEBOUNCE_MS   = 600;    // dont hammer DB while user tabs field
+const AUTOSAVE_IDLE_MS       = 3000;   // user stops typing -> autosave
+const COMPLETION_DEBOUNCE_MS = 900;    // delay before writing /completion
 
 /* --------------------------------------------------------------------------
- * Pitch Weights
+ * Pitch Weights (adjust to taste; totals auto-sum)
  * ----------------------------------------------------------------------- */
 const PITCH_WEIGHTS = {
   // Step 1
   custName:      8,
   custPhone:     7,
 
-  // Step 2 bundle (top 5)
+  // Step 2 (core bundle: the 5 you care about)
   currentCarrier:12,
   numLines:      8,
   coverageZip:   8,
   deviceStatus:  8,
   finPath:       12,
 
-  // Extras
+  // Optional extras (collapsed)
   billPain:      4,
   dataNeed:      4,
   hotspotNeed:   2,
   intlNeed:      2,
 
-  // Legacy (0 pts)
+  // Legacy (0 pts – historical notes)
   serviceType:   0,
   situation:     0,
   carrierInfo:   0,
@@ -61,10 +68,10 @@ const PITCH_WEIGHTS = {
 };
 
 /* Tier groupings for coaching chips */
-const TIER_A_FIELDS = ["currentCarrier","numLines","coverageZip","deviceStatus","finPath"];
-const TIER_B_FIELDS = ["billPain","dataNeed","hotspotNeed","intlNeed"];
+const TIER_A_FIELDS = ["currentCarrier","numLines","coverageZip","deviceStatus","finPath"]; // Must
+const TIER_B_FIELDS = ["billPain","dataNeed","hotspotNeed","intlNeed"];                     // Should
 
-/* Field → step */
+/* Field -> step */
 const FIELD_STEP = {
   custName:"step1", custPhone:"step1",
   currentCarrier:"step2", numLines:"step2", coverageZip:"step2",
@@ -74,7 +81,7 @@ const FIELD_STEP = {
   solutionText:"step3"
 };
 
-/* Status -> expected steps (stage %) */
+/* Status -> expected steps (stage % optional) */
 const STATUS_STEPS = {
   new:["step1"],
   working:["step1","step2"],
@@ -88,13 +95,13 @@ const STATUS_STEPS = {
 const $  = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 function qs(name){ return new URLSearchParams(window.location.search).get(name); }
-function show(id){ const el=document.getElementById(id); if(el) el.classList.remove('hidden'); }
-function hide(id){ const el=document.getElementById(id); if(el) el.classList.add('hidden'); }
+function show(id){ document.getElementById(id)?.classList.remove('hidden'); }
+function hide(id){ document.getElementById(id)?.classList.add('hidden'); }
 function statusMsg(id,msg,cls=''){
-  const el=document.getElementById(id); if(!el) return;
+  const el=document.getElementById(id); if(!el)return;
   el.textContent=msg;
   el.className='g-status';
-  if(cls) el.classList.add(cls);
+  if(cls)el.classList.add(cls);
 }
 
 function detectStatus(g){
@@ -246,20 +253,14 @@ function setProgressSaved(p){
   const pctEl=$("#gp-progress-pct");
   const fillEl=$("#gp-progress-fill");
   const pct=Math.max(0,Math.min(100,Math.round(p)));
-  if(pctEl) pctEl.textContent=pct+"%";
-  if(fillEl){
-    fillEl.style.width=pct+"%";
-    _progressColor(fillEl,pct);
-  }
+  if(pctEl)pctEl.textContent=pct+"%";
+  if(fillEl){fillEl.style.width=pct+"%";_progressColor(fillEl,pct);}
 }
 function setProgressPreview(pOrNull){
   const wrap=$("#gp-progress-preview");
   const valEl=$("#gp-progress-preview-val");
   if(!wrap||!valEl)return;
-  if(pOrNull==null){
-    wrap.style.display='none';
-    return;
-  }
+  if(pOrNull==null){wrap.style.display='none';return;}
   const pct=Math.max(0,Math.min(100,Math.round(pOrNull)));
   valEl.textContent=pct+"%";
   wrap.style.display='';
@@ -281,8 +282,7 @@ function ensureStepNav(){
   const bar=$("#gp-progress")||ensureProgressBar();
   bar.parentNode.insertBefore(nav,bar.nextSibling);
   nav.addEventListener('click',e=>{
-    const btn=e.target.closest('button[data-step]');
-    if(!btn)return;
+    const btn=e.target.closest('button[data-step]'); if(!btn)return;
     gotoStep(btn.dataset.step);
   });
   return nav;
@@ -300,25 +300,23 @@ function markStepActive(step){
 function ensureRevertLinks(){
   const rev1=$("#gp-revert-step1");
   const rev2=$("#gp-revert-step2");
-  if(rev1) rev1.onclick=()=>revertTo("step1");
-  if(rev2) rev2.onclick=()=>revertTo("step2");
+  if(rev1)rev1.onclick=()=>revertTo("step1");
+  if(rev2)rev2.onclick=()=>revertTo("step2");
 }
 
 /* --------------------------------------------------------------------------
- * Collapsible "extra eval" wrapper
+ * Collapsible "extra eval" support (optional)
  * ----------------------------------------------------------------------- */
 function ensureEvalExtrasWrap(){
   const frm=$("#step2Form"); if(!frm)return;
   if(frm.querySelector('.gp-extra')) return; // already wrapped
 
+  // Identify nodes after the first 5 bundle questions (currentCarrier..finPath)
   const extraIds = [
     'billPain','dataNeed','hotspotNeed','intlNeed',
     'serviceType','situation','evalCarrier','evalRequirements'
   ];
-  const extras = extraIds.map(id=>{
-    const node=document.getElementById(id);
-    return node ? node.closest('.glabel') : null;
-  }).filter(Boolean);
+  const extras = extraIds.map(id=>document.getElementById(id)?.closest('.glabel')||null).filter(Boolean);
   if(!extras.length) return;
 
   const det=document.createElement('details');
@@ -329,7 +327,6 @@ function ensureEvalExtrasWrap(){
 
   const firstExtra=extras[0];
   frm.insertBefore(det, firstExtra);
-
   extras.forEach(node=>inner.appendChild(node));
 }
 
@@ -340,7 +337,6 @@ let _liveBound=false;
 let _idleTO=null;
 let _autosaveTO=null;
 let _completionTO=null;
-
 function bindLivePreview(){
   if(_liveBound)return;
   _liveBound=true;
@@ -352,15 +348,14 @@ function bindLivePreview(){
     'solutionText'
   ];
   ids.forEach(id=>{
-    const el=document.getElementById(id);
-    if(!el)return;
-    const type=(el.tagName==="SELECT"||el.type==="number")?"change":"input";
+    const el=document.getElementById(id); if(!el)return;
+    const type=el.tagName==="SELECT"||el.type==="number"?"change":"input";
     el.addEventListener(type,handleLiveInput,{passive:true});
     el.addEventListener('blur',handleFieldBlur,{passive:true});
   });
 }
 
-/* keystroke/change → preview + idle autosave */
+/* Keystroke/change -> preview; schedule idle autosave */
 function handleLiveInput(){
   const live = buildGuestFromForms();
   const comp = computePitchFull(live);
@@ -373,7 +368,7 @@ function handleLiveInput(){
   _idleTO = setTimeout(()=>commitAutosaveFromDom(), AUTOSAVE_IDLE_MS);
 }
 
-/* blur → quicker autosave */
+/* Blur -> quicker autosave */
 function handleFieldBlur(){
   commitAutosaveFromDom();
 }
@@ -385,33 +380,37 @@ function buildGuestFromForms(){
   g.solution = g.solution || {};
 
   // Step1
-  const nameEl=$("#custName");  if(nameEl) g.custName = (nameEl.value||"").trim();
-  const phoneEl=$("#custPhone");if(phoneEl)g.custPhone= (phoneEl.value||"").trim();
+  const nameEl=$("#custName"); if(nameEl)g.custName=nameEl.value.trim();
+  const phoneEl=$("#custPhone"); if(phoneEl)g.custPhone=phoneEl.value.trim();
 
-  // Structured Step2 bundle
+  // Bundle
   const curEl=$("#currentCarrierSel"); if(curEl)g.evaluate.currentCarrier=curEl.value;
-  const linesEl=$("#numLines");        if(linesEl)g.evaluate.numLines=linesEl.value?Number(linesEl.value):null;
-  const zipEl=$("#coverageZip");       if(zipEl) g.evaluate.coverageZip=(zipEl.value||"").trim();
-  const devEl=$("#deviceStatus");      if(devEl) g.evaluate.deviceStatus=devEl.value;
-  const finEl=$("#finPath");           if(finEl) g.evaluate.finPath=finEl.value;
+  const linesEl=$("#numLines"); if(linesEl)g.evaluate.numLines=linesEl.value?Number(linesEl.value):null;
+  const zipEl=$("#coverageZip"); if(zipEl)g.evaluate.coverageZip=zipEl.value.trim();
+  const devEl=$("#deviceStatus"); if(devEl)g.evaluate.deviceStatus=devEl.value;
+  const finEl=$("#finPath"); if(finEl)g.evaluate.finPath=finEl.value;
 
   // extras
-  const billEl=$("#billPain");   if(billEl)g.evaluate.billPain=(billEl.value||"").trim();
-  const dataEl=$("#dataNeed");   if(dataEl)g.evaluate.dataNeed=dataEl.value;
+  const billEl=$("#billPain"); if(billEl)g.evaluate.billPain=billEl.value.trim();
+  const dataEl=$("#dataNeed"); if(dataEl)g.evaluate.dataNeed=dataEl.value;
   const hotEl=$("#hotspotNeed"); if(hotEl){const v=hotEl.value; g.evaluate.hotspotNeed=(v===""?null:(v==="true")); }
-  const intlEl=$("#intlNeed");   if(intlEl){const v=intlEl.value; g.evaluate.intlNeed=(v===""?null:(v==="true")); }
+  const intlEl=$("#intlNeed"); if(intlEl){const v=intlEl.value; g.evaluate.intlNeed=(v===""?null:(v==="true")); }
 
   // legacy free text
-  const stEl=$("#serviceType");      if(stEl) g.evaluate.serviceType=stEl.value;
-  const sitEl=$("#situation");       if(sitEl)g.evaluate.situation=(sitEl.value||"").trim();
-  const carEl=$("#evalCarrier");     if(carEl)g.evaluate.carrierInfo=(carEl.value||"").trim();
-  const reqEl=$("#evalRequirements");if(reqEl)g.evaluate.requirements=(reqEl.value||"").trim();
+  const stEl=$("#serviceType"); if(stEl)g.evaluate.serviceType=stEl.value;
+  const sitEl=$("#situation"); if(sitEl)g.evaluate.situation=sitEl.value.trim();
+  const carEl=$("#evalCarrier"); if(carEl)g.evaluate.carrierInfo=carEl.value.trim();
+  const reqEl=$("#evalRequirements"); if(reqEl)g.evaluate.requirements=reqEl.value.trim();
 
   // Step3
-  const solEl=$("#solutionText"); if(solEl) g.solution.text=(solEl.value||"").trim();
+  const solEl=$("#solutionText"); if(solEl) { g.solution.text=solEl.value.trim(); }
 
-  // escalate status if configured
-  g.status = AUTO_STATUS_ESCALATE ? detectStatus(g) : (currentGuestObj?.status || detectStatus(g));
+  // escalate status
+  if (AUTO_STATUS_ESCALATE) {
+    g.status = detectStatus(g);
+  } else {
+    g.status = currentGuestObj?.status || detectStatus(g);
+  }
   return g;
 }
 
@@ -427,64 +426,68 @@ async function doAutosaveFromDom(){
 
   /* create record if needed */
   if(!currentEntryKey){
-    try{
-      const refPush = await db.ref('guestinfo').push({
-        custName:g.custName||"",
-        custPhone:g.custPhone||"",
-        submittedAt:Date.now(),
-        userUid:auth.currentUser?.uid||null,
-        status:detectStatus(g) || "new",
-        evaluate:g.evaluate||{},
-        solution:hasVal(g.solution?.text)?{text:g.solution.text,completedAt:Date.now()}:null
-      });
-      currentEntryKey=refPush.key;
-      currentGuestObj=normGuest(g);
-      statusMsg('status1','Saved.','success');
-    }catch(err){
-      console.warn("guest-portal create failed",err);
-      statusMsg('status1','Save error','error');
-      return;
+    const refPush = await db.ref('guestinfo').push({
+      custName:g.custName||"",
+      custPhone:g.custPhone||"",
+      submittedAt:Date.now(),
+      userUid:auth.currentUser?.uid||null,
+      status:detectStatus(g) || "new",
+      evaluate:g.evaluate||{},
+      solution:hasVal(g.solution?.text)?{text:g.solution.text,completedAt:Date.now()}:null,
+      source: seedEntryId ? {type:"guestForm",entryId:seedEntryId} : null
+    });
+    currentEntryKey=refPush.key;
+    currentGuestObj=normGuest(g);
+    statusMsg('status1','Saved.','success');
+
+    /* if we came from kiosk entry and it is not linked yet, link it */
+    if (seedEntryId) {
+      try {
+        await db.ref(`guestEntries/${seedEntryId}`).update({
+          guestinfoKey: currentEntryKey,
+          consumedBy: auth.currentUser?.uid || null,
+          consumedAt: Date.now()
+        });
+      } catch(err){
+        console.warn("link kiosk->guestinfo failed",err);
+      }
     }
   }else{
-    /* patch update */
     const now=Date.now();
     const updates={};
     updates[`guestinfo/${currentEntryKey}/custName`] = g.custName||"";
     updates[`guestinfo/${currentEntryKey}/custPhone`] = g.custPhone||"";
     updates[`guestinfo/${currentEntryKey}/evaluate`] = g.evaluate||{};
-    updates[`guestinfo/${currentEntryKey}/status`]   = detectStatus(g);
-    updates[`guestinfo/${currentEntryKey}/updatedAt`]= now;
     if (hasVal(g.solution?.text)) {
-      updates[`guestinfo/${currentEntryKey}/solution`] = {
-        text:g.solution.text,
-        completedAt: currentGuestObj?.solution?.completedAt || now
-      };
+      updates[`guestinfo/${currentEntryKey}/solution`] = {text:g.solution.text,completedAt: currentGuestObj?.solution?.completedAt || now};
     } else {
       updates[`guestinfo/${currentEntryKey}/solution`] = null;
     }
+    updates[`guestinfo/${currentEntryKey}/status`] = detectStatus(g);
+    updates[`guestinfo/${currentEntryKey}/updatedAt`] = now;
     try {
       await db.ref().update(updates);
       statusMsg('status1','Saved.','success');
       statusMsg('status2','Saved.','success');
       statusMsg('status3','Saved.','success');
-      currentGuestObj = normGuest(g);
     } catch(err){
-      console.warn("guest-portal autosave update failed",err);
+      console.warn("autosave update failed",err);
       statusMsg('status1','Autosave error','error');
     }
+    currentGuestObj = normGuest(g);
   }
 
-  /* update saved progress bar */
+  // update saved progress bar
   const comp = computePitchFull(currentGuestObj);
   setProgressSaved(comp.pctFull);
   setProgressPreview(null);
   updateNbqChips(currentGuestObj);
 
-  /* schedule completion doc write */
+  // /completion write
   if(_completionTO) clearTimeout(_completionTO);
   _completionTO = setTimeout(()=>writeCompletionPct(currentEntryKey,currentGuestObj), COMPLETION_DEBOUNCE_MS);
 
-  /* adjust UI step highlight */
+  // update nav active
   const s=detectStatus(currentGuestObj);
   markStepActive(s==="new"?"step1":(s==="working"?"step2":"step3"));
 }
@@ -500,8 +503,7 @@ function ensureNbqContainer(){
   const hook=$("#gp-step-nav")||$("#gp-progress");
   hook.parentNode.insertBefore(c,hook.nextSibling);
   c.addEventListener('click',e=>{
-    const btn=e.target.closest('button[data-field]');
-    if(!btn)return;
+    const btn=e.target.closest('button[data-field]'); if(!btn)return;
     focusField(btn.dataset.field);
   });
   return c;
@@ -526,8 +528,7 @@ function fieldToInputId(field){
 function focusField(field){
   const id=fieldToInputId(field); if(!id)return;
   const el=document.getElementById(id); if(!el)return;
-  const st=FIELD_STEP[field];
-  if(st) gotoStep(st);
+  const st=FIELD_STEP[field]; if(st)gotoStep(st);
   el.focus({preventScroll:false});
   el.scrollIntoView({behavior:"smooth",block:"center"});
 }
@@ -552,18 +553,12 @@ function updateNbqChips(guestForEval){
   const c=ensureNbqContainer();
   const comp=computePitchFull(guestForEval);
   const missing=[];
-  const pushMissing=(arr)=>arr.forEach(f=>{
-    if(!comp.fields[f])return;
-    if(!comp.fields[f].ok)missing.push(f);
-  });
+  const pushMissing=(arr)=>arr.forEach(f=>{if(!comp.fields[f])return; if(!comp.fields[f].ok)missing.push(f);});
   pushMissing(TIER_A_FIELDS);
   pushMissing(TIER_B_FIELDS);
   if(comp.steps.step2.earned >= (comp.steps.step2.max*0.6)) pushMissing(["solutionText"]);
   const top=missing.slice(0,3);
-  if(!top.length){
-    c.innerHTML="";
-    return;
-  }
+  if(!top.length){ c.innerHTML=""; return; }
   const btns=top.map(f=>{
     const wt=PITCH_WEIGHTS[f]||0;
     const lbl=fieldLabelShort(f);
@@ -578,25 +573,14 @@ function updateNbqChips(guestForEval){
  * ----------------------------------------------------------------------- */
 function gotoStep(step){
   markStepActive(step);
-  const s1=$("#step1Form");
-  const s2=$("#step2Form");
-  const s3=$("#step3Form");
-  if(s1){
-    if(step==="step1") s1.classList.remove('hidden');
-    else s1.classList.add('hidden');
-  }
-  if(s2){
-    if(step==="step2") s2.classList.remove('hidden');
-    else s2.classList.add('hidden');
-  }
-  if(s3){
-    if(step==="step3") s3.classList.remove('hidden');
-    else s3.classList.add('hidden');
-  }
+  const s1=$("#step1Form"),s2=$("#step2Form"),s3=$("#step3Form");
+  if(s1) (step==="step1")?s1.classList.remove('hidden'):s1.classList.add('hidden');
+  if(s2) (step==="step2")?s2.classList.remove('hidden'):s2.classList.add('hidden');
+  if(s3) (step==="step3")?s3.classList.remove('hidden'):s3.classList.add('hidden');
 }
 
 /* --------------------------------------------------------------------------
- * Revert
+ * Revert (clear downstream data & downgrade status)
  * ----------------------------------------------------------------------- */
 async function revertTo(step){
   if(!currentEntryKey)return;
@@ -608,19 +592,15 @@ async function revertTo(step){
     currentGuestObj.evaluate={};
     delete currentGuestObj.solution;
     currentGuestObj.status="new";
-    syncUiToLoadedGuest();
-    gotoStep("step1");
-    setProgressPreview(null);
-    await writeCompletionPct(currentEntryKey,currentGuestObj);
+    syncUiToLoadedGuest(); gotoStep("step1");
+    setProgressPreview(null); await writeCompletionPct(currentEntryKey,currentGuestObj);
   }else if(step==="step2"){
     if(!confirm("Revert to Step 2? Solution will be cleared."))return;
     await ref.update({solution:null,status:"working",updatedAt:now});
     delete currentGuestObj.solution;
     currentGuestObj.status="working";
-    syncUiToLoadedGuest();
-    gotoStep("step2");
-    setProgressPreview(null);
-    await writeCompletionPct(currentEntryKey,currentGuestObj);
+    syncUiToLoadedGuest(); gotoStep("step2");
+    setProgressPreview(null); await writeCompletionPct(currentEntryKey,currentGuestObj);
   }
 }
 window.gpRevertTo = revertTo;
@@ -628,27 +608,63 @@ window.gpRevertTo = revertTo;
 /* --------------------------------------------------------------------------
  * State
  * ----------------------------------------------------------------------- */
-let currentEntryKey=null;
-let currentGuestObj=null;
+let currentEntryKey=null;   // guestinfo/<gid>
+let currentGuestObj=null;   // normalized live snapshot
+let seedEntryId   = null;   // guestEntries/<entryId> if we came from kiosk only
 
 /* --------------------------------------------------------------------------
- * Load existing guest by ?gid (preferred) or ?entry (legacy)
+ * Load guest context based on URL params
  * ----------------------------------------------------------------------- */
-async function loadExistingGuestIfParam(){
-  const key=qs('gid') || qs('entry');
-  if(!key) return false;
-  try{
-    const snap=await db.ref(`guestinfo/${key}`).get();
-    const data=snap.val();
-    if(data){
-      currentEntryKey=key;
-      currentGuestObj=normGuest(data);
-      return true;
+async function loadGuestContext(){
+  const gid   = qs('gid');
+  const entry = qs('entry');
+
+  /* 1) gid takes priority */
+  if (gid){
+    try{
+      const snap=await db.ref(`guestinfo/${gid}`).get();
+      const data=snap.val();
+      if(data){
+        currentEntryKey=gid;
+        currentGuestObj=normGuest(data);
+        // If entry also present but record lacks source, optionally backfill
+        if (entry && !data.source?.entryId){
+          db.ref(`guestinfo/${gid}/source`).update({type:"guestForm",entryId:entry}).catch(()=>{});
+        }
+        return "guestinfo";
+      }
+    }catch(err){
+      console.error("guest-portal: load gid error",err);
     }
-  }catch(e){
-    console.error("guest-portal loadExisting error",e);
   }
-  return false;
+
+  /* 2) entry only -> seed from kiosk intake */
+  if (entry){
+    try{
+      const esnap=await db.ref(`guestEntries/${entry}`).get();
+      const e=esnap.val();
+      if(e){
+        seedEntryId = entry;
+        currentGuestObj = {
+          status:"new",
+          custName:  e.guestName  || "",
+          custPhone: e.guestPhone || "",
+          submittedAt: e.timestamp || Date.now(),
+          userUid: auth.currentUser?.uid || null,
+          evaluate:{},
+          solution:{},
+          source:{type:"guestForm",entryId:entry}
+        };
+        return "seed-entry";
+      }
+    }catch(err){
+      console.error("guest-portal: load entry error",err);
+    }
+  }
+
+  /* 3) brand-new */
+  currentGuestObj = { status:"new", evaluate:{}, solution:{} };
+  return "new";
 }
 
 /* --------------------------------------------------------------------------
@@ -664,16 +680,14 @@ async function writeCompletionPct(gid,g){
       fields:comp.fields,
       updatedAt:Date.now()
     });
-  }catch(err){
-    console.warn("completion write failed",err);
-  }
+  }catch(err){console.warn("completion write failed",err);}
   setProgressPreview(null);
   setProgressSaved(comp.pctFull);
   updateNbqChips(g);
 }
 
 /* --------------------------------------------------------------------------
- * Sync UI from loaded guest record
+ * Sync UI from currentGuestObj
  * ----------------------------------------------------------------------- */
 function syncUiToLoadedGuest(){
   ensureProgressBar();
@@ -688,31 +702,30 @@ function syncUiToLoadedGuest(){
   setProgressPreview(null);
   updateNbqChips(g);
 
-  // Step nav active by status
   const s=detectStatus(g);
   markStepActive(s==="new"?"step1":(s==="working"?"step2":"step3"));
 
-  // Step1 fields
-  const nEl=$("#custName"); if(nEl) nEl.value=g.custName||"";
-  const pEl=$("#custPhone");if(pEl) pEl.value=g.custPhone||"";
+  // Step1
+  const nEl=$("#custName"); if(nEl)nEl.value=g.custName||"";
+  const pEl=$("#custPhone"); if(pEl)pEl.value=g.custPhone||"";
 
-  // Step2 structured + extras
+  // Step2 structured
   const e=g.evaluate||{};
   const curEl=$("#currentCarrierSel"); if(curEl)curEl.value=e.currentCarrier||"";
-  const linesEl=$("#numLines");        if(linesEl)linesEl.value=(e.numLines!=null?e.numLines:"");
-  const zipEl=$("#coverageZip");       if(zipEl)zipEl.value=e.coverageZip||"";
-  const devEl=$("#deviceStatus");      if(devEl)devEl.value=e.deviceStatus||"";
-  const finEl=$("#finPath");           if(finEl)finEl.value=e.finPath||"";
-  const billEl=$("#billPain");         if(billEl)billEl.value=e.billPain||"";
-  const dataEl=$("#dataNeed");         if(dataEl)dataEl.value=e.dataNeed||"";
-  const hotEl=$("#hotspotNeed");       if(hotEl)hotEl.value=(e.hotspotNeed==null?"":String(!!e.hotspotNeed));
-  const intlEl=$("#intlNeed");         if(intlEl)intlEl.value=(e.intlNeed==null?"":String(!!e.intlNeed));
+  const linesEl=$("#numLines"); if(linesEl)linesEl.value=(e.numLines!=null?e.numLines:"");
+  const zipEl=$("#coverageZip"); if(zipEl)zipEl.value=e.coverageZip||"";
+  const devEl=$("#deviceStatus"); if(devEl)devEl.value=e.deviceStatus||"";
+  const finEl=$("#finPath"); if(finEl)finEl.value=e.finPath||"";
+  const billEl=$("#billPain"); if(billEl)billEl.value=e.billPain||"";
+  const dataEl=$("#dataNeed"); if(dataEl)dataEl.value=e.dataNeed||"";
+  const hotEl=$("#hotspotNeed"); if(hotEl)hotEl.value=(e.hotspotNeed==null?"":String(!!e.hotspotNeed));
+  const intlEl=$("#intlNeed"); if(intlEl)intlEl.value=(e.intlNeed==null?"":String(!!e.intlNeed));
 
-  // legacy
-  const stEl=$("#serviceType");      if(stEl)stEl.value=e.serviceType||"";
-  const sitEl=$("#situation");       if(sitEl)sitEl.value=e.situation||"";
-  const carEl=$("#evalCarrier");     if(carEl)carEl.value=e.carrierInfo||"";
-  const reqEl=$("#evalRequirements");if(reqEl)reqEl.value=e.requirements||"";
+  // legacy free text
+  const stEl=$("#serviceType"); if(stEl)stEl.value=e.serviceType||"";
+  const sitEl=$("#situation"); if(sitEl)sitEl.value=e.situation||"";
+  const carEl=$("#evalCarrier"); if(carEl)carEl.value=e.carrierInfo||"";
+  const reqEl=$("#evalRequirements"); if(reqEl)reqEl.value=e.requirements||"";
 
   // Step3
   const sol=g.solution||{};
@@ -720,7 +733,6 @@ function syncUiToLoadedGuest(){
 
   injectPrefillSummary(g.custName,g.custPhone);
 
-  // Show/hide forms
   gotoStep(s==="new"?"step1":(s==="working"?"step2":"step3"));
 }
 
@@ -728,67 +740,53 @@ function syncUiToLoadedGuest(){
  * Auth guard
  * ----------------------------------------------------------------------- */
 auth.onAuthStateChanged(async user=>{
-  if(!user){
-    window.location.href="../login.html";
-    return;
-  }
+  if(!user){ window.location.href="../login.html"; return; }
 
-  // structural DOM extras before load
+  // build UI chrome immediately
   ensureProgressBar();
   ensureStepNav();
   ensureEvalExtrasWrap();
   ensureRevertLinks();
   bindLivePreview();
 
-  const found=await loadExistingGuestIfParam();
-  if(found){
-    syncUiToLoadedGuest();
-    return;
-  }
+  // load context (gid wins, else entry seed, else new)
+  const ctx = await loadGuestContext();
+  syncUiToLoadedGuest();
 
-  // new record start @ step1 (only local; DB created on first autosave)
-  currentGuestObj = { status:"new", evaluate:{}, solution:{} };
-  setProgressSaved(0);
-  updateNbqChips(currentGuestObj);
-  gotoStep("step1");
+  // If we loaded an existing guestinfo record, show whichever step is next.
+  // If we seeded from entry or new, remain on Step 1.
+  if (ctx === "guestinfo"){
+    // auto-advance to step based on status (syncUiToLoadedGuest already did)
+  } else {
+    // seed-entry or new start at step1
+    gotoStep("step1");
+  }
 });
 
 /* --------------------------------------------------------------------------
- * Manual submit fallbacks (still supported)
+ * Manual submit fallbacks (still supported; autosave handles mostly)
  * ----------------------------------------------------------------------- */
-(function bindManualFormSubmits(){
-  const f1=document.getElementById('step1Form');
-  if(f1){
-    f1.addEventListener('submit',async e=>{
-      e.preventDefault();
-      await doAutosaveFromDom();
-      gotoStep("step2");
-    });
-  }
-  const f2=document.getElementById('step2Form');
-  if(f2){
-    f2.addEventListener('submit',async e=>{
-      e.preventDefault();
-      await doAutosaveFromDom();
-      gotoStep("step3");
-    });
-  }
-  const f3=document.getElementById('step3Form');
-  if(f3){
-    f3.addEventListener('submit',async e=>{
-      e.preventDefault();
-      await doAutosaveFromDom();
-      gotoStep("step3");
-    });
-  }
-})();
+document.getElementById('step1Form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  await doAutosaveFromDom();
+  gotoStep("step2");
+});
+document.getElementById('step2Form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  await doAutosaveFromDom();
+  gotoStep("step3");
+});
+document.getElementById('step3Form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  await doAutosaveFromDom();
+  gotoStep("step3");
+});
 
 /* --------------------------------------------------------------------------
- * Manual recompute global (for console)
+ * Manual recompute global (console)
  * ----------------------------------------------------------------------- */
 window.gpRecomputeCompletion = async function(gid){
-  const key=gid||currentEntryKey;
-  if(!key)return;
+  const key=gid||currentEntryKey; if(!key)return;
   const snap=await db.ref(`guestinfo/${key}`).get();
   const data=snap.val()||{};
   currentGuestObj=normGuest(data);
@@ -796,7 +794,7 @@ window.gpRecomputeCompletion = async function(gid){
 };
 
 /* --------------------------------------------------------------------------
- * Minimal CSS injection safety
+ * Minimal CSS injection safety (if not already loaded in main CSS file)
  * ----------------------------------------------------------------------- */
 (function injectCssIfMissing(){
   if(document.getElementById('gp-progress-css'))return;
@@ -827,13 +825,10 @@ window.gpRecomputeCompletion = async function(gid){
     .gp-extra[open]>summary::after{transform:translateY(-50%) rotate(0deg);}
     .gp-extra .gp-extra-inner{margin-top:.75rem;display:flex;flex-direction:column;gap:1.25rem;}
   `;
-  const tag=document.createElement('style');
-  tag.id='gp-progress-css';
-  tag.textContent=css;
-  document.head.appendChild(tag);
+  const tag=document.createElement('style');tag.id='gp-progress-css';tag.textContent=css;document.head.appendChild(tag);
 })();
 
 /* --------------------------------------------------------------------------
- * DOM ready: wire revert links if HTML includes them
+ * DOM ready guard: wire revert links if HTML includes them
  * ----------------------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded",ensureRevertLinks);
