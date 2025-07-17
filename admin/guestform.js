@@ -1,15 +1,17 @@
 /* =======================================================================
-   guestform.js  (Dashboard intake queue)
-   -----------------------------------------------------------------------
-   Features
-   - Realtime sync w/ guestEntries + guestinfo
-   - Unclaimed vs Claimed sections (hidden if empty)
-   - Shows claim owner + role + current guest status
-   - Removes from list automatically when linked guest becomes proposal/sold
-   - Today/All toggle (hidden when nothing older)
-   - Empty-state motivational CTA to create a new lead
-   - Robust navigation: always try to include BOTH guestinfo key & entry id
-   ======================================================================= */
+ * guestform.js  (Dashboard intake queue)
+ * -----------------------------------------------------------------------
+ * Features
+ * - Realtime sync w/ guestEntries + guestinfo
+ * - Unclaimed vs Claimed sections (hidden if empty)
+ * - Shows claim owner + role + current guest status
+ * - Removes from list automatically when linked guest becomes proposal/sold
+ * - Today/All toggle (hidden when nothing older)
+ * - Empty-state motivational CTA to create a new lead
+ * - Robust navigation: always try to include BOTH guestinfo key & entry id
+ * - ***Step1 pass fix***: when continuing an intake, we seed guestinfo with
+ *   custName/custPhone + prefilledStep1 + status "working" so portal jumps ahead.
+ * ======================================================================= */
 (() => {
   const ROLES = { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
 
@@ -365,8 +367,15 @@
       return;
     }
 
-    const entrySnap = await window.db.ref(`guestEntries/${entryId}`).get();
-    const entry = entrySnap.val();
+    let entrySnap, entry;
+    try {
+      entrySnap = await window.db.ref(`guestEntries/${entryId}`).get();
+      entry = entrySnap.val();
+    } catch(err){
+      console.error('[guestforms] error loading guestEntries/'+entryId, err);
+      alert("Error loading guest intake. See console.");
+      return;
+    }
     if (!entry){
       alert("Guest form not found.");
       return;
@@ -374,28 +383,60 @@
 
     // Already linked?
     if (entry.guestinfoKey){
+      // Ensure consumedBy/claimedBy set (helpful if bypassed earlier)
+      try {
+        const up = {};
+        if (!entry.consumedBy) up[`guestEntries/${entryId}/consumedBy`] = uid || null;
+        if (!entry.consumedAt) up[`guestEntries/${entryId}/consumedAt`] = Date.now();
+        if (!entry.claimedBy)  up[`guestEntries/${entryId}/claimedBy`]  = uid || null;
+        if (Object.keys(up).length) await window.db.ref().update(up);
+      } catch(e){ /* ignore */ }
       openGuestInfoPage(entry.guestinfoKey, entryId);
       return;
     }
 
-    // Create new guestinfo from intake form
+    /* ---- Create new guestinfo from intake form ---- */
+    const name    = entry.guestName  || "";
+    const phone   = entry.guestPhone || entry.guestPhoneDigits || "";
+    const digits  = digitsOnly(phone);
+    const ts      = entry.timestamp || Date.now();
+    const step1Done = !!(name || digits);
+    const statusInit = step1Done ? "working" : "new";
+
     const payload = {
-      custName:    entry.guestName || "",
-      custPhone:   entry.guestPhone || "",
-      submittedAt: entry.timestamp || Date.now(),
-      userUid:     uid || null,
-      status:      "new",
+      custName:  name,
+      custPhone: phone,
+      custPhoneDigits: digits || null,
+      submittedAt: ts,
+      userUid: uid || null,
+      status: statusInit,
+      prefilledStep1: step1Done,
+      evaluate: {},   // seed empty objects for downstream safety
+      solution: {},
       source: { type: "guestForm", entryId }
     };
 
-    const gRef = await window.db.ref("guestinfo").push(payload);
-    const guestKey = gRef.key;
+    let guestKey;
+    try {
+      const gRef = await window.db.ref("guestinfo").push(payload);
+      guestKey = gRef.key;
+    } catch(err){
+      console.error('[guestforms] create guestinfo failed', err);
+      alert("Error creating guest record. See console.");
+      return;
+    }
 
-    await window.db.ref(`guestEntries/${entryId}`).update({
-      guestinfoKey: guestKey,
-      consumedBy: uid || null,
-      consumedAt: Date.now()
-    });
+    /* Link intake -> guestinfo & mark claimed/consumed */
+    try {
+      await window.db.ref(`guestEntries/${entryId}`).update({
+        guestinfoKey: guestKey,
+        consumedBy: uid || null,
+        consumedAt: Date.now(),
+        claimedBy: entry.claimedBy || uid || null
+      });
+    } catch(err){
+      console.warn('[guestforms] link guestEntries->guestinfo failed', err);
+    }
 
     scheduleRerender();
 
