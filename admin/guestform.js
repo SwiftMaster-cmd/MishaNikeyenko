@@ -1,5 +1,13 @@
 /* =======================================================================
-   guestform.js  (Dashboard intake queue w/ celebration empty state)
+   guestform.js  (Dashboard intake queue)
+   -----------------------------------------------------------------------
+   Features
+   - Realtime sync w/ guestEntries + guestinfo
+   - Unclaimed vs Claimed sections
+   - Shows claim owner + role + current guest status
+   - Removes from list automatically when linked guest becomes proposal/sold
+   - Today/All toggle
+   - Works with dashboard global caches but also self-updates
    ======================================================================= */
 (() => {
   const ROLES = { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
@@ -10,41 +18,43 @@
   window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guestinfo.html";
 
   /* --------------------------------------------------------------
-     Local realtime caches
+     Local realtime caches (kept in sync)
      -------------------------------------------------------------- */
   let _bound = false;
   let _rerenderTimer = null;
 
-  let _formsCache      = {};  // guestEntries
-  let _guestinfoLive   = {};  // guestinfo
-  let _usersCache      = null;
-
-  // counts to detect transitions -> confetti
-  let _prevUnclaimedCount = null;
+  // These mirror (but do not overwrite) dashboard globals.
+  let _formsCache    = {};  // guestEntries
+  let _guestinfoLive = {};  // guestinfo subset (we load all; you can scope later)
+  // We rely on window._users for names/roles; fallback fetch if missing.
+  let _usersCache    = null;
 
   // Today/All flag
   if (typeof window._guestforms_showAll === "undefined") {
     window._guestforms_showAll = false;
   }
 
-  /* --------------------------------------------------------------
-     Role helpers
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Role helpers
+   * ================================================================ */
   const isAdmin = r => r === ROLES.ADMIN;
   const isDM    = r => r === ROLES.DM;
   const isLead  = r => r === ROLES.LEAD;
   const isMe    = r => r === ROLES.ME;
 
+  // Admin, DM, Lead may delete an intake form.
   function canDeleteForm(role){
     return isAdmin(role) || isDM(role) || isLead(role);
   }
 
-  /* --------------------------------------------------------------
-     Utils
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Utility: digits
+   * ================================================================ */
   const digitsOnly = str => (str||"").replace(/\D+/g,"");
-  const startOfTodayMs = () => { const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); };
-  const endOfTodayMs   = () => { const d=new Date(); d.setHours(23,59,59,999); return d.getTime(); };
+
+  /* ================================================================
+   * Utility: HTML escape
+   * ================================================================ */
   function esc(str){
     return (str ?? "")
       .toString()
@@ -55,42 +65,61 @@
       .replace(/'/g,"&#39;");
   }
 
-  /* --------------------------------------------------------------
-     Advanced statuses hide intake
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Date helpers (local browser tz)
+   * ================================================================ */
+  const startOfTodayMs = () => { const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); };
+  const endOfTodayMs   = () => { const d=new Date(); d.setHours(23,59,59,999); return d.getTime(); };
+
+  /* ================================================================
+   * Determine if a guestinfo status means the intake should disappear
+   * Hide when status is "proposal" OR "sold".
+   * ================================================================ */
   function isAdvancedStatus(status){
     if (!status) return false;
     const s = status.toLowerCase();
     return s === "proposal" || s === "sold";
   }
 
-  /* --------------------------------------------------------------
-     Users lookup
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Lookup helpers
+   * ================================================================ */
   function getUsers(){
+    // prefer dashboard global (freshest) fallback to local one-time fetch.
     if (window._users) return window._users;
     return _usersCache || {};
   }
+
   function userNameAndRole(uid){
     const u = getUsers()[uid];
-    if (!u) return {label:"Unknown", roleCss:"role-guest"};
+    if (!u) return {label: "Unknown", roleCss:"role-guest"};
     const r = (u.role||"").toLowerCase();
-    return {label: u.name || u.email || uid, roleCss:`role-${r}`};
+    return {
+      label: u.name || u.email || uid,
+      roleCss: "role-" + r
+    };
   }
 
-  /* --------------------------------------------------------------
-     Role visibility filtering
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Visibility for forms
+   * - Admin / DM see all (subject to advanced status hiding)
+   * - Lead / ME see:
+   *      - Unclaimed
+   *      - Claimed by them
+   * ================================================================ */
   function visibleFormsForRole(formsObj, currentRole, currentUid){
     if (!formsObj) return {};
     const out = {};
+    const allUsers = getUsers(); // may need for claim mapping
 
     for (const [id,f] of Object.entries(formsObj)){
-      // Filter out ones whose linked guest has advanced status
+      // Skip if linked guest has advanced to proposal/sold
       const gid = f.guestinfoKey;
       if (gid){
         const g = _guestinfoLive[gid] || (window._guestinfo && window._guestinfo[gid]);
-        if (g && isAdvancedStatus(g.status)) continue;
+        if (g && isAdvancedStatus(g.status)) {
+          continue; // hide from intake queue
+        }
       }
 
       if (isAdmin(currentRole) || isDM(currentRole)){
@@ -100,16 +129,21 @@
 
       const claimedBy = f.consumedBy || f.claimedBy;
       if (!claimedBy || claimedBy === currentUid){
+        // Unclaimed OR claimed by me
         out[id] = f;
+        continue;
       }
+
+      // For Leads, also let them see forms claimed by one of their MEs? (Optional)
+      // Keeping simple per your spec: only unclaimed + claimed by self.
     }
     return out;
   }
 
-  /* --------------------------------------------------------------
-     Partition Unclaimed / Claimed
-     -------------------------------------------------------------- */
-  function partitionForms(visForms){
+  /* ================================================================
+   * Partition into Unclaimed / Claimed arrays (after role visibility)
+   * ================================================================ */
+  function partitionForms(visForms, currentUid){
     const unclaimed = [];
     const claimed   = [];
     for (const [id,f] of Object.entries(visForms)){
@@ -126,22 +160,23 @@
     return {unclaimed, claimed};
   }
 
-  /* --------------------------------------------------------------
-     Apply Today filter (if not showAll)
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Today/All filter (applied AFTER partition)
+   * ================================================================ */
   function applyTodayFilter(rows){
     if (window._guestforms_showAll) return rows;
-    const s = startOfTodayMs();
-    const e = endOfTodayMs();
+    const startToday = startOfTodayMs();
+    const endToday   = endOfTodayMs();
     return rows.filter(([,f])=>{
       const ts = f.timestamp || 0;
-      return ts >= s && ts <= e;
+      return ts >= startToday && ts <= endToday;
     });
   }
 
-  /* --------------------------------------------------------------
-     Row HTML
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Render helper: row HTML
+   * Shows: Name, Phone, Submitted, Status/Claim, Action
+   * ================================================================ */
   function rowHtml(id, f, currentRole, currentUid){
     const ts = f.timestamp ? new Date(f.timestamp).toLocaleString() : "-";
     const name  = esc(f.guestName || "-");
@@ -150,14 +185,15 @@
     const claimedBy = f.consumedBy || f.claimedBy;
     const isClaimed = !!claimedBy;
 
-    // linked guest status
+    // Look up linked guest status
     let status = "new";
     if (f.guestinfoKey){
       const g = _guestinfoLive[f.guestinfoKey] || (window._guestinfo && window._guestinfo[f.guestinfoKey]);
       if (g?.status) status = g.status;
     }
 
-    const statusBadge = `<span class="role-badge role-guest" style="opacity:.8;">${esc(status)}</span>`;
+    const statusLabel = esc(status);
+    const statusBadge = `<span class="role-badge role-guest" style="opacity:.8;">${statusLabel}</span>`;
 
     let claimLabel = "";
     if (isClaimed){
@@ -185,38 +221,14 @@
     </tr>`;
   }
 
-  /* --------------------------------------------------------------
-     Celebratory Empty State (markup only)
-     -------------------------------------------------------------- */
-  function emptyCelebrationHtml(kind){
-    // kind: 'unclaimed' | 'claimed'
-    const emoji = kind === "unclaimed" ? "🎉" : "📁";
-    const title = kind === "unclaimed" ? "All Caught Up!" : "No Claimed Forms Yet";
-    const sub   = kind === "unclaimed"
-      ? "You've worked every intake in this view."
-      : "Claim a guest form to begin.";
-    const showCta = kind === "unclaimed"; // only show CTA for unclaimed; change if desired
-    const ctaHtml = showCta
-      ? `<button class="empty-cta" onclick="window.guestforms.startNewGuest()">Add Customer</button>`
-      : "";
-    return `
-      <div class="guestforms-empty">
-        <span class="empty-emoji">${emoji}</span>
-        <div class="empty-title">${esc(title)}</div>
-        <div class="empty-sub">${esc(sub)}</div>
-        ${ctaHtml}
-      </div>`;
-  }
-
-  /* --------------------------------------------------------------
-     Table section builder
-     -------------------------------------------------------------- */
-  function tableSectionHtml(title, rowsHtml, kind){
-    const hasRows = !!rowsHtml.trim();
-    const body = hasRows
-      ? `<tbody>${rowsHtml}</tbody>`
-      : `<tbody><tr><td colspan="5">${emptyCelebrationHtml(kind)}</td></tr></tbody>`;
-
+  /* ================================================================
+   * Render a table section (title + table html)
+   * ================================================================ */
+  function tableSectionHtml(title, rowsHtml, emptyMsg){
+    if (!rowsHtml){
+      rowsHtml = "";
+    }
+    const hasRows = rowsHtml.trim().length > 0;
     return `
       <div class="guestforms-subsection">
         <h3 class="guestforms-subheading">${esc(title)}</h3>
@@ -231,25 +243,23 @@
                 <th>Action</th>
               </tr>
             </thead>
-            ${body}
+            <tbody>${hasRows ? rowsHtml : `<tr><td colspan="5" class="text-center"><i>${esc(emptyMsg||'None')}</i></td></tr>`}</tbody>
           </table>
         </div>
       </div>`;
   }
 
-  /* --------------------------------------------------------------
-     Main renderer
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Main renderer
+   * ================================================================ */
   function renderGuestFormsSection(_unused_forms, currentRole, currentUid){
     currentUid  = currentUid  || window.currentUid;
     currentRole = currentRole || window.currentRole;
 
+    // Use our live cache (best) fallback to passed snapshot.
     const formsObj = Object.keys(_formsCache).length ? _formsCache : (_unused_forms || {});
     const visForms = visibleFormsForRole(formsObj, currentRole, currentUid);
-    const {unclaimed, claimed} = partitionForms(visForms);
-
-    // detect confetti trigger *before* filter (we celebrate clearing the raw unclaimed visible set)
-    triggerConfettiIfCleared(unclaimed.length);
+    const {unclaimed, claimed} = partitionForms(visForms, currentUid);
 
     const unclaimedFilt = applyTodayFilter(unclaimed);
     const claimedFilt   = applyTodayFilter(claimed);
@@ -257,68 +267,34 @@
     const unclaimedRowsHtml = unclaimedFilt.map(([id,f])=>rowHtml(id,f,currentRole,currentUid)).join("");
     const claimedRowsHtml   = claimedFilt.map(([id,f])=>rowHtml(id,f,currentRole,currentUid)).join("");
 
-    // Show toggle if there are any rows filtered out by Today filter
+    // Toggle label if older exist
     const anyOlder = (!window._guestforms_showAll) && (
       unclaimed.length !== unclaimedFilt.length ||
       claimed.length   !== claimedFilt.length
     );
-    const toggleBtn = anyOlder
+    const toggleBtn = (unclaimed.length+claimed.length>0)
       ? `<button class="btn btn-secondary btn-sm" onclick="window.guestforms.toggleShowAll()">
            ${window._guestforms_showAll ? "Show Today" : "Show All"}
          </button>`
-      : (window._guestforms_showAll
-         ? `<button class="btn btn-secondary btn-sm" onclick="window.guestforms.toggleShowAll()">Show Today</button>`
-         : "");
+      : "";
 
     return `
       <section id="guest-forms-section" class="admin-section guest-forms-section">
         <h2>Guest Form Submissions</h2>
-        <div class="review-controls" style="justify-content:flex-end;">${toggleBtn}</div>
-        ${tableSectionHtml("Unclaimed", unclaimedRowsHtml, "unclaimed")}
-        ${tableSectionHtml("Claimed",   claimedRowsHtml,   "claimed")}
+        <div class="review-controls" style="justify-content:flex-end;">${anyOlder ? toggleBtn : ""}</div>
+        ${tableSectionHtml("Unclaimed", unclaimedRowsHtml, "No unclaimed guest forms.")}
+        ${tableSectionHtml("Claimed",   claimedRowsHtml,   "No claimed guest forms.")}
       </section>
     `;
   }
 
-  /* --------------------------------------------------------------
-     Confetti trigger logic
-     -------------------------------------------------------------- */
-  function triggerConfettiIfCleared(currentUnclaimedCount){
-    if (_prevUnclaimedCount === null){
-      _prevUnclaimedCount = currentUnclaimedCount;
-      return;
-    }
-    if (_prevUnclaimedCount > 0 && currentUnclaimedCount === 0){
-      launchConfetti();
-    }
-    _prevUnclaimedCount = currentUnclaimedCount;
-  }
-
-  function launchConfetti(pieces=40){
-    // avoid stacking if one already on screen
-    if (document.querySelector(".confetti-layer")) return;
-    const layer = document.createElement("div");
-    layer.className = "confetti-layer";
-    const vw = window.innerWidth;
-    for (let i=0;i<pieces;i++){
-      const span = document.createElement("span");
-      span.className = "confetti-piece";
-      span.style.left = Math.random()*vw + "px";
-      span.style.animationDelay = (Math.random()*0.3)+"s";
-      span.style.transform = `translateY(-20vh) rotate(${Math.random()*360}deg)`;
-      layer.appendChild(span);
-    }
-    document.body.appendChild(layer);
-    setTimeout(()=>layer.remove(), 2200);
-  }
-
-  /* --------------------------------------------------------------
-     DOM patcher (for realtime updates)
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * DOM patcher (for realtime updates)
+   * ================================================================ */
   function patchGuestFormsDom(){
     const html = renderGuestFormsSection(null, window.currentRole, window.currentUid);
     const existing = document.getElementById("guest-forms-section");
-    if (!existing) return;
+    if (!existing) return; // not yet in DOM (first paint from dashboard soon)
     existing.outerHTML = html;
   }
   function scheduleRerender(delay=40){
@@ -329,17 +305,17 @@
     }, delay);
   }
 
-  /* --------------------------------------------------------------
-     Realtime listeners
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Realtime listeners
+   * ================================================================ */
   function ensureRealtime(){
     if (_bound) return;
     const db = window.db;
-    if (!db) return;
+    if (!db) return; // wait until dashboard initializes firebase
 
     _bound = true;
 
-    // guestEntries
+    /* guestEntries full sync then incremental */
     const formsRef = db.ref("guestEntries");
     formsRef.on("value", snap => {
       _formsCache = snap.val() || {};
@@ -358,15 +334,16 @@
       scheduleRerender();
     });
 
-    // guestinfo (status signals)
+    /* guestinfo realtime (we need status updates) */
     const giRef = db.ref("guestinfo");
     giRef.on("value", snap => {
       _guestinfoLive = snap.val() || {};
-      window._guestinfo = _guestinfoLive; // update global
+      // Also refresh global to keep others consistent if dashboard hasn't yet.
+      window._guestinfo = _guestinfoLive;
       scheduleRerender();
     });
 
-    // users (fallback load)
+    /* optional: preload users if missing */
     if (!window._users){
       db.ref("users").once("value", snap => {
         _usersCache = snap.val() || {};
@@ -375,27 +352,19 @@
     }
   }
 
-  /* --------------------------------------------------------------
-     Toggle filter
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Toggle Today/All & patch
+   * ================================================================ */
   function toggleShowAll(){
     window._guestforms_showAll = !window._guestforms_showAll;
     patchGuestFormsDom();
   }
 
-  /* --------------------------------------------------------------
-     Start a NEW guest manually (CTA)
-     -------------------------------------------------------------- */
-  function startNewGuest(){
-    // open the guest portal w/ no gid param -> begins Step 1
-    const base = window.GUESTINFO_PAGE || "guest-info.html";
-    // no gid -> new
-    window.location.href = base;
-  }
-
-  /* --------------------------------------------------------------
-     Continue / Open
-     -------------------------------------------------------------- */
+  /* ================================================================
+   * Continue / Open flow
+   * - If already linked, open guestinfo page
+   * - Else create guestinfo record, mark claimed, redirect
+   * ================================================================ */
   async function continueToGuestInfo(entryId){
     const currentUid = window.currentUid;
     if (!window.db){
@@ -410,12 +379,91 @@
       return;
     }
 
-    // Already linked? open
+    // Already linked?
     if (entry.guestinfoKey){
       openGuestInfoPage(entry.guestinfoKey);
       return;
     }
 
+    // build guestinfo payload
     const payload = {
       custName:    entry.guestName || "",
-      custPhone:  
+      custPhone:   entry.guestPhone || "",
+      submittedAt: entry.timestamp || Date.now(),
+      userUid:     currentUid || null,
+      status:      "new",
+      source: { type: "guestForm", entryId }
+    };
+
+    // create guestinfo
+    const gRef = await window.db.ref("guestinfo").push(payload);
+    const guestKey = gRef.key;
+
+    // mark intake claimed / linked
+    await window.db.ref(`guestEntries/${entryId}`).update({
+      guestinfoKey: guestKey,
+      consumedBy: currentUid || null,
+      consumedAt: Date.now()
+    });
+
+    // caches update via realtime; patch quickly
+    scheduleRerender();
+
+    if (!window.GUESTFORMS_NO_REDIRECT){
+      openGuestInfoPage(guestKey);
+    }
+  }
+
+  /* ================================================================
+   * Delete intake form
+   * NOTE: Does NOT delete linked guestinfo
+   * ================================================================ */
+  async function deleteGuestFormEntry(entryId){
+    if (!canDeleteForm(window.currentRole)){
+      alert("You don't have permission to delete this form.");
+      return;
+    }
+    const entrySnap = await window.db.ref(`guestEntries/${entryId}`).get();
+    const entry = entrySnap.val();
+    if (!entry) return;
+
+    const linked = !!entry.guestinfoKey;
+    const msg = linked
+      ? "Delete this guest form submission? (The full guest info record will NOT be deleted.)"
+      : "Delete this guest form submission?";
+    if (!confirm(msg)) return;
+
+    try {
+      await window.db.ref(`guestEntries/${entryId}`).remove();
+      // realtime update will refresh UI
+    } catch (err) {
+      alert("Error deleting form: " + err.message);
+    }
+  }
+
+  /* ================================================================
+   * Open guest info page helper
+   * Include both entry & gid (back-compat)
+   * ================================================================ */
+  function openGuestInfoPage(guestKey){
+    const base = window.GUESTINFO_PAGE || "guest-info.html";
+    const sep  = base.includes("?") ? "&" : "?";
+    const url  = `${base}${sep}gid=${encodeURIComponent(guestKey)}&entry=${encodeURIComponent(guestKey)}`;
+    try { localStorage.setItem("last_guestinfo_key", guestKey); } catch(_){}
+    window.location.href = url;
+  }
+
+  /* ================================================================
+   * Expose API
+   * ================================================================ */
+  window.guestforms = {
+    renderGuestFormsSection,
+    toggleShowAll,
+    continueToGuestInfo,
+    deleteGuestFormEntry,
+    ensureRealtime
+  };
+
+  /* auto-bind if firebase already loaded */
+  if (window.db) ensureRealtime();
+})();
