@@ -722,6 +722,17 @@
    *      else if any Step1 data present OR g.prefilledStep1 -> step2
    *      else -> step1
    * ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------
+   * Open full workflow page (Step UI) for existing record (from dashboard cards)
+   *  - Computes a `uistart` hint for gp-app.js so the portal opens on the
+   *    most appropriate step immediately.
+   *    Rules (in order):
+   *      status:proposal|sold        -> step3
+   *      status:working              -> step2
+   *      else if any Step1 data      -> step2
+   *      else                        -> step1
+   *    "Step1 data" = prefilledStep1 || custName || custPhone.
+   * ------------------------------------------------------------------ */
   function openGuestInfoPage(guestKey) {
     const base = GUESTINFO_PAGE;
     const g = (window._guestinfo && window._guestinfo[guestKey]) || null;
@@ -731,18 +742,23 @@
       const status = (g.status || "").toLowerCase();
       if (status === "proposal" || status === "sold") {
         uistart = "step3";
+      } else if (status === "working") {
+        uistart = "step2";
       } else {
         const hasStep1 =
           (g.custName && g.custName.trim() !== "") ||
           (g.custPhone && g.custPhone.trim() !== "") ||
-          g.prefilledStep1; // seeded from intake
+          g.prefilledStep1;
         uistart = hasStep1 ? "step2" : "step1";
       }
     }
 
-    const sep  = base.includes("?") ? "&" : "?";
-    const url  = `${base}${sep}gid=${encodeURIComponent(guestKey)}&uistart=${uistart}`;
-    try { localStorage.setItem("last_guestinfo_key", guestKey); } catch(_) {}
+    // Build URL safely whether base already has query params or not.
+    const sep = base.includes("?") ? "&" : "?";
+    const url = `${base}${sep}gid=${encodeURIComponent(guestKey)}&uistart=${uistart}`;
+
+    try { localStorage.setItem("last_guestinfo_key", guestKey || ""); } catch(_) {}
+
     window.location.href = url;
   }
   /* ------------------------------------------------------------------
