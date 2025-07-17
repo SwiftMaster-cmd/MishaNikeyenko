@@ -110,7 +110,7 @@ if (typeof window._perf_expand_users   === "undefined") window._perf_expand_user
    ------------------------------------------------------------------------ */
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
-    window.location.href = "index.html";
+    window.location.href = "admin.html";
     return;
   }
 
