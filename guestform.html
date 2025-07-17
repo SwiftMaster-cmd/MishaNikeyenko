@@ -3,26 +3,88 @@
 <head>
   <title>Guest Form</title>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 24px;
-      background: #f4f6fa;
-      color: #222;
-    }
-    input, button, label {
-      display: block;
-      margin: 16px 0;
-      font-size: 16px;
-      width: 100%;
-      max-width: 400px;
-      padding: 10px;
-    }
-    button {
-      background: #1976d2;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
+   :root {
+  --primary: #1976d2;
+  --background: #f1f4f9;
+  --card: #ffffff;
+  --input-bg: #f9fbfd;
+  --border: #dce3ed;
+  --radius: 10px;
+  --shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  --text: #1e1e1e;
+}
+
+body {
+  font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
+  background: var(--background);
+  color: var(--text);
+  padding: 32px 16px;
+  display: flex;
+  justify-content: center;
+}
+
+form {
+  background: var(--card);
+  padding: 32px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+}
+
+h2 {
+  margin-top: 0;
+  font-weight: 600;
+  font-size: 1.8em;
+  text-align: center;
+  color: var(--primary);
+}
+
+input[type="text"],
+input[type="tel"],
+input[type="email"],
+button {
+  font-size: 16px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  margin-top: 14px;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+label {
+  margin-top: 18px;
+  font-size: 15px;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  font-weight: 500;
+  margin-top: 24px;
+  transition: background 0.2s ease;
+}
+
+button:hover {
+  background: #155aaf;
+}
   </style>
 </head>
 <body>
