@@ -1,11 +1,14 @@
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
+  // Path to employee guest-info page (override globally if needed)
+  const GUEST_INFO_PAGE = window.GUEST_INFO_PAGE || "employee/guest-info.html";
+
   function canDelete(role) {
     return role === ROLES.ADMIN || role === ROLES.DM;
   }
 
-  // Everyone signed in can continue working a lead; change if you want to restrict
+  // Allow all signed-in roles to continue working leads; change if needed
   function canContinue(role) {
     return true;
   }
@@ -25,19 +28,19 @@
     }
 
     const rows = entries.map(([id, g]) => {
-      const when = g.timestamp ? new Date(g.timestamp).toLocaleString() : "-";
-      const linked = g.guestinfoKey ? true : false;
+      const when   = g.timestamp ? new Date(g.timestamp).toLocaleString() : "-";
+      const linked = !!g.guestinfoKey;
       return `
-        <tr>
+        <tr class="${linked ? 'linked' : ''}">
           <td>${g.guestName || "-"}</td>
           <td>${g.guestPhone || "-"}</td>
           <td>${when}</td>
-          <td style="text-align:center;">
+          <td style="text-align:center; white-space:nowrap;">
             ${linked
               ? `<button class="btn btn-secondary btn-sm" onclick="window.guestforms.openLinkedGuestInfo('${g.guestinfoKey}')">Open</button>`
               : (canContinue(currentRole)
                   ? `<button class="btn btn-primary btn-sm" onclick="window.guestforms.continueToGuestInfo('${id}')">Continue</button>`
-                  : ''
+                  : ""
                 )
             }
             ${canDelete(currentRole)
@@ -67,7 +70,7 @@
     `;
   }
 
-  // Called when clicking "Continue" on an unlinked guest form submission
+  // Continue flow: create guestinfo if needed; then go to employee/guest-info.html
   async function continueToGuestInfo(entryId) {
     const role = window.currentRole;
     if (!canContinue(role)) {
@@ -75,7 +78,6 @@
       return;
     }
     try {
-      // read the submission
       const snap = await window.db.ref(`guestEntries/${entryId}`).get();
       const formEntry = snap.val();
       if (!formEntry) {
@@ -83,19 +85,18 @@
         return;
       }
 
-      // if already linked, just open
+      // already linked? just open
       if (formEntry.guestinfoKey) {
         openLinkedGuestInfo(formEntry.guestinfoKey);
         return;
       }
 
-      // create guestinfo record (Step 1 equivalent)
+      // Step 1 seed -> guestinfo
       const payload = {
         custName:  formEntry.guestName  || "",
         custPhone: formEntry.guestPhone || "",
         submittedAt: Date.now(),
-        userUid: window.currentUid || null, // may be undefined until we expose globally; fallback okay
-        // mark source so we know this came from guest forms
+        userUid: window.currentUid || null,
         source: "guestform",
         sourceEntry: entryId,
       };
@@ -103,23 +104,20 @@
       const refPush = await window.db.ref("guestinfo").push(payload);
       const guestinfoKey = refPush.key;
 
-      // write back linkage so we don't duplicate
+      // link back to avoid duplicates
       await window.db.ref(`guestEntries/${entryId}`).update({
         guestinfoKey,
         consumedAt: Date.now(),
       });
 
-      // redirect to guest-portal and continue from Step 2
       openLinkedGuestInfo(guestinfoKey);
     } catch (err) {
       alert("Error continuing submission: " + err.message);
     }
   }
 
-  // Open guest portal for an existing guestinfo record
   function openLinkedGuestInfo(guestinfoKey) {
-    // carry a ?entry= so guest-portal.js can load and skip Step 1
-    const url = `guest-portal.html?entry=${encodeURIComponent(guestinfoKey)}&from=guestforms`;
+    const url = `${GUEST_INFO_PAGE}?entry=${encodeURIComponent(guestinfoKey)}&from=guestforms`;
     window.location.href = url;
   }
 
