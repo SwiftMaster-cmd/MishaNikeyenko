@@ -1,17 +1,13 @@
 /* =======================================================================
- * employee/guest-portal.js  (Unified Pitch Quality; Saved vs Live Preview)
+ * employee/guest-portal.js  (Full-Denomination Weighted Pitch Quality)
  * -----------------------------------------------------------------------
- * RELIES ON: shared/guest-completion-util.js (must load BEFORE this file)
- *   Expects globals:
- *     - window.normalizeGuestForCompletion(rawGuest) -> normalizedGuest
- *     - window.computeGuestPitchQuality(normalizedGuest) -> {pct,steps,fields,...}
+ * No field is hard-required for submit, BUT each has a weight. The overall
+ * Pitch Quality % is the % of *total possible points across ALL questions*
+ * that are earned by the current answers. Therefore, completing Step 1
+ * will only earn a small % (its weights) and cannot "max out" the bar.
  *
- * This file:
- *   • No required fields (all optional input).
- *   • Writes guestinfo records incrementally (Step1→Step2→Step3).
- *   • Tracks Pitch Quality % (a.k.a. completion quality) per current status.
- *   • Shows saved % bar + live preview % as you type before submitting.
- *   • Gracefully degrades to 0% if util not loaded (won’t crash).
+ * Live preview updates as user types; saved % updates after each submit.
+ * Completion object is written to guestinfo/<gid>/completion.
  * =======================================================================
  */
 
@@ -19,7 +15,7 @@
  * Firebase init
  * -------------------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+  apiKey: "AIzaSyD9fILTNJQ0wsPkdLrhRGV9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
   databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
   projectId: "osls-644fd",
@@ -38,65 +34,153 @@ const auth = firebase.auth();
 const GP_SHOW_PREVIEW = window.GP_SHOW_PREVIEW !== false; // default true
 
 /* -----------------------------------------------------------------------
- * Safe wrappers around shared util (resolve at *call* time so load order
- * hiccups don’t permanently zero-out scoring).
+ * Field Weight Config  (EDIT ME)
  * -------------------------------------------------------------------- */
-function _norm(g) {
-  const fn = window.normalizeGuestForCompletion;
-  if (typeof fn === "function") return fn(g);
-  // lightweight fallback normalization
-  if (!g || typeof g !== "object") return {};
-  const out = {...g};
-  // cascade top-level -> evaluate fallback if legacy fields used
-  if (!out.evaluate) out.evaluate = {};
-  if (out.serviceType && !out.evaluate.serviceType) out.evaluate.serviceType = out.serviceType;
-  if (out.situation   && !out.evaluate.situation)   out.evaluate.situation   = out.situation;
-  // status inference
-  if (!out.status) {
-    if (out.sale) out.status = "sold";
-    else if (out.solution) out.status = "proposal";
-    else if (out.evaluate) out.status = "working";
-    else out.status = "new";
+const GP_FIELD_CONFIG = (()=>{
+  // Allow override before load: window.GP_FIELD_CONFIG_OVERRIDE
+  const o = window.GP_FIELD_CONFIG_OVERRIDE || {};
+  const base = {
+    custName:     {step:"step1", weight:10,  minLen:1},
+    custPhone:    {step:"step1", weight:10,  minLen:7},
+    serviceType:  {step:"step2", weight:20,  required:true},
+    situation:    {step:"step2", weight:15,  minLen:10},
+    carrierInfo:  {step:"step2", weight:25,  required:true, minLen:3},
+    requirements: {step:"step2", weight:10,  minLen:3},
+    solutionText: {step:"step3", weight:20,  minLen:5}
+  };
+  return {...base, ...o};
+})();
+
+/* Utility: sum total weight */
+const GP_TOTAL_WEIGHT = Object.values(GP_FIELD_CONFIG)
+  .reduce((sum,cfg)=>sum + Number(cfg.weight||0), 0) || 1;
+
+/* -----------------------------------------------------------------------
+ * Normalization
+ * -------------------------------------------------------------------- */
+function normalizeGuest(raw){
+  const g = raw && typeof raw==="object" ? {...raw} : {};
+  // ensure nested objects
+  g.evaluate = g.evaluate && typeof g.evaluate==="object" ? {...g.evaluate} : {};
+  g.solution = g.solution && typeof g.solution==="object" ? {...g.solution} : {};
+
+  // cascade legacy top-level -> evaluate
+  if (g.serviceType && !g.evaluate.serviceType) g.evaluate.serviceType = g.serviceType;
+  if (g.situation   && !g.evaluate.situation)   g.evaluate.situation   = g.situation;
+
+  // status inference if missing
+  if (!g.status) {
+    if (g.sale) g.status="sold";
+    else if (g.solution && (g.solution.text||g.solution.completedAt)) g.status="proposal";
+    else if (g.evaluate && (g.evaluate.serviceType||g.evaluate.situation||g.evaluate.carrierInfo||g.evaluate.requirements)) g.status="working";
+    else g.status="new";
   }
-  return out;
-}
-function _pq(g) {
-  const fn = window.computeGuestPitchQuality;
-  if (typeof fn === "function") return fn(_norm(g));
-  // minimal fallback: 0% unless we can count custName/Phone
-  const gg = _norm(g);
-  let pts = 0, max = 0;
-  if ("custName" in gg)  { max += 1; if (gg.custName?.trim()) pts += 1; }
-  if ("custPhone" in gg) { max += 1; if (gg.custPhone?.trim()) pts += 1; }
-  const pct = max ? Math.round(pts/max*100) : 0;
-  return {pct,steps:{},fields:{}};
+  g.status = (g.status||"new").toLowerCase();
+  return g;
 }
 
 /* -----------------------------------------------------------------------
- * DOM helpers
+ * Scoring
  * -------------------------------------------------------------------- */
-function qs(name){ return new URLSearchParams(window.location.search).get(name); }
-function show(id){ document.getElementById(id)?.classList.remove('hidden'); }
-function hide(id){ document.getElementById(id)?.classList.add('hidden'); }
-function statusMsg(id,msg,cls=''){
-  const el=document.getElementById(id); if(!el)return;
-  el.textContent=msg; el.className='g-status'; if(cls)el.classList.add(cls);
-}
-function injectPrefillSummary(name,phone){
-  const step2=document.getElementById('step2Form'); if(!step2)return;
-  let summary=document.getElementById('prefillSummary');
-  if(!summary){
-    summary=document.createElement('div');
-    summary.id='prefillSummary';
-    summary.className='prefill-summary';
-    summary.style.marginBottom='1rem';
-    step2.insertBefore(summary,step2.firstChild);
+
+/** Return {value:rawString, len:length, present:boolean} */
+function _valInfo(v){
+  if (v == null) return {value:"",len:0,present:false};
+  if (typeof v === "string") {
+    const s=v.trim();
+    return {value:s,len:s.length,present:s.length>0};
   }
-  summary.innerHTML=`<b>Customer:</b> ${name||'-'} &nbsp; <b>Phone:</b> ${phone||'-'}`;
+  if (typeof v === "object") {
+    // Accept object -> if any leaf non-empty treat present
+    for (const k in v){
+      const inf=_valInfo(v[k]);
+      if (inf.present) return {value:String(v[k]),len:inf.len,present:true};
+    }
+    return {value:"",len:0,present:false};
+  }
+  // number/boolean -> count as present
+  const s=String(v);
+  return {value:s,len:s.length,present:true};
+}
+
+/** Score a single field given config. Returns {earned,max,filled,partial} */
+function scoreField(info,cfg){
+  const max = Number(cfg.weight||0);
+  if (!info.present) return {earned:0,max,filled:false,partial:false};
+  // quality by length threshold (optional)
+  const minLen = Number(cfg.minLen||0);
+  if (minLen>0 && info.len < minLen) {
+    // half credit if present but short
+    return {earned:max*0.5,max,filled:true,partial:true};
+  }
+  return {earned:max,max,filled:true,partial:false};
+}
+
+/**
+ * computeFullPitchQuality(guest) -> {
+ *   pct, earned, max,
+ *   fields:{custName:{earned,max,...}, ...},
+ *   steps:{step1:{earned,max,pct},...}
+ * }
+ */
+function computeFullPitchQuality(guest){
+  const g = normalizeGuest(guest);
+  const fieldsOut = {};
+  const stepsAgg  = {};
+  let earned=0;
+
+  function stepAgg(step,addEarned,addMax){
+    if(!stepsAgg[step]) stepsAgg[step]={earned:0,max:0};
+    stepsAgg[step].earned += addEarned;
+    stepsAgg[step].max    += addMax;
+  }
+
+  for (const [field,cfg] of Object.entries(GP_FIELD_CONFIG)){
+    let raw;
+    switch(field){
+      case "custName":     raw=g.custName;break;
+      case "custPhone":    raw=g.custPhone;break;
+      case "serviceType":  raw=g.evaluate.serviceType;break;
+      case "situation":    raw=g.evaluate.situation;break;
+      case "carrierInfo":  raw=g.evaluate.carrierInfo;break;
+      case "requirements": raw=g.evaluate.requirements;break;
+      case "solutionText": raw=g.solution.text;break;
+      default:             raw=g[field];break;
+    }
+    const info = _valInfo(raw);
+    const res  = scoreField(info,cfg);
+    fieldsOut[field] = {
+      earned:res.earned,
+      max:res.max,
+      filled:res.filled,
+      partial:res.partial,
+      required:!!cfg.required,
+      len:info.len
+    };
+    earned += res.earned;
+    stepAgg(cfg.step||"step1",res.earned,res.max);
+  }
+
+  // finalize steps
+  for (const s in stepsAgg){
+    const st=stepsAgg[s];
+    st.pct = st.max? Math.round(st.earned/st.max*100) : 0;
+  }
+
+  const max = GP_TOTAL_WEIGHT;
+  const pct = max? Math.round(earned/max*100) : 0;
+
+  return {pct,earned,max,fields:fieldsOut,steps:stepsAgg,status:g.status};
 }
 
 /* -----------------------------------------------------------------------
- * Progress bar UI
+ * Global (export) so dashboard guestinfo.js can reuse same calc
+ * -------------------------------------------------------------------- */
+window.computeFullPitchQuality = computeFullPitchQuality;
+window.normalizeGuestPortal    = normalizeGuest; // export if needed
+
+/* -----------------------------------------------------------------------
+ * Progress bar UI helpers
  * -------------------------------------------------------------------- */
 function ensureProgressBarContainer(){
   let bar=document.getElementById('gp-progress'); if(bar)return bar;
@@ -154,7 +238,7 @@ async function loadExistingGuestIfParam(){
     const data=snap.val();
     if(data){
       currentEntryKey=key;
-      currentGuestObj=_norm(data);
+      currentGuestObj=normalizeGuest(data);
       return true;
     }
   }catch(e){console.error("guest-portal: load error",e);}
@@ -189,18 +273,18 @@ function buildTempGuestFromForms(){
   if(!g.solution)g.solution={};
   if(solEl)g.solution.text=solEl.value.trim();
 
-  return _norm(g);
+  return normalizeGuest(g);
 }
 
 /* -----------------------------------------------------------------------
- * Live preview updater (debounced via input/change event)
+ * Live preview updater (debounced-ish via input/change)
  * -------------------------------------------------------------------- */
 function updateProgressPreviewFromForms(){
   if(!GP_SHOW_PREVIEW)return;
   const temp=buildTempGuestFromForms();
-  const comp=_pq(temp);
-  // show only if diff > 1% from saved baseline
-  const saved = currentGuestObj ? _pq(currentGuestObj).pct : 0;
+  const comp=computeFullPitchQuality(temp);
+  // Show only if >1% diff from saved baseline
+  const saved = currentGuestObj ? computeFullPitchQuality(currentGuestObj).pct : 0;
   const diff  = Math.abs(Math.round(comp.pct) - Math.round(saved));
   updateProgressPreview(diff>1?comp.pct:null);
 }
@@ -226,7 +310,7 @@ function bindRealtimeFieldListeners(){
 function syncUiToLoadedGuest(){
   if(!currentGuestObj)return;
   ensureProgressBarContainer();
-  const comp=_pq(currentGuestObj);
+  const comp=computeFullPitchQuality(currentGuestObj);
   updateProgressBarSaved(comp.pct);
   updateProgressPreview(null);
 
@@ -251,8 +335,12 @@ function syncUiToLoadedGuest(){
     if(solEl)solEl.value=sol.text||'';
   }
 
-  if(!ev){show('step2Form');hide('step3Form');}
-  else {hide('step2Form');show('step3Form');}
+  // Show next needed step
+  if(!ev || (!ev.serviceType && !ev.situation && !ev.carrierInfo && !ev.requirements)){
+    show('step2Form');hide('step3Form');
+  } else {
+    hide('step2Form');show('step3Form');
+  }
 
   bindRealtimeFieldListeners();
 }
@@ -280,10 +368,12 @@ auth.onAuthStateChanged(async user=>{
  * Write (recompute) completion to DB
  * -------------------------------------------------------------------- */
 async function writeCompletionPct(gid,guestObj){
-  const comp=_pq(_norm(guestObj));
+  const comp=computeFullPitchQuality(normalizeGuest(guestObj));
   try{
     await db.ref(`guestinfo/${gid}/completion`).set({
       pct:Math.round(comp.pct),
+      earned:comp.earned,
+      max:comp.max,
       steps:comp.steps||{},
       fields:comp.fields||{},
       updatedAt:Date.now()
@@ -321,7 +411,7 @@ if(step1El){
       currentGuestObj.custName=custName;
       currentGuestObj.custPhone=custPhone;
       currentGuestObj.status=currentGuestObj.status||"new";
-      currentGuestObj=_norm(currentGuestObj);
+      currentGuestObj=normalizeGuest(currentGuestObj);
 
       statusMsg('status1','Saved.','success');
       await writeCompletionPct(currentEntryKey,currentGuestObj);
@@ -360,7 +450,7 @@ if(step2El){
       if(!currentGuestObj)currentGuestObj={};
       currentGuestObj.evaluate={serviceType,situation,carrierInfo,requirements};
       currentGuestObj.status="working";
-      currentGuestObj=_norm(currentGuestObj);
+      currentGuestObj=normalizeGuest(currentGuestObj);
 
       statusMsg('status2','Saved.','success');
       await writeCompletionPct(currentEntryKey,currentGuestObj);
@@ -394,7 +484,7 @@ if(step3El){
       if(!currentGuestObj)currentGuestObj={};
       currentGuestObj.solution={text:solutionText,completedAt:now};
       currentGuestObj.status="proposal";
-      currentGuestObj=_norm(currentGuestObj);
+      currentGuestObj=normalizeGuest(currentGuestObj);
 
       statusMsg('status3','Saved.','success');
       await writeCompletionPct(currentEntryKey,currentGuestObj);
@@ -411,7 +501,7 @@ window.gpRecomputeCompletion=async function(gid){
   const key=gid||currentEntryKey; if(!key)return;
   const snap=await db.ref(`guestinfo/${key}`).get();
   const data=snap.val()||{};
-  currentGuestObj=_norm(data);
+  currentGuestObj=normalizeGuest(data);
   await writeCompletionPct(key,currentGuestObj);
 };
 
