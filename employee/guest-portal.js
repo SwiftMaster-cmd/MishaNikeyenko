@@ -1,7 +1,7 @@
-<!-- employee/guest-portal.js -->
+
 
 /* =======================================================================
- * Guest Portal (multi-step, weighted, revertable)
+ * Guest Portal (multi-step, weighted, revertable, coached)
  * ======================================================================= */
 
 /* -----------------------------------------------------------------------
@@ -25,38 +25,40 @@ const auth = firebase.auth();
  * Configurable Weights
  *  - Adjust values; total auto-sums.
  *  - Keys must match field accessors in getFieldValue().
- *  - serviceType kept for legacy; 0 pts (recommendation output, not input).
+ *  - serviceType/situation/carrierInfo/requirements kept for legacy; 0 pts.
  * -------------------------------------------------------------------- */
 const PITCH_WEIGHTS = {
-  // Step 1
+  /* Step 1 */
   custName:      8,
   custPhone:     7,
 
-  // Step 2 (Evaluation core pillars)
-  currentCarrier:12,    // HIGH: drives porting promos
+  /* Step 2 core pillars (Tier A) */
+  currentCarrier:12,
   numLines:      8,
   coverageZip:   8,
   deviceStatus:  8,
-  finPath:       12,    // HIGH: postpaid vs prepaid gating
+  finPath:       12,
+
+  /* Step 2 extras (Tier B) */
   billPain:      4,
   dataNeed:      4,
   hotspotNeed:   2,
   intlNeed:      2,
 
-  // Legacy free-text (kept, unscored)
+  /* Step 2 legacy free-text (Tier C / 0pt) */
   serviceType:   0,
   situation:     0,
   carrierInfo:   0,
   requirements:  0,
 
-  // Step 3
-  solutionText:  25     // What we're pitching
+  /* Step 3 */
+  solutionText:  25
 };
 
-/* Tier groupings for coaching chips ---------------------------------- */
-const TIER_A_FIELDS = ["currentCarrier","numLines","coverageZip","deviceStatus","finPath"]; // Must
-const TIER_B_FIELDS = ["billPain","dataNeed","hotspotNeed","intlNeed"];                     // Should
-// Tier C = everything else
+/* Coaching tiers ------------------------------------------------------ */
+const TIER_A_FIELDS = ["currentCarrier","numLines","coverageZip","deviceStatus","finPath"];
+const TIER_B_FIELDS = ["billPain","dataNeed","hotspotNeed","intlNeed"];
+/* Everything else = Tier C */
 
 /* Field -> step ------------------------------------------------------ */
 const FIELD_STEP = {
@@ -76,9 +78,9 @@ const STATUS_STEPS = {
   sold:["step1","step2","step3"]
 };
 
-/* -----------------------------------------------------------------------
- * Lightweight util: detectStatus()
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * STATUS / VALUE HELPERS
+ * =================================================================== */
 function detectStatus(g){
   const s=(g?.status||"").toLowerCase();
   if (s) return s;
@@ -88,17 +90,14 @@ function detectStatus(g){
   return "new";
 }
 
-/* -----------------------------------------------------------------------
- * Access raw value from guest object by logical field key
- *  (handles legacy fallbacks)
- * -------------------------------------------------------------------- */
 function getFieldValue(g, key){
   const e=g?.evaluate||{};
   const sol=g?.solution||{};
   switch(key){
+    /* Step1 */
     case "custName":      return g?.custName;
     case "custPhone":     return g?.custPhone;
-
+    /* Step2 structured */
     case "currentCarrier":return e.currentCarrier ?? e.carrierInfo ?? "";
     case "numLines":      return e.numLines;
     case "coverageZip":   return e.coverageZip;
@@ -108,34 +107,33 @@ function getFieldValue(g, key){
     case "dataNeed":      return e.dataNeed;
     case "hotspotNeed":   return e.hotspotNeed;
     case "intlNeed":      return e.intlNeed;
-
+    /* Step2 legacy */
     case "serviceType":   return e.serviceType;
     case "situation":     return e.situation;
     case "carrierInfo":   return e.carrierInfo;
     case "requirements":  return e.requirements;
-
+    /* Step3 */
     case "solutionText":  return sol.text;
     default:              return undefined;
   }
 }
 
-/* -----------------------------------------------------------------------
- * Value present?
- * -------------------------------------------------------------------- */
+/* Count "answered" ---------------------------------------------------- */
+/* NOTE: Boolean false *counts as answered* (user explicitly said No).  */
 function hasVal(v){
-  if (v==null) return false;
-  if (typeof v==="string") return v.trim()!=="";
-  if (typeof v==="number") return true;
-  if (typeof v==="boolean") return v;   // only true counts
+  if (v === null || v === undefined) return false;
+  if (typeof v === "string") return v.trim() !== "";
+  if (typeof v === "number") return true;     /* 0 counts */
+  if (typeof v === "boolean") return true;    /* false counts */
   if (Array.isArray(v)) return v.length>0;
-  if (typeof v==="object") return Object.keys(v).length>0;
+  if (typeof v === "object") return Object.keys(v).length>0;
   return false;
 }
 
-/* -----------------------------------------------------------------------
- * Compute pitch quality (FULL % across all steps).
- * Returns {pctFull, earnedFull, fullMax, fields:{k:{ok,wt}}, steps:{step1:{earned,max},...}}
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * PITCH COMPUTATIONS
+ * =================================================================== */
+/* Full % across *all* weighted fields */
 function computePitchFull(g, weights=PITCH_WEIGHTS){
   const steps={step1:{earned:0,max:0},step2:{earned:0,max:0},step3:{earned:0,max:0}};
   const fields={};
@@ -153,37 +151,28 @@ function computePitchFull(g, weights=PITCH_WEIGHTS){
   return {pctFull, earnedFull, fullMax, steps, fields};
 }
 
-/* -----------------------------------------------------------------------
- * Compute stage % (only steps expected for current status)
- * -------------------------------------------------------------------- */
+/* Stage % limited to steps expected for current status */
 function computePitchStage(g, weights=PITCH_WEIGHTS){
-  const s=detectStatus(g);
-  const inc=STATUS_STEPS[s]||["step1"];
+  const status=detectStatus(g);
+  const inc=STATUS_STEPS[status]||["step1"];
   const comp=computePitchFull(g,weights);
   let stageMax=0, stageEarn=0;
   inc.forEach(st=>{stageMax+=comp.steps[st].max; stageEarn+=comp.steps[st].earned;});
   const pctStage = stageMax? Math.round(stageEarn/stageMax*100):0;
-  return {...comp,status:s,pctStage,stageMax,stageEarn};
+  return {...comp,status,pctStage,stageMax,stageEarn};
 }
 
-/* -----------------------------------------------------------------------
- * Normalize guest (ensure evaluate & solution objects)
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * STATE + DOM HELPERS
+ * =================================================================== */
 function normGuest(g){
-  const out = g? JSON.parse(JSON.stringify(g)) : {};
-  out.evaluate = out.evaluate || {};
-  out.solution = out.solution || {};
+  const out=g?JSON.parse(JSON.stringify(g)):{};
+  out.evaluate=out.evaluate||{};
+  out.solution=out.solution||{};
   return out;
 }
 
-/* -----------------------------------------------------------------------
- * URL param helper
- * -------------------------------------------------------------------- */
 function qs(name){ return new URLSearchParams(window.location.search).get(name); }
-
-/* -----------------------------------------------------------------------
- * Basic DOM helpers
- * -------------------------------------------------------------------- */
 const $ = sel => document.querySelector(sel);
 function show(id){ document.getElementById(id)?.classList.remove('hidden'); }
 function hide(id){ document.getElementById(id)?.classList.add('hidden'); }
@@ -194,9 +183,7 @@ function statusMsg(id,msg,cls=''){
   if(cls)el.classList.add(cls);
 }
 
-/* -----------------------------------------------------------------------
- * Inject summary snippet under Step2 form (shows Step1 name/phone)
- * -------------------------------------------------------------------- */
+/* Step1 summary under Step2 ------------------------------------------ */
 function injectPrefillSummary(name,phone){
   const step2=$("#step2Form"); if(!step2)return;
   let summary=$("#prefillSummary");
@@ -210,9 +197,9 @@ function injectPrefillSummary(name,phone){
   summary.innerHTML=`<b>Customer:</b> ${name||'-'} &nbsp; <b>Phone:</b> ${phone||'-'}`;
 }
 
-/* -----------------------------------------------------------------------
- * Progress bar (Saved + Preview)
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * PROGRESS BAR
+ * =================================================================== */
 function ensureProgressBar(){
   let bar=$("#gp-progress"); if(bar)return bar;
   bar=document.createElement('div');
@@ -255,9 +242,9 @@ function setProgressPreview(pOrNull){
   wrap.style.display='';
 }
 
-/* -----------------------------------------------------------------------
- * Step Nav (top-of-form jump + revert)
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * STEP NAV + REVERT
+ * =================================================================== */
 function ensureStepNav(){
   let nav=$("#gp-step-nav"); if(nav)return nav;
   nav=document.createElement('div');
@@ -282,37 +269,43 @@ function markStepActive(step){
     btn.classList.toggle('active',btn.dataset.step===step);
   });
 }
-
-/* -----------------------------------------------------------------------
- * Revert controls (inline in each step header)
- * -------------------------------------------------------------------- */
 function ensureRevertLinks(){
-  // Step1 revert link appears in Step2 & Step3 headers if later data exists
   const rev1=$("#gp-revert-step1");
   const rev2=$("#gp-revert-step2");
   if(rev1)rev1.onclick=()=>revertTo("step1");
   if(rev2)rev2.onclick=()=>revertTo("step2");
 }
+function updateRevertVis(){
+  const g=currentGuestObj||{};
+  const evFilled = Object.keys(g.evaluate||{}).length>0;
+  const solFilled= !!g.solution?.text;
+  const rev1=$("#gp-revert-step1");
+  const rev2=$("#gp-revert-step2");
+  if(rev1)rev1.classList.toggle('hidden',!evFilled && !solFilled);
+  if(rev2)rev2.classList.toggle('hidden',!solFilled);
+}
 
-/* -----------------------------------------------------------------------
- * Inject extra Evaluation fields if not present in HTML
- * (non-breaking; skip if you manually add them later)
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * OPTIONAL INJECTION OF EVAL EXTRAS
+ * (Won't duplicate if inputs already exist in HTML.)
+ * ------------------------------------------------------------------ */
 function ensureEvalExtras(){
   const frm=$("#step2Form"); if(!frm)return;
 
-  // helper to append row if missing
-  function ensureRow(id,labelHtml,controlHtml){
-    if(document.getElementById(id))return;
-    const wrap=document.createElement('label');
-    wrap.className='glabel gp-injected';
-    wrap.id=id;
-    wrap.innerHTML=`${labelHtml}${controlHtml}`;
-    frm.appendChild(wrap);
-  }
+  /* If currentCarrierSel exists we assume all markup is present. */
+  if (document.getElementById("currentCarrierSel")) return;
+
   const pts = p=>` <span class="gp-pts">(${p}pt${p===1?'':'s'})</span>`;
 
-  ensureRow('gp-currentCarrier',
+  function addRow(id,labelHtml,ctrlHtml){
+    const wrap=document.createElement('label');
+    wrap.className='glabel gp-injected';
+    wrap.id=`row-${id}`;
+    wrap.innerHTML=`${labelHtml}${ctrlHtml}`;
+    frm.insertBefore(wrap,frm.lastElementChild); /* before submit btn */
+  }
+
+  addRow("currentCarrier",
     `Current Carrier${pts(PITCH_WEIGHTS.currentCarrier||0)}`,
     `<select class="gfield" id="currentCarrierSel">
        <option value="">Select...</option>
@@ -321,15 +314,15 @@ function ensureEvalExtras(){
        <option>Tracfone/Prepaid</option><option>None / New</option><option>Unknown</option>
      </select>`);
 
-  ensureRow('gp-numLines',
+  addRow("numLines",
     `Lines to Move${pts(PITCH_WEIGHTS.numLines||0)}`,
     `<input class="gfield" type="number" min="1" max="20" id="numLines" placeholder="# lines" />`);
 
-  ensureRow('gp-coverageZip',
+  addRow("coverageZip",
     `Customer ZIP / Area${pts(PITCH_WEIGHTS.coverageZip||0)}`,
     `<input class="gfield" type="text" pattern="\\d{5}" id="coverageZip" placeholder="##### (optional)" />`);
 
-  ensureRow('gp-deviceStatus',
+  addRow("deviceStatus",
     `Devices Paid Off?${pts(PITCH_WEIGHTS.deviceStatus||0)}`,
     `<select class="gfield" id="deviceStatus">
        <option value="">Select...</option>
@@ -340,7 +333,7 @@ function ensureEvalExtras(){
        <option value="Unknown">Unknown</option>
      </select>`);
 
-  ensureRow('gp-finPath',
+  addRow("finPath",
     `Financial Path${pts(PITCH_WEIGHTS.finPath||0)}`,
     `<select class="gfield" id="finPath">
        <option value="">Select...</option>
@@ -350,11 +343,11 @@ function ensureEvalExtras(){
        <option value="Unknown">Unknown</option>
      </select>`);
 
-  ensureRow('gp-billPain',
+  addRow("billPain",
     `Current Bill / Pain${pts(PITCH_WEIGHTS.billPain||0)}`,
     `<input class="gfield" type="text" id="billPain" placeholder="$ / Too high / Unknown" />`);
 
-  ensureRow('gp-dataNeed',
+  addRow("dataNeed",
     `Data Needs${pts(PITCH_WEIGHTS.dataNeed||0)}`,
     `<select class="gfield" id="dataNeed">
        <option value="">Select...</option>
@@ -364,7 +357,7 @@ function ensureEvalExtras(){
        <option value="Unlimited">Unlimited Required</option>
      </select>`);
 
-  ensureRow('gp-hotspotNeed',
+  addRow("hotspotNeed",
     `Needs Hotspot?${pts(PITCH_WEIGHTS.hotspotNeed||0)}`,
     `<select class="gfield" id="hotspotNeed">
        <option value="">Select...</option>
@@ -372,7 +365,7 @@ function ensureEvalExtras(){
        <option value="false">No</option>
      </select>`);
 
-  ensureRow('gp-intlNeed',
+  addRow("intlNeed",
     `International Use?${pts(PITCH_WEIGHTS.intlNeed||0)}`,
     `<select class="gfield" id="intlNeed">
        <option value="">Select...</option>
@@ -381,9 +374,9 @@ function ensureEvalExtras(){
      </select>`);
 }
 
-/* -----------------------------------------------------------------------
- * Live preview diff while typing/selecting
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * LIVE PREVIEW
+ * =================================================================== */
 let _liveBound=false;
 function bindLivePreview(){
   if(_liveBound)return;
@@ -399,23 +392,23 @@ function bindLivePreview(){
   });
 }
 function buildGuestFromForms(){
-  const g = currentGuestObj? JSON.parse(JSON.stringify(currentGuestObj)) : {evaluate:{},solution:{}};
-  g.evaluate = g.evaluate || {};
-  g.solution = g.solution || {};
+  const g=currentGuestObj?JSON.parse(JSON.stringify(currentGuestObj)):{status:"new",evaluate:{},solution:{}};
+  g.evaluate=g.evaluate||{};
+  g.solution=g.solution||{};
 
-  // Step1
+  /* Step1 */
   const nameEl=$("#custName"); if(nameEl)g.custName=nameEl.value.trim();
   const phoneEl=$("#custPhone"); if(phoneEl)g.custPhone=phoneEl.value.trim();
 
-  // Legacy Step2 fields
+  /* Step2 legacy */
   const stEl=$("#serviceType"); if(stEl)g.evaluate.serviceType=stEl.value;
   const sitEl=$("#situation"); if(sitEl)g.evaluate.situation=sitEl.value.trim();
   const carEl=$("#evalCarrier"); if(carEl)g.evaluate.carrierInfo=carEl.value.trim();
   const reqEl=$("#evalRequirements"); if(reqEl)g.evaluate.requirements=reqEl.value.trim();
 
-  // New structured Step2
+  /* Step2 structured */
   const curEl=$("#currentCarrierSel"); if(curEl)g.evaluate.currentCarrier=curEl.value;
-  const linesEl=$("#numLines"); if(linesEl)g.evaluate.numLines=linesEl.value?Number(linesEl.value):null;
+  const linesEl=$("#numLines"); if(linesEl)g.evaluate.numLines=(linesEl.value===""?null:Number(linesEl.value));
   const zipEl=$("#coverageZip"); if(zipEl)g.evaluate.coverageZip=zipEl.value.trim();
   const devEl=$("#deviceStatus"); if(devEl)g.evaluate.deviceStatus=devEl.value;
   const finEl=$("#finPath"); if(finEl)g.evaluate.finPath=finEl.value;
@@ -424,23 +417,23 @@ function buildGuestFromForms(){
   const hotEl=$("#hotspotNeed"); if(hotEl){const v=hotEl.value; g.evaluate.hotspotNeed=(v===""?null:(v==="true")); }
   const intlEl=$("#intlNeed"); if(intlEl){const v=intlEl.value; g.evaluate.intlNeed=(v===""?null:(v==="true")); }
 
-  // Step3
-  const solEl=$("#solutionText"); if(solEl){ g.solution.text=solEl.value.trim(); }
+  /* Step3 */
+  const solEl=$("#solutionText"); if(solEl)g.solution.text=solEl.value.trim();
 
   return g;
 }
 function handleLivePreview(){
-  const live = buildGuestFromForms();
-  const comp = computePitchFull(live);
-  const savedPct = currentGuestObj? computePitchFull(currentGuestObj).pctFull : 0;
-  const diff = Math.abs(comp.pctFull - savedPct);
+  const live=buildGuestFromForms();
+  const comp=computePitchFull(live);
+  const savedPct=currentGuestObj?computePitchFull(currentGuestObj).pctFull:0;
+  const diff=Math.abs(comp.pctFull-savedPct);
   setProgressPreview(diff>1?comp.pctFull:null);
   updateNbqChips(live);
 }
 
-/* -----------------------------------------------------------------------
- * Next Best Question chips (coaching)
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * NEXT BEST QUESTION COACHING
+ * =================================================================== */
 function ensureNbqContainer(){
   let c=$("#gp-nbq"); if(c)return c;
   c=document.createElement('div');
@@ -474,7 +467,6 @@ function fieldToInputId(field){
 function focusField(field){
   const id=fieldToInputId(field); if(!id)return;
   const el=document.getElementById(id); if(!el)return;
-  // jump to correct step
   const st=FIELD_STEP[field]; if(st)gotoStep(st);
   el.focus({preventScroll:false});
   el.scrollIntoView({behavior:"smooth",block:"center"});
@@ -482,16 +474,21 @@ function focusField(field){
 function updateNbqChips(guestForEval){
   const c=ensureNbqContainer();
   const comp=computePitchFull(guestForEval);
-  // find missing fields by tier
+
   const missing=[];
-  function pushMissing(arr){arr.forEach(f=>{if(!comp.fields[f])return; if(!comp.fields[f].ok)missing.push(f);});}
-  pushMissing(TIER_A_FIELDS);
-  pushMissing(TIER_B_FIELDS);
-  // add Step3 suggestion if Step2 decent
-  if(comp.steps.step2.earned >= (comp.steps.step2.max*0.6)) pushMissing(["solutionText"]);
-  // include only first 3 suggestions
+  const addMissing=list=>{
+    list.forEach(f=>{
+      if(!comp.fields[f])return;
+      if(!comp.fields[f].ok)missing.push(f);
+    });
+  };
+  addMissing(TIER_A_FIELDS);
+  addMissing(TIER_B_FIELDS);
+  if(comp.steps.step2.earned >= (comp.steps.step2.max*0.6)) addMissing(["solutionText"]);
+
   const top=missing.slice(0,3);
   if(!top.length){ c.innerHTML=""; return; }
+
   const btns=top.map(f=>{
     const wt=PITCH_WEIGHTS[f]||0;
     const lbl=fieldLabelShort(f);
@@ -506,7 +503,7 @@ function fieldLabelShort(f){
     case "numLines":return "# lines";
     case "coverageZip":return "ZIP";
     case "deviceStatus":return "Devices paid?";
-    case "finPath":return "Postpaid or prepaid?";
+    case "finPath":return "Postpaid/Prepaid?";
     case "billPain":return "Bill $";
     case "dataNeed":return "Data need";
     case "hotspotNeed":return "Hotspot?";
@@ -518,26 +515,25 @@ function fieldLabelShort(f){
   }
 }
 
-/* -----------------------------------------------------------------------
- * Step switching (show/hide forms)
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * STEP SWITCH
+ * =================================================================== */
 function gotoStep(step){
   markStepActive(step);
   const s1=$("#step1Form"),s2=$("#step2Form"),s3=$("#step3Form");
-  if(s1) (step==="step1")?s1.classList.remove('hidden'):s1.classList.add('hidden');
-  if(s2) (step==="step2")?s2.classList.remove('hidden'):s2.classList.add('hidden');
-  if(s3) (step==="step3")?s3.classList.remove('hidden'):s3.classList.add('hidden');
+  if(s1) s1.classList.toggle('hidden',step!=="step1");
+  if(s2) s2.classList.toggle('hidden',step!=="step2");
+  if(s3) s3.classList.toggle('hidden',step!=="step3");
 }
 
-/* -----------------------------------------------------------------------
- * Revert logic (clear downstream data)
- *   step1 -> remove evaluate + solution + status:"new"
- *   step2 -> remove solution + status:"working" (if evaluate exists else "new")
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * REVERT (clears downstream data in Firebase + local state)
+ * =================================================================== */
 async function revertTo(step){
   if(!currentEntryKey)return;
   const now=Date.now();
   const ref=db.ref(`guestinfo/${currentEntryKey}`);
+
   if(step==="step1"){
     if(!confirm("Revert to Step 1? Evaluation & Solution will be cleared."))return;
     await ref.update({evaluate:null,solution:null,status:"new",updatedAt:now});
@@ -556,15 +552,13 @@ async function revertTo(step){
   }
 }
 
-/* -----------------------------------------------------------------------
- * State
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * STATE
+ * =================================================================== */
 let currentEntryKey=null;
 let currentGuestObj=null;
 
-/* -----------------------------------------------------------------------
- * Load existing guest by ?gid or ?entry
- * -------------------------------------------------------------------- */
+/* Load existing guest ------------------------------------------------ */
 async function loadExistingGuestIfParam(){
   const key=qs('gid')||qs('entry'); if(!key)return false;
   try{
@@ -579,9 +573,7 @@ async function loadExistingGuestIfParam(){
   return false;
 }
 
-/* -----------------------------------------------------------------------
- * Write completion snapshot to DB (full %)
- * -------------------------------------------------------------------- */
+/* Persist completion snapshot ---------------------------------------- */
 async function writeCompletionPct(gid,g){
   const comp=computePitchFull(g);
   try{
@@ -595,11 +587,10 @@ async function writeCompletionPct(gid,g){
   setProgressPreview(null);
   setProgressSaved(comp.pctFull);
   updateNbqChips(g);
+  updateRevertVis();
 }
 
-/* -----------------------------------------------------------------------
- * Sync UI from loaded guest record
- * -------------------------------------------------------------------- */
+/* Sync UI from loaded guest ------------------------------------------ */
 function syncUiToLoadedGuest(){
   ensureProgressBar();
   ensureStepNav();
@@ -612,23 +603,25 @@ function syncUiToLoadedGuest(){
   setProgressSaved(comp.pctFull);
   setProgressPreview(null);
   updateNbqChips(g);
+  updateRevertVis();
 
-  // Step nav active by status
+  /* Step nav active by status */
   const s=detectStatus(g);
-  markStepActive(s==="new"?"step1":(s==="working"?"step2":"step3"));
+  const active = s==="new"?"step1":(s==="working"?"step2":"step3");
+  markStepActive(active);
 
-  // Step1 fields
+  /* Step1 */
   const nEl=$("#custName"); if(nEl)nEl.value=g.custName||"";
   const pEl=$("#custPhone"); if(pEl)pEl.value=g.custPhone||"";
 
-  // Step2 legacy
+  /* Step2 legacy */
   const e=g.evaluate||{};
   const stEl=$("#serviceType"); if(stEl)stEl.value=e.serviceType||"";
   const sitEl=$("#situation"); if(sitEl)sitEl.value=e.situation||"";
   const carEl=$("#evalCarrier"); if(carEl)carEl.value=e.carrierInfo||"";
   const reqEl=$("#evalRequirements"); if(reqEl)reqEl.value=e.requirements||"";
 
-  // Step2 structured
+  /* Step2 structured */
   const curEl=$("#currentCarrierSel"); if(curEl)curEl.value=e.currentCarrier||"";
   const linesEl=$("#numLines"); if(linesEl)linesEl.value=(e.numLines!=null?e.numLines:"");
   const zipEl=$("#coverageZip"); if(zipEl)zipEl.value=e.coverageZip||"";
@@ -639,23 +632,20 @@ function syncUiToLoadedGuest(){
   const hotEl=$("#hotspotNeed"); if(hotEl)hotEl.value=(e.hotspotNeed==null?"":String(!!e.hotspotNeed));
   const intlEl=$("#intlNeed"); if(intlEl)intlEl.value=(e.intlNeed==null?"":String(!!e.intlNeed));
 
-  // Step3
+  /* Step3 */
   const sol=g.solution||{};
   const solEl=$("#solutionText"); if(solEl)solEl.value=sol.text||"";
 
   injectPrefillSummary(g.custName,g.custPhone);
-
-  // Show/hide forms (all viewable via nav; default active based on status)
-  gotoStep(s==="new"?"step1":(s==="working"?"step2":"step3"));
+  gotoStep(active);
 }
 
-/* -----------------------------------------------------------------------
- * Auth guard
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * AUTH GUARD
+ * =================================================================== */
 auth.onAuthStateChanged(async user=>{
   if(!user){ window.location.href="../login.html"; return; }
 
-  // ensure structural DOM extras *before* load
   ensureProgressBar();
   ensureStepNav();
   ensureEvalExtras();
@@ -665,16 +655,17 @@ auth.onAuthStateChanged(async user=>{
   const found=await loadExistingGuestIfParam();
   if(found){ syncUiToLoadedGuest(); return; }
 
-  // new record start @ step1
-  currentGuestObj = { status:"new", evaluate:{}, solution:{} };
+  /* New record start */
+  currentGuestObj={status:"new",evaluate:{},solution:{}};
   setProgressSaved(0);
   updateNbqChips(currentGuestObj);
+  updateRevertVis();
   gotoStep("step1");
 });
 
-/* -----------------------------------------------------------------------
- * STEP 1 submit
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * STEP 1 SUBMIT
+ * =================================================================== */
 document.getElementById('step1Form').addEventListener('submit',async e=>{
   e.preventDefault();
   statusMsg('status1','', '');
@@ -694,7 +685,7 @@ document.getElementById('step1Form').addEventListener('submit',async e=>{
       });
       currentEntryKey=refPush.key;
     }
-    currentGuestObj = currentGuestObj||{};
+    currentGuestObj=currentGuestObj||{};
     currentGuestObj.custName=custName;
     currentGuestObj.custPhone=custPhone;
     currentGuestObj.status=currentGuestObj.status||"new";
@@ -707,22 +698,22 @@ document.getElementById('step1Form').addEventListener('submit',async e=>{
   }
 });
 
-/* -----------------------------------------------------------------------
- * STEP 2 submit (evaluation)
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * STEP 2 SUBMIT
+ * =================================================================== */
 document.getElementById('step2Form').addEventListener('submit',async e=>{
   e.preventDefault();
   statusMsg('status2','', '');
   if(!currentEntryKey){ statusMsg('status2','Missing guest record.','error');return; }
 
-  // gather
+  /* gather */
   const eObj={};
   eObj.serviceType   = $("#serviceType")?.value||"";
   eObj.situation     = $("#situation")?.value.trim()||"";
   eObj.carrierInfo   = $("#evalCarrier")?.value.trim()||"";
   eObj.requirements  = $("#evalRequirements")?.value.trim()||"";
   eObj.currentCarrier= $("#currentCarrierSel")?.value||"";
-  const nl=$("#numLines")?.value; eObj.numLines=nl?Number(nl):null;
+  const nl=$("#numLines")?.value; eObj.numLines=(nl===""?null:Number(nl));
   eObj.coverageZip   = $("#coverageZip")?.value.trim()||"";
   eObj.deviceStatus  = $("#deviceStatus")?.value||"";
   eObj.finPath       = $("#finPath")?.value||"";
@@ -749,9 +740,9 @@ document.getElementById('step2Form').addEventListener('submit',async e=>{
   }
 });
 
-/* -----------------------------------------------------------------------
- * STEP 3 submit (solution)
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * STEP 3 SUBMIT
+ * =================================================================== */
 document.getElementById('step3Form').addEventListener('submit',async e=>{
   e.preventDefault();
   statusMsg('status3','', '');
@@ -775,9 +766,9 @@ document.getElementById('step3Form').addEventListener('submit',async e=>{
   }
 });
 
-/* -----------------------------------------------------------------------
- * Manual recompute global (for console)
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * PUBLIC HELPERS
+ * =================================================================== */
 window.gpRecomputeCompletion = async function(gid){
   const key=gid||currentEntryKey; if(!key)return;
   const snap=await db.ref(`guestinfo/${key}`).get();
@@ -785,15 +776,11 @@ window.gpRecomputeCompletion = async function(gid){
   currentGuestObj=normGuest(data);
   await writeCompletionPct(key,currentGuestObj);
 };
-
-/* -----------------------------------------------------------------------
- * Revert API export
- * -------------------------------------------------------------------- */
 window.gpRevertTo = revertTo;
 
-/* -----------------------------------------------------------------------
- * Minimal CSS (inject if not present)
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * CSS (inject if not present)
+ * =================================================================== */
 (function injectCss(){
   if(document.getElementById('gp-progress-css'))return;
   const css=`
@@ -819,16 +806,15 @@ window.gpRevertTo = revertTo;
     .nbq-chip.tier-med{border-color:#82caff;color:#82caff;}
     .nbq-chip.tier-low{border-color:rgba(255,255,255,.35);color:rgba(255,255,255,.85);}
 
-    /* Revert links (you add spans w/ ids in HTML header areas if desired) */
     .gp-revert-link{font-size:.8rem;opacity:.75;margin-left:.5rem;cursor:pointer;text-decoration:underline;}
-
-    /* Hide native required red since we allow skipping */
-    #step1Form [required],#step2Form [required],#step3Form [required]{outline:none;}
   `;
-  const tag=document.createElement('style');tag.id='gp-progress-css';tag.textContent=css;document.head.appendChild(tag);
+  const tag=document.createElement('style');
+  tag.id='gp-progress-css';
+  tag.textContent=css;
+  document.head.appendChild(tag);
 })();
 
-/* -----------------------------------------------------------------------
- * Optional: wire any <span id="gp-revert-step1">Revert</span> etc if present
- * -------------------------------------------------------------------- */
+/* =====================================================================
+ * Wire HTML-provided revert links once DOM ready
+ * =================================================================== */
 document.addEventListener("DOMContentLoaded",ensureRevertLinks);

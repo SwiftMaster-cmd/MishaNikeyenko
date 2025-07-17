@@ -17,6 +17,10 @@
     .gp-nbq .tier-high{border-color:#ffb300;color:#ffb300;}
     .gp-nbq .tier-med{border-color:#82caff;color:#82caff;}
     .gp-nbq .tier-low{border-color:rgba(255,255,255,.35);color:rgba(255,255,255,.85);}
+    details.gp-more{margin-top:1.25rem;}
+    details.gp-more summary{cursor:pointer;outline:none;font-weight:600;}
+    details.gp-more[open]{margin-bottom:.5rem;}
+    details.gp-more .gp-more-body{margin-top:.75rem;}
   </style>
 </head>
 <body>
@@ -34,10 +38,9 @@
   <div class="guest-box">
 
     <!-- Step 1: only name & phone -->
-    <form id="step1Form" autocomplete="off">
+    <form id="step1Form" autocomplete="off" data-step="1">
       <div class="guest-title">
         Step 1: Customer Info
-        <!-- Revert link never needed here; left for symmetry -->
       </div>
 
       <label class="glabel">Customer Name <span class="gp-pts">(8pts)</span>
@@ -52,13 +55,13 @@
     </form>
 
     <!-- Step 2: evaluate -->
-    <form id="step2Form" class="hidden">
+    <form id="step2Form" class="hidden" data-step="2">
       <div class="guest-title">
         Step 2: Evaluate
         <span id="gp-revert-step1" class="gp-revert-link hidden" title="Clear later steps & revert to Step 1">(revert to Step 1)</span>
       </div>
 
-      <!-- High-value structured questions -->
+      <!-- 5 CORE QUESTIONS -->
       <label class="glabel">Current Carrier <span class="gp-pts">(12pts)</span>
         <select class="gfield" id="currentCarrierSel">
           <option value="">Select...</option>
@@ -75,11 +78,11 @@
       </label>
 
       <label class="glabel">Lines to Move <span class="gp-pts">(8pts)</span>
-        <input class="gfield" type="number" min="1" max="20" id="numLines" placeholder="# lines" />
+        <input class="gfield" type="number" min="0" max="20" id="numLines" placeholder="# lines" />
       </label>
 
       <label class="glabel">Customer ZIP / Area <span class="gp-pts">(8pts)</span>
-        <input class="gfield" type="text" pattern="\d{5}" id="coverageZip" placeholder="##### (optional)" />
+        <input class="gfield" type="text" id="coverageZip" placeholder="##### or city" />
       </label>
 
       <label class="glabel">Devices Paid Off? <span class="gp-pts">(8pts)</span>
@@ -103,69 +106,76 @@
         </select>
       </label>
 
-      <!-- Medium-value -->
-      <label class="glabel">Current Bill / Pain Point <span class="gp-pts">(4pts)</span>
-        <input class="gfield" type="text" id="billPain" placeholder="$ / Too high / Unknown" />
-      </label>
+      <!-- COLLAPSIBLE OPTIONAL DETAILS -->
+      <details id="gp-more-step2" class="gp-more">
+        <summary id="gp-more-step2-summary">More details (optional)</summary>
+        <div class="gp-more-body">
 
-      <label class="glabel">Data Needs <span class="gp-pts">(4pts)</span>
-        <select class="gfield" id="dataNeed">
-          <option value="">Select...</option>
-          <option value="Light">Light</option>
-          <option value="Moderate">Moderate</option>
-          <option value="Heavy">Heavy</option>
-          <option value="Unlimited">Unlimited Required</option>
-        </select>
-      </label>
+          <!-- Medium-value -->
+          <label class="glabel">Current Bill / Pain Point <span class="gp-pts">(4pts)</span>
+            <input class="gfield" type="text" id="billPain" placeholder="$ / Too high / Unknown" />
+          </label>
 
-      <label class="glabel">Needs Hotspot? <span class="gp-pts">(2pts)</span>
-        <select class="gfield" id="hotspotNeed">
-          <option value="">Select...</option>
-          <option value="true">Yes</option>
-          <option value="false">No</option>
-        </select>
-      </label>
+          <label class="glabel">Data Needs <span class="gp-pts">(4pts)</span>
+            <select class="gfield" id="dataNeed">
+              <option value="">Select...</option>
+              <option value="Light">Light</option>
+              <option value="Moderate">Moderate</option>
+              <option value="Heavy">Heavy</option>
+              <option value="Unlimited">Unlimited Required</option>
+            </select>
+          </label>
 
-      <label class="glabel">International Use? <span class="gp-pts">(2pts)</span>
-        <select class="gfield" id="intlNeed">
-          <option value="">Select...</option>
-          <option value="true">Yes</option>
-          <option value="false">No</option>
-        </select>
-      </label>
+          <label class="glabel">Needs Hotspot? <span class="gp-pts">(2pts)</span>
+            <select class="gfield" id="hotspotNeed">
+              <option value="">Select...</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </label>
 
-      <!-- Legacy free-text fields (0pt; retained for backward compatibility) -->
-      <hr aria-hidden="true" />
-      <label class="glabel">Service Type (legacy)
-        <select class="gfield" id="serviceType">
-          <option value="">Select...</option>
-          <option>Verizon</option>
-          <option>AT&amp;T</option>
-          <option>T-Mobile</option>
-          <option>Prepaid</option>
-          <option>Accessories</option>
-          <option>Other</option>
-        </select>
-      </label>
+          <label class="glabel">International Use? <span class="gp-pts">(2pts)</span>
+            <select class="gfield" id="intlNeed">
+              <option value="">Select...</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </label>
 
-      <label class="glabel">Situation / Notes (legacy)
-        <textarea class="gfield" id="situation" rows="2" placeholder="Short notes…"></textarea>
-      </label>
+          <!-- Legacy free-text fields (0pt; retained for backward compatibility) -->
+          <hr aria-hidden="true" />
+          <label class="glabel">Service Type (legacy)
+            <select class="gfield" id="serviceType">
+              <option value="">Select...</option>
+              <option>Verizon</option>
+              <option>AT&amp;T</option>
+              <option>T-Mobile</option>
+              <option>Prepaid</option>
+              <option>Accessories</option>
+              <option>Other</option>
+            </select>
+          </label>
 
-      <label class="glabel">Carrier Info (legacy)
-        <textarea class="gfield" id="evalCarrier" rows="2" placeholder="Current carrier details…"></textarea>
-      </label>
+          <label class="glabel">Situation / Notes (legacy)
+            <textarea class="gfield" id="situation" rows="2" placeholder="Short notes…"></textarea>
+          </label>
 
-      <label class="glabel">Requirements (legacy)
-        <textarea class="gfield" id="evalRequirements" rows="2" placeholder="What is needed…"></textarea>
-      </label>
+          <label class="glabel">Carrier Info (legacy)
+            <textarea class="gfield" id="evalCarrier" rows="2" placeholder="Current carrier details…"></textarea>
+          </label>
+
+          <label class="glabel">Requirements (legacy)
+            <textarea class="gfield" id="evalRequirements" rows="2" placeholder="What is needed…"></textarea>
+          </label>
+        </div>
+      </details>
 
       <button class="guest-btn" type="submit">Save &amp; Continue to Step 3</button>
       <div class="g-status" id="status2"></div>
     </form>
 
     <!-- Step 3: solution -->
-    <form id="step3Form" class="hidden">
+    <form id="step3Form" class="hidden" data-step="3">
       <div class="guest-title">
         Step 3: Solution
         <span id="gp-revert-step2" class="gp-revert-link hidden" title="Clear solution & revert to Step 2">(revert to Step 2)</span>
@@ -202,6 +212,6 @@
   </script>
 
   <!-- Weighted / revertable multi-step logic -->
-  <script src="guest-portal.js"></script>
+  <script src="guest-portal.js" defer></script>
 </body>
 </html>
