@@ -3,7 +3,7 @@
 
   /* Path to detailed guest-info workflow page.
      Adjust if you move the file. */
-  window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guest-info.html";
+  window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guestinfo.html";
 
   /* --------------------------------------------------------------
      Role helpers
