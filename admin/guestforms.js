@@ -1,11 +1,4 @@
-// ==============================
-// Guest Form Submission Handler
-// ==============================
-
-firebase.initializeApp(firebaseConfig);
-const db   = firebase.database();
-const auth = firebase.auth();
-
+// guestform.js -- assumes core.js loaded first
 auth.onAuthStateChanged(async user => {
   if (!user) {
     window.location.href = "index.html";
@@ -30,7 +23,7 @@ auth.onAuthStateChanged(async user => {
       alert("Submitted successfully!");
       form.reset();
     } catch (err) {
-      alert("Error submitting form. Try again.");
+      alert("Error submitting form.");
       console.error(err);
     }
   });
