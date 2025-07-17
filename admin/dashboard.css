@@ -510,3 +510,153 @@ td:last-child{text-align:right;}
   flex-wrap:wrap;
   gap:var(--space-md);
   font-size:
+  
+  
+  /* ================================================================
+   DASHBOARD v3.1 PATCH – Guest Info + Stores refinements
+   ================================================================ */
+
+/* ---------------- Guest Info Field Grid ---------------- */
+.guest-card-fields {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:var(--space-sm) var(--space-md);
+  margin-bottom:var(--space-sm);
+}
+.guest-card-field-label {
+  display:block;
+  font-size:var(--fs-xs);
+  color:var(--text-muted);
+  margin-bottom:var(--space-2xs);
+  line-height:1.2;
+}
+.guest-card-field-value {
+  display:block;
+  font-size:var(--fs-sm);
+  color:var(--text-med);
+  overflow-wrap:anywhere;
+  line-height:1.35;
+}
+@media (max-width:480px){
+  .guest-card-fields{grid-template-columns:1fr;}
+}
+
+/* Sale pill */
+.sale-pill {
+  display:inline-block;
+  padding:0 var(--space-sm);
+  margin-top:var(--space-xs);
+  font-size:var(--fs-xs);
+  line-height:1.5;
+  border-radius:999px;
+  background:var(--success-bg);
+  color:var(--success);
+  white-space:nowrap;
+}
+.sale-pill b{color:var(--success);font-weight:700;}
+
+/* Ensure edit form spacing is comfy on small screens */
+.guest-card form.guest-edit-form label {
+  margin-bottom:var(--space-md);
+}
+.guest-card form.guest-edit-form textarea {
+  min-height:72px;
+}
+
+/* When card in edit mode, give subtle bg separation */
+.guest-card.is-editing {
+  background:var(--bg-card-hover);
+  box-shadow:var(--shadow-card-h);
+}
+
+/* Place action buttons row w/ wrap */
+.guest-card-actions {
+  margin-top:var(--space-sm);
+  display:flex;
+  flex-wrap:wrap;
+  gap:var(--space-xs);
+}
+@media (max-width:480px){
+  .guest-card-actions .btn{width:100%;}
+}
+
+/* ---------------- Stores Responsive Tweaks ---------------- */
+.store-table{table-layout:auto;}
+.store-table th,
+.store-table td{white-space:nowrap;}
+.store-table .store-tl-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:var(--space-2xs);
+  max-width:min(220px,100%);
+  overflow-wrap:anywhere;
+}
+.store-table .store-sales-wrap{
+  display:flex;
+  align-items:center;
+  gap:var(--space-xs);
+  flex-wrap:wrap;
+}
+
+.metric-chip{
+  display:inline-block;
+  padding:0 var(--space-xs);
+  font-size:var(--fs-xs);
+  line-height:1.4;
+  border-radius:var(--radius-sm);
+  background:rgba(255,255,255,.1);
+  color:var(--text-med);
+  white-space:nowrap;
+}
+.metric-chip.success{background:var(--success-bg);color:var(--success);}
+.metric-chip.warning{background:var(--warning-bg);color:var(--warning);}
+.metric-chip.danger{background:var(--danger-bg);color:var(--danger);}
+
+/* Small screens: stackable (requires class output in markup) */
+@media (max-width:600px){
+  .store-table.table-stackable,
+  .store-table.table-stackable thead,
+  .store-table.table-stackable tbody,
+  .store-table.table-stackable tr,
+  .store-table.table-stackable th,
+  .store-table.table-stackable td{
+    display:block;
+    width:100%;
+  }
+  .store-table.table-stackable thead{display:none;}
+  .store-table.table-stackable tr{
+    margin-bottom:var(--space-md);
+    padding:var(--space-md);
+    border:1px solid var(--border-color);
+    border-radius:var(--radius-lg);
+    background:var(--bg-card-hover);
+    box-shadow:var(--shadow-card);
+  }
+  .store-table.table-stackable td{
+    padding:var(--space-xs) 0;
+    border:none;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:var(--space-sm);
+    white-space:normal;
+  }
+  .store-table.table-stackable td::before{
+    content:attr(data-label);
+    font-weight:600;
+    color:var(--text-hi);
+    flex:0 0 auto;
+  }
+  .store-table.table-stackable td:last-child{
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    margin-top:var(--space-xs);
+    text-align:left;
+  }
+}
+
+/* Slightly tighten store add inputs on narrow screens */
+@media (max-width:480px){
+  .store-add{gap:var(--space-xs);}
+}
