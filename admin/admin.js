@@ -15,7 +15,7 @@ firebase.initializeApp(firebaseConfig);
 const db   = firebase.database();
 const auth = firebase.auth();
 
-window.db = db; // expose for modules needing it
+window.db = db; // expose for users.js and others
 
 const adminAppDiv = document.getElementById("adminApp");
 
@@ -54,7 +54,7 @@ auth.onAuthStateChanged(async user => {
   await db.ref("users/"+user.uid).update(prof);
 
   currentRole = prof.role || ROLES.ME;
-  window.currentRole = currentRole; // expose globally for user.js
+  window.currentRole = currentRole; // for users.js
 
   document.getElementById("logoutBtn")?.addEventListener("click", () => auth.signOut());
 
@@ -100,7 +100,6 @@ async function renderAdminApp() {
   }).join('');
 
   /* ------------------ USERS ------------------ */
-  // DELEGATE to users.js render function
   const usersHtml = window.users?.renderUsersSection
     ? window.users.renderUsersSection(users, currentRole)
     : `<p class="text-center">Users module not loaded.</p>`;
@@ -172,18 +171,8 @@ async function renderAdminApp() {
    Action handlers (RBAC enforced)
    ===================================================================== */
 // Delegate user handlers to users.js
-window.assignLeadToGuest = async (guestUid,leadUid)=>{
-  if (window.users?.assignLeadToGuest) return window.users.assignLeadToGuest(guestUid, leadUid);
-  assertEdit();
-  await db.ref(`users/${guestUid}/assignedLead`).set(leadUid||null);
-  renderAdminApp();
-};
-window.assignDMToLead = async (leadUid,dmUid)=>{
-  if (window.users?.assignDMToLead) return window.users.assignDMToLead(leadUid, dmUid);
-  assertEdit();
-  await db.ref(`users/${leadUid}/assignedDM`).set(dmUid||null);
-  renderAdminApp();
-};
+window.assignLeadToGuest = (guestUid, leadUid) => window.users.assignLeadToGuest(guestUid, leadUid);
+window.assignDMToLead    = (leadUid, dmUid)    => window.users.assignDMToLead(leadUid, dmUid);
 
 // Store actions
 window.assignTL = async (storeId,uid)=>{
@@ -217,7 +206,7 @@ window.editStorePrompt = async storeId =>{
 };
 
 window.editUserStore = async uid =>{
-  if (window.users?.editUserStore) return window.users.editUserStore(uid);
+  if(window.users?.editUserStore) return window.users.editUserStore(uid);
   assertEdit();
   const num=prompt("Enter store number:");
   if(!num)return;
