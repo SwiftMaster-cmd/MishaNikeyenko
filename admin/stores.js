@@ -1,14 +1,21 @@
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
-  function canEdit(role) {
-    return role !== ROLES.ME;
+  // Permission helpers
+  function canEditStoreNumber(role) {
+    return role === ROLES.ADMIN;
+  }
+  function canAssignTL(role) {
+    return role === ROLES.ADMIN || role === ROLES.DM;
   }
   function canDelete(role) {
-    return role === ROLES.DM || role === ROLES.ADMIN;
+    return role === ROLES.ADMIN || role === ROLES.DM;
   }
   function assertEdit() {
-    if (!window.currentRole || window.currentRole === ROLES.ME) throw "PERM_DENIED_EDIT";
+    if (!window.currentRole || window.currentRole !== ROLES.ADMIN) throw "PERM_DENIED_EDIT";
+  }
+  function assertAssign() {
+    if (!window.currentRole || !(window.currentRole === ROLES.ADMIN || window.currentRole === ROLES.DM)) throw "PERM_DENIED_ASSIGN";
   }
   function assertDelete() {
     if (!canDelete(window.currentRole)) throw "PERM_DENIED_DELETE";
@@ -19,11 +26,11 @@
     const storeRows = Object.entries(stores).map(([id,s])=>{
       const tl = users[s.teamLeadUid] || {};
       return `<tr>
-        <td>${canEdit(currentRole)
+        <td>${canEditStoreNumber(currentRole)
           ? `<input type="text" value="${s.storeNumber||''}" onchange="window.stores.updateStoreNumber('${id}',this.value)">`
           : s.storeNumber||'-'}</td>
         <td>
-          ${canEdit(currentRole) ? `<select onchange="window.stores.assignTL('${id}',this.value)">
+          ${canAssignTL(currentRole) ? `<select onchange="window.stores.assignTL('${id}',this.value)">
             <option value="">-- Unassigned --</option>
             ${Object.entries(users)
                 .filter(([,u])=>[ROLES.LEAD,ROLES.DM].includes(u.role))
@@ -42,17 +49,17 @@
           <thead><tr><th>#</th><th>Team Lead</th><th>Actions</th></tr></thead>
           <tbody>${storeRows}</tbody>
         </table>
-        ${canEdit(currentRole)?`
+        ${currentRole === ROLES.ADMIN ? `
           <div class="store-add">
             <input id="newStoreNum" placeholder="New Store #">
             <button onclick="window.stores.addStore()">Add Store</button>
-          </div>`:''}
+          </div>` : ''}
       </section>
     `;
   }
 
   async function assignTL(storeId, uid) {
-    assertEdit();
+    assertAssign();
     const stores = (await window.db.ref("stores").get()).val()||{};
     for(const sId in stores) if(stores[sId].teamLeadUid===uid && sId!==storeId)
       await window.db.ref(`stores/${sId}/teamLeadUid`).set("");
