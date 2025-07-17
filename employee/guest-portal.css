@@ -21,6 +21,41 @@
   margin: 0;
   padding: 0;
 }
+/* Guest Portal header / back button */
+.guest-header {
+  width: 100%;
+  max-width: 480px;              /* aligns with guest-box width if you use a max there */
+  margin: 0 auto;
+  padding: 8px 16px;
+  text-align: left;
+}
+.guest-back-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  font-size: 16px;               /* >=16px to avoid iOS zoom */
+  font-weight: 600;
+  color: #1e90ff;
+  background: rgba(30,144,255,0.15);
+  border: 1px solid rgba(30,144,255,0.4);
+  border-radius: 8px;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .2s ease, box-shadow .2s ease;
+}
+.guest-back-btn:hover {
+  background: rgba(30,144,255,0.25);
+  box-shadow: 0 0 0 2px rgba(30,144,255,.4) inset;
+}
+@media (min-width: 600px) {
+  .guest-header {
+    padding: 16px 0;
+    text-align: left;
+  }
+  .guest-back-btn {
+    font-size: 1rem;
+  }
+}
 
 /* ==========================================================================
    Body & Background
