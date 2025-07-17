@@ -660,3 +660,4 @@ td:last-child{text-align:right;}
 @media (max-width:480px){
   .store-add{gap:var(--space-xs);}
 }
+
