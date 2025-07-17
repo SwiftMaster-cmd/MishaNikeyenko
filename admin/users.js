@@ -3,7 +3,6 @@
 
   const roleBadge = r => `<span class="role-badge role-${r}">${r.toUpperCase()}</span>`;
 
-  // Use dynamic permission checks from admin.js
   function assertEdit() {
     if (!window.canEdit || !window.canEdit(window.currentRole)) throw "PERM_DENIED_EDIT";
   }
@@ -18,20 +17,57 @@
     return window.canDelete(role);
   }
 
-  function renderUsersSection(users, currentRole) {
+  // Filter users based on currentRole & visibility rules
+  function filterVisibleUsers(users, currentUid, currentRole) {
+    return Object.entries(users).filter(([uid,u]) => {
+      if (currentRole === ROLES.ADMIN) {
+        // Admin sees all
+        return true;
+      }
+      if (currentRole === ROLES.DM) {
+        // DM sees all except Admins
+        return u.role !== ROLES.ADMIN;
+      }
+      if (currentRole === ROLES.LEAD) {
+        // Lead sees only ME assigned to them and their own DM
+        if (u.role === ROLES.ME && u.assignedLead === currentUid) return true;
+        if (u.role === ROLES.DM && u.assignedDM === currentUid) return true;
+        // Lead can see self too for sanity
+        if (uid === currentUid) return true;
+        return false;
+      }
+      if (currentRole === ROLES.ME) {
+        // ME sees only self, their Lead, and their DM
+        if (uid === currentUid) return true;
+        if (uid === users[currentUid]?.assignedLead) return true;
+        if (uid === users[currentUid]?.assignedDM) return true;
+        return false;
+      }
+      // fallback deny
+      return false;
+    });
+  }
+
+  function renderUsersSection(users, currentUid, currentRole) {
+    // Filter visible users first
+    const visibleUsers = filterVisibleUsers(users, currentUid, currentRole);
+
     return `
       <section class="admin-section users-section">
         <h2>Users</h2>
         <div class="users-container">
-          ${Object.entries(users).map(([uid,u])=>{
+          ${visibleUsers.map(([uid,u])=>{
             const lead = users[u.assignedLead] || {};
             const dm   = users[u.assignedDM]   || {};
 
-            // Permission flags based on currentRole
-            const canEditRole = currentRole === ROLES.ADMIN || (currentRole === ROLES.DM && u.role !== ROLES.ADMIN);
-            const canAssignLead = currentRole === ROLES.ADMIN || currentRole === ROLES.DM;
-            const canAssignDM = currentRole === ROLES.ADMIN;
-            const canDeleteUser = currentRole === ROLES.ADMIN;
+            // Permissions per currentRole
+            const canEditRole = (currentRole === ROLES.ADMIN) || (currentRole === ROLES.DM && u.role !== ROLES.ADMIN);
+            const canAssignLead = (currentRole === ROLES.ADMIN) || (currentRole === ROLES.DM);
+            const canAssignDM = (currentRole === ROLES.ADMIN);
+            const canDeleteUser = (currentRole === ROLES.ADMIN) || (currentRole === ROLES.DM);
+
+            // ME and Lead cannot edit or assign or delete
+            const isEditable = canEditRole || canAssignLead || canAssignDM || canDeleteUser;
 
             return `<div class="user-card">
               <div class="user-card-header">
@@ -43,7 +79,7 @@
                 <div><b>Lead:</b> ${lead.name||lead.email||'-'}</div>
                 <div><b>DM:</b>   ${dm.name||dm.email||'-'}</div>
               </div>
-              ${(canEditRole || canAssignLead || canAssignDM || canDeleteUser) ? `<div class="user-card-actions">
+              ${isEditable ? `<div class="user-card-actions">
                 ${canEditRole ? `
                 <label>Role:
                   <select onchange="window.users.changeUserRole('${uid}',this.value)">
@@ -58,7 +94,7 @@
                   <select onchange="window.users.assignLeadToGuest('${uid}',this.value)">
                     <option value="">None</option>
                     ${Object.entries(users).filter(([,x])=>x.role===ROLES.LEAD)
-                       .map(([id,x])=>`<option value="${id}" ${u.assignedLead===id?'selected':''}>${x.name||x.email}</option>`).join('')}
+                      .map(([id,x])=>`<option value="${id}" ${u.assignedLead===id?'selected':''}>${x.name||x.email}</option>`).join('')}
                   </select>
                 </label>` : ''}
                 ${canAssignDM ? `
@@ -66,7 +102,7 @@
                   <select onchange="window.users.assignDMToLead('${uid}',this.value)">
                     <option value="">None</option>
                     ${Object.entries(users).filter(([,x])=>x.role===ROLES.DM)
-                       .map(([id,x])=>`<option value="${id}" ${u.assignedDM===id?'selected':''}>${x.name||x.email}</option>`).join('')}
+                      .map(([id,x])=>`<option value="${id}" ${u.assignedDM===id?'selected':''}>${x.name||x.email}</option>`).join('')}
                   </select>
                 </label>` : ''}
                 ${canDeleteUser ? `<button class="btn btn-danger-outline" onclick="window.users.deleteUser('${uid}')">Delete</button>` : ''}
