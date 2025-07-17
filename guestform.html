@@ -1,165 +1,30 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>Guest Form</title>
-  <style>
-   :root {
-  --primary: #1976d2;
-  --bg: #eef2f7;
-  --card: #ffffff;
-  --input-bg: #f9fbfd;
-  --border: #d0d7e2;
-  --radius: 12px;
-  --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --text: #1a1d23;
-}
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="guestform.css" />
 
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: var(--bg);
-  font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
-  color: var(--text);
-}
-
-body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 16px;
-}
-
-form {
-  background: var(--card);
-  padding: 28px 24px;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  width: 100%;
-  max-width: 480px;
-  margin: auto;
-}
-
-h2 {
-  margin-top: 0;
-  font-size: 1.6em;
-  font-weight: 600;
-  text-align: center;
-  color: var(--primary);
-}
-
-input[type="text"],
-input[type="tel"],
-input[type="email"],
-button {
-  width: 100%;
-  font-size: 16px;
-  padding: 12px 14px;
-  margin-top: 16px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--input-bg);
-  transition: border 0.2s, box-shadow 0.2s;
-}
-
-input:focus {
-  border-color: var(--primary);
-  background: #fff;
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.15);
-}
-
-label {
-  display: flex;
-  align-items: center;
-  font-size: 15px;
-  gap: 10px;
-  margin-top: 20px;
-  cursor: pointer;
-  line-height: 1.4;
-}
-
-a {
-  color: var(--primary);
-  text-decoration: underline;
-}
-
-button {
-  background: var(--primary);
-  color: white;
-  font-weight: 500;
-  border: none;
-  margin-top: 28px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-button:hover {
-  background: #155aaf;
-}
-  </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
-  <h2>Guest Form</h2>
   <form id="guestForm">
-    <input type="text" id="guestName" placeholder="Your name" required>
-    <input type="tel" id="guestPhone" placeholder="Phone number" required>
+    <h2>Guest Form</h2>
+
+    <input type="text" id="guestName" placeholder="Your name" required />
+    <input type="tel" id="guestPhone" placeholder="Phone number" required />
 
     <label>
-      <input type="checkbox" id="agreeTerms" required>
-      I agree to the guest submission <a href="terms.html" target="_blank">terms</a>.
+      <input type="checkbox" id="agreeTerms" required />
+      I agree to the <a href="terms.html" target="_blank">terms</a>.
     </label>
 
     <button type="submit">Submit</button>
   </form>
 
-  <!-- Firebase + Logic -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
-      authDomain: "osls-644fd.firebaseapp.com",
-      databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
-      projectId: "osls-644fd",
-      storageBucket: "osls-644fd.appspot.com",
-      messagingSenderId: "798578046321",
-      appId: "1:798578046321:web:8758776701786a2fccf2d0"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    const form = document.getElementById("guestForm");
-    form.onsubmit = async e => {
-      e.preventDefault();
-      const guestName = document.getElementById("guestName").value.trim();
-      const guestPhone = document.getElementById("guestPhone").value.trim();
-      const agree = document.getElementById("agreeTerms").checked;
-
-      if (!guestName || !guestPhone || !agree) {
-        alert("Please fill out all fields and agree to the terms.");
-        return;
-      }
-
-      const entry = {
-        guestName,
-        guestPhone,
-        timestamp: Date.now()
-      };
-
-      try {
-        await db.ref("guestEntries").push(entry);
-        alert("Submitted successfully.");
-        form.reset();
-      } catch (err) {
-        alert("Error submitting: " + err.message);
-      }
-    };
-  </script>
+  <script src="guestform.js"></script>
 </body>
 </html>
