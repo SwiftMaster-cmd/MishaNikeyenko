@@ -1,7 +1,7 @@
 (() => {
   const ROLES = { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
 
-  /* Path to detailed guest-info workflow page (correct w/ hyphen). */
+  /* Path to detailed guest-info workflow page (update if moved). */
   window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guestinfo.html";
 
   /* --------------------------------------------------------------
@@ -12,8 +12,9 @@
   const isLead  = r => r === ROLES.LEAD;
   const isMe    = r => r === ROLES.ME;
 
+  // PATCH: allow Admin, DM, and Lead to delete.
   function canDeleteForm(role){
-    return isAdmin(role) || isDM(role);
+    return isAdmin(role) || isDM(role) || isLead(role);
   }
 
   /* --------------------------------------------------------------
