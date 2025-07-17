@@ -1,5 +1,6 @@
 /* ========================================================================
    Dashboard Main Script
+   Order: Guest Form Submissions → Guest Info → Stores → Users → Reviews → Role Mgmt
    ===================================================================== */
 
 const ROLES = window.ROLES || { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
@@ -28,6 +29,9 @@ const adminAppDiv = document.getElementById("adminApp");
 let currentUid  = null;
 let currentRole = ROLES.ME;
 
+/* ------------------------------------------------------------------------
+   Auth guard + profile bootstrap
+   ------------------------------------------------------------------------ */
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
     window.location.href = "index.html";
@@ -42,9 +46,11 @@ auth.onAuthStateChanged(async (user) => {
     name: user.displayName || user.email,
     email: user.email,
   };
+
   currentRole = (prof.role || ROLES.ME).toLowerCase();
   window.currentRole = currentRole;
 
+  // ensure profile exists / normalized
   await db.ref("users/" + user.uid).update(prof);
 
   document.getElementById("logoutBtn")?.addEventListener("click", () => auth.signOut());
@@ -52,6 +58,9 @@ auth.onAuthStateChanged(async (user) => {
   await renderAdminApp();
 });
 
+/* ------------------------------------------------------------------------
+   Permission helpers (legacy; modules use own asserts)
+   ------------------------------------------------------------------------ */
 function assertEdit() {
   if (!window.canEdit || !window.canEdit(currentRole)) throw "PERM_DENIED_EDIT";
 }
@@ -59,15 +68,27 @@ function assertDelete() {
   if (!window.canDelete || !window.canDelete(currentRole)) throw "PERM_DENIED_DELETE";
 }
 
+/* ------------------------------------------------------------------------
+   Main render
+   ------------------------------------------------------------------------ */
 async function renderAdminApp() {
   adminAppDiv.innerHTML = "<div>Loading data…</div>";
 
-  const [storesSnap, usersSnap, reviewsSnap, guestSnap, guestFormsSnap] = await Promise.all([
+  // Fetch everything needed
+  const [
+    storesSnap,
+    usersSnap,
+    reviewsSnap,
+    guestSnap,
+    guestFormsSnap,
+    salesSnap
+  ] = await Promise.all([
     db.ref("stores").get(),
     db.ref("users").get(),
     db.ref("reviews").get(),
     db.ref("guestinfo").get(),
-    db.ref("guestEntries").get(), // public step1 submissions
+    db.ref("guestEntries").get(), // Step-1 QR submissions
+    db.ref("sales").get()
   ]);
 
   const stores     = storesSnap.val()     || {};
@@ -75,44 +96,45 @@ async function renderAdminApp() {
   const reviews    = reviewsSnap.val()    || {};
   const guestinfo  = guestSnap.val()      || {};
   const guestForms = guestFormsSnap.val() || {};
+  const sales      = salesSnap.val()      || {};
 
   /* ---------------------------------------------------------------
-     Build each section's HTML
+     Build each section's HTML in requested order
      --------------------------------------------------------------- */
 
-  // Guest Form Submissions (always show; read-only if no module)
+  // 1) Guest Form Submissions
   const guestFormsHtml = window.guestforms?.renderGuestFormsSection
     ? window.guestforms.renderGuestFormsSection(guestForms, currentRole)
     : `<section class="admin-section guest-forms-section"><h2>Guest Form Submissions</h2><p class="text-center">Module not loaded.</p></section>`;
 
-  // Guest Info (role-filtered inside module)
+  // 2) Guest Info (role-filtered in module)
   const guestinfoHtml = window.guestinfo?.renderGuestinfoSection
     ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
-    : `<p class="text-center">Guest Info module not loaded.</p>`;
+    : `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">Module not loaded.</p></section>`;
 
-  // Stores (hidden for ME)
+  // 3) Stores (hidden for ME)
   const storesHtml = (currentRole !== ROLES.ME && window.stores?.renderStoresSection)
-    ? window.stores.renderStoresSection(stores, users, currentRole)
+    ? window.stores.renderStoresSection(stores, users, currentRole, sales)
     : "";
 
-  // Users
+  // 4) Users
   const usersHtml = window.users?.renderUsersSection
     ? window.users.renderUsersSection(users, currentRole, currentUid)
-    : `<p class="text-center">Users module not loaded.</p>`;
+    : `<section class="admin-section users-section"><h2>Users</h2><p class="text-center">Module not loaded.</p></section>`;
 
-  // Reviews
+  // 5) Reviews
   const reviewsHtml = window.reviews?.renderReviewsSection
     ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
-    : `<p class="text-center">Reviews module not loaded.</p>`;
+    : `<section class="admin-section reviews-section"><h2>Reviews</h2><p class="text-center">Module not loaded.</p></section>`;
 
-  // Role Mgmt
+  // 6) Role Mgmt
   const roleMgmtHtml =
     typeof window.renderRoleManagementSection === "function"
       ? window.renderRoleManagementSection(currentRole)
       : "";
 
   /* ---------------------------------------------------------------
-     ORDER: Form → Info → Store → User → Review
+     Inject into DOM
      --------------------------------------------------------------- */
   adminAppDiv.innerHTML = `
     ${guestFormsHtml}
@@ -123,17 +145,26 @@ async function renderAdminApp() {
     ${roleMgmtHtml}
   `;
 
-  // Cache objects for filters
+  /* ---------------------------------------------------------------
+     Cache objects for cross-module use
+     --------------------------------------------------------------- */
+  // Reviews cache used by review filter handlers
   if (window.reviews?.filterReviewsByRole) {
     window._filteredReviews = Object.entries(
       window.reviews.filterReviewsByRole(reviews, users, currentUid, currentRole)
     ).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
   } else {
-    window._filteredReviews = Object.entries(reviews).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
+    window._filteredReviews = Object.entries(reviews).sort(
+      (a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0)
+    );
   }
 
-  window._users  = users;
-  window._stores = stores;
+  // Global caches (modules rely on these)
+  window._users     = users;
+  window._stores    = stores;
+  window._guestinfo = guestinfo;
+  window._sales     = sales;
+  window._guestForms = guestForms; // optional; used by guestforms module
 }
 
 /* ========================================================================
@@ -157,17 +188,20 @@ window.editUserStore     = async (uid)         => {
 window.toggleStar   = (id, starred) => window.reviews.toggleStar(id, starred);
 window.deleteReview = (id)          => window.reviews.deleteReview(id);
 
-// Review filters (use filtered reviews)
+// Review filters
 window.filterReviewsByStore = (store) => {
   const filtered = window._filteredReviews.filter(([, r]) => r.store === store);
-  document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(filtered);
+  document.querySelector(".reviews-container").innerHTML =
+    window.reviews.reviewsToHtml(filtered);
 };
 window.filterReviewsByAssociate = (name) => {
   const filtered = window._filteredReviews.filter(([, r]) => r.associate === name);
-  document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(filtered);
+  document.querySelector(".reviews-container").innerHTML =
+    window.reviews.reviewsToHtml(filtered);
 };
 window.clearReviewFilter = () => {
-  document.querySelector(".reviews-container").innerHTML = window.reviews.reviewsToHtml(window._filteredReviews);
+  document.querySelector(".reviews-container").innerHTML =
+    window.reviews.reviewsToHtml(window._filteredReviews);
 };
 
 // Guest Form submissions actions

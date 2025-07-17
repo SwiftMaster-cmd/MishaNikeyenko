@@ -1,9 +1,9 @@
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
 
-  /* ------------------------------------------------------------------
+  /* ====================================================================
      Permission helpers
-     ------------------------------------------------------------------ */
+     ==================================================================== */
   function canEditStoreNumber(role) {
     return role === ROLES.ADMIN;
   }
@@ -30,55 +30,92 @@
 
   const roleBadge = (r) => `<span class="role-badge role-${r}">${r.toUpperCase()}</span>`;
 
-  /* ------------------------------------------------------------------
-     Sales summarizer
-     salesObj: { saleId: {storeNumber, units, amount?, ...}, ... }
+  /* ====================================================================
+     Normalization helpers
+     ==================================================================== */
+  const UNASSIGNED_KEY = "__UNASSIGNED__";
+
+  const normStore = (sn) => (sn ?? "").toString().trim();
+
+  /**
+   * Try to derive a canonical storeNumber for a sale record that may not
+   * have a (valid) storeNumber. Order:
+   *   1. sale.storeNumber
+   *   2. guestinfo[guestinfoKey].sale.storeNumber
+   *   3. users[guestinfo.userUid].store
+   *   4. If submitter has a lead (assignedLead) and exactly one store
+   *      uses that TL, use that store's number.
+   * Else returns UNASSIGNED_KEY.
+   */
+  function deriveStoreNumberForSale(sale, guestinfoObj, users, storesObj) {
+    let sn = normStore(sale.storeNumber);
+
+    if (!sn && sale.guestinfoKey && guestinfoObj) {
+      const g = guestinfoObj[sale.guestinfoKey];
+      if (g) {
+        sn = normStore(g.sale?.storeNumber);
+        if (!sn) sn = normStore(users?.[g.userUid]?.store);
+        if (!sn && g.userUid) {
+          const submitter = users?.[g.userUid];
+          const leadUid = submitter?.assignedLead;
+          if (leadUid) {
+            const matchStores = Object.values(storesObj || {}).filter(
+              (st) => st.teamLeadUid === leadUid
+            );
+            if (matchStores.length === 1) {
+              sn = normStore(matchStores[0].storeNumber);
+            }
+          }
+        }
+      }
+    }
+
+    return sn || UNASSIGNED_KEY;
+  }
+
+  /* ====================================================================
+     Sales summarizer (normalized)
      Returns { [storeNumber]: {count, units, amount} }
-     ------------------------------------------------------------------ */
-  function summarizeSalesByStore(salesObj) {
+     amount kept for possible future reporting; not displayed.
+     ==================================================================== */
+  function summarizeSalesByStore(salesObj, storesObj, guestinfoObj, users) {
     const out = {};
     if (!salesObj) return out;
+
     for (const [, s] of Object.entries(salesObj)) {
-      const sn = (s.storeNumber || "").toString().trim();
-      if (!sn) continue;
+      const sn = deriveStoreNumberForSale(s, guestinfoObj, users, storesObj);
       if (!out[sn]) out[sn] = { count: 0, units: 0, amount: 0 };
       out[sn].count += 1;
       out[sn].units += Number(s.units || 0);
-      out[sn].amount += Number(s.amount || 0); // kept for possible reporting even if UI hides $
+      out[sn].amount += Number(s.amount || 0); // legacy
     }
     return out;
   }
 
-  /* ------------------------------------------------------------------
-     Get ME users tied to a store
-     - Primary: user.store === storeNumber (string compare)
-     - Backup:  if teamLeadUid exists, include MEs whose assignedLead === teamLeadUid
-     Deduped; returns array of user objects
-     ------------------------------------------------------------------ */
+  /* ====================================================================
+     Associates (MEs) listing per store
+     Primary: user.store === storeNumber
+     Fallback: user.assignedLead === store.teamLeadUid
+     ==================================================================== */
   function getMesForStore(users, storeNumber, teamLeadUid) {
-    const match = new Set();
+    const sn = normStore(storeNumber);
+    const seen = new Set();
     const mes = [];
-
-    const sn = (storeNumber || "").toString().trim();
 
     for (const [uid, u] of Object.entries(users)) {
       if (u.role !== ROLES.ME) continue;
 
-      // store match
-      if (sn && u.store && u.store.toString().trim() === sn) {
-        if (!match.has(uid)) {
-          match.add(uid);
+      if (sn && u.store && normStore(u.store) === sn) {
+        if (!seen.has(uid)) {
+          seen.add(uid);
           mes.push({ uid, ...u });
-          continue;
         }
+        continue;
       }
 
-      // lead relationship fallback
-      if (teamLeadUid && u.assignedLead === teamLeadUid) {
-        if (!match.has(uid)) {
-          match.add(uid);
-          mes.push({ uid, ...u });
-        }
+      if (teamLeadUid && u.assignedLead === teamLeadUid && !seen.has(uid)) {
+        seen.add(uid);
+        mes.push({ uid, ...u });
       }
     }
     return mes;
@@ -86,34 +123,36 @@
 
   function fmtMesCell(mesArr) {
     if (!mesArr || !mesArr.length) return "-";
-    // Shorten: show up to 3 names, then +N
     const names = mesArr.map((u) => u.name || u.email || u.uid);
     const shown = names.slice(0, 3).join(", ");
     const extra = names.length > 3 ? ` +${names.length - 3}` : "";
     return `${shown}${extra}`;
   }
 
-  /* ------------------------------------------------------------------
-     Format sales cell: count / units
-     ------------------------------------------------------------------ */
+  /* ====================================================================
+     Sales cell formatting (count / units)
+     ==================================================================== */
   function fmtSalesCell(summ) {
     if (!summ) return "-";
-    const { count, units } = summ;
-    return `${count} / ${units}u`;
+    return `${summ.count} / ${summ.units}u`;
   }
 
-  /* ------------------------------------------------------------------
+  /* ====================================================================
      Render Stores
-     ------------------------------------------------------------------ */
+     ==================================================================== */
   function renderStoresSection(stores, users, currentRole, salesObj) {
-    // allow optional param; fall back to cached global
-    const _salesObj = salesObj || window._sales || {};
-    const salesSummary = summarizeSalesByStore(_salesObj);
+    // Use globals if arguments missing
+    const _salesObj  = salesObj            || window._sales     || {};
+    const _users     = users               || window._users     || {};
+    const _stores    = stores              || window._stores    || {};
+    const _guestinfo = window._guestinfo   || {}; // needed for normalization
+
+    const salesSummary = summarizeSalesByStore(_salesObj, _stores, _guestinfo, _users);
 
     const storeRows = Object.entries(stores).map(([id, s]) => {
       const tl = users[s.teamLeadUid] || {};
       const storeNumber = s.storeNumber || "";
-      const summ = salesSummary[storeNumber];
+      const summ  = salesSummary[normStore(storeNumber)];
       const mesArr = getMesForStore(users, storeNumber, s.teamLeadUid);
       const mesCell = fmtMesCell(mesArr);
 
@@ -126,9 +165,8 @@
             <option value="">-- Unassigned --</option>
             ${Object.entries(users)
               .filter(([, u]) => [ROLES.LEAD, ROLES.DM].includes(u.role))
-              .map(
-                ([uid, u]) =>
-                  `<option value="${uid}" ${s.teamLeadUid === uid ? 'selected' : ''}>${u.name || u.email}</option>`
+              .map(([uid, u]) =>
+                `<option value="${uid}" ${s.teamLeadUid === uid ? 'selected' : ''}>${u.name || u.email}</option>`
               )
               .join("")}
           </select>` : (tl.name || tl.email || '-')}
@@ -141,6 +179,16 @@
           : ''}</td>
       </tr>`;
     }).join("");
+
+    // Unassigned bucket row (if any orphaned sales exist)
+    const unassignedSumm = salesSummary[UNASSIGNED_KEY];
+    const unassignedRow = unassignedSumm
+      ? `<tr class="unassigned-row">
+          <td colspan="3"><i>Unassigned sales (no matching store)</i></td>
+          <td>${fmtSalesCell(unassignedSumm)}</td>
+          <td></td>
+        </tr>`
+      : "";
 
     return `
       <section class="admin-section stores-section">
@@ -155,7 +203,7 @@
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody>${storeRows}</tbody>
+          <tbody>${storeRows}${unassignedRow}</tbody>
         </table>
         ${currentRole === ROLES.ADMIN ? `
           <div class="store-add">
@@ -166,12 +214,13 @@
     `;
   }
 
-  /* ------------------------------------------------------------------
+  /* ====================================================================
      Actions
-     ------------------------------------------------------------------ */
+     ==================================================================== */
   async function assignTL(storeId, uid) {
     assertAssign();
     const stores = (await window.db.ref("stores").get()).val() || {};
+    // ensure TL only tied to one store
     for (const sId in stores) {
       if (stores[sId].teamLeadUid === uid && sId !== storeId) {
         await window.db.ref(`stores/${sId}/teamLeadUid`).set("");
@@ -207,7 +256,9 @@
     }
   }
 
-  // expose
+  /* ====================================================================
+     Expose
+     ==================================================================== */
   window.stores = {
     renderStoresSection,
     assignTL,
@@ -215,6 +266,6 @@
     addStore,
     deleteStore,
     summarizeSalesByStore,
-    getMesForStore // export in case you want usage elsewhere
+    getMesForStore
   };
 })();
