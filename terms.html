@@ -28,12 +28,27 @@
     }
 
     .page {
+      padding: 24px 16px;
+      height: 100%;
       display: flex;
       flex-direction: column;
-      height: 100%;
-      justify-content: center;
       align-items: center;
-      padding: 20px;
+    }
+
+    .back-button {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--card);
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
     }
 
     .container {
@@ -44,7 +59,6 @@
       max-width: 600px;
       width: 100%;
       line-height: 1.7;
-      position: relative;
     }
 
     h2 {
@@ -58,26 +72,12 @@
       font-size: 1.05em;
       margin-top: 16px;
     }
-
-    .back-link {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      font-size: 1.5em;
-      text-decoration: none;
-      color: var(--primary);
-      font-weight: bold;
-    }
-
-    .back-link:hover {
-      text-decoration: underline;
-    }
   </style>
 </head>
 <body>
   <div class="page">
+    <a href="guestform.html" class="back-button">&#8592;</a>
     <div class="container">
-      <a href="guestform.html" class="back-link">&#8592;</a>
       <h2>Guest Submission Terms</h2>
       <p>
         By submitting your name and phone number, you agree that your information may be used by an authorized associate for follow-up purposes. Your information will not be sold or shared externally.
