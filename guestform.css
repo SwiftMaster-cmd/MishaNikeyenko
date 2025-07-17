@@ -43,16 +43,16 @@ form {
 h2 {
   margin-top: 0;
   font-size: 1.6em;
-  font-weight: 600;
+  font-weight: 900;
   text-align: center;
   color: var(--primary);
 }
 h4 {
   margin-top: 0;
-  font-size: 1.6em;
-  font-weight: 600;
+  font-size: 1em;
+  font-weight: 300;
   text-align: center;
-  color: var(--primary);
+  color: var(--secondary);
 }
 
 input[type="text"],
