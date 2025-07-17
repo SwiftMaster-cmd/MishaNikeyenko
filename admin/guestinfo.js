@@ -11,8 +11,12 @@
 
   // Helper: get users under this DM (leads + ME)
   function getUsersUnderDM(users, dmUid) {
-    const leads = Object.entries(users).filter(([,u]) => u.role === ROLES.LEAD && u.assignedDM === dmUid).map(([uid])=>uid);
-    const mes = Object.entries(users).filter(([,u]) => u.role === ROLES.ME && leads.includes(u.assignedLead)).map(([uid])=>uid);
+    const leads = Object.entries(users)
+      .filter(([, u]) => u.role === ROLES.LEAD && u.assignedDM === dmUid)
+      .map(([uid]) => uid);
+    const mes = Object.entries(users)
+      .filter(([, u]) => u.role === ROLES.ME && leads.includes(u.assignedLead))
+      .map(([uid]) => uid);
     return new Set([...leads, ...mes]);
   }
 
@@ -33,7 +37,9 @@
 
     if (currentRole === ROLES.LEAD) {
       // Lead sees own guestinfo + ME under them
-      const mesUnderLead = Object.entries(users).filter(([,u]) => u.role === ROLES.ME && u.assignedLead === currentUid).map(([uid]) => uid);
+      const mesUnderLead = Object.entries(users)
+        .filter(([, u]) => u.role === ROLES.ME && u.assignedLead === currentUid)
+        .map(([uid]) => uid);
       const visibleUsers = new Set([...mesUnderLead, currentUid]);
       return Object.fromEntries(
         Object.entries(guestinfo).filter(([id, g]) => visibleUsers.has(g.userUid))
@@ -50,53 +56,72 @@
     return {};
   }
 
+  // Escape for HTML inputs (simple)
+  function escapeHtml(str) {
+    return (str || '')
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   function renderGuestinfoSection(guestinfo, users, currentUid, currentRole) {
     const visibleGuestinfo = filterGuestinfo(guestinfo, users, currentUid, currentRole);
 
-    if (Object.keys(visibleGuestinfo).length === 0) return `<p class="text-center">No guest info found.</p>`;
+    if (Object.keys(visibleGuestinfo).length === 0)
+      return `<p class="text-center">No guest info found.</p>`;
 
-    // Render cards with toggle edit per card
     const guestCards = Object.entries(visibleGuestinfo)
-      .sort((a,b) => (b[1].submittedAt||0) - (a[1].submittedAt||0))
+      .sort((a, b) => (b[1].submittedAt || 0) - (a[1].submittedAt || 0))
       .map(([id, g]) => {
         const submitter = users[g.userUid];
         const canDeleteEntry = canDelete(currentRole);
-        const canEditEntry = (currentRole !== ROLES.ME) || (g.userUid === currentUid); 
+        const canEditEntry = currentRole !== ROLES.ME || g.userUid === currentUid;
 
         return `
           <div class="guest-card" id="guest-card-${id}">
-            <div><b>Submitted by:</b> ${submitter?.name||submitter?.email||g.userUid}</div>
-            <div><b>Customer:</b> <span class="guest-custName">${g.custName||'-'}</span> | <b>Phone:</b> <span class="guest-custPhone">${g.custPhone||'-'}</span></div>
-            <div><b>Type:</b> <span class="guest-serviceType">${g.serviceType||'-'}</span></div>
-            <div><b>Situation:</b> <span class="guest-situation">${g.situation||'-'}</span></div>
-            <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : '-'}</div>
-            <div style="margin-top: 8px;">
-              ${canEditEntry ? `<button onclick="window.guestinfo.toggleEdit('${id}')">Edit</button>` : ''}
-              ${canDeleteEntry ? `<button onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete</button>` : ''}
+            <div class="guest-display" style="display: block;">
+              <div><b>Submitted by:</b> ${submitter?.name || submitter?.email || g.userUid}</div>
+              <div><b>Customer:</b> ${escapeHtml(g.custName) || "-"} | <b>Phone:</b> ${escapeHtml(g.custPhone) || "-"}</div>
+              <div><b>Type:</b> ${escapeHtml(g.serviceType) || "-"}</div>
+              <div><b>Situation:</b> ${escapeHtml(g.situation) || "-"}</div>
+              <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : "-"}</div>
+              ${
+                canEditEntry
+                  ? `<button onclick="window.guestinfo.toggleEdit('${id}')">Edit</button>`
+                  : ""
+              }
             </div>
+
             <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none; margin-top: 8px;">
               <label>
                 Customer Name:<br>
-                <input type="text" name="custName" value="${g.custName || ''}">
+                <input type="text" name="custName" value="${escapeHtml(g.custName)}" />
               </label><br>
               <label>
                 Customer Phone:<br>
-                <input type="text" name="custPhone" value="${g.custPhone || ''}">
+                <input type="text" name="custPhone" value="${escapeHtml(g.custPhone)}" />
               </label><br>
               <label>
                 Service Type:<br>
-                <input type="text" name="serviceType" value="${g.serviceType || ''}">
+                <input type="text" name="serviceType" value="${escapeHtml(g.serviceType)}" />
               </label><br>
               <label>
                 Situation:<br>
-                <textarea name="situation">${g.situation || ''}</textarea>
+                <textarea name="situation">${escapeHtml(g.situation)}</textarea>
               </label><br>
               <button type="button" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
               <button type="button" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
+              ${
+                canDeleteEntry
+                  ? `<button type="button" style="margin-left:10px;" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete</button>`
+                  : ""
+              }
             </form>
           </div>
         `;
-      }).join('');
+      })
+      .join("");
 
     return `
       <section class="admin-section guestinfo-section">
@@ -106,21 +131,29 @@
     `;
   }
 
-  // Toggle edit form visibility for a guest info card
   function toggleEdit(id) {
-    const form = document.getElementById(`guest-edit-form-${id}`);
-    if (!form) return;
-    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    const displayDiv = document.querySelector(`#guest-card-${id} .guest-display`);
+    const editForm = document.getElementById(`guest-edit-form-${id}`);
+    if (!displayDiv || !editForm) return;
+
+    if (editForm.style.display === "none") {
+      editForm.style.display = "block";
+      displayDiv.style.display = "none";
+    } else {
+      editForm.style.display = "none";
+      displayDiv.style.display = "block";
+    }
   }
 
-  // Cancel edit hides the form
   function cancelEdit(id) {
     const form = document.getElementById(`guest-edit-form-${id}`);
-    if (!form) return;
-    form.style.display = 'none';
+    const displayDiv = document.querySelector(`#guest-card-${id} .guest-display`);
+    if (!form || !displayDiv) return;
+
+    form.style.display = "none";
+    displayDiv.style.display = "block";
   }
 
-  // Save edit: collects form data and updates Firebase
   async function saveEdit(id) {
     const form = document.getElementById(`guest-edit-form-${id}`);
     if (!form) return alert("Edit form not found.");
@@ -134,7 +167,7 @@
 
     try {
       await window.db.ref(`guestinfo/${id}`).update(data);
-      form.style.display = 'none';
+      cancelEdit(id);
       await window.renderAdminApp();
     } catch (e) {
       alert("Error saving changes: " + e.message);
@@ -142,7 +175,10 @@
   }
 
   async function deleteGuestInfo(id) {
-    if (!canDelete(window.currentRole)) return alert("You don't have permission to delete.");
+    if (!canDelete(window.currentRole)) {
+      alert("You don't have permission to delete.");
+      return;
+    }
     if (!confirm("Delete this guest info?")) return;
     try {
       await window.db.ref(`guestinfo/${id}`).remove();
@@ -157,6 +193,6 @@
     toggleEdit,
     cancelEdit,
     saveEdit,
-    deleteGuestInfo
+    deleteGuestInfo,
   };
 })();
