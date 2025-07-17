@@ -1,9 +1,8 @@
 (() => {
   const ROLES = { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
 
-  /* Path to detailed guest-info workflow page.
-     Adjust if you move the file. */
-  window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guestinfo.html";
+  /* Path to detailed guest-info workflow page (correct w/ hyphen). */
+  window.GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../employee/guest-info.html";
 
   /* --------------------------------------------------------------
      Role helpers
@@ -191,8 +190,7 @@
      Continue / Open flow
      -------------------------------------------------------------- */
   async function continueToGuestInfo(entryId){
-    const currentUid  = window.currentUid;
-    // const currentRole = window.currentRole; // not needed here
+    const currentUid = window.currentUid;
 
     // read entry fresh
     const entrySnap = await window.db.ref(`guestEntries/${entryId}`).get();
@@ -263,11 +261,17 @@
 
   /* --------------------------------------------------------------
      Helper: open guest info page
+     - Include BOTH entry & gid params for backward compatibility.
+     - Store key in localStorage for extra fallback.
      -------------------------------------------------------------- */
   function openGuestInfoPage(guestKey){
     const base = window.GUESTINFO_PAGE || "guest-info.html";
     const sep  = base.includes("?") ? "&" : "?";
-    window.location.href = `${base}${sep}gid=${encodeURIComponent(guestKey)}`;
+    const url  = `${base}${sep}entry=${encodeURIComponent(guestKey)}&gid=${encodeURIComponent(guestKey)}`;
+
+    try { localStorage.setItem("last_guestinfo_key", guestKey); } catch(_) {}
+
+    window.location.href = url;
   }
 
   /* --------------------------------------------------------------
