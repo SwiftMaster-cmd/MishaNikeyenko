@@ -979,3 +979,172 @@ td:last-child{text-align:right;}
 }
 /* Debug helper */
 /* *{outline:1px dashed rgba(255,0,0,.2);} */
+
+/* =======================================================================
+   PERFORMANCE HIGHLIGHTS  (Dashboard "Congrats" View)
+   -----------------------------------------------------------------------
+   Works inside .admin-section.dashboard-congrats markup emitted by
+   Dashboard Main Script when you're fully caught up *and* performance
+   metrics are on target.
+   -----------------------------------------------------------------------
+   Class refs emitted by JS:
+     .dashboard-congrats      (section wrapper; already has .admin-section)
+     .dash-congrats-grid      (grid of highlight cards)
+     .dc-card                 (individual tappable card)
+       .dc-emoji              (large emoji / icon)
+       .dc-title              (headline)
+       .dc-sub                (metric summary line)
+       .dc-cta                (link-ish call to action)
+   The close/X button is rendered inline in HTML (btn-ghost).
+   -----------------------------------------------------------------------
+   Color cues: we reuse global tokens + create softer
+   success/warning ribbons.
+   ======================================================================= */
+
+/* Section tweaks ------------------------------------------------------ */
+.dashboard-congrats {
+  text-align:center;
+  padding-top:calc(var(--space-xl) + 8px); /* leave room for X btn */
+  padding-bottom:var(--space-xl);
+  position:relative;
+  overflow:hidden;
+  /* celebratory subtle gradient shimmer */
+  background:
+    radial-gradient(circle at 20% 20%, rgba(30,144,255,.25) 0%, transparent 60%),
+    radial-gradient(circle at 80% 0%,   rgba(0,200,83,.22) 0%, transparent 60%),
+    var(--bg-card-hover);
+  animation:dc-bg-pulse var(--dur-slow) var(--ease-out) 1 both;
+}
+
+/* soft entrance pulse */
+@keyframes dc-bg-pulse {
+  0%   {box-shadow:0 0 0 0 rgba(30,144,255,0);}
+  100% {box-shadow:var(--shadow-card-h);}
+}
+
+/* Grid layout --------------------------------------------------------- */
+.dash-congrats-grid {
+  margin-top:var(--space-lg);
+  display:grid;
+  grid-template-columns:1fr;
+  gap:var(--space-lg);
+  width:100%;
+  max-width:520px;
+  margin-left:auto;
+  margin-right:auto;
+}
+@media (min-width:480px){
+  .dash-congrats-grid{grid-template-columns:repeat(2,1fr);}
+}
+
+/* Card base ----------------------------------------------------------- */
+.dc-card {
+  position:relative;
+  cursor:pointer;
+  padding:var(--space-xl) var(--space-md);
+  border-radius:var(--radius-xl);
+  background:var(--bg-card);
+  border:1px solid var(--border-strong);
+  box-shadow:var(--shadow-card);
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.dc-card:hover,
+.dc-card:focus-visible{
+  transform:translateY(-2px) scale(1.01);
+  box-shadow:var(--shadow-card-h);
+  background:var(--bg-card-hover);
+  outline:none;
+}
+.dc-card:active{
+  transform:translateY(0) scale(.98);
+}
+
+/* Large emoji / icon -------------------------------------------------- */
+.dc-emoji{
+  font-size:clamp(2.5rem,8vw,3.5rem);
+  line-height:1;
+  margin-bottom:var(--space-md);
+  display:block;
+}
+
+/* Title --------------------------------------------------------------- */
+.dc-title{
+  font-size:var(--fs-lg);
+  font-weight:700;
+  color:var(--text-hi);
+  margin-bottom:var(--space-xs);
+}
+
+/* Subline metrics ----------------------------------------------------- */
+.dc-sub{
+  font-size:var(--fs-sm);
+  color:var(--text-med);
+  margin-bottom:var(--space-sm);
+  line-height:1.3;
+  display:block;
+}
+
+/* CTA link-ish -------------------------------------------------------- */
+.dc-cta{
+  font-size:var(--fs-sm);
+  font-weight:600;
+  color:var(--brand);
+  text-decoration:underline;
+  text-underline-offset:2px;
+  pointer-events:none; /* click handled on .dc-card */
+}
+.dc-card:hover .dc-cta{color:var(--brand-hover);}
+
+/* Close (X) button inside section ------------------------------------ */
+.dashboard-congrats > .btn-ghost{
+  z-index:1;
+}
+
+/* Confetti spark (optional decorative) ------------------------------- */
+.dashboard-congrats::after,
+.dashboard-congrats::before{
+  content:"";
+  position:absolute;
+  pointer-events:none;
+  inset:0;
+  background-repeat:no-repeat;
+  background-image:
+    radial-gradient(circle at 10% 80%, rgba(255,255,255,.08) 0 6px, transparent 7px),
+    radial-gradient(circle at 90% 30%, rgba(255,255,255,.05) 0 4px, transparent 5px),
+    radial-gradient(circle at 60% 60%, rgba(255,255,255,.04) 0 3px, transparent 4px);
+  opacity:.6;
+  mix-blend-mode:screen;
+  animation:dc-confetti-float 6s linear infinite alternate;
+}
+@keyframes dc-confetti-float{
+  0%{transform:translateY(0) rotate(0deg);}
+  100%{transform:translateY(-4px) rotate(.5deg);}
+}
+
+/* -----------------------------------------------------------------------
+   Metric color helpers -- optional utility spans you may inject later
+   ----------------------------------------------------------------------- */
+.dc-metric-good   {color:var(--success);}
+.dc-metric-warn   {color:var(--warning);}
+.dc-metric-bad    {color:var(--danger);}
+.dc-metric-muted  {color:var(--text-muted);}
+
+/* -----------------------------------------------------------------------
+   Integration w/ existing store status classes (if reused in highlight)
+   ----------------------------------------------------------------------- */
+.dashboard-congrats .store-met    {color:var(--success);}
+.dashboard-congrats .store-under  {color:var(--warning);}
+.dashboard-congrats .store-nogoal {color:var(--text-muted);}
+
+/* -----------------------------------------------------------------------
+   Reduced motion: remove float + pulse
+   ----------------------------------------------------------------------- */
+@media (prefers-reduced-motion:reduce){
+  .dashboard-congrats::after,
+  .dashboard-congrats::before{animation:none;}
+  .dashboard-congrats{animation:none;}
+  .dc-card{transition:none;}
+}
