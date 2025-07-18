@@ -98,8 +98,10 @@
   }
 
   /* ------------------------------------------------------------------------
-   * Step Navigation
+   * Step Navigation  (now forwards to gp-app via _navCb)
    * ---------------------------------------------------------------------- */
+  let _navCb = null; // set by bindLiveEvents(opts.onNav)
+
   function ensureStepNav(){
     let nav = $("#gp-step-nav"); if(nav) return nav;
     nav = document.createElement("div");
@@ -114,7 +116,13 @@
     nav.addEventListener("click", e=>{
       const btn = e.target.closest("button[data-step]");
       if(!btn) return;
-      gotoStep(btn.dataset.step);
+      const step = btn.dataset.step;
+      if (_navCb){
+        try{ _navCb(step); }catch(err){ console.warn("[gp-ui] navCb error",err); }
+      }else{
+        // fallback local toggle only (should rarely happen once gp-app binds)
+        gotoStep(step);
+      }
     });
     return nav;
   }
@@ -166,7 +174,7 @@
   /* ------------------------------------------------------------------------
    * Field <-> domain mapping helpers used by NBQ and focusField
    * ---------------------------------------------------------------------- */
-  const FIELD_STEP = gpCore.FIELD_STEP;    // from core
+  const FIELD_STEP    = gpCore.FIELD_STEP;
   const TIER_A_FIELDS = gpCore.TIER_A_FIELDS;
   const TIER_B_FIELDS = gpCore.TIER_B_FIELDS;
   const PITCH_WEIGHTS = gpCore.PITCH_WEIGHTS;
@@ -218,7 +226,6 @@
 
   /* ------------------------------------------------------------------------
    * NBQ chips
-   *  guestObj: normalized guest object (gpCore.normGuest)
    * ---------------------------------------------------------------------- */
   function ensureNbqContainer(){
     let c = $("#gp-nbq"); if(c) return c;
@@ -277,14 +284,14 @@
 
   /* ------------------------------------------------------------------------
    * Field list + event binding (autosave hooks)
-   * gpUI.bindLiveEvents({onInput, onBlur})
-   *  - onInput( )   called on keystroke/change events
-   *  - onBlur( )    called when a field leaves focus
+   * gpUI.bindLiveEvents({onInput, onBlur, onNav})
    * ---------------------------------------------------------------------- */
   let _liveBound = false;
   function bindLiveEvents(opts={}){
     if(_liveBound) return;
     _liveBound = true;
+    if (typeof opts.onNav === "function") _navCb = opts.onNav;
+
     const ids = [
       "custName","custPhone",
       "currentCarrierSel","numLines","coverageZip","deviceStatus","finPath",
@@ -302,8 +309,6 @@
 
   /* ------------------------------------------------------------------------
    * Read current DOM field values into a *raw* object (no scoring)
-   * NOTE: Boolean selects expected to provide "true"/"false"/"" string vals.
-   * gp-app.js will map this to guest shape.
    * ---------------------------------------------------------------------- */
   function readDomFields(){
     const get = id => { const el=document.getElementById(id); return el?el.value:""; };
@@ -330,7 +335,6 @@
 
   /* ------------------------------------------------------------------------
    * Push guest object values back into the DOM
-   * Pass a *normalized* guest object.
    * ---------------------------------------------------------------------- */
   function writeDomFields(g){
     // Step1
@@ -415,7 +419,7 @@
     setProgressSaved,
     setProgressPreview,
 
-    // step nav / show/hide
+    // step nav / show-handle
     ensureStepNav,
     markStepActive,
     gotoStep,
@@ -434,7 +438,7 @@
     readDomFields,
     writeDomFields,
 
-    // exposed constants (through gpUI for convenience)
+    // exposed constants
     FIELD_STEP,
     TIER_A_FIELDS,
     TIER_B_FIELDS,
