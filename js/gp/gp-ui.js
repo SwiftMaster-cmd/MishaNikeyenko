@@ -1,18 +1,24 @@
-// gp-core-lite.js -- scoring + normalization for gp-basic + gp-ui-adv
+/* gp-core-lite.js -----------------------------------------------------------
+ * Normalization + status + scoring for gp-basic / gp-ui-adv builds.
+ * Safe with legacy flat guest records; emits canonical nested shape:
+ *   {custName,custPhone,custPhoneDigits,evaluate:{...},solution:{text},...}
+ * ------------------------------------------------------------------------ */
 (function(global){
 
-  /* weights (trimmed) ---------------------------------------------------- */
+  /* ---------------- Config weights / groupings -------------------------- */
   const PITCH_WEIGHTS = {
+    // Step1
     custName:8, custPhone:7,
+    // Step2 core
     currentCarrier:12, numLines:8, coverageZip:8,
     deviceStatus:8, finPath:12,
+    // Optional extras (you can extend later)
     billPain:4, dataNeed:4, hotspotNeed:2, intlNeed:2,
+    // Step3
     solutionText:25
   };
-
   const TIER_A_FIELDS = ["currentCarrier","numLines","coverageZip","deviceStatus","finPath"];
   const TIER_B_FIELDS = ["billPain","dataNeed","hotspotNeed","intlNeed"];
-
   const FIELD_STEP = {
     custName:"step1", custPhone:"step1",
     currentCarrier:"step2", numLines:"step2", coverageZip:"step2",
@@ -21,13 +27,14 @@
     solutionText:"step3"
   };
 
+  /* ---------------- Generic helpers ------------------------------------- */
   function hasVal(v){
     if (v == null) return false;
-    if (typeof v === "string") return v.trim() !== "";
-    if (typeof v === "number") return true;
+    if (typeof v === "string")  return v.trim() !== "";
+    if (typeof v === "number")  return true;
     if (typeof v === "boolean") return v;
-    if (Array.isArray(v)) return v.length>0;
-    if (typeof v === "object") return Object.keys(v).length>0;
+    if (Array.isArray(v))       return v.length>0;
+    if (typeof v === "object")  return Object.keys(v).length>0;
     return false;
   }
   const digitsOnly = s=>(s||"").replace(/\D+/g,"");
@@ -54,7 +61,7 @@
     return hasVal(g?.custName)||hasVal(g?.custPhone);
   }
 
-  /* Normalize any historical guest shape */
+  /* ---------------- Normalize historical shapes ------------------------- */
   function normGuest(src){
     src = src||{};
     const custName  = src.custName  ?? src.guestName  ?? "";
@@ -65,9 +72,11 @@
     if (e.coverageZip   ==null && src.coverageZip  !=null) e.coverageZip=src.coverageZip;
     if (e.deviceStatus  ==null && src.deviceStatus !=null) e.deviceStatus=src.deviceStatus;
     if (e.finPath       ==null && src.finPath      !=null) e.finPath=src.finPath;
-    // extras ignored if not present
+    // extras optional...
+
     const sol = Object.assign({}, src.solution||{});
     if (sol.text==null && src.solutionText!=null) sol.text=src.solutionText;
+
     const out = {
       ...src,
       custName,
@@ -81,7 +90,7 @@
     return out;
   }
 
-  /* Scoring */
+  /* ---------------- Scoring ---------------------------------------------- */
   function getField(g,k){
     const e=g?.evaluate||{}, sol=g?.solution||{};
     switch(k){
@@ -121,5 +130,4 @@
     hasVal,digitsOnly,formatDigits10,detectStatus,hasPrefilledStep1,
     normGuest,computePitchFull
   };
-
 })(window);
