@@ -1,53 +1,33 @@
+<!-- gp-handoff.js -->
+
 /* gp-handoff.js ==============================================================
  * Centralized navigation handoff between dashboard surfaces (guestform /
  * guestinfo cards) and the Guest Portal workflow app (gp-app.js).
- *
- * Why this file?
- *   - One place to compute & pass uistart (step1|step2|step3).
- *   - Carry Step1 name/phone safely across page loads.
- *   - Avoid duplicate guestinfo pushes: receiver can seed w/out re-push.
- *   - Make future tweaks once, not in 3+ files.
- *
- * Usage (sender side, e.g. guestform.js):
- *   gpHandoff.open({
- *     gid: <guestinfoKey?>,
- *     entry: <guestEntriesId?>,
- *     name: <custName?>,
- *     phone: <custPhone?>,
- *     status: <"new"|"working"|"proposal"|"sold"?>,
- *     prefilledStep1: <bool?>,
- *     dest: "../html/guestinfo.html"   // optional override; defaults window.GUESTINFO_PAGE
- *   });
- *
- * Receiver (auto on load):
- *   gpHandoff.receive(); // runs once at end of IIFE; populates window.GP_HANDOFF
- *   gp-app.js calls gpHandoff.consume() *after* it has read & merged.
- *
- * Data flow precedence (highest→lowest):
- *   1. URL query/hash params (?gid=...&entry=...&uistart=step2&name=...).
- *   2. Last unconsumed payload in localStorage (same-origin).
- *   3. Nothing → {}.
- *
- * Expiration: payloads >15min old are ignored.
  * -------------------------------------------------------------------------- */
-
 (function(){
 
   /* ------------------------------------------------------------------------
-   * Constants
+   * Config
    * ---------------------------------------------------------------------- */
   const LS_KEY   = "gp_handoff_payload_v2";
-  const MAX_AGE  = 15 * 60 * 1000; // 15 min
+  const MAX_AGE  = 15 * 60 * 1000; // ms
   const GP_STEPS = ["step1","step2","step3"];
+  const DBG = ()=>!!window.GP_DEBUG;
+  const dlog = (...a)=>{ if(DBG()) console.log("[gp-handoff]",...a); };
 
   /* ------------------------------------------------------------------------
-   * Safe localStorage helpers
+   * Utils
+   * ---------------------------------------------------------------------- */
+  const digitsOnly = str => (str||"").replace(/\D+/g,"");
+  const truthy = v => v===true || v==="true" || v==="1" || v===1 || v==="yes";
+
+  function cleanStr(v){ return (v==null?"":String(v)); }
+
+  /* ------------------------------------------------------------------------
+   * Safe localStorage
    * ---------------------------------------------------------------------- */
   function lsSet(obj){
-    try{
-      const wrap = {ts:Date.now(),payload:obj||{}};
-      localStorage.setItem(LS_KEY, JSON.stringify(wrap));
-    }catch(_){}
+    try{ localStorage.setItem(LS_KEY, JSON.stringify({ts:Date.now(),payload:obj||{}})); }catch(_){}
   }
   function lsGet(){
     try{
@@ -56,32 +36,28 @@
       const wrap = JSON.parse(raw);
       if(!wrap || typeof wrap!=="object") return null;
       if(typeof wrap.ts!=="number") return null;
-      if(Date.now() - wrap.ts > MAX_AGE) return null;
-      return wrap.payload || null;
-    }catch(_){
-      return null;
-    }
+      if(Date.now()-wrap.ts>MAX_AGE) return null;
+      return wrap.payload||null;
+    }catch(_){ return null; }
   }
-  function lsClear(){
-    try{ localStorage.removeItem(LS_KEY); }catch(_){}
-  }
+  function lsClear(){ try{ localStorage.removeItem(LS_KEY); }catch(_{}); }
 
   /* ------------------------------------------------------------------------
-   * Simple query+hash parser (supports ?..., #..., ?#mix)
+   * Param parsing (?..., #..., mixed)
    * ---------------------------------------------------------------------- */
   function parseParams(){
-    const out = {};
-    const add = kv=>{
+    const out={};
+    const add=kv=>{
       if(!kv) return;
-      const i = kv.indexOf("=");
+      const i=kv.indexOf("=");
       if(i<0) return;
-      const k = decodeURIComponent(kv.slice(0,i));
-      const v = decodeURIComponent(kv.slice(i+1));
+      const k=decodeURIComponent(kv.slice(0,i));
+      const v=decodeURIComponent(kv.slice(i+1));
       if(k) out[k]=v;
     };
-    const grab = str=>{
+    const grab=str=>{
       if(!str) return;
-      str = str.replace(/^[?#]/,"");
+      str=str.replace(/^[?#]/,"");
       if(!str) return;
       str.split("&").forEach(add);
     };
@@ -91,152 +67,206 @@
   }
 
   /* ------------------------------------------------------------------------
-   * Normalize phone (digits only)
+   * Field normalization (accept multiple aliases)
    * ---------------------------------------------------------------------- */
-  function digitsOnly(str){ return (str||"").replace(/\D+/g,""); }
+  function normInbound(obj){
+    obj=obj||{};
+    const out={};
 
-  /* ------------------------------------------------------------------------
-   * Compute uiStart from payload
-   *   Precedence: explicit uistart > status (proposal|sold->step3) >
-   *               prefilledStep1||name||phone -> step2 > step1.
-   * ---------------------------------------------------------------------- */
-  function computeUiStart(p){
-    const u = (p && p.uistart || "").toLowerCase();
-    if(GP_STEPS.includes(u)) return u;
+    // keys (aliases)
+    out.gid   = obj.gid   ?? obj.guestinfoKey ?? null;
+    out.entry = obj.entry ?? obj.entryId      ?? obj.guestEntriesId ?? null;
 
-    const st = (p && p.status || "").toLowerCase();
-    if(st==="proposal" || st==="sold") return "step3";
+    const name  = obj.name  ?? obj.custName  ?? obj.guestName  ?? "";
+    const phone = obj.phone ?? obj.custPhone ?? obj.guestPhone ?? "";
 
-    const hasStep1 = !!(p && (p.prefilledStep1 || p.name || p.phone));
-    return hasStep1 ? "step2" : "step1";
-  }
+    out.name  = cleanStr(name);
+    out.phone = cleanStr(phone);
 
-  /* ------------------------------------------------------------------------
-   * Build URL to Guest Portal page
-   *   Only gid & entry & uistart are serialized to query params.
-   *   Name/phone are carried in localStorage payload to avoid long URLs.
-   * ---------------------------------------------------------------------- */
-  function buildUrl(dest, p){
-    const params = [];
-    if(p.gid)   params.push("gid="   + encodeURIComponent(p.gid));
-    if(p.entry) params.push("entry=" + encodeURIComponent(p.entry));
-    params.push("uistart="+ encodeURIComponent(computeUiStart(p)));
-    const joiner = dest.includes("?") ? "&" : "?";
-    return params.length ? (dest + joiner + params.join("&")) : dest;
-  }
+    // status aliases
+    out.status = (obj.status ?? obj.statusInit ?? obj.guestStatus ?? "").toString().toLowerCase() || null;
 
-  /* ------------------------------------------------------------------------
-   * Public: open(payload) → store + navigate
-   * ---------------------------------------------------------------------- */
-  function open(payload){
-    payload = payload || {};
-    // Choose dest
-    const dest = payload.dest || window.GUESTINFO_PAGE || "../html/guestinfo.html";
+    // prefilled
+    if("prefilledStep1" in obj) out.prefilledStep1 = truthy(obj.prefilledStep1);
+    else if("prefilled" in obj) out.prefilledStep1 = truthy(obj.prefilled);
+    else if("prefill" in obj) out.prefilledStep1 = truthy(obj.prefill);
 
-    // Clean & shrink payload for storage
-    const store = {
-      gid:   payload.gid   || null,
-      entry: payload.entry || null,
-      name:  payload.name  || "",
-      phone: payload.phone || "",
-      status: (payload.status||"").toLowerCase() || null,
-      prefilledStep1: !!payload.prefilledStep1
-    };
-    if(!store.prefilledStep1 && (store.name || store.phone)) store.prefilledStep1 = true;
-
-    // Save
-    lsSet(store);
-
-    // Remember last guest if gid
-    if(store.gid){
-      try{ localStorage.setItem("last_guestinfo_key", store.gid); }catch(_){}
+    // fallback: derive from name/phone
+    if(out.prefilledStep1==null){
+      out.prefilledStep1 = !!(out.name || out.phone);
     }
 
-    // Nav
-    const url = buildUrl(dest, store);
-    window.location.href = url;
-  }
+    // explicit uistart?
+    out.uistart = obj.uistart ? String(obj.uistart).toLowerCase() : undefined;
 
-  /* ------------------------------------------------------------------------
-   * Internal: merge (URL params > LS payload)
-   * ---------------------------------------------------------------------- */
-  function mergePayload(urlP, lsP){
-    const out = Object.assign({}, lsP||{});
-    // URL wins
-    if(urlP.gid   != null) out.gid   = urlP.gid;
-    if(urlP.entry != null) out.entry = urlP.entry;
-    if(urlP.name  != null) out.name  = urlP.name;
-    if(urlP.phone != null) out.phone = urlP.phone;
-    if(urlP.status!= null) out.status= urlP.status;
-    if(urlP.prefilledStep1!=null) out.prefilledStep1 = (urlP.prefilledStep1==="true"||urlP.prefilledStep1===true);
-    if(urlP.uistart!=null) out.uistart = urlP.uistart;
     return out;
   }
 
   /* ------------------------------------------------------------------------
-   * Receiver: read URL + LS; attach to window.GP_HANDOFF
-   *   Called automatically at end of file, but can be re-called.
+   * Compute UI start from payload (no guest/entry objects)
    * ---------------------------------------------------------------------- */
-  let _received = null;
-  function receive(){
-    const urlP = parseParams();
-    const lsP  = lsGet();
-    let merged = mergePayload(urlP, lsP);
+  function computeUiStartFromPayload(p){
+    const u=(p.uistart||"").toLowerCase();
+    if(GP_STEPS.includes(u)) return u;
+    const st=(p.status||"").toLowerCase();
+    if(st==="proposal"||st==="sold") return "step3";
+    const hasStep1=!!(p.prefilledStep1||p.name||p.phone);
+    return hasStep1?"step2":"step1";
+  }
 
-    // ensure normalized
-    merged.name  = merged.name  || "";
-    merged.phone = merged.phone || "";
-    merged.gid   = merged.gid   || null;
-    merged.entry = merged.entry || null;
-    if(!("prefilledStep1" in merged)){
-      merged.prefilledStep1 = !!(merged.name || merged.phone);
+  /* ------------------------------------------------------------------------
+   * Compute UI start when we ALSO have guest + entry data (optional)
+   * guestObj, entryObj are raw Firebase rows.
+   * ---------------------------------------------------------------------- */
+  function computeUiStart(g, entry, hint){
+    // explicit hint wins
+    if(hint && GP_STEPS.includes(hint)) return hint;
+
+    // Use guest status if present
+    const st=(g?.status||"").toLowerCase();
+    if(st==="proposal"||st==="sold") return "step3";
+
+    // Step1 coverage?
+    const hasStep1 = !!(
+      g?.prefilledStep1 || g?.custName || g?.custPhone ||
+      entry?.guestName || entry?.guestPhone
+    );
+    return hasStep1?"step2":"step1";
+  }
+
+  /* ------------------------------------------------------------------------
+   * URL builder (no PII in URL)
+   * ---------------------------------------------------------------------- */
+  function buildUrl(dest,p){
+    const params=[];
+    if(p.gid)   params.push("gid="+encodeURIComponent(p.gid));
+    if(p.entry) params.push("entry="+encodeURIComponent(p.entry));
+    params.push("uistart="+encodeURIComponent(computeUiStartFromPayload(p)));
+    const joiner=dest.includes("?")?"&":"?";
+    return params.length?(dest+joiner+params.join("&")):dest;
+  }
+
+  /* ------------------------------------------------------------------------
+   * PUBLIC: open(payload)  (payload already normalized-ish)
+   * ---------------------------------------------------------------------- */
+  function open(payload){
+    payload = normInbound(payload||{});
+
+    // choose dest
+    const dest = payload.dest || window.GUESTINFO_PAGE || "../html/guestinfo.html";
+
+    // store (strip dest/uistart)
+    const store = {
+      gid: payload.gid||null,
+      entry: payload.entry||null,
+      name: payload.name||"",
+      phone: payload.phone||"",
+      status: payload.status||null,
+      prefilledStep1: !!payload.prefilledStep1
+    };
+    if(!store.prefilledStep1 && (store.name||store.phone)) store.prefilledStep1=true;
+
+    dlog("open()",store);
+
+    // remember last guest
+    if(store.gid){
+      try{ localStorage.setItem("last_guestinfo_key", store.gid); }catch(_){}
     }
-    // normalized digits copy (not serialized outward; gp-app may use)
+
+    lsSet(store);
+    window.location.href = buildUrl(dest,store);
+  }
+
+  /* ------------------------------------------------------------------------
+   * PUBLIC: openFromSources({guest?,entry?,dest?})
+   * Convenience wrapper used by guestform-actions & guestinfo-dashboard.
+   * ---------------------------------------------------------------------- */
+  function openFromSources(opts){
+    opts=opts||{};
+    const g=opts.guest||null;
+    const e=opts.entry||null;
+
+    const payload = {
+      gid:   g ? opts.gid || opts.guestKey || g._key || g.key || g.id || null : (opts.gid||null),
+      entry: e ? opts.entryId || e._key || e.key || e.id || null : (opts.entry||null),
+      name:  g?.custName || e?.guestName || "",
+      phone: g?.custPhone|| e?.guestPhone|| "",
+      status: g?.status || null,
+      prefilledStep1: !!(g?.prefilledStep1 || g?.custName || g?.custPhone || e?.guestName || e?.guestPhone),
+      dest: opts.dest
+    };
+
+    // explicit ui hint?
+    const hint=opts.uistart;
+    payload.uistart = computeUiStart(g,e,hint);
+
+    open(payload);
+  }
+
+  /* ------------------------------------------------------------------------
+   * Merge URL params > LS payload (receiver side)
+   * ---------------------------------------------------------------------- */
+  function mergePayload(urlP,lsP){
+    const out = Object.assign({}, normInbound(lsP||{}));
+    const u   = normInbound(urlP||{});
+    for(const k in u){
+      if(u[k]!==undefined) out[k]=u[k];
+    }
+    return out;
+  }
+
+  /* ------------------------------------------------------------------------
+   * Receive + normalize; sets window.GP_HANDOFF
+   * ---------------------------------------------------------------------- */
+  let _received=null;
+  function receive(){
+    const urlP=parseParams();
+    const lsP =lsGet();
+    let merged=mergePayload(urlP,lsP);
+
+    // derived
     merged.phoneDigits = digitsOnly(merged.phone);
+    merged.uistart = computeUiStartFromPayload(merged);
 
-    // final uistart
-    merged.uistart = computeUiStart(merged);
-
-    // stash global
+    // stash
     window.GP_HANDOFF = merged;
-    _received = merged;
+    _received=merged;
+    dlog("receive()",merged);
     return merged;
   }
 
   /* ------------------------------------------------------------------------
-   * Consume: gp-app.js should call once it has copied data; clears LS.
-   *   Optionally let caller pass {clearLocal:true|false} (default true).
+   * Consume (gp-app calls after it has read)
    * ---------------------------------------------------------------------- */
   function consume(opts){
-    opts = opts||{};
+    opts=opts||{};
     if(opts.clearLocal!==false) lsClear();
-    return _received || receive();
+    return _received||receive();
   }
 
   /* ------------------------------------------------------------------------
-   * Debug helper
+   * Debug
    * ---------------------------------------------------------------------- */
   function debugLog(){
-    /* eslint-disable no-console */
-    console.log("[gp-handoff] window.GP_HANDOFF =", window.GP_HANDOFF);
-    console.log("[gp-handoff] raw localStorage =", lsGet());
-    /* eslint-enable no-console */
+    console.log("[gp-handoff] GP_HANDOFF =",window.GP_HANDOFF);
+    console.log("[gp-handoff] LS =",lsGet());
   }
 
   /* ------------------------------------------------------------------------
-   * Expose API
+   * Expose
    * ---------------------------------------------------------------------- */
   window.gpHandoff = {
     open,
+    openFromSources,
     receive,
     consume,
-    computeUiStart,
+    computeUiStart: computeUiStartFromPayload,
     debugLog,
-    _lsGet: lsGet,      // exposed for troubleshooting
+    _lsGet: lsGet,
     _lsClear: lsClear
   };
 
-  // auto-run
+  // autorun
   receive();
 
 })();
