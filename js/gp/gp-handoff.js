@@ -104,19 +104,38 @@
     }
   }
 
-  function computePitchFull(g, weights = PITCH_WEIGHTS){
-    const steps = {step1:{earned:0,max:0}, step2:{earned:0,max:0}, step3:{earned:0,max:0}};
+  function computePitchFull(g, weights = PITCH_WEIGHTS) {
     const fields = {};
     let earned = 0, max = 0;
-    for(const [k, wt] of Object.entries(weights)){
-      const st = FIELD_STEP[k] || "step1";
-      steps[st].max += wt;
+    
+    for (const [k, wt] of Object.entries(weights)) {
       max += wt;
       const ok = hasVal(getField(g, k));
-      if(ok){ steps[st].earned += wt; earned += wt; }
-      fields[k] = {ok, wt};
+      if (ok) earned += wt;
+      fields[k] = { ok, wt };
     }
-    const pctFull = max ? Math.round((earned/max)*100) : 0;
+    
+    const pctFull = max ? Math.round((earned / max) * 100) : 0;
+    
+    // Compute steps summary with partial credit per field
+    const steps = {};
+    // Initialize step sums
+    for (const step of new Set(Object.values(FIELD_STEP))) {
+      steps[step] = { earned: 0, max: 0 };
+    }
+    
+    for (const [k, wt] of Object.entries(weights)) {
+      const st = FIELD_STEP[k] || "step1";
+      steps[st].max += wt;
+      if (fields[k].ok) steps[st].earned += wt;
+    }
+    
+    // Round step percentages for UI
+    for (const st in steps) {
+      const { earned, max } = steps[st];
+      steps[st].pct = max ? Math.round((earned / max) * 100) : 0;
+    }
+    
     return { pctFull, steps, fields };
   }
 
