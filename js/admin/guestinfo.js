@@ -7,8 +7,77 @@
   window._guestinfo_showProposals ??= false;
   window._guestinfo_soldOnly ??= false;
 
-  const computePQ = window.computeGuestPitchQuality ?? (_ => ({ pct: 0, steps: {}, fields: {} }));
-  const normGuest = window.normalizeGuestForCompletion ?? (g => g || {});
+  // Helper: digits only formatter
+  function digitsOnly(s) {
+    return (s || "").replace(/\D+/g, "");
+  }
+
+  // Helper: hasVal -- checks if field has meaningful value
+  function hasVal(v) {
+    if (v == null) return false;
+    if (typeof v === "string") return v.trim() !== "";
+    if (typeof v === "number") return true;
+    if (typeof v === "boolean") return v;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "object") return Object.keys(v).length > 0;
+    return false;
+  }
+
+  // Check if evaluate has any meaningful data
+  function hasAnyEvalData(e) {
+    if (!e) return false;
+    return ["currentCarrier", "numLines", "coverageZip", "deviceStatus", "finPath",
+      "billPain", "dataNeed", "hotspotNeed", "intlNeed"].some(k => hasVal(e[k]));
+  }
+
+  // Normalize guest data into canonical shape
+  function normGuest(src) {
+    src = src || {};
+    const custName = src.custName ?? src.guestName ?? "";
+    const custPhone = src.custPhone ?? src.guestPhone ?? "";
+    const e = Object.assign({}, src.evaluate || {});
+    if (e.currentCarrier == null && src.currentCarrier != null) e.currentCarrier = src.currentCarrier;
+    if (e.numLines == null && src.numLines != null) e.numLines = src.numLines;
+    if (e.coverageZip == null && src.coverageZip != null) e.coverageZip = src.coverageZip;
+    if (e.deviceStatus == null && src.deviceStatus != null) e.deviceStatus = src.deviceStatus;
+    if (e.finPath == null && src.finPath != null) e.finPath = src.finPath;
+    // extras optional...
+
+    const sol = Object.assign({}, src.solution || {});
+    if (sol.text == null && src.solutionText != null) sol.text = src.solutionText;
+
+    const out = {
+      ...src,
+      custName,
+      custPhone,
+      custPhoneDigits: digitsOnly(custPhone),
+      evaluate: e,
+      solution: sol,
+      prefilledStep1: src.prefilledStep1 || hasPrefilledStep1({ custName, custPhone })
+    };
+    out.status = detectStatus(out);
+    return out;
+  }
+
+  // Helper: Detect if Step1 data exists
+  function hasPrefilledStep1(g) {
+    return hasVal(g?.custName) || hasVal(g?.custPhone);
+  }
+
+  // Full detectStatus logic (replaces your old weak version)
+  function detectStatus(g) {
+    const s = (g?.status || "").toLowerCase();
+    if (s) return s;
+    if (g?.solution && hasVal(g.solution.text)) return "proposal";
+    if (hasAnyEvalData(g?.evaluate)) return "working";
+    return "new";
+  }
+
+  // Pitch Quality calculator (fallback safe)
+  const computePQ = window.computeGuestPitchQuality ?? ((g) => {
+    // Basic fallback: 0%
+    return { pct: 0, steps: {}, fields: {} };
+  });
 
   // Role check helpers
   const isAdmin = r => r === ROLES.ADMIN;
@@ -65,7 +134,7 @@
     return {};
   }
 
-  // HTML escape
+  // HTML escape helper
   const esc = str => String(str || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -75,19 +144,12 @@
 
   // Date helpers
   const nowMs = () => Date.now();
-  const msNDaysAgo = n => nowMs() - n * 864e5; // 864e5 = 24*60*60*1000
+  const msNDaysAgo = n => nowMs() - n * 864e5;
   const latestActivityTs = g =>
     Math.max(g.updatedAt || 0, g.submittedAt || 0, g.sale?.soldAt || 0, g.solution?.completedAt || 0);
   const inCurrentWeek = g => latestActivityTs(g) >= msNDaysAgo(7);
 
-  // Status detection & grouping
-  const detectStatus = g =>
-    (g.status?.toLowerCase()) ||
-    (g.sale && "sold") ||
-    (g.solution && "proposal") ||
-    (g.evaluate && "working") ||
-    "new";
-
+  // Group guestinfo by status
   function groupByStatus(guestMap) {
     const groups = { new: [], working: [], proposal: [], sold: [] };
     for (const [id, g] of Object.entries(guestMap)) {
@@ -101,7 +163,7 @@
     return groups;
   }
 
-  // Status badge HTML
+  // Status badge HTML generator
   function statusBadge(status) {
     const s = (status || "new").toLowerCase();
     const map = {
@@ -252,7 +314,7 @@
     const statBadge = statusBadge(status);
 
     const savedPct = typeof g.completion?.pct === "number" ? g.completion.pct : null;
-    const compObj = savedPct != null ? { pct: savedPct } : computePQ(g);
+    const compObj = savedPct != null ? { pct: savedPct } : computePQ(normGuest(g));
     const pct = savedPct != null ? savedPct : compObj.pct;
     const pitch = decoratePitch(pct, status, savedPct != null ? null : compObj);
 
@@ -263,7 +325,6 @@
     const soldAt = isSold && g.sale?.soldAt ? new Date(g.sale.soldAt).toLocaleString() : "";
     const saleSummary = isSold ? `<div class="guest-sale-summary"><b>Sold:</b> ${soldAt} &bull; Units: ${units}</div>` : "";
 
-    // Action buttons
     const actions = [
       `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">${g.evaluate || g.solution || g.sale ? "Open" : "Continue"}</button>`,
       allowEdit ? `<button class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
@@ -497,7 +558,7 @@
     }
   }
 
-  // Filter controls setters
+  // Filter control setters
   function setFilterMode(mode) {
     window._guestinfo_filterMode = isMe(window.currentRole) ? "week" : (mode === "all" ? "all" : "week");
     window.renderAdminApp();
