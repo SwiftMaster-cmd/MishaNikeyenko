@@ -2,17 +2,14 @@
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
   const GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../html/guestinfo.html";
 
-  // UI state persisted on window
   window._guestinfo_filterMode ??= "week";
   window._guestinfo_showProposals ??= false;
   window._guestinfo_soldOnly ??= false;
 
-  // Helper: digits only formatter
   function digitsOnly(s) {
     return (s || "").replace(/\D+/g, "");
   }
 
-  // Helper: hasVal -- checks if field has meaningful value
   function hasVal(v) {
     if (v == null) return false;
     if (typeof v === "string") return v.trim() !== "";
@@ -23,14 +20,12 @@
     return false;
   }
 
-  // Check if evaluate has any meaningful data
   function hasAnyEvalData(e) {
     if (!e) return false;
     return ["currentCarrier", "numLines", "coverageZip", "deviceStatus", "finPath",
       "billPain", "dataNeed", "hotspotNeed", "intlNeed"].some(k => hasVal(e[k]));
   }
 
-  // Normalize guest data into canonical shape
   function normGuest(src) {
     src = src || {};
     const custName = src.custName ?? src.guestName ?? "";
@@ -41,7 +36,6 @@
     if (e.coverageZip == null && src.coverageZip != null) e.coverageZip = src.coverageZip;
     if (e.deviceStatus == null && src.deviceStatus != null) e.deviceStatus = src.deviceStatus;
     if (e.finPath == null && src.finPath != null) e.finPath = src.finPath;
-    // extras optional...
 
     const sol = Object.assign({}, src.solution || {});
     if (sol.text == null && src.solutionText != null) sol.text = src.solutionText;
@@ -59,12 +53,10 @@
     return out;
   }
 
-  // Helper: Detect if Step1 data exists
   function hasPrefilledStep1(g) {
     return hasVal(g?.custName) || hasVal(g?.custPhone);
   }
 
-  // Full detectStatus logic (replaces your old weak version)
   function detectStatus(g) {
     const s = (g?.status || "").toLowerCase();
     if (s) return s;
@@ -73,13 +65,8 @@
     return "new";
   }
 
-  // Pitch Quality calculator (fallback safe)
-  const computePQ = window.computeGuestPitchQuality ?? ((g) => {
-    // Basic fallback: 0%
-    return { pct: 0, steps: {}, fields: {} };
-  });
+  const computePQ = window.computeGuestPitchQuality ?? ((g) => ({ pct: 0, steps: {}, fields: {} }));
 
-  // Role check helpers
   const isAdmin = r => r === ROLES.ADMIN;
   const isDM = r => r === ROLES.DM;
   const isLead = r => r === ROLES.LEAD;
@@ -90,7 +77,6 @@
     r && (isAdmin(r) || isDM(r) || isLead(r) || ownerUid === currentUid);
   const canMarkSold = canEditEntry;
 
-  // Get leads and MEs under a DM
   const getUsersUnderDM = (users, dmUid) => {
     const leads = Object.entries(users)
       .filter(([, u]) => u.role === ROLES.LEAD && u.assignedDM === dmUid)
@@ -101,7 +87,6 @@
     return new Set([...leads, ...mes]);
   };
 
-  // Visibility filter by role
   function filterGuestinfo(guestinfo, users, currentUid, currentRole) {
     if (!guestinfo || !users || !currentUid || !currentRole) return {};
 
@@ -134,7 +119,6 @@
     return {};
   }
 
-  // HTML escape helper
   const esc = str => String(str || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -142,14 +126,12 @@
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-  // Date helpers
   const nowMs = () => Date.now();
   const msNDaysAgo = n => nowMs() - n * 864e5;
   const latestActivityTs = g =>
     Math.max(g.updatedAt || 0, g.submittedAt || 0, g.sale?.soldAt || 0, g.solution?.completedAt || 0);
   const inCurrentWeek = g => latestActivityTs(g) >= msNDaysAgo(7);
 
-  // Group guestinfo by status
   function groupByStatus(guestMap) {
     const groups = { new: [], working: [], proposal: [], sold: [] };
     for (const [id, g] of Object.entries(guestMap)) {
@@ -163,7 +145,6 @@
     return groups;
   }
 
-  // Status badge HTML generator
   function statusBadge(status) {
     const s = (status || "new").toLowerCase();
     const map = {
@@ -176,7 +157,6 @@
     return `<span class="${cls}">${label}</span>`;
   }
 
-  // Pitch badge decorator
   function decoratePitch(pct, status, compObj) {
     const p = Math.min(100, Math.max(0, Math.round(pct)));
     const cls = p >= 75 ? "pitch-good" : p >= 40 ? "pitch-warn" : "pitch-low";
@@ -194,7 +174,6 @@
     return { pct: p, cls, tooltip: lines.join(" • ") };
   }
 
-  // Controls bar HTML
   function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, showCreateBtn = true) {
     const weekActive = filterMode === "week";
     const allBtn = isMe(currentRole) ? "" : `<button class="btn ${weekActive ? "btn-secondary" : "btn-primary"} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.setFilterMode('all')">All</button>`;
@@ -219,7 +198,6 @@
       </div>`;
   }
 
-  // Empty state HTML
   const emptyMotivationHtml = (msg = "No guest leads in this view.") => `
     <div class="guestinfo-empty-all text-center" style="margin-top:16px;">
       <p><b>${esc(msg)}</b></p>
@@ -227,7 +205,6 @@
       <button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
     </div>`;
 
-  // Main render function
   function renderGuestinfoSection(guestinfo, users, currentUid, currentRole) {
     if (isMe(currentRole)) window._guestinfo_filterMode = "week";
 
@@ -281,7 +258,6 @@
       </section>`;
   }
 
-  // Status subsection
   function statusSectionHtml(title, rows, currentUid, currentRole, statusKey, highlight = false) {
     if (!rows?.length) return `
       <div class="guestinfo-subsection guestinfo-subsection-empty status-${statusKey}">
@@ -298,7 +274,6 @@
       </div>`;
   }
 
-  // Guest card HTML + quick edit + pitch badge
   function guestCardHtml(id, g, users, currentUid, currentRole) {
     const submitter = users[g.userUid];
     const allowDelete = canDelete(currentRole);
@@ -306,9 +281,8 @@
     const allowSold = canMarkSold(currentRole, g.userUid, currentUid);
 
     const ev = g.evaluate || {};
-    const serviceType = g.serviceType ?? ev.serviceType ?? "";
-    const situation = g.situation ?? ev.situation ?? "";
-    const sitPreview = situation.length > 140 ? situation.slice(0, 137) + "…" : situation;
+    const serviceType = g.serviceType ?? ev.serviceType ?? null;
+    const situation = g.situation ?? ev.situation ?? null;
 
     const status = detectStatus(g);
     const statBadge = statusBadge(status);
@@ -339,9 +313,10 @@
           <div><b>Status:</b> ${statBadge}</div>
           <div><b>Pitch:</b> ${pitchHtml}</div>
           <div><b>Submitted by:</b> ${esc(submitter?.name || submitter?.email || g.userUid)}</div>
-          <div><b>Customer:</b> ${esc(g.custName) || "-"} &nbsp; | &nbsp; <b>Phone:</b> ${esc(g.custPhone) || "-"}</div>
-          <div><b>Type:</b> ${esc(serviceType) || "-"}</div>
-          <div><b>Situation:</b> ${esc(sitPreview) || "-"}</div>
+          <div><b>Customer:</b> ${esc(g.custName) || "-"}</div>
+          <div><b>Phone:</b> ${esc(g.custPhone) || "-"}</div>
+          ${serviceType ? `<div><b>Type:</b> ${esc(serviceType)}</div>` : ""}
+          ${situation ? `<div><b>Situation:</b> ${esc(situation.length > 140 ? situation.slice(0,137) + "…" : situation)}</div>` : ""}
           <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : "-"}</div>
           ${saleSummary}
           <div class="guest-card-actions" style="margin-top:8px;">${actions}</div>
@@ -355,10 +330,10 @@
             <input type="text" name="custPhone" value="${esc(g.custPhone)}" />
           </label>
           <label>Service Type
-            <input type="text" name="serviceType" value="${esc(serviceType)}" />
+            <input type="text" name="serviceType" value="${esc(serviceType ?? "")}" />
           </label>
           <label>Situation
-            <textarea name="situation">${esc(situation)}</textarea>
+            <textarea name="situation">${esc(situation ?? "")}</textarea>
           </label>
           <div style="margin-top:8px;">
             <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
@@ -369,7 +344,6 @@
     `;
   }
 
-  // Toggle Quick Edit form visibility
   function toggleEdit(id) {
     const card = document.getElementById(`guest-card-${id}`);
     if (!card) return;
@@ -390,7 +364,6 @@
     display.style.display = "block";
   }
 
-  // Save quick edit data and recompute pitch
   async function saveEdit(id) {
     const card = document.getElementById(`guest-card-${id}`);
     const form = card?.querySelector(".guest-edit-form");
@@ -414,7 +387,6 @@
     }
   }
 
-  // Delete guest lead
   async function deleteGuestInfo(id) {
     if (!canDelete(window.currentRole)) {
       alert("You don't have permission to delete.");
@@ -429,7 +401,6 @@
     }
   }
 
-  // Mark lead sold and create sale record
   async function markSold(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -493,7 +464,6 @@
     }
   }
 
-  // Delete sale and rollback status + credits
   async function deleteSale(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -540,7 +510,6 @@
     }
   }
 
-  // Recompute Pitch Quality and persist
   async function recomputePitch(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -558,7 +527,6 @@
     }
   }
 
-  // Filter control setters
   function setFilterMode(mode) {
     window._guestinfo_filterMode = isMe(window.currentRole) ? "week" : (mode === "all" ? "all" : "week");
     window.renderAdminApp();
@@ -574,13 +542,11 @@
     window.renderAdminApp();
   }
 
-  // Create new lead (clear last key & redirect)
   function createNewLead() {
     try { localStorage.removeItem("last_guestinfo_key"); } catch {}
     window.location.href = GUESTINFO_PAGE.split("?")[0];
   }
 
-  // Open full workflow page for a guest lead with uistart hint
   function openGuestInfoPage(guestKey) {
     const base = GUESTINFO_PAGE;
     const g = (window._guestinfo && window._guestinfo[guestKey]) || null;
@@ -603,7 +569,6 @@
     window.location.href = url;
   }
 
-  // Inject CSS for pitch pills once
   function ensurePitchCss() {
     if (document.getElementById("guestinfo-pitch-css")) return;
     const css = `
@@ -638,7 +603,6 @@
   }
   ensurePitchCss();
 
-  // Expose public API
   window.guestinfo = {
     renderGuestinfoSection,
     toggleEdit,
