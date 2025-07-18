@@ -61,15 +61,10 @@ const gpCore = window.gpCore || {
     if (g.evaluate && Object.keys(g.evaluate).length) return "working";
     return "new";
   },
-  // minimal structure so gpUI.updateNbqChips() doesn't crash if core missing
   computePitchFull(g){
     return {
       pctFull: 0,
-      steps:{
-        step1:{earned:0,max:1},
-        step2:{earned:0,max:1},
-        step3:{earned:0,max:1}
-      },
+      steps:{ step1:{earned:0,max:1}, step2:{earned:0,max:1}, step3:{earned:0,max:1} },
       fields:{}
     };
   },
@@ -87,39 +82,33 @@ const gpCore = window.gpCore || {
 };
 gpCore.normGuest = gpCore.normGuest || gpCore.normalize || (g=>g||{});
 
-/* ---------------------------------------------------------------- norm helper
- * Defensive wrapper: preserve Step1 + status/prefilled flags even if the
- * loaded core-normalizer drops or relocates them.
- */
+/* ---------------------------------------------------------------- norm helper */
 function normWithStep1(raw){
   let n = gpCore.normGuest ? gpCore.normGuest(raw) : (raw || {});
   if(!n || typeof n!=="object") n = {};
-  // preserve Step1 top-level fields
-  if(raw && raw.custName !== undefined && (n.custName === undefined || n.custName === null)){
-    n.custName = raw.custName;
-  }
-  if(raw && raw.custPhone !== undefined && (n.custPhone === undefined || n.custPhone === null)){
-    n.custPhone = raw.custPhone;
-  }
-  // preserve status / prefill
+  if(raw && raw.custName  !== undefined && (n.custName  == null)) n.custName  = raw.custName;
+  if(raw && raw.custPhone !== undefined && (n.custPhone == null)) n.custPhone = raw.custPhone;
   if(raw && raw.status && !n.status) n.status = raw.status;
   if(raw && raw.prefilledStep1 && !n.prefilledStep1) n.prefilledStep1 = true;
-  // guarantee objects
   if(!n.evaluate) n.evaluate = {};
   if(!n.solution) n.solution = {};
   return n;
 }
 
-/* --------------------------------------------------------- gp-handoff integration
- * consumeHandoffOnce() -> payload | null
- * gp-handoff exports .consume() returning merged payload (URL>LS) & clears LS.
- */
+/* --------------------------------------------------------- gp-handoff integration */
 function consumeHandoffOnce(){
   if (_handoffPayload !== undefined) return _handoffPayload || null;
   try {
-    _handoffPayload = (window.gpHandoff && typeof window.gpHandoff.consume==="function")
-      ? window.gpHandoff.consume()
-      : null;
+    // Prefer consumePrefill() if present (cleaner shape); else consume().
+    if (window.gpHandoff) {
+      if (typeof window.gpHandoff.consumePrefill === "function") {
+        _handoffPayload = window.gpHandoff.consumePrefill();
+      } else if (typeof window.gpHandoff.consume === "function") {
+        _handoffPayload = window.gpHandoff.consume();
+      }
+    } else {
+      _handoffPayload = null;
+    }
     if (_handoffPayload) dlog("handoff payload", _handoffPayload);
   } catch(err){
     console.warn("[gp-app] gpHandoff error:",err);
@@ -167,9 +156,7 @@ function statusToStep(status){
 }
 function hasPrefilledStep1(g){ return !!(g?.prefilledStep1 || g?.custName || g?.custPhone); }
 
-/* Determine initial UI step.
- * Priority: explicit uistart > statusToStep > prefill bump (seed-entry|handoff or hasPrefilledStep1).
- */
+/* Determine initial UI step. */
 function initialUiStepForRecord(g, ctx, uistartParam){
   if (GP_STEPS.includes(uistartParam)) return uistartParam;
   let st = statusToStep(g?.status || "new");
@@ -238,7 +225,6 @@ function applyHandoffPrefill(target, payload){
   if (!payload || !target) return target;
   let changed = false;
 
-  // gp-handoff payload fields
   const pName  = payload.custName || payload.name  || "";
   const pPhone = payload.custPhone|| payload.phone || "";
 
@@ -328,7 +314,6 @@ async function saveGuestNow(){
     updates[`guestinfo/${currentGuestKey}/updatedAt`] = now;
     if (hasPrefilledStep1(g)) updates[`guestinfo/${currentGuestKey}/prefilledStep1`] = true;
 
-    /* source backfill */
     if (seedEntryId && !(currentGuestObj?.source && currentGuestObj.source.entryId)){
       updates[`guestinfo/${currentGuestKey}/source`] = {type:"guestForm",entryId:seedEntryId};
     } else if (currentGuestObj?.source){
@@ -426,15 +411,7 @@ function syncUi(){
   gpUI.gotoStep(_uiStep);
 }
 
-/* ------------------------------------------------------------------ bootstrap
- * Context precedence:
- *   1) ?gid=... param
- *   2) ?entry=... param
- *   3) gp-handoff w/gid
- *   4) gp-handoff Step1 only
- *   5) last_guestinfo_key localStorage
- *   6) brand new
- */
+/* ------------------------------------------------------------------ bootstrap */
 async function loadContext(){
   const gid     = qs("gid");
   const entry   = qs("entry");
@@ -457,9 +434,7 @@ async function loadContext(){
         }
         rememberLastGuestKey(gid);
         if (entry && !data?.source?.entryId){
-          gpDb.ref(`guestinfo/${gid}/source`)
-              .set({type:"guestForm",entryId:entry})
-              .catch(()=>{});
+          gpDb.ref(`guestinfo/${gid}/source`).set({type:"guestForm",entryId:entry}).catch(()=>{});
         }
         _uiStep = initialUiStepForRecord(currentGuestObj, "guestinfo", uiStart || handoff?.uistart);
         dlog("loaded guestinfo",gid,"start",_uiStep,currentGuestObj);
@@ -563,12 +538,38 @@ async function loadContext(){
   return {ctx:"new"};
 }
 
+/* --------------------------- auth overlay helper -------------------------- */
+// *** NEW: show simple in-page sign-in prompt instead of redirecting away.
+function showAuthOverlay(){
+  if (document.getElementById("gp-auth-overlay")) return;
+  const div = document.createElement("div");
+  div.id = "gp-auth-overlay";
+  div.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.8);color:#fff;z-index:9999;font-size:1.1rem;text-align:center;padding:1rem;";
+  div.innerHTML = `
+    <div>
+      <p>Please sign in to view this guest.</p>
+      <p><small>(Your link will reload automatically after sign-in.)</small></p>
+    </div>`;
+  document.body.appendChild(div);
+}
+
 /* ---------------------------------------------------------------- Auth gate */
 gpAuth.onAuthStateChanged(async user=>{
   if(!user){
-    window.location.href = "../index.html";
+    dlog("auth: no user; waiting…");
+    showAuthOverlay();
+
+    /* OPTIONAL redirect to login preserving return URL:
+    try{ localStorage.setItem("gp_return_to", window.location.href); }catch(_){}
+    window.location.href = "../index.html#return=guestinfo";
     return;
+    */
+    return; // stay on page; once user signs in we proceed
   }
+
+  // remove overlay if present
+  const ov = document.getElementById("gp-auth-overlay");
+  if (ov) ov.remove();
 
   // Ensure chrome
   gpUI.ensureProgressBar();
@@ -586,9 +587,7 @@ gpAuth.onAuthStateChanged(async user=>{
       gpUI.setProgressPreview(diff>1 ? comp.pctFull : null);
       gpUI.updateNbqChips(live);
     },
-    onBlur: null, // no autosave on blur
-
-    /* ----------------------- FORWARD-NAV AUTOSAVE ------------------------- */
+    onBlur: null,
     onNav: async step => {
       if (!GP_STEPS.includes(step)) return;
       const prev = _uiStep;
