@@ -1,15 +1,6 @@
 /* gp-ui.js ==================================================================
  * UI utilities for the OSL Guest Portal.
- *  - Progress bar + preview
- *  - Step navigation (1/2/3)
- *  - Prefill summary injected above Step 2
- *  - Extra Eval <details> wrapper (optional)
- *  - Status message helpers
- *  - "Next Best Question" (NBQ) coaching chips
- *  - Step show/hide + focus helpers
- *
  * NO FIREBASE CALLS. NO DATA PERSISTENCE.
- * Consumes the `gpCore` API (gp-core.js) for scoring + metadata.
  *
  * LOAD ORDER: gp-core.js → gp-ui.js → gp-app.js
  * -------------------------------------------------------------------------- */
@@ -19,6 +10,14 @@
   /* Shortcuts -------------------------------------------------------------- */
   const $  = sel => document.querySelector(sel);
   const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+  /* gpCore shims (in case loaded earlier than gp-core) --------------------- */
+  const _core = global.gpCore || {};
+  const FIELD_STEP    = _core.FIELD_STEP    || {};
+  const TIER_A_FIELDS = _core.TIER_A_FIELDS || [];
+  const TIER_B_FIELDS = _core.TIER_B_FIELDS || [];
+  const PITCH_WEIGHTS = _core.PITCH_WEIGHTS || {};
+  const fmtPhone      = _core.formatDigits10 || (s=>s||"");
 
   /* ------------------------------------------------------------------------
    * Status message helper (expects .g-status elements by id)
@@ -44,7 +43,8 @@
       summary.style.marginBottom = "1rem";
       step2.insertBefore(summary, step2.firstChild);
     }
-    summary.innerHTML = `<b>Customer:</b> ${name||"-"} &nbsp; <b>Phone:</b> ${phone||"-"}`;
+    const dispPhone = phone ? fmtPhone(phone) : "-";
+    summary.innerHTML = `<b>Customer:</b> ${name||"-"} &nbsp; <b>Phone:</b> ${dispPhone}`;
   }
 
   /* ------------------------------------------------------------------------
@@ -98,7 +98,7 @@
   }
 
   /* ------------------------------------------------------------------------
-   * Step Navigation  (now forwards to gp-app via _navCb)
+   * Step Navigation  (forwarded to gp-app via _navCb)
    * ---------------------------------------------------------------------- */
   let _navCb = null; // set by bindLiveEvents(opts.onNav)
 
@@ -120,7 +120,7 @@
       if (_navCb){
         try{ _navCb(step); }catch(err){ console.warn("[gp-ui] navCb error",err); }
       }else{
-        // fallback local toggle only (should rarely happen once gp-app binds)
+        // fallback toggle if gp-app not yet bound
         gotoStep(step);
       }
     });
@@ -174,11 +174,6 @@
   /* ------------------------------------------------------------------------
    * Field <-> domain mapping helpers used by NBQ and focusField
    * ---------------------------------------------------------------------- */
-  const FIELD_STEP    = gpCore.FIELD_STEP;
-  const TIER_A_FIELDS = gpCore.TIER_A_FIELDS;
-  const TIER_B_FIELDS = gpCore.TIER_B_FIELDS;
-  const PITCH_WEIGHTS = gpCore.PITCH_WEIGHTS;
-
   function fieldToInputId(field){
     switch(field){
       case "custName":       return "custName";
@@ -243,7 +238,7 @@
 
   function updateNbqChips(guestObj){
     const c = ensureNbqContainer();
-    const comp = gpCore.computePitchFull(guestObj);
+    const comp = _core.computePitchFull ? _core.computePitchFull(guestObj) : {steps:{step2:{earned:0,max:1}},fields:{}};
     const missing = [];
 
     const pushMissing = arr => arr.forEach(f=>{
@@ -255,7 +250,8 @@
     pushMissing(TIER_B_FIELDS);
 
     // Only ask for solution once Step2 is reasonably complete
-    if (comp.steps.step2.earned >= (comp.steps.step2.max * 0.6)){
+    if (comp.steps.step2 && comp.steps.step2.max &&
+        comp.steps.step2.earned >= (comp.steps.step2.max * 0.6)){
       pushMissing(["solutionText"]);
     }
 
@@ -285,9 +281,10 @@
   /* ------------------------------------------------------------------------
    * Field list + event binding (autosave hooks)
    * gpUI.bindLiveEvents({onInput, onBlur, onNav})
+   * Defers until core Step1 field exists if called too early.
    * ---------------------------------------------------------------------- */
   let _liveBound = false;
-  function bindLiveEvents(opts={}){
+  function _doBind(opts){
     if(_liveBound) return;
     _liveBound = true;
     if (typeof opts.onNav === "function") _navCb = opts.onNav;
@@ -305,6 +302,14 @@
       if (opts.onInput) el.addEventListener(type, opts.onInput, {passive:true});
       if (opts.onBlur)  el.addEventListener("blur", opts.onBlur, {passive:true});
     });
+  }
+  function bindLiveEvents(opts={}){
+    // If fields already present, bind immediately; else defer to DOM ready.
+    if (document.getElementById("custName")){
+      _doBind(opts);
+    }else{
+      document.addEventListener("DOMContentLoaded", ()=>_doBind(opts), {once:true});
+    }
   }
 
   /* ------------------------------------------------------------------------
@@ -400,9 +405,15 @@
   })();
 
   /* ------------------------------------------------------------------------
-   * DOM ready: wire revert links once (in case gp-app hasn't yet)
+   * DOM ready: wire revert links AND re-sync data if gp-app loaded early.
    * ---------------------------------------------------------------------- */
-  document.addEventListener("DOMContentLoaded", ensureRevertLinks);
+  document.addEventListener("DOMContentLoaded", ()=>{
+    ensureRevertLinks();
+    // If gp-app loaded & fetched data before DOM existed, push it now.
+    if (global.gpApp && typeof global.gpApp.syncUi === "function"){
+      try{ global.gpApp.syncUi(); }catch(err){ console.warn("[gp-ui] late syncUi error",err); }
+    }
+  });
 
   /* ------------------------------------------------------------------------
    * Export public API
@@ -419,7 +430,7 @@
     setProgressSaved,
     setProgressPreview,
 
-    // step nav / show-handle
+    // step nav / show-hide
     ensureStepNav,
     markStepActive,
     gotoStep,
