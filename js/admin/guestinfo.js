@@ -1,54 +1,28 @@
-// guestinfo.js  -- dashboard inline Guest Info cards grouped by status,
-// unified Pitch Quality % (shared util), with filters.
-//
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
-
-  /* ------------------------------------------------------------------
-   * Config: path to full step workflow page
-   * ------------------------------------------------------------------ */
   const GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../html/guestinfo.html";
 
-  /* ------------------------------------------------------------------
-   * UI state (persist on window so survives re-renders)
-   * ------------------------------------------------------------------ */
-  if (typeof window._guestinfo_filterMode === "undefined") window._guestinfo_filterMode = "week"; // 'week' | 'all'
-  if (typeof window._guestinfo_showProposals === "undefined") window._guestinfo_showProposals = false;
-  if (typeof window._guestinfo_soldOnly === "undefined") window._guestinfo_soldOnly = false;
+  // UI state persisted on window
+  window._guestinfo_filterMode ??= "week";
+  window._guestinfo_showProposals ??= false;
+  window._guestinfo_soldOnly ??= false;
 
-  /* ------------------------------------------------------------------
-   * Shared pitch util handles weights & cascade.
-   * Make safe fallbacks if script not yet loaded.
-   * ------------------------------------------------------------------ */
-  const computePQ = window.computeGuestPitchQuality
-    ? window.computeGuestPitchQuality
-    : (g)=>({pct:0,steps:{},fields:{}});
-  const normGuest = window.normalizeGuestForCompletion
-    ? window.normalizeGuestForCompletion
-    : (g)=>g||{};
+  const computePQ = window.computeGuestPitchQuality ?? (_ => ({ pct: 0, steps: {}, fields: {} }));
+  const normGuest = window.normalizeGuestForCompletion ?? (g => g || {});
 
-  /* ------------------------------------------------------------------
-   * Role helpers
-   * ------------------------------------------------------------------ */
+  // Role check helpers
   const isAdmin = r => r === ROLES.ADMIN;
-  const isDM    = r => r === ROLES.DM;
-  const isLead  = r => r === ROLES.LEAD;
-  const isMe    = r => r === ROLES.ME;
+  const isDM = r => r === ROLES.DM;
+  const isLead = r => r === ROLES.LEAD;
+  const isMe = r => r === ROLES.ME;
 
-  function canDelete(role) {
-    return isAdmin(role) || isDM(role) || isLead(role);
-  }
-  function canEditEntry(currentRole, entryOwnerUid, currentUid) {
-    if (!currentRole) return false;
-    if (isAdmin(currentRole) || isDM(currentRole) || isLead(currentRole)) return true;
-    return entryOwnerUid === currentUid; // ME own only
-  }
-  const canMarkSold = canEditEntry; // same logic
+  const canDelete = r => isAdmin(r) || isDM(r) || isLead(r);
+  const canEditEntry = (r, ownerUid, currentUid) =>
+    r && (isAdmin(r) || isDM(r) || isLead(r) || ownerUid === currentUid);
+  const canMarkSold = canEditEntry;
 
-  /* ------------------------------------------------------------------
-   * Hierarchy helpers (DM visibility)
-   * ------------------------------------------------------------------ */
-  function getUsersUnderDM(users, dmUid) {
+  // Get leads and MEs under a DM
+  const getUsersUnderDM = (users, dmUid) => {
     const leads = Object.entries(users)
       .filter(([, u]) => u.role === ROLES.LEAD && u.assignedDM === dmUid)
       .map(([uid]) => uid);
@@ -56,11 +30,9 @@
       .filter(([, u]) => u.role === ROLES.ME && leads.includes(u.assignedLead))
       .map(([uid]) => uid);
     return new Set([...leads, ...mes]);
-  }
+  };
 
-  /* ------------------------------------------------------------------
-   * Visibility filter by role
-   * ------------------------------------------------------------------ */
+  // Visibility filter by role
   function filterGuestinfo(guestinfo, users, currentUid, currentRole) {
     if (!guestinfo || !users || !currentUid || !currentRole) return {};
 
@@ -84,7 +56,6 @@
       );
     }
 
-    // ME: own only
     if (isMe(currentRole)) {
       return Object.fromEntries(
         Object.entries(guestinfo).filter(([, g]) => g.userUid === currentUid)
@@ -94,132 +65,91 @@
     return {};
   }
 
-  /* ------------------------------------------------------------------
-   * Escape HTML
-   * ------------------------------------------------------------------ */
-  function esc(str) {
-    return (str || "")
-      .toString()
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
+  // HTML escape
+  const esc = str => String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
-  /* ------------------------------------------------------------------
-   * Date helpers
-   * ------------------------------------------------------------------ */
-  function nowMs(){ return Date.now(); }
-  function msNDaysAgo(n){ return nowMs() - n*24*60*60*1000; } // rolling n days
-  function latestActivityTs(g){
-    return Math.max(
-      g.updatedAt || 0,
-      g.submittedAt || 0,
-      g.sale?.soldAt || 0,
-      g.solution?.completedAt || 0
-    );
-  }
-  function inCurrentWeek(g){
-    const ts = latestActivityTs(g);
-    return ts >= msNDaysAgo(7); // rolling 7 days labelled "This Week"
-  }
+  // Date helpers
+  const nowMs = () => Date.now();
+  const msNDaysAgo = n => nowMs() - n * 864e5; // 864e5 = 24*60*60*1000
+  const latestActivityTs = g =>
+    Math.max(g.updatedAt || 0, g.submittedAt || 0, g.sale?.soldAt || 0, g.solution?.completedAt || 0);
+  const inCurrentWeek = g => latestActivityTs(g) >= msNDaysAgo(7);
 
-  /* ------------------------------------------------------------------
-   * Status detection & grouping
-   * ------------------------------------------------------------------ */
-  function detectStatus(g){
-    if (g.status) return g.status.toLowerCase();
-    if (g.sale) return "sold";
-    if (g.solution) return "proposal";
-    if (g.evaluate) return "working";
-    return "new";
-  }
+  // Status detection & grouping
+  const detectStatus = g =>
+    (g.status?.toLowerCase()) ||
+    (g.sale && "sold") ||
+    (g.solution && "proposal") ||
+    (g.evaluate && "working") ||
+    "new";
 
-  function groupByStatus(guestMap){
-    const groups = { new:[], working:[], proposal:[], sold:[] };
-    for (const [id,g] of Object.entries(guestMap)){
+  function groupByStatus(guestMap) {
+    const groups = { new: [], working: [], proposal: [], sold: [] };
+    for (const [id, g] of Object.entries(guestMap)) {
       const st = detectStatus(g);
       if (!groups[st]) groups[st] = [];
-      groups[st].push([id,g]);
+      groups[st].push([id, g]);
     }
-    for (const k in groups){
-      groups[k].sort((a,b)=>(latestActivityTs(b[1]) - latestActivityTs(a[1])));
+    for (const k in groups) {
+      groups[k].sort((a, b) => latestActivityTs(b[1]) - latestActivityTs(a[1]));
     }
     return groups;
   }
 
-  /* ------------------------------------------------------------------
-   * Status Badge
-   * ------------------------------------------------------------------ */
+  // Status badge HTML
   function statusBadge(status) {
     const s = (status || "new").toLowerCase();
-    let cls = "role-badge role-guest", label = "NEW";
-    if (s === "working")     { cls = "role-badge role-lead";  label = "WORKING"; }
-    else if (s === "proposal"){ cls = "role-badge role-dm";    label = "PROPOSAL"; }
-    else if (s === "sold")    { cls = "role-badge role-admin"; label = "SOLD"; }
+    const map = {
+      new: ["role-badge role-guest", "NEW"],
+      working: ["role-badge role-lead", "WORKING"],
+      proposal: ["role-badge role-dm", "PROPOSAL"],
+      sold: ["role-badge role-admin", "SOLD"]
+    };
+    const [cls, label] = map[s] || map.new;
     return `<span class="${cls}">${label}</span>`;
   }
 
-  /* ------------------------------------------------------------------
-   * Pitch badge decoration (color thresholds)
-   * ------------------------------------------------------------------ */
-  function decoratePitch(pct, status, compObj){
-    const p = Math.max(0, Math.min(100, Math.round(pct)));
-    let cls = "pitch-low";
-    if (p >= 75) cls = "pitch-good";
-    else if (p >= 40) cls = "pitch-warn";
+  // Pitch badge decorator
+  function decoratePitch(pct, status, compObj) {
+    const p = Math.min(100, Math.max(0, Math.round(pct)));
+    const cls = p >= 75 ? "pitch-good" : p >= 40 ? "pitch-warn" : "pitch-low";
 
-    // tooltip lines
-    const lines = [];
-    lines.push(`Pitch Quality: ${p}%`);
+    const lines = [`Pitch Quality: ${p}%`];
     if (status) lines.push(`Status: ${status.toUpperCase()}`);
-    if (compObj?.steps){
-      const stLines = [];
-      for (const [sk,sd] of Object.entries(compObj.steps)){
-        // show effectivePct to reflect cascade
-        const pctStr = typeof sd.effectivePct === "number"
-          ? Math.round(sd.effectivePct) + "%"
-          : Math.round(sd.pctWithin||0) + "%";
-        stLines.push(`${sk} ${pctStr}`);
-      }
-      if (stLines.length) lines.push(stLines.join(" | "));
+    if (compObj?.steps) {
+      const stepLines = Object.entries(compObj.steps).map(([k, s]) => {
+        const val = typeof s.effectivePct === "number" ? Math.round(s.effectivePct) : Math.round(s.pctWithin || 0);
+        return `${k} ${val}%`;
+      });
+      if (stepLines.length) lines.push(stepLines.join(" | "));
     }
-    return {pct:p,cls,tooltip:lines.join(" • ")};
+
+    return { pct: p, cls, tooltip: lines.join(" • ") };
   }
 
-  /* ------------------------------------------------------------------
-   * Controls bar
-   * ------------------------------------------------------------------ */
-  function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, showCreateBtn=true){
+  // Controls bar HTML
+  function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, showCreateBtn = true) {
     const weekActive = filterMode === "week";
-    const weekCls = weekActive ? "btn-primary" : "btn-secondary";
+    const allBtn = isMe(currentRole) ? "" : `<button class="btn ${weekActive ? "btn-secondary" : "btn-primary"} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.setFilterMode('all')">All</button>`;
 
-    const allCls  = !weekActive ? "btn-primary" : "btn-secondary";
-    const allBtn  = isMe(currentRole) ? "" :
-      `<button class="btn ${allCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.setFilterMode('all')">All</button>`;
-
-    const showFollowBtn = (proposalCount > 0) || showProposals;
-    let proposalBtn = "";
-    if (showFollowBtn){
-      const proposalBtnCls = showProposals ? "btn-secondary" : (proposalCount ? "btn-warning" : "btn-secondary");
-      const proposalBtnLabel = showProposals ? "Back to Leads" : `⚠ Follow-Ups (${proposalCount})`;
-      proposalBtn = `<button class="btn ${proposalBtnCls} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleShowProposals()">${proposalBtnLabel}</button>`;
-    }
-
-    let soldBtn = "";
-    if (!isMe(currentRole)){
-      const soldBtnLabel = soldOnly ? "Back to Leads" : `Sales (${soldCount})`;
-      soldBtn = `<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleSoldOnly()">${soldBtnLabel}</button>`;
-    }
-
-    const createBtn = showCreateBtn
-      ? `<button class="btn btn-success btn-sm" style="margin-left:auto;" onclick="window.guestinfo.createNewLead()">+ New Lead</button>`
+    const proposalBtn = (proposalCount > 0 || showProposals)
+      ? `<button class="btn ${showProposals ? "btn-secondary" : (proposalCount ? "btn-warning" : "btn-secondary")} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleShowProposals()">${showProposals ? "Back to Leads" : `⚠ Follow-Ups (${proposalCount})`}</button>`
       : "";
+
+    const soldBtn = !isMe(currentRole)
+      ? `<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleSoldOnly()">${soldOnly ? "Back to Leads" : `Sales (${soldCount})`}</button>`
+      : "";
+
+    const createBtn = showCreateBtn ? `<button class="btn btn-success btn-sm" style="margin-left:auto;" onclick="window.guestinfo.createNewLead()">+ New Lead</button>` : "";
 
     return `
       <div class="guestinfo-controls review-controls" style="justify-content:flex-start;flex-wrap:wrap;">
-        <button class="btn ${weekCls} btn-sm" onclick="window.guestinfo.setFilterMode('week')">This Week</button>
+        <button class="btn ${weekActive ? "btn-primary" : "btn-secondary"} btn-sm" onclick="window.guestinfo.setFilterMode('week')">This Week</button>
         ${allBtn}
         ${proposalBtn}
         ${soldBtn}
@@ -227,199 +157,121 @@
       </div>`;
   }
 
-  /* ------------------------------------------------------------------
-   * Motivational empty-state (centered)
-   * ------------------------------------------------------------------ */
-  function emptyMotivationHtml(msg="No guest leads in this view."){
-    return `
-      <div class="guestinfo-empty-all text-center" style="margin-top:16px;">
-        <p><b>${esc(msg)}</b></p>
-        <p style="opacity:.8;">Let's start a conversation and create a new lead.</p>
-        <button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
-      </div>`;
-  }
+  // Empty state HTML
+  const emptyMotivationHtml = (msg = "No guest leads in this view.") => `
+    <div class="guestinfo-empty-all text-center" style="margin-top:16px;">
+      <p><b>${esc(msg)}</b></p>
+      <p style="opacity:.8;">Let's start a conversation and create a new lead.</p>
+      <button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
+    </div>`;
 
-  /* ------------------------------------------------------------------
-   * Main renderer
-   * ------------------------------------------------------------------ */
+  // Main render function
   function renderGuestinfoSection(guestinfo, users, currentUid, currentRole) {
-    /* Force ME to week-only */
     if (isMe(currentRole)) window._guestinfo_filterMode = "week";
 
-    const vis = filterGuestinfo(guestinfo, users, currentUid, currentRole);
+    const visible = filterGuestinfo(guestinfo, users, currentUid, currentRole);
+    const filterWeek = isMe(currentRole) || window._guestinfo_filterMode === "week";
 
-    // apply filter mode (week vs all) -- ME always week
-    const filterWeek = isMe(currentRole) ? true : (window._guestinfo_filterMode === "week");
-    const visFiltered = filterWeek
-      ? Object.fromEntries(Object.entries(vis).filter(([,g]) => inCurrentWeek(g)))
-      : vis;
+    const filtered = filterWeek
+      ? Object.fromEntries(Object.entries(visible).filter(([, g]) => inCurrentWeek(g)))
+      : visible;
 
-    // group by status
-    const groups = groupByStatus(visFiltered);
-
+    const groups = groupByStatus(filtered);
     const proposalCount = groups.proposal.length;
-    const soldCount     = groups.sold.length;
+    const soldCount = groups.sold.length;
 
     const showProposals = window._guestinfo_showProposals;
-    const soldOnly      = window._guestinfo_soldOnly;
+    const soldOnly = window._guestinfo_soldOnly;
 
-    /* ----- Sales Only view ----- */
-    if (soldOnly && !isMe(currentRole)){
-      const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, true);
-      const soldHtml = statusSectionHtml("Sales", groups.sold, currentUid, currentRole, "sold");
-      const none = !groups.sold.length ? emptyMotivationHtml("No sales in this view.") : "";
+    if (soldOnly && !isMe(currentRole)) {
       return `
-        <section class="admin-section guestinfo-section" id="guestinfo-section">
-          <h2>Guest Info</h2>
-          ${controlsHtml}
-          ${soldHtml}
-          ${none}
-        </section>`;
+      <section class="admin-section guestinfo-section" id="guestinfo-section">
+        <h2>Guest Info</h2>
+        ${controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole)}
+        ${statusSectionHtml("Sales", groups.sold, currentUid, currentRole, "sold")}
+        ${groups.sold.length ? "" : emptyMotivationHtml("No sales in this view.")}
+      </section>`;
     }
 
-    /* ----- Follow-Ups (Proposals) only ----- */
-    if (showProposals){
-      const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, true);
-      const proposalHtml = statusSectionHtml("Follow-Ups (Proposals)", groups.proposal, currentUid, currentRole, "proposal", true);
-      const none = !groups.proposal.length ? emptyMotivationHtml("No follow-ups in this view.") : "";
+    if (showProposals) {
       return `
-        <section class="admin-section guestinfo-section" id="guestinfo-section">
-          <h2>Guest Info</h2>
-          ${controlsHtml}
-          ${proposalHtml}
-          ${none}
-        </section>`;
+      <section class="admin-section guestinfo-section" id="guestinfo-section">
+        <h2>Guest Info</h2>
+        ${controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole)}
+        ${statusSectionHtml("Follow-Ups (Proposals)", groups.proposal, currentUid, currentRole, "proposal", true)}
+        ${groups.proposal.length ? "" : emptyMotivationHtml("No follow-ups in this view.")}
+      </section>`;
     }
 
-    /* ----- Default view: New + Working (proposal collapsed alert if any) ----- */
     const showEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
-    const controlsHtml = controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, !showEmpty);
-
-    // Only include subsections if NOT caught up
-    const newHtml     = showEmpty ? "" : statusSectionHtml("New",      groups.new,      currentUid, currentRole, "new");
-    const workingHtml = showEmpty ? "" : statusSectionHtml("Working",  groups.working,  currentUid, currentRole, "working");
-
-    // collapsed alert placeholder if proposals exist and we're not empty-caught-up
-    const proposalHtml = (!showEmpty && groups.proposal.length)
-      ? `
-        <div class="guestinfo-proposal-alert">
-          <span>⚠ ${groups.proposal.length} follow-up lead${groups.proposal.length===1?"":"s"} awaiting action.</span>
-          <span style="opacity:.7;font-size:.85em;margin-left:8px;">Tap "Follow-Ups" above to view.</span>
-        </div>`
-      : "";
-
-    const emptyHtml = showEmpty ? emptyMotivationHtml("You're all caught up!") : "";
 
     return `
       <section class="admin-section guestinfo-section" id="guestinfo-section">
         <h2>Guest Info</h2>
-        ${controlsHtml}
-        ${newHtml}
-        ${workingHtml}
-        ${proposalHtml}
-        ${emptyHtml}
-      </section>
-    `;
+        ${controlsBarHtml(window._guestinfo_filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, !showEmpty)}
+        ${showEmpty ? emptyMotivationHtml("You're all caught up!") : ""}
+        ${showEmpty ? "" : statusSectionHtml("New", groups.new, currentUid, currentRole, "new")}
+        ${showEmpty ? "" : statusSectionHtml("Working", groups.working, currentUid, currentRole, "working")}
+        ${(!showEmpty && groups.proposal.length) ? `<div class="guestinfo-proposal-alert" style="margin-top:8px;">
+          <span>⚠ ${groups.proposal.length} follow-up lead${groups.proposal.length === 1 ? "" : "s"} awaiting action.</span>
+          <span style="opacity:.7;font-size:.85em;margin-left:8px;">Tap "Follow-Ups" above to view.</span>
+        </div>` : ""}
+      </section>`;
   }
 
-  /* ------------------------------------------------------------------
-   * Build a status subsection
-   * ------------------------------------------------------------------ */
-  function statusSectionHtml(title, rows, currentUid, currentRole, statusKey, highlight=false){
-    const hasRows = rows && rows.length;
-    if (!hasRows){
-      return `
-        <div class="guestinfo-subsection guestinfo-subsection-empty status-${statusKey}">
-          <h3>${esc(title)}</h3>
-          <div class="guestinfo-empty-msg"><i>None.</i></div>
-        </div>`;
-    }
+  // Status subsection
+  function statusSectionHtml(title, rows, currentUid, currentRole, statusKey, highlight = false) {
+    if (!rows?.length) return `
+      <div class="guestinfo-subsection guestinfo-subsection-empty status-${statusKey}">
+        <h3>${esc(title)}</h3>
+        <div class="guestinfo-empty-msg"><i>None.</i></div>
+      </div>`;
 
-    const cardsHtml = rows.map(([id,g]) => guestCardHtml(id, g, window._users || {}, currentUid, currentRole)).join("");
+    const cardsHtml = rows.map(([id, g]) => guestCardHtml(id, g, window._users || {}, currentUid, currentRole)).join("");
 
     return `
-      <div class="guestinfo-subsection status-${statusKey} ${highlight?"guestinfo-subsection-highlight":""}">
+      <div class="guestinfo-subsection status-${statusKey} ${highlight ? "guestinfo-subsection-highlight" : ""}">
         <h3>${esc(title)}</h3>
         <div class="guestinfo-container">${cardsHtml}</div>
       </div>`;
   }
 
-  /* ------------------------------------------------------------------
-   * Build guest card (inline preview + quick edit) + Pitch Score badge
-   * ------------------------------------------------------------------ */
+  // Guest card HTML + quick edit + pitch badge
   function guestCardHtml(id, g, users, currentUid, currentRole) {
     const submitter = users[g.userUid];
     const allowDelete = canDelete(currentRole);
-    const allowEdit   = canEditEntry(currentRole, g.userUid, currentUid);
-    const allowSold   = canMarkSold(currentRole, g.userUid, currentUid);
+    const allowEdit = canEditEntry(currentRole, g.userUid, currentUid);
+    const allowSold = canMarkSold(currentRole, g.userUid, currentUid);
 
-    // unify service/eval fields: prefer top-level (legacy), else evaluate.*
     const ev = g.evaluate || {};
     const serviceType = g.serviceType ?? ev.serviceType ?? "";
-    const situation   = g.situation   ?? ev.situation   ?? "";
-    const sitPreview  = situation && situation.length > 140
-      ? situation.slice(0,137) + "…"
-      : situation;
+    const situation = g.situation ?? ev.situation ?? "";
+    const sitPreview = situation.length > 140 ? situation.slice(0, 137) + "…" : situation;
 
-    const status      = detectStatus(g);
-    const statBadge   = statusBadge(status);
+    const status = detectStatus(g);
+    const statBadge = statusBadge(status);
 
-    // Pitch Score (shared util / stored pct)
     const savedPct = typeof g.completion?.pct === "number" ? g.completion.pct : null;
-    const compObj  = savedPct!=null ? {pct:savedPct} : computePQ(g); // compute if absent
-    const pct      = savedPct!=null ? savedPct : compObj.pct;
-    const pitch    = decoratePitch(pct, status, savedPct!=null?null:compObj);
-    const pitchHtml = `
-      <span class="guest-pitch-pill ${pitch.cls}"
-            title="${esc(pitch.tooltip)}">
-        ${pitch.pct}%
-      </span>`;
+    const compObj = savedPct != null ? { pct: savedPct } : computePQ(g);
+    const pct = savedPct != null ? savedPct : compObj.pct;
+    const pitch = decoratePitch(pct, status, savedPct != null ? null : compObj);
+
+    const pitchHtml = `<span class="guest-pitch-pill ${pitch.cls}" title="${esc(pitch.tooltip)}">${pitch.pct}%</span>`;
 
     const isSold = status === "sold";
-    const units  = isSold ? (g.sale?.units ?? "") : "";
+    const units = isSold ? (g.sale?.units ?? "") : "";
     const soldAt = isSold && g.sale?.soldAt ? new Date(g.sale.soldAt).toLocaleString() : "";
+    const saleSummary = isSold ? `<div class="guest-sale-summary"><b>Sold:</b> ${soldAt} &bull; Units: ${units}</div>` : "";
 
-    const saleSummary = isSold
-      ? `<div class="guest-sale-summary"><b>Sold:</b> ${soldAt || ""} &bull; Units: ${units}</div>`
-      : "";
+    // Action buttons
+    const actions = [
+      `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">${g.evaluate || g.solution || g.sale ? "Open" : "Continue"}</button>`,
+      allowEdit ? `<button class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
+      !isSold && allowSold ? `<button class="btn btn-success btn-sm" style="margin-left:8px;" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
+      isSold && allowSold ? `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
+      allowDelete ? `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
+    ].filter(Boolean).join("");
 
-    /* Action Row --------------------------------------------------- */
-    const actions = [];
-
-    // Continue/Open workflow page
-    actions.push(
-      `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">
-         ${g.evaluate || g.solution || g.sale ? "Open" : "Continue"}
-       </button>`
-    );
-
-    if (allowEdit) {
-      actions.push(
-        `<button class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>`
-      );
-    }
-
-    if (!isSold && allowSold) {
-      actions.push(
-        `<button class="btn btn-success btn-sm" style="margin-left:8px;" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>`
-      );
-    }
-
-    if (isSold && allowSold) {
-      actions.push(
-        `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>`
-      );
-    }
-
-    if (allowDelete) {
-      actions.push(
-        `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>`
-      );
-    }
-
-    const actionRow = actions.join("");
-
-    /* Quick Edit Form ---------------------------------------------- */
     return `
       <div class="guest-card" id="guest-card-${id}">
         <div class="guest-display">
@@ -431,7 +283,7 @@
           <div><b>Situation:</b> ${esc(sitPreview) || "-"}</div>
           <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : "-"}</div>
           ${saleSummary}
-          <div class="guest-card-actions" style="margin-top:8px;">${actionRow}</div>
+          <div class="guest-card-actions" style="margin-top:8px;">${actions}</div>
         </div>
 
         <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
@@ -456,59 +308,52 @@
     `;
   }
 
-  /* ------------------------------------------------------------------
-   * Toggle Quick Edit
-   * ------------------------------------------------------------------ */
+  // Toggle Quick Edit form visibility
   function toggleEdit(id) {
-    const card      = document.getElementById(`guest-card-${id}`);
-    if (!card) return;
-    const display   = card.querySelector(".guest-display");
-    const form      = card.querySelector(".guest-edit-form");
-    if (!display || !form) return;
-    const showForm = form.style.display === "none";
-    form.style.display    = showForm ? "block" : "none";
-    display.style.display = showForm ? "none"  : "block";
-  }
-  function cancelEdit(id) {
-    const card    = document.getElementById(`guest-card-${id}`);
+    const card = document.getElementById(`guest-card-${id}`);
     if (!card) return;
     const display = card.querySelector(".guest-display");
-    const form    = card.querySelector(".guest-edit-form");
+    const form = card.querySelector(".guest-edit-form");
     if (!display || !form) return;
-    form.style.display    = "none";
+    const showForm = form.style.display === "none";
+    form.style.display = showForm ? "block" : "none";
+    display.style.display = showForm ? "none" : "block";
+  }
+  function cancelEdit(id) {
+    const card = document.getElementById(`guest-card-${id}`);
+    if (!card) return;
+    const display = card.querySelector(".guest-display");
+    const form = card.querySelector(".guest-edit-form");
+    if (!display || !form) return;
+    form.style.display = "none";
     display.style.display = "block";
   }
 
-  /* ------------------------------------------------------------------
-   * Save Quick Edit (top-level fields only)
-   * Also recomputes & writes Pitch Quality.
-   * ------------------------------------------------------------------ */
+  // Save quick edit data and recompute pitch
   async function saveEdit(id) {
     const card = document.getElementById(`guest-card-${id}`);
     const form = card?.querySelector(".guest-edit-form");
     if (!form) return alert("Edit form not found.");
 
     const data = {
-      custName:    form.custName.value.trim(),
-      custPhone:   form.custPhone.value.trim(),
-      serviceType: form.serviceType.value.trim(), // kept top-level legacy
-      situation:   form.situation.value.trim(),
-      updatedAt:   Date.now()
+      custName: form.custName.value.trim(),
+      custPhone: form.custPhone.value.trim(),
+      serviceType: form.serviceType.value.trim(),
+      situation: form.situation.value.trim(),
+      updatedAt: Date.now()
     };
 
     try {
       await window.db.ref(`guestinfo/${id}`).update(data);
-      await recomputePitch(id);  // keep completion in sync
+      await recomputePitch(id);
       cancelEdit(id);
-      await window.renderAdminApp(); // full refresh
+      await window.renderAdminApp();
     } catch (e) {
       alert("Error saving changes: " + e.message);
     }
   }
 
-  /* ------------------------------------------------------------------
-   * Delete Lead
-   * ------------------------------------------------------------------ */
+  // Delete guest lead
   async function deleteGuestInfo(id) {
     if (!canDelete(window.currentRole)) {
       alert("You don't have permission to delete.");
@@ -523,9 +368,7 @@
     }
   }
 
-  /* ------------------------------------------------------------------
-   * Mark Sold (units only) + recompute pitch
-   * ------------------------------------------------------------------ */
+  // Mark lead sold and create sale record
   async function markSold(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -540,22 +383,17 @@
       }
 
       let unitsStr = prompt("How many units were sold?", "1");
-      if (unitsStr === null) return; // cancel
+      if (unitsStr === null) return;
       let units = parseInt(unitsStr, 10);
       if (isNaN(units) || units < 0) units = 0;
 
-      // Determine storeNumber: prefer submitter’s user record
       const users = window._users || {};
       const submitter = users[g.userUid] || {};
-      let storeNumber = submitter.store;
-      if (!storeNumber) {
-        storeNumber = prompt("Enter store number for credit:", "") || "";
-      }
+      let storeNumber = submitter.store || prompt("Enter store number for credit:", "") || "";
       storeNumber = storeNumber.toString().trim();
 
       const now = Date.now();
 
-      // Create sale
       const salePayload = {
         guestinfoKey: id,
         storeNumber,
@@ -564,9 +402,8 @@
         createdAt: now
       };
       const saleRef = await window.db.ref("sales").push(salePayload);
-      const saleId  = saleRef.key;
+      const saleId = saleRef.key;
 
-      // Attach to guestinfo
       await window.db.ref(`guestinfo/${id}/sale`).set({
         saleId,
         soldAt: now,
@@ -575,7 +412,6 @@
       });
       await window.db.ref(`guestinfo/${id}/status`).set("sold");
 
-      // Credit store ledger (best-effort)
       if (storeNumber) {
         try {
           await window.db.ref(`storeCredits/${storeNumber}`).push({
@@ -596,9 +432,7 @@
     }
   }
 
-  /* ------------------------------------------------------------------
-   * Delete Sale (undo) + recompute pitch
-   * ------------------------------------------------------------------ */
+  // Delete sale and rollback status + credits
   async function deleteSale(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -611,34 +445,27 @@
         alert("You don't have permission to modify this sale.");
         return;
       }
-      if (!g.sale || !g.sale.saleId) {
+      if (!g.sale?.saleId) {
         alert("No sale recorded.");
         return;
       }
       if (!confirm("Delete this sale? This will remove store credit.")) return;
 
-      const saleId      = g.sale.saleId;
+      const saleId = g.sale.saleId;
       const storeNumber = g.sale.storeNumber;
-      const hasEval     = !!g.evaluate;
+      const hasEval = !!g.evaluate;
 
-      // Remove sale record
       await window.db.ref(`sales/${saleId}`).remove();
-      // Remove from guestinfo
       await window.db.ref(`guestinfo/${id}/sale`).remove();
-      // Reset status
       await window.db.ref(`guestinfo/${id}/status`).set(hasEval ? "working" : "new");
 
-      // Remove related storeCredits entries (best-effort)
       if (storeNumber) {
         try {
           const creditsSnap = await window.db.ref(`storeCredits/${storeNumber}`).get();
           const creditsObj = creditsSnap.val() || {};
-          const ops = [];
-          for (const [cid, c] of Object.entries(creditsObj)) {
-            if (c.saleId === saleId) {
-              ops.push(window.db.ref(`storeCredits/${storeNumber}/${cid}`).remove());
-            }
-          }
+          const ops = Object.entries(creditsObj)
+            .filter(([, c]) => c.saleId === saleId)
+            .map(([cid]) => window.db.ref(`storeCredits/${storeNumber}/${cid}`).remove());
           await Promise.all(ops);
         } catch (ledgerErr) {
           console.warn("storeCredits cleanup failed:", ledgerErr);
@@ -652,87 +479,47 @@
     }
   }
 
-  /* ------------------------------------------------------------------
-   * Recompute & persist Pitch Quality for a single guest
-   * (Used after quick edits / status changes.)
-   * ------------------------------------------------------------------ */
-  async function recomputePitch(id){
-    try{
+  // Recompute Pitch Quality and persist
+  async function recomputePitch(id) {
+    try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
       const data = snap.val() || {};
       const gNorm = normGuest(data);
-      const comp  = computePQ(gNorm);
+      const comp = computePQ(gNorm);
       await window.db.ref(`guestinfo/${id}/completion`).set({
         pct: Math.round(comp.pct),
         steps: comp.steps,
         fields: comp.fields,
         updatedAt: Date.now()
       });
-    }catch(err){
+    } catch (err) {
       console.warn("guestinfo: recomputePitch failed", err);
     }
   }
 
-  /* ------------------------------------------------------------------
-   * Filter setters / toggles
-   * ------------------------------------------------------------------ */
-  function setFilterMode(mode){
-    if (isMe(window.currentRole)) {
-      window._guestinfo_filterMode = "week";   // ME locked
-    } else {
-      window._guestinfo_filterMode = (mode === "all" ? "all" : "week");
-    }
+  // Filter controls setters
+  function setFilterMode(mode) {
+    window._guestinfo_filterMode = isMe(window.currentRole) ? "week" : (mode === "all" ? "all" : "week");
     window.renderAdminApp();
   }
-  function toggleShowProposals(){
-    // turning on Follow-Ups hides Sales view
-    if (!window._guestinfo_showProposals){
-      window._guestinfo_soldOnly = false;
-    }
+  function toggleShowProposals() {
+    if (!window._guestinfo_showProposals) window._guestinfo_soldOnly = false;
     window._guestinfo_showProposals = !window._guestinfo_showProposals;
     window.renderAdminApp();
   }
-  function toggleSoldOnly(){
-    // turning on Sales hides Follow-Ups
-    if (!window._guestinfo_soldOnly){
-      window._guestinfo_showProposals = false;
-    }
+  function toggleSoldOnly() {
+    if (!window._guestinfo_soldOnly) window._guestinfo_showProposals = false;
     window._guestinfo_soldOnly = !window._guestinfo_soldOnly;
     window.renderAdminApp();
   }
 
-  /* ------------------------------------------------------------------
-   * Create New Lead (launch step workflow w/out gid param)
-   * ------------------------------------------------------------------ */
-  function createNewLead(){
-    const base = GUESTINFO_PAGE;
-    const url = base.split("?")[0]; // strip existing query if any
-    try { localStorage.removeItem("last_guestinfo_key"); } catch(_) {}
-    window.location.href = url;
+  // Create new lead (clear last key & redirect)
+  function createNewLead() {
+    try { localStorage.removeItem("last_guestinfo_key"); } catch {}
+    window.location.href = GUESTINFO_PAGE.split("?")[0];
   }
 
-  /* ------------------------------------------------------------------
-   * Open full workflow page (Step UI) for existing record
-   * ------------------------------------------------------------------ */
-  /* ------------------------------------------------------------------
-   * Open full workflow page (Step UI) for existing record
-   *  - Sends a uistart hint so gp-app can jump directly to the best step.
-   *    Logic:
-   *      proposal|sold  -> step3
-   *      else if any Step1 data present OR g.prefilledStep1 -> step2
-   *      else -> step1
-   * ------------------------------------------------------------------ */
-  /* ------------------------------------------------------------------
-   * Open full workflow page (Step UI) for existing record (from dashboard cards)
-   *  - Computes a `uistart` hint for gp-app.js so the portal opens on the
-   *    most appropriate step immediately.
-   *    Rules (in order):
-   *      status:proposal|sold        -> step3
-   *      status:working              -> step2
-   *      else if any Step1 data      -> step2
-   *      else                        -> step1
-   *    "Step1 data" = prefilledStep1 || custName || custPhone.
-   * ------------------------------------------------------------------ */
+  // Open full workflow page for a guest lead with uistart hint
   function openGuestInfoPage(guestKey) {
     const base = GUESTINFO_PAGE;
     const g = (window._guestinfo && window._guestinfo[guestKey]) || null;
@@ -740,34 +527,26 @@
     let uistart = "step1";
     if (g) {
       const status = (g.status || "").toLowerCase();
-      if (status === "proposal" || status === "sold") {
-        uistart = "step3";
-      } else if (status === "working") {
-        uistart = "step2";
-      } else {
-        const hasStep1 =
-          (g.custName && g.custName.trim() !== "") ||
-          (g.custPhone && g.custPhone.trim() !== "") ||
-          g.prefilledStep1;
+      if (["proposal", "sold"].includes(status)) uistart = "step3";
+      else if (status === "working") uistart = "step2";
+      else {
+        const hasStep1 = g.prefilledStep1 || (g.custName?.trim()) || (g.custPhone?.trim());
         uistart = hasStep1 ? "step2" : "step1";
       }
     }
 
-    // Build URL safely whether base already has query params or not.
     const sep = base.includes("?") ? "&" : "?";
     const url = `${base}${sep}gid=${encodeURIComponent(guestKey)}&uistart=${uistart}`;
 
-    try { localStorage.setItem("last_guestinfo_key", guestKey || ""); } catch(_) {}
-
+    try { localStorage.setItem("last_guestinfo_key", guestKey || ""); } catch {}
     window.location.href = url;
   }
-  /* ------------------------------------------------------------------
-   * Inject minimal CSS for pitch pills (only once)
-   * ------------------------------------------------------------------ */
-  function ensurePitchCss(){
+
+  // Inject CSS for pitch pills once
+  function ensurePitchCss() {
     if (document.getElementById("guestinfo-pitch-css")) return;
     const css = `
-      .guest-pitch-pill{
+      .guest-pitch-pill {
         display:inline-block;
         padding:2px 10px;
         margin-left:4px;
@@ -778,9 +557,18 @@
         border:1px solid var(--border-color,rgba(255,255,255,.2));
         white-space:nowrap;
       }
-      .guest-pitch-pill.pitch-good{background:var(--success-bg,rgba(0,200,83,.15));color:var(--success,#00c853);}
-      .guest-pitch-pill.pitch-warn{background:var(--warning-bg,rgba(255,179,0,.15));color:var(--warning,#ffb300);}
-      .guest-pitch-pill.pitch-low{background:var(--danger-bg,rgba(255,82,82,.15));color:var(--danger,#ff5252);}
+      .guest-pitch-pill.pitch-good {
+        background:var(--success-bg,rgba(0,200,83,.15));
+        color:var(--success,#00c853);
+      }
+      .guest-pitch-pill.pitch-warn {
+        background:var(--warning-bg,rgba(255,179,0,.15));
+        color:var(--warning,#ffb300);
+      }
+      .guest-pitch-pill.pitch-low {
+        background:var(--danger-bg,rgba(255,82,82,.15));
+        color:var(--danger,#ff5252);
+      }
     `.trim();
     const style = document.createElement("style");
     style.id = "guestinfo-pitch-css";
@@ -789,9 +577,7 @@
   }
   ensurePitchCss();
 
-  /* ------------------------------------------------------------------
-   * Expose public API
-   * ------------------------------------------------------------------ */
+  // Expose public API
   window.guestinfo = {
     renderGuestinfoSection,
     toggleEdit,
@@ -801,15 +587,11 @@
     markSold,
     deleteSale,
     openGuestInfoPage,
-    // filters
     setFilterMode,
     toggleShowProposals,
     toggleSoldOnly,
-    // new lead
     createNewLead,
-    // pitch util (exported for other modules / batch jobs)
     recomputePitch,
-    // quick access to compute (stateless)
     computePitchScore: computePQ
   };
 })();
