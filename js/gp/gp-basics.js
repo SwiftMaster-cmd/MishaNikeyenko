@@ -1,6 +1,6 @@
-/* gp-guest-portal.js -- Minimal Guest Portal logic with Firebase, UI steps, save/load, auth, optimized merge of gp-app-min.js + gp-basic.js */
+/* gp-guest-portal.js -- Full Minimal Guest Portal with Firebase, UI steps, save/load, auth */
 (function(global){
-  /* ---------------- Firebase config & init ---------------------------- */
+  // --- Firebase config & init ---
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
     authDomain: "osls-644fd.firebaseapp.com",
@@ -15,14 +15,14 @@
   const db = firebase.database();
   const auth = firebase.auth();
 
-  /* ---------------- State ---------------------------------------------- */
+  // --- State ---
   let _guestObj = null;
   let _guestKey = null;
   let _uiStep = "step1";
   let _entryId = null;
   let _handoff = undefined;
 
-  /* ---------------- DOM Helpers --------------------------------------- */
+  // --- DOM Helpers ---
   const el = id => document.getElementById(id);
   function qs(name){
     const params = {};
@@ -32,7 +32,17 @@
     return params[name] || null;
   }
 
-  /* ---------------- Field IO ------------------------------------------- */
+  // --- Core utilities (fallback safe) ---
+  const core = global.gpCore || {};
+  const detectStatus = core.detectStatus || (g => {
+    if (g?.solution?.text) return "proposal";
+    if (g?.evaluate && Object.keys(g.evaluate).length) return "working";
+    return "new";
+  });
+  const hasPrefilledStep1 = core.hasPrefilledStep1 || (g => !!(g?.custName || g?.custPhone));
+  const normGuest = core.normGuest || (g => g || {});
+
+  // --- Field IO ---
   function readFields(){
     return {
       custName: el("custName")?.value || "",
@@ -44,37 +54,22 @@
     };
   }
   function writeFields(g){
-    if (el("custName")) el("custName").value = g.custName || "";
-    if (el("custPhone")) el("custPhone").value = g.custPhone || "";
+    if(el("custName")) el("custName").value = g.custName || "";
+    if(el("custPhone")) el("custPhone").value = g.custPhone || "";
     const e = g.evaluate || {};
-    if (el("currentCarrierSel")) el("currentCarrierSel").value = e.currentCarrier || "";
-    if (el("numLines")) el("numLines").value = e.numLines || "";
-    if (el("coverageZip")) el("coverageZip").value = e.coverageZip || "";
-    if (el("solutionText")) el("solutionText").value = (g.solution?.text) || "";
-    if (global.gpUIAdv) global.gpUIAdv.injectPrefillSummary(g.custName, g.custPhone);
+    if(el("currentCarrierSel")) el("currentCarrierSel").value = e.currentCarrier || "";
+    if(el("numLines")) el("numLines").value = e.numLines || "";
+    if(el("coverageZip")) el("coverageZip").value = e.coverageZip || "";
+    if(el("solutionText")) el("solutionText").value = (g.solution?.text) || "";
+    if(global.gpUIAdv) global.gpUIAdv.injectPrefillSummary(g.custName, g.custPhone);
   }
 
-  /* ---------------- Local storage for guest key ---------------------- */
-  function saveLocalKey(k){ try { localStorage.setItem("last_guestinfo_key", k || ""); } catch{} }
+  // --- LocalStorage key save ---
+  function saveLocalKey(k){ try { localStorage.setItem("last_guestinfo_key", k || ""); } catch {} }
 
-  /* ---------------- Detect Status & Prefilled Step1 ------------------- */
-  const core = global.gpCore || {};
-  const detectStatus = core.detectStatus || (g=> (g?.solution?.text ? "proposal" : (g?.evaluate && Object.keys(g.evaluate).length ? "working" : "new")));
-  const hasPrefilledStep1 = core.hasPrefilledStep1 || (g=> !!(g?.custName || g?.custPhone));
-  const normGuest = core.normGuest || (g=> g || {});
-
-  /* ---------------- Initial step logic --------------------------------- */
-  function initialStep(g, explicit){
-    if (["step1","step2","step3"].includes(explicit)) return explicit;
-    const st = detectStatus(g) || "new";
-    if (st === "proposal" || st === "sold") return "step3";
-    if (hasPrefilledStep1(g)) return "step2";
-    return "step1";
-  }
-
-  /* ---------------- Navigation UI & Logic ----------------------------- */
+  // --- Navigation ---
   function ensureStepNav(){
-    if (el("gp-step-nav")) return;
+    if(el("gp-step-nav")) return;
     const nav = document.createElement("div");
     nav.id = "gp-step-nav";
     nav.className = "gp-step-nav";
@@ -83,7 +78,7 @@
       <button type="button" data-step="step2">2. Evaluate</button>
       <button type="button" data-step="step3">3. Solution</button>`;
     document.body.insertBefore(nav, document.body.firstChild);
-    nav.addEventListener("click", e=>{
+    nav.addEventListener("click", e => {
       const btn = e.target.closest("button[data-step]");
       if (!btn) return;
       navHandler(btn.dataset.step);
@@ -97,12 +92,12 @@
   function markStepActive(step){
     const nav = el("gp-step-nav");
     if (!nav) return;
-    [...nav.querySelectorAll("button")].forEach(btn=>{
+    [...nav.querySelectorAll("button")].forEach(btn => {
       btn.classList.toggle("active", btn.dataset.step === step);
     });
   }
   function gotoStep(step){
-    ["step1","step2","step3"].forEach(s=>{
+    ["step1", "step2", "step3"].forEach(s => {
       const frm = el(`${s}Form`);
       if (!frm) return;
       frm.classList.toggle("hidden", s !== step);
@@ -110,7 +105,16 @@
     if (global.gpUIAdv && typeof global.gpUIAdv.gotoStep === "function") global.gpUIAdv.gotoStep(step);
   }
 
-  /* ---------------- Handoff consume (once) ---------------------------- */
+  // --- Initial step decision ---
+  function initialStep(g, explicit){
+    if (["step1","step2","step3"].includes(explicit)) return explicit;
+    const st = detectStatus(g) || "new";
+    if (st === "proposal" || st === "sold") return "step3";
+    if (hasPrefilledStep1(g)) return "step2";
+    return "step1";
+  }
+
+  // --- Consume handoff once ---
   function consumeHandoff(){
     if (_handoff !== undefined) return _handoff;
     try {
@@ -121,14 +125,14 @@
       } else {
         _handoff = null;
       }
-    } catch(e) {
+    } catch (e) {
       console.warn("[gp-guest-portal] handoff error", e);
       _handoff = null;
     }
     return _handoff;
   }
 
-  /* ---------------- Build guest object from DOM fields ---------------- */
+  // --- Build guest from DOM fields ---
   function buildGuestFromDom(){
     const f = readFields();
     const evaluate = {
@@ -148,14 +152,14 @@
     return g;
   }
 
-  /* ---------------- Save guest data ------------------------------------ */
+  // --- Save guest (create/update) ---
   async function saveGuestNow(){
     const g = buildGuestFromDom();
     const uid = auth.currentUser?.uid || null;
     const now = Date.now();
 
     if (!_guestKey){
-      // Create new guest record
+      // Create new record
       const payload = {
         custName: g.custName,
         custPhone: g.custPhone,
@@ -178,7 +182,7 @@
         return;
       }
     } else {
-      // Update existing guest record
+      // Update existing record
       const updates = {};
       updates[`guestinfo/${_guestKey}/custName`] = g.custName;
       updates[`guestinfo/${_guestKey}/custPhone`] = g.custPhone;
@@ -202,14 +206,14 @@
     alert("Saved.");
   }
 
-  /* ---------------- Load guest context --------------------------------- */
+  // --- Load context on start ---
   async function loadContext(){
     const gidParam = qs("gid");
     const entryParam = qs("entry");
     const uiStart = qs("uistart");
     const handoff = consumeHandoff();
 
-    // 1) Explicit gid param
+    // 1) Explicit guest ID param
     if (gidParam){
       const snap = await db.ref("guestinfo/"+gidParam).get();
       if (snap.exists()){
@@ -228,7 +232,7 @@
       }
     }
 
-    // 2) Handoff gid w/out param
+    // 2) Handoff guest ID without param
     if (handoff?.gid){
       const snap = await db.ref("guestinfo/"+handoff.gid).get();
       if (snap.exists()){
@@ -246,7 +250,7 @@
       }
     }
 
-    // 3) Entry param (seed new)
+    // 3) New entry param or handoff seed
     if (entryParam || handoff?.custName || handoff?.custPhone){
       _entryId = entryParam || handoff?.entry || null;
       _guestObj = {
@@ -264,7 +268,7 @@
       return;
     }
 
-    // 4) Resume last saved guest
+    // 4) Resume last saved guest if exists
     const last = localStorage.getItem("last_guestinfo_key");
     if (last){
       const snap = await db.ref("guestinfo/"+last).get();
@@ -281,7 +285,7 @@
       }
     }
 
-    // 5) New guest fallback
+    // 5) Fresh new guest fallback
     _guestObj = {status:"new", evaluate:{}, solution:null};
     _guestKey = null;
     _uiStep = "step1";
@@ -289,7 +293,7 @@
     markStepActive(_uiStep);
   }
 
-  /* ---------------- Auth overlay --------------------------------------- */
+  // --- Auth overlay ---
   function showAuthOverlay(){
     if (el("gp-auth-overlay")) return;
     const div = document.createElement("div");
@@ -299,7 +303,7 @@
     document.body.appendChild(div);
   }
 
-  /* ---------------- Auth listener & init ------------------------------ */
+  // --- Auth listener & init ---
   auth.onAuthStateChanged(async user=>{
     if (!user){ showAuthOverlay(); return; }
     const ov = el("gp-auth-overlay");
@@ -307,7 +311,7 @@
     ensureStepNav();
     await loadContext();
 
-    // Submit handlers for forms step1-3
+    // Add submit handlers for forms step1-3
     ["step1Form","step2Form","step3Form"].forEach((fid, idx) => {
       const frm = el(fid);
       if (!frm) return;
@@ -323,7 +327,7 @@
     });
   });
 
-  /* ---------------- Public API ----------------------------------------- */
+  // --- Public API ---
   const gpBasic = {
     get guestKey(){ return _guestKey; },
     get guest(){ return _guestObj; },
