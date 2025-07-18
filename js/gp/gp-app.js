@@ -50,7 +50,9 @@ const AUTO_STATUS_ESCALATE = true; // detectStatus() on save
 const DBG = ()=>!!window.GP_DEBUG;
 function dlog(...a){ if (DBG()) console.log("[gp-app]",...a); }
 
-/* ----------------------------------------------------------- gpCore safe shim */
+/* ----------------------------------------------------------- gpCore safe shim
+ * (Real gpCore should be loaded before gp-ui.js; this is a fallback.)
+ */
 const gpCore = window.gpCore || {
   detectStatus(g){
     if (!g) return "new";
@@ -59,15 +61,58 @@ const gpCore = window.gpCore || {
     if (g.evaluate && Object.keys(g.evaluate).length) return "working";
     return "new";
   },
-  computePitchFull(g){ return {pctFull:0,steps:{},fields:{}}; },
+  // minimal structure so gpUI.updateNbqChips() doesn't crash if core missing
+  computePitchFull(g){
+    return {
+      pctFull: 0,
+      steps:{
+        step1:{earned:0,max:1},
+        step2:{earned:0,max:1},
+        step3:{earned:0,max:1}
+      },
+      fields:{}
+    };
+  },
   hasVal(v){ return v!=null && v!==""; },
-  normGuest(g){ return g||{}; }
+  normGuest(g){ return g||{}; },
+  FIELD_STEP:{
+    custName:"step1",custPhone:"step1",
+    currentCarrier:"step2",numLines:"step2",coverageZip:"step2",deviceStatus:"step2",
+    finPath:"step2",billPain:"step2",dataNeed:"step2",hotspotNeed:"step2",intlNeed:"step2",
+    solutionText:"step3"
+  },
+  TIER_A_FIELDS:["custName","custPhone","currentCarrier","numLines","coverageZip"],
+  TIER_B_FIELDS:["deviceStatus","finPath","billPain","dataNeed","hotspotNeed","intlNeed"],
+  PITCH_WEIGHTS:{custName:5,custPhone:5,currentCarrier:10,numLines:8,coverageZip:4}
 };
 gpCore.normGuest = gpCore.normGuest || gpCore.normalize || (g=>g||{});
 
+/* ---------------------------------------------------------------- norm helper
+ * Defensive wrapper: preserve Step1 + status/prefilled flags even if the
+ * loaded core-normalizer drops or relocates them.
+ */
+function normWithStep1(raw){
+  let n = gpCore.normGuest ? gpCore.normGuest(raw) : (raw || {});
+  if(!n || typeof n!=="object") n = {};
+  // preserve Step1 top-level fields
+  if(raw && raw.custName !== undefined && (n.custName === undefined || n.custName === null)){
+    n.custName = raw.custName;
+  }
+  if(raw && raw.custPhone !== undefined && (n.custPhone === undefined || n.custPhone === null)){
+    n.custPhone = raw.custPhone;
+  }
+  // preserve status / prefill
+  if(raw && raw.status && !n.status) n.status = raw.status;
+  if(raw && raw.prefilledStep1 && !n.prefilledStep1) n.prefilledStep1 = true;
+  // guarantee objects
+  if(!n.evaluate) n.evaluate = {};
+  if(!n.solution) n.solution = {};
+  return n;
+}
+
 /* --------------------------------------------------------- gp-handoff integration
  * consumeHandoffOnce() -> payload | null
- * gp-handoff exports .consume() returning the merged payload (URL>LS) & clears LS.
+ * gp-handoff exports .consume() returning merged payload (URL>LS) & clears LS.
  */
 function consumeHandoffOnce(){
   if (_handoffPayload !== undefined) return _handoffPayload || null;
@@ -193,7 +238,7 @@ function applyHandoffPrefill(target, payload){
   if (!payload || !target) return target;
   let changed = false;
 
-  // The gp-handoff payload uses .name/.phone (or .custName/.custPhone if passed)
+  // gp-handoff payload fields
   const pName  = payload.custName || payload.name  || "";
   const pPhone = payload.custPhone|| payload.phone || "";
 
@@ -242,7 +287,7 @@ async function saveGuestNow(){
     try{
       const pushRef = await gpDb.ref("guestinfo").push(payload);
       currentGuestKey = pushRef.key;
-      dlog("created guestinfo",currentGuestKey);
+      dlog("created guestinfo",currentGuestKey,payload);
     }catch(err){
       console.error("[gp-app] create guestinfo failed",err);
       gpUI.statusMsg("status1","Save error","error");
@@ -258,14 +303,14 @@ async function saveGuestNow(){
           guestinfoKey: currentGuestKey,
           consumedBy: uid,
           consumedAt: now,
-          claimedBy: uid // best effort
+          claimedBy: uid || null
         });
       }catch(err){
         console.warn("[gp-app] link guestEntries→guestinfo failed",err);
       }
     }
 
-    currentGuestObj = gpCore.normGuest(g);
+    currentGuestObj = normWithStep1(g);
 
   } else {
     /* UPDATE ------------------------------------------------------ */
@@ -292,7 +337,7 @@ async function saveGuestNow(){
 
     try{
       await gpDb.ref().update(updates);
-      dlog("updated guestinfo",currentGuestKey);
+      dlog("updated guestinfo",currentGuestKey,updates);
     }catch(err){
       console.error("[gp-app] update guestinfo failed",err);
       gpUI.statusMsg("status1","Save error","error");
@@ -301,7 +346,7 @@ async function saveGuestNow(){
       return;
     }
 
-    currentGuestObj = gpCore.normGuest(g);
+    currentGuestObj = normWithStep1(g);
   }
 
   await writeCompletion(currentGuestKey, currentGuestObj);
@@ -401,10 +446,11 @@ async function loadContext(){
   if (gid){
     try{
       const snap = await gpDb.ref(`guestinfo/${gid}`).get();
+      dlog("gid raw exists?", snap.exists(), snap.val());
       const data = snap.val();
       if (data){
         currentGuestKey = gid;
-        currentGuestObj = gpCore.normGuest(data);
+        currentGuestObj = normWithStep1(data);
         if (handoff && handoff.gid===gid){
           currentGuestObj = applyHandoffPrefill(currentGuestObj, handoff);
           if (handoff.entry) seedEntryId = handoff.entry;
@@ -416,7 +462,7 @@ async function loadContext(){
               .catch(()=>{});
         }
         _uiStep = initialUiStepForRecord(currentGuestObj, "guestinfo", uiStart || handoff?.uistart);
-        dlog("loaded guestinfo",gid,"start",_uiStep);
+        dlog("loaded guestinfo",gid,"start",_uiStep,currentGuestObj);
         return {ctx:"guestinfo"};
       }
     }catch(err){ console.error("Guest Portal: load gid error",err); }
@@ -426,10 +472,11 @@ async function loadContext(){
   if (entry){
     try{
       const esnap = await gpDb.ref(`guestEntries/${entry}`).get();
+      dlog("entry raw exists?", esnap.exists(), esnap.val());
       const e = esnap.val();
       if (e){
         seedEntryId = entry;
-        currentGuestObj = {
+        currentGuestObj = normWithStep1({
           status: "new",
           custName:  e.guestName  || "",
           custPhone: e.guestPhone || "",
@@ -439,11 +486,11 @@ async function loadContext(){
           solution: {},
           prefilledStep1: !!(e.guestName || e.guestPhone),
           source: {type:"guestForm",entryId:entry}
-        };
+        });
         if (handoff) applyHandoffPrefill(currentGuestObj, handoff);
         currentGuestKey = null;
         _uiStep = initialUiStepForRecord(currentGuestObj, "seed-entry", uiStart || handoff?.uistart);
-        dlog("seed-entry start",_uiStep);
+        dlog("seed-entry start",_uiStep,currentGuestObj);
         return {ctx:"seed-entry"};
       }
     }catch(err){ console.error("Guest Portal: load entry error",err); }
@@ -453,15 +500,16 @@ async function loadContext(){
   if (handoff && handoff.gid){
     try{
       const snap = await gpDb.ref(`guestinfo/${handoff.gid}`).get();
+      dlog("handoff gid raw exists?", snap.exists(), snap.val());
       const data = snap.val();
       if (data){
         currentGuestKey = handoff.gid;
-        currentGuestObj = gpCore.normGuest(data);
+        currentGuestObj = normWithStep1(data);
         applyHandoffPrefill(currentGuestObj, handoff);
         if (handoff.entry) seedEntryId = handoff.entry;
         rememberLastGuestKey(handoff.gid);
         _uiStep = initialUiStepForRecord(currentGuestObj, "handoff", uiStart || handoff.uistart);
-        dlog("handoff(gid) start",_uiStep);
+        dlog("handoff(gid) start",_uiStep,currentGuestObj);
         return {ctx:"handoff"};
       }
     }catch(err){ console.error("Guest Portal: handoff gid load error",err); }
@@ -470,7 +518,7 @@ async function loadContext(){
   /* 4) handoff Step1-only ----------------------------------------- */
   if (handoff && (handoff.name || handoff.phone || handoff.custName || handoff.custPhone)){
     seedEntryId = handoff.entry || null;
-    currentGuestObj = {
+    currentGuestObj = normWithStep1({
       status:"new",
       custName:handoff.custName||handoff.name||"",
       custPhone:handoff.custPhone||handoff.phone||"",
@@ -480,10 +528,10 @@ async function loadContext(){
       solution:{},
       prefilledStep1:true,
       source:handoff.entry?{type:"guestForm",entryId:handoff.entry}:null
-    };
+    });
     currentGuestKey=null;
     _uiStep = initialUiStepForRecord(currentGuestObj, "handoff", uiStart || handoff.uistart);
-    dlog("handoff(step1) start",_uiStep);
+    dlog("handoff(step1) start",_uiStep,currentGuestObj);
     return {ctx:"handoff"};
   }
 
@@ -492,12 +540,13 @@ async function loadContext(){
     const lastKey = localStorage.getItem("last_guestinfo_key");
     if (lastKey){
       const snap = await gpDb.ref(`guestinfo/${lastKey}`).get();
+      dlog("resume raw exists?", snap.exists(), snap.val());
       const data = snap.val();
       if (data){
         currentGuestKey = lastKey;
-        currentGuestObj = gpCore.normGuest(data);
+        currentGuestObj = normWithStep1(data);
         _uiStep = initialUiStepForRecord(currentGuestObj, "resume", uiStart);
-        dlog("resume last",lastKey,"start",_uiStep);
+        dlog("resume last",lastKey,"start",_uiStep,currentGuestObj);
         return {ctx:"resume"};
       }else{
         localStorage.removeItem("last_guestinfo_key");
@@ -527,7 +576,7 @@ gpAuth.onAuthStateChanged(async user=>{
   gpUI.ensureEvalExtrasWrap();
   gpUI.ensureRevertLinks();
 
-  // Bind live events (preview only; no autosave)
+  // Bind live events (preview only; forward-nav autosave)
   gpUI.bindLiveEvents({
     onInput: ()=>{
       const live = buildGuestFromDom();
@@ -538,21 +587,15 @@ gpAuth.onAuthStateChanged(async user=>{
       gpUI.updateNbqChips(live);
     },
     onBlur: null, // no autosave on blur
-    /* ----------------------- FORWARD-NAV AUTOSAVE FIX ---------------------- */
+
+    /* ----------------------- FORWARD-NAV AUTOSAVE ------------------------- */
     onNav: async step => {
       if (!GP_STEPS.includes(step)) return;
       const prev = _uiStep;
       const goingForward = stepRank(step) > stepRank(prev);
       if (goingForward){
-        // Save if we actually changed key Step1/2 fields.
-        // Cheap diff: compare name/phone & eval text fields.
-        const live = buildGuestFromDom();
-        const changed =
-          (live.custName  || "") !== (currentGuestObj?.custName  || "") ||
-          (live.custPhone || "") !== (currentGuestObj?.custPhone || "") ||
-          (step === "step3" && JSON.stringify(live.evaluate||{}) !== JSON.stringify(currentGuestObj?.evaluate||{})) ||
-          (step === "step3" && (live.solution?.text||"") !== (currentGuestObj?.solution?.text||""));
-        if (changed) await saveGuestNow();
+        dlog("forward-nav autosave", prev, "→", step);
+        await saveGuestNow(); // always save when moving forward
       }
       _uiStep = step;
       gpUI.markStepActive(_uiStep);
@@ -593,7 +636,7 @@ async function gpRecomputeCompletion(gid){
   if(!key) return;
   const snap = await gpDb.ref(`guestinfo/${key}`).get();
   const data = snap.val() || {};
-  currentGuestObj = gpCore.normGuest(data);
+  currentGuestObj = normWithStep1(data);
   await writeCompletion(key, currentGuestObj);
 }
 window.gpRecomputeCompletion = gpRecomputeCompletion;
