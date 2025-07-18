@@ -1,3 +1,5 @@
+<!-- gp-app.js -->
+
 /* gp-app.js =================================================================
  * OSL Guest Portal main controller (NO AUTOSAVE + dashboard reopen + handoff)
  * ---------------------------------------------------------------------------
@@ -30,7 +32,7 @@ const gpAuth = firebase.auth();
 let currentGuestObj = null;           // working copy (normalized)
 let currentGuestKey = null;           // guestinfo/<gid>
 let seedEntryId     = null;           // guestEntries/<eid> (if arrival via intake)
-let _handoffPayload = undefined;      // consumed from gp-handoff (once)
+let _handoffPayload = undefined;      // normalized payload from gp-handoff (cached)
 
 /* UI step ------------------------------------------------------------------ */
 const GP_STEPS = ["step1","step2","step3"];
@@ -59,17 +61,34 @@ const gpCore = window.gpCore || {
 gpCore.normGuest = gpCore.normGuest || gpCore.normalize || (g=>g||{});
 
 /* --------------------------------------------------------- gp-handoff integration
- * window.gpHandoff.consumePrefill(): {gid?,entryId?,uistart?,custName?,custPhone?,statusHint?,timestamp?}
- * Consumed ONCE then cleared by gp-handoff.js.
+ * We read once (non-destructive) via gpHandoff.receive() and normalize
+ * into a shape this file expects. After bootstrap completes we call
+ * gpHandoff.consume() to clear the stored payload.
  */
+function _normalizeHandoff(raw){
+  if(!raw) return null;
+  return {
+    gid:        raw.gid   || null,
+    entryId:    raw.entry || null,
+    custName:   raw.name  || raw.custName  || raw.guestName  || "",
+    custPhone:  raw.phone || raw.custPhone || raw.guestPhone || "",
+    statusHint: raw.status|| raw.statusHint|| null,
+    prefilledStep1: !!(raw.prefilledStep1 || raw.prefilled || raw.prefill ||
+                       raw.name || raw.custName || raw.guestName ||
+                       raw.phone || raw.custPhone || raw.guestPhone),
+    uistart: (raw.uistart||"").toLowerCase() || null,
+    timestamp: raw.ts || raw.timestamp || Date.now()
+  };
+}
 function consumeHandoffOnce(){
-  if (_handoffPayload !== undefined) return _handoffPayload || null;
-  try {
-    _handoffPayload = (window.gpHandoff && typeof window.gpHandoff.consumePrefill==="function")
-      ? window.gpHandoff.consumePrefill()
+  if (_handoffPayload !== undefined) return _handoffPayload;
+  try{
+    const raw = (window.gpHandoff && typeof window.gpHandoff.receive==="function")
+      ? window.gpHandoff.receive()   // read but don't clear yet
       : null;
+    _handoffPayload = _normalizeHandoff(raw);
     if (_handoffPayload) dlog("handoff payload", _handoffPayload);
-  } catch(err){
+  }catch(err){
     console.warn("[gp-app] gpHandoff error:",err);
     _handoffPayload = null;
   }
@@ -189,11 +208,13 @@ function applyHandoffPrefill(target, payload){
   if (!target.custName && payload.custName){ target.custName = payload.custName; changed=true; }
   if (!target.custPhone && payload.custPhone){ target.custPhone = payload.custPhone; changed=true; }
 
+  // Status hint only if target still "new"
   if (payload.statusHint && (!target.status || target.status==="new")){
     target.status = payload.statusHint;
     changed=true;
   }
 
+  // Source backfill if we have an entry in the payload and none on target
   if (payload.entryId && !(target.source && target.source.entryId)){
     target.source = {type:"guestForm",entryId:payload.entryId};
     changed=true;
@@ -401,7 +422,11 @@ async function loadContext(){
               .set({type:"guestForm",entryId:entry})
               .catch(()=>{});
         }
-        _uiStep = initialUiStepForRecord(currentGuestObj, "guestinfo", uiStart || handoff?.uistart);
+        _uiStep = initialUiStepForRecord(
+          currentGuestObj,
+          "guestinfo",
+          uiStart || handoff?.uistart
+        );
         dlog("loaded guestinfo",gid,"start",_uiStep);
         return {ctx:"guestinfo"};
       }
@@ -428,7 +453,11 @@ async function loadContext(){
         };
         if (handoff) applyHandoffPrefill(currentGuestObj, handoff);
         currentGuestKey = null;
-        _uiStep = initialUiStepForRecord(currentGuestObj, "seed-entry", uiStart || handoff?.uistart);
+        _uiStep = initialUiStepForRecord(
+          currentGuestObj,
+          "seed-entry",
+          uiStart || handoff?.uistart
+        );
         dlog("seed-entry start",_uiStep);
         return {ctx:"seed-entry"};
       }
@@ -446,7 +475,11 @@ async function loadContext(){
         applyHandoffPrefill(currentGuestObj, handoff);
         if (handoff.entryId) seedEntryId = handoff.entryId;
         rememberLastGuestKey(handoff.gid);
-        _uiStep = initialUiStepForRecord(currentGuestObj, "handoff", uiStart || handoff.uistart);
+        _uiStep = initialUiStepForRecord(
+          currentGuestObj,
+          "handoff",
+          uiStart || handoff.uistart
+        );
         dlog("handoff(gid) start",_uiStep);
         return {ctx:"handoff"};
       }
@@ -468,7 +501,11 @@ async function loadContext(){
       source:handoff.entryId?{type:"guestForm",entryId:handoff.entryId}:null
     };
     currentGuestKey=null;
-    _uiStep = initialUiStepForRecord(currentGuestObj, "handoff", uiStart || handoff.uistart);
+    _uiStep = initialUiStepForRecord(
+      currentGuestObj,
+      "handoff",
+      uiStart || handoff.uistart
+    );
     dlog("handoff(step1) start",_uiStep);
     return {ctx:"handoff"};
   }
@@ -536,6 +573,12 @@ gpAuth.onAuthStateChanged(async user=>{
   if (ctx!=="guestinfo"){  // for seed / handoff / new ensure nav highlight
     gpUI.markStepActive(_uiStep);
     gpUI.gotoStep(_uiStep);
+  }
+
+  /* IMPORTANT: once we're up, clear the handoff store so stale payloads
+     don't reapply on refresh/back. */
+  if (window.gpHandoff && typeof window.gpHandoff.consume==="function"){
+    window.gpHandoff.consume(); // default clears localStorage
   }
 });
 
