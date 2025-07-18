@@ -2,71 +2,122 @@
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
   const GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../html/guestinfo.html";
 
+  // UI state persisted on window
   window._guestinfo_filterMode ??= "week";
   window._guestinfo_showProposals ??= false;
   window._guestinfo_soldOnly ??= false;
 
-  function digitsOnly(s) {
-    return (s || "").replace(/\D+/g, "");
-  }
+  // --- Core pitch & status logic from gp-core-lite.js ---
+  const PITCH_WEIGHTS = {
+    custName:8, custPhone:7,
+    currentCarrier:12, numLines:8, coverageZip:8,
+    deviceStatus:8, finPath:12,
+    billPain:4, dataNeed:4, hotspotNeed:2, intlNeed:2,
+    solutionText:25
+  };
 
-  function hasVal(v) {
+  const FIELD_STEP = {
+    custName:"step1", custPhone:"step1",
+    currentCarrier:"step2", numLines:"step2", coverageZip:"step2",
+    deviceStatus:"step2", finPath:"step2",
+    billPain:"step2", dataNeed:"step2", hotspotNeed:"step2", intlNeed:"step2",
+    solutionText:"step3"
+  };
+
+  function hasVal(v){
     if (v == null) return false;
-    if (typeof v === "string") return v.trim() !== "";
-    if (typeof v === "number") return true;
+    if (typeof v === "string")  return v.trim() !== "";
+    if (typeof v === "number")  return true;
     if (typeof v === "boolean") return v;
-    if (Array.isArray(v)) return v.length > 0;
-    if (typeof v === "object") return Object.keys(v).length > 0;
+    if (Array.isArray(v))       return v.length>0;
+    if (typeof v === "object")  return Object.keys(v).length>0;
     return false;
   }
 
-  function hasAnyEvalData(e) {
-    if (!e) return false;
-    return ["currentCarrier", "numLines", "coverageZip", "deviceStatus", "finPath",
-      "billPain", "dataNeed", "hotspotNeed", "intlNeed"].some(k => hasVal(e[k]));
+  function digitsOnly(s){
+    return (s||"").replace(/\D+/g,"");
   }
 
-  function normGuest(src) {
-    src = src || {};
-    const custName = src.custName ?? src.guestName ?? "";
-    const custPhone = src.custPhone ?? src.guestPhone ?? "";
-    const e = Object.assign({}, src.evaluate || {});
-    if (e.currentCarrier == null && src.currentCarrier != null) e.currentCarrier = src.currentCarrier;
-    if (e.numLines == null && src.numLines != null) e.numLines = src.numLines;
-    if (e.coverageZip == null && src.coverageZip != null) e.coverageZip = src.coverageZip;
-    if (e.deviceStatus == null && src.deviceStatus != null) e.deviceStatus = src.deviceStatus;
-    if (e.finPath == null && src.finPath != null) e.finPath = src.finPath;
-
-    const sol = Object.assign({}, src.solution || {});
-    if (sol.text == null && src.solutionText != null) sol.text = src.solutionText;
-
-    const out = {
-      ...src,
-      custName,
-      custPhone,
-      custPhoneDigits: digitsOnly(custPhone),
-      evaluate: e,
-      solution: sol,
-      prefilledStep1: src.prefilledStep1 || hasPrefilledStep1({ custName, custPhone })
-    };
-    out.status = detectStatus(out);
-    return out;
+  function hasAnyEvalData(e){
+    if(!e) return false;
+    return ["currentCarrier","numLines","coverageZip","deviceStatus","finPath",
+            "billPain","dataNeed","hotspotNeed","intlNeed"].some(k=>hasVal(e[k]));
   }
 
-  function hasPrefilledStep1(g) {
-    return hasVal(g?.custName) || hasVal(g?.custPhone);
-  }
-
-  function detectStatus(g) {
-    const s = (g?.status || "").toLowerCase();
+  function detectStatus(g){
+    const s=(g?.status||"").toLowerCase();
     if (s) return s;
     if (g?.solution && hasVal(g.solution.text)) return "proposal";
     if (hasAnyEvalData(g?.evaluate)) return "working";
     return "new";
   }
 
-  const computePQ = window.computeGuestPitchQuality ?? ((g) => ({ pct: 0, steps: {}, fields: {} }));
+  function hasPrefilledStep1(g){
+    return hasVal(g?.custName)||hasVal(g?.custPhone);
+  }
 
+  function normGuest(src){
+    src = src||{};
+    const custName  = src.custName  ?? src.guestName  ?? "";
+    const custPhone = src.custPhone ?? src.guestPhone ?? "";
+    const e = Object.assign({}, src.evaluate||{});
+    if (e.currentCarrier==null && src.currentCarrier!=null) e.currentCarrier=src.currentCarrier;
+    if (e.numLines      ==null && src.numLines     !=null) e.numLines=src.numLines;
+    if (e.coverageZip   ==null && src.coverageZip  !=null) e.coverageZip=src.coverageZip;
+    if (e.deviceStatus  ==null && src.deviceStatus !=null) e.deviceStatus=src.deviceStatus;
+    if (e.finPath       ==null && src.finPath      !=null) e.finPath=src.finPath;
+
+    const sol = Object.assign({}, src.solution||{});
+    if (sol.text==null && src.solutionText!=null) sol.text=src.solutionText;
+
+    const out = {
+      ...src,
+      custName,
+      custPhone,
+      custPhoneDigits:digitsOnly(custPhone),
+      evaluate:e,
+      solution:sol,
+      prefilledStep1: src.prefilledStep1 || hasPrefilledStep1({custName,custPhone})
+    };
+    out.status = detectStatus(out);
+    return out;
+  }
+
+  function getField(g,k){
+    const e=g?.evaluate||{}, sol=g?.solution||{};
+    switch(k){
+      case "custName":return g?.custName;
+      case "custPhone":return g?.custPhone;
+      case "currentCarrier":return e.currentCarrier;
+      case "numLines":return e.numLines;
+      case "coverageZip":return e.coverageZip;
+      case "deviceStatus":return e.deviceStatus;
+      case "finPath":return e.finPath;
+      case "billPain":return e.billPain;
+      case "dataNeed":return e.dataNeed;
+      case "hotspotNeed":return e.hotspotNeed;
+      case "intlNeed":return e.intlNeed;
+      case "solutionText":return sol.text;
+      default:return undefined;
+    }
+  }
+
+  function computeGuestPitchQuality(g, weights=PITCH_WEIGHTS){
+    const steps={step1:{earned:0,max:0},step2:{earned:0,max:0},step3:{earned:0,max:0}};
+    const fields={};
+    let earned=0,max=0;
+    for(const [k,wt] of Object.entries(weights)){
+      const st=FIELD_STEP[k]||"step1";
+      steps[st].max += wt; max += wt;
+      const ok=hasVal(getField(g,k));
+      if(ok){ steps[st].earned += wt; earned += wt; }
+      fields[k]={ok,wt};
+    }
+    const pctFull = max?Math.round((earned/max)*100):0;
+    return {pct: pctFull, steps, fields};
+  }
+
+  // --- Role helpers & permission checks ---
   const isAdmin = r => r === ROLES.ADMIN;
   const isDM = r => r === ROLES.DM;
   const isLead = r => r === ROLES.LEAD;
@@ -119,6 +170,7 @@
     return {};
   }
 
+  // HTML escape helper
   const esc = str => String(str || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -126,12 +178,14 @@
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+  // Date helpers
   const nowMs = () => Date.now();
   const msNDaysAgo = n => nowMs() - n * 864e5;
   const latestActivityTs = g =>
     Math.max(g.updatedAt || 0, g.submittedAt || 0, g.sale?.soldAt || 0, g.solution?.completedAt || 0);
   const inCurrentWeek = g => latestActivityTs(g) >= msNDaysAgo(7);
 
+  // Group guestinfo by status
   function groupByStatus(guestMap) {
     const groups = { new: [], working: [], proposal: [], sold: [] };
     for (const [id, g] of Object.entries(guestMap)) {
@@ -145,6 +199,7 @@
     return groups;
   }
 
+  // Status badge HTML
   function statusBadge(status) {
     const s = (status || "new").toLowerCase();
     const map = {
@@ -157,6 +212,7 @@
     return `<span class="${cls}">${label}</span>`;
   }
 
+  // Pitch badge decorator
   function decoratePitch(pct, status, compObj) {
     const p = Math.min(100, Math.max(0, Math.round(pct)));
     const cls = p >= 75 ? "pitch-good" : p >= 40 ? "pitch-warn" : "pitch-low";
@@ -174,6 +230,7 @@
     return { pct: p, cls, tooltip: lines.join(" • ") };
   }
 
+  // Controls bar HTML
   function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly, currentRole, showCreateBtn = true) {
     const weekActive = filterMode === "week";
     const allBtn = isMe(currentRole) ? "" : `<button class="btn ${weekActive ? "btn-secondary" : "btn-primary"} btn-sm" style="margin-left:8px;" onclick="window.guestinfo.setFilterMode('all')">All</button>`;
@@ -198,6 +255,7 @@
       </div>`;
   }
 
+  // Empty state HTML
   const emptyMotivationHtml = (msg = "No guest leads in this view.") => `
     <div class="guestinfo-empty-all text-center" style="margin-top:16px;">
       <p><b>${esc(msg)}</b></p>
@@ -205,6 +263,7 @@
       <button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
     </div>`;
 
+  // Main render function
   function renderGuestinfoSection(guestinfo, users, currentUid, currentRole) {
     if (isMe(currentRole)) window._guestinfo_filterMode = "week";
 
@@ -258,6 +317,7 @@
       </section>`;
   }
 
+  // Status subsection
   function statusSectionHtml(title, rows, currentUid, currentRole, statusKey, highlight = false) {
     if (!rows?.length) return `
       <div class="guestinfo-subsection guestinfo-subsection-empty status-${statusKey}">
@@ -274,6 +334,7 @@
       </div>`;
   }
 
+  // Guest card HTML + quick edit + pitch badge
   function guestCardHtml(id, g, users, currentUid, currentRole) {
     const submitter = users[g.userUid];
     const allowDelete = canDelete(currentRole);
@@ -281,14 +342,15 @@
     const allowSold = canMarkSold(currentRole, g.userUid, currentUid);
 
     const ev = g.evaluate || {};
-    const serviceType = g.serviceType ?? ev.serviceType ?? null;
-    const situation = g.situation ?? ev.situation ?? null;
+    const serviceType = g.serviceType ?? ev.serviceType ?? "";
+    const situation = g.situation ?? ev.situation ?? "";
+    const sitPreview = situation.length > 140 ? situation.slice(0, 137) + "…" : situation;
 
     const status = detectStatus(g);
     const statBadge = statusBadge(status);
 
     const savedPct = typeof g.completion?.pct === "number" ? g.completion.pct : null;
-    const compObj = savedPct != null ? { pct: savedPct } : computePQ(normGuest(g));
+    const compObj = savedPct != null ? { pct: savedPct } : computeGuestPitchQuality(normGuest(g));
     const pct = savedPct != null ? savedPct : compObj.pct;
     const pitch = decoratePitch(pct, status, savedPct != null ? null : compObj);
 
@@ -313,10 +375,9 @@
           <div><b>Status:</b> ${statBadge}</div>
           <div><b>Pitch:</b> ${pitchHtml}</div>
           <div><b>Submitted by:</b> ${esc(submitter?.name || submitter?.email || g.userUid)}</div>
-          <div><b>Customer:</b> ${esc(g.custName) || "-"}</div>
-          <div><b>Phone:</b> ${esc(g.custPhone) || "-"}</div>
+          <div><b>Customer:</b> ${esc(g.custName) || "-"} &nbsp; | &nbsp; <b>Phone:</b> ${esc(g.custPhone) || "-"}</div>
           ${serviceType ? `<div><b>Type:</b> ${esc(serviceType)}</div>` : ""}
-          ${situation ? `<div><b>Situation:</b> ${esc(situation.length > 140 ? situation.slice(0,137) + "…" : situation)}</div>` : ""}
+          ${situation ? `<div><b>Situation:</b> ${esc(sitPreview)}</div>` : ""}
           <div><b>When:</b> ${g.submittedAt ? new Date(g.submittedAt).toLocaleString() : "-"}</div>
           ${saleSummary}
           <div class="guest-card-actions" style="margin-top:8px;">${actions}</div>
@@ -330,10 +391,10 @@
             <input type="text" name="custPhone" value="${esc(g.custPhone)}" />
           </label>
           <label>Service Type
-            <input type="text" name="serviceType" value="${esc(serviceType ?? "")}" />
+            <input type="text" name="serviceType" value="${esc(serviceType)}" />
           </label>
           <label>Situation
-            <textarea name="situation">${esc(situation ?? "")}</textarea>
+            <textarea name="situation">${esc(situation)}</textarea>
           </label>
           <div style="margin-top:8px;">
             <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
@@ -344,6 +405,7 @@
     `;
   }
 
+  // Toggle Quick Edit form visibility
   function toggleEdit(id) {
     const card = document.getElementById(`guest-card-${id}`);
     if (!card) return;
@@ -364,6 +426,7 @@
     display.style.display = "block";
   }
 
+  // Save quick edit data and recompute pitch
   async function saveEdit(id) {
     const card = document.getElementById(`guest-card-${id}`);
     const form = card?.querySelector(".guest-edit-form");
@@ -387,6 +450,7 @@
     }
   }
 
+  // Delete guest lead
   async function deleteGuestInfo(id) {
     if (!canDelete(window.currentRole)) {
       alert("You don't have permission to delete.");
@@ -401,6 +465,7 @@
     }
   }
 
+  // Mark lead sold and create sale record
   async function markSold(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -464,6 +529,7 @@
     }
   }
 
+  // Delete sale and rollback status + credits
   async function deleteSale(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -510,12 +576,13 @@
     }
   }
 
+  // Recompute Pitch Quality and persist
   async function recomputePitch(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
       const data = snap.val() || {};
       const gNorm = normGuest(data);
-      const comp = computePQ(gNorm);
+      const comp = computeGuestPitchQuality(gNorm);
       await window.db.ref(`guestinfo/${id}/completion`).set({
         pct: Math.round(comp.pct),
         steps: comp.steps,
@@ -527,6 +594,7 @@
     }
   }
 
+  // Filter control setters
   function setFilterMode(mode) {
     window._guestinfo_filterMode = isMe(window.currentRole) ? "week" : (mode === "all" ? "all" : "week");
     window.renderAdminApp();
@@ -542,11 +610,13 @@
     window.renderAdminApp();
   }
 
+  // Create new lead (clear last key & redirect)
   function createNewLead() {
     try { localStorage.removeItem("last_guestinfo_key"); } catch {}
     window.location.href = GUESTINFO_PAGE.split("?")[0];
   }
 
+  // Open full workflow page for a guest lead with uistart hint
   function openGuestInfoPage(guestKey) {
     const base = GUESTINFO_PAGE;
     const g = (window._guestinfo && window._guestinfo[guestKey]) || null;
@@ -569,6 +639,7 @@
     window.location.href = url;
   }
 
+  // Inject CSS for pitch pills once
   function ensurePitchCss() {
     if (document.getElementById("guestinfo-pitch-css")) return;
     const css = `
@@ -603,6 +674,7 @@
   }
   ensurePitchCss();
 
+  // Expose public API
   window.guestinfo = {
     renderGuestinfoSection,
     toggleEdit,
@@ -617,6 +689,6 @@
     toggleSoldOnly,
     createNewLead,
     recomputePitch,
-    computePitchScore: computePQ
+    computePitchScore: computeGuestPitchQuality
   };
 })();
