@@ -1,29 +1,26 @@
-/* gp-core-lite.js  -----------------------------------------------------------
- * Minimal, dependency-free core helpers for Guest Portal.
- * Safe to load anywhere; no DOM, no Firebase.
- * -------------------------------------------------------------------------- */
-(function(g){
+// gp-core-lite.js -- scoring + normalization for gp-basic + gp-ui-adv
+(function(global){
 
-  /* ---------------- Configurable weights / mapping ----------------------- */
-  const WEIGHTS = Object.assign({
-    custName:5,
-    custPhone:5,
-    currentCarrier:10,
-    numLines:5,
-    coverageZip:5,
+  /* weights (trimmed) ---------------------------------------------------- */
+  const PITCH_WEIGHTS = {
+    custName:8, custPhone:7,
+    currentCarrier:12, numLines:8, coverageZip:8,
+    deviceStatus:8, finPath:12,
+    billPain:4, dataNeed:4, hotspotNeed:2, intlNeed:2,
     solutionText:25
-  }, g.GP_CORE_WEIGHTS || {});
+  };
 
-  const FIELD_STEP = Object.assign({
-    custName:"step1",
-    custPhone:"step1",
-    currentCarrier:"step2",
-    numLines:"step2",
-    coverageZip:"step2",
+  const TIER_A_FIELDS = ["currentCarrier","numLines","coverageZip","deviceStatus","finPath"];
+  const TIER_B_FIELDS = ["billPain","dataNeed","hotspotNeed","intlNeed"];
+
+  const FIELD_STEP = {
+    custName:"step1", custPhone:"step1",
+    currentCarrier:"step2", numLines:"step2", coverageZip:"step2",
+    deviceStatus:"step2", finPath:"step2",
+    billPain:"step2", dataNeed:"step2", hotspotNeed:"step2", intlNeed:"step2",
     solutionText:"step3"
-  }, g.GP_FIELD_STEP || {});
+  };
 
-  /* ---------------- Generic helpers ------------------------------------- */
   function hasVal(v){
     if (v == null) return false;
     if (typeof v === "string") return v.trim() !== "";
@@ -33,89 +30,96 @@
     if (typeof v === "object") return Object.keys(v).length>0;
     return false;
   }
-  function digitsOnly(s){ return (s||"").replace(/\D+/g,""); }
-  function formatDigits10(s){
-    const d = digitsOnly(s);
-    if (d.length===10) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
-    return d;
+  const digitsOnly = s=>(s||"").replace(/\D+/g,"");
+  function formatDigits10(str){
+    const d=digitsOnly(str);
+    return d.length===10?`(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`:d;
   }
 
-  /* ---------------- Status inference ------------------------------------ */
+  function hasAnyEvalData(e){
+    if(!e) return false;
+    return ["currentCarrier","numLines","coverageZip","deviceStatus","finPath",
+            "billPain","dataNeed","hotspotNeed","intlNeed"].some(k=>hasVal(e[k]));
+  }
+
   function detectStatus(g){
-    if (g?.solution?.text) return "proposal";
-    if (hasVal(g?.currentCarrier) || hasVal(g?.numLines) || hasVal(g?.coverageZip)) return "working";
-    if (hasVal(g?.custName) || hasVal(g?.custPhone)) return "new";
+    const s=(g?.status||"").toLowerCase();
+    if (s) return s;
+    if (g?.solution && hasVal(g.solution.text)) return "proposal";
+    if (hasAnyEvalData(g?.evaluate)) return "working";
     return "new";
   }
 
-  /* ---------------- Normalization --------------------------------------- */
-  function normGuest(raw){
-    const src = raw || {};
+  function hasPrefilledStep1(g){
+    return hasVal(g?.custName)||hasVal(g?.custPhone);
+  }
+
+  /* Normalize any historical guest shape */
+  function normGuest(src){
+    src = src||{};
     const custName  = src.custName  ?? src.guestName  ?? "";
     const custPhone = src.custPhone ?? src.guestPhone ?? "";
-    const solution  = src.solution
-      ? {...src.solution}
-      : (src.solutionText ? {text:src.solutionText} : {});
+    const e = Object.assign({}, src.evaluate||{});
+    if (e.currentCarrier==null && src.currentCarrier!=null) e.currentCarrier=src.currentCarrier;
+    if (e.numLines      ==null && src.numLines     !=null) e.numLines=src.numLines;
+    if (e.coverageZip   ==null && src.coverageZip  !=null) e.coverageZip=src.coverageZip;
+    if (e.deviceStatus  ==null && src.deviceStatus !=null) e.deviceStatus=src.deviceStatus;
+    if (e.finPath       ==null && src.finPath      !=null) e.finPath=src.finPath;
+    // extras ignored if not present
+    const sol = Object.assign({}, src.solution||{});
+    if (sol.text==null && src.solutionText!=null) sol.text=src.solutionText;
     const out = {
       ...src,
       custName,
       custPhone,
-      custPhoneDigits: digitsOnly(custPhone),
-      currentCarrier: src.currentCarrier ?? src.evaluate?.currentCarrier ?? "",
-      numLines:       src.numLines       ?? src.evaluate?.numLines       ?? "",
-      coverageZip:    src.coverageZip    ?? src.evaluate?.coverageZip    ?? "",
-      solution,
-      status: detectStatus({
-        ...src,
-        custName,
-        custPhone,
-        currentCarrier: src.currentCarrier ?? src.evaluate?.currentCarrier,
-        numLines:       src.numLines       ?? src.evaluate?.numLines,
-        coverageZip:    src.coverageZip    ?? src.evaluate?.coverageZip,
-        solution
-      })
+      custPhoneDigits:digitsOnly(custPhone),
+      evaluate:e,
+      solution:sol,
+      prefilledStep1: src.prefilledStep1 || hasPrefilledStep1({custName,custPhone})
     };
+    out.status = detectStatus(out);
     return out;
   }
 
-  /* ---------------- Pitch scoring --------------------------------------- */
-  function _getField(g,k){
+  /* Scoring */
+  function getField(g,k){
+    const e=g?.evaluate||{}, sol=g?.solution||{};
     switch(k){
-      case "custName": return g.custName;
-      case "custPhone": return g.custPhone;
-      case "currentCarrier": return g.currentCarrier;
-      case "numLines": return g.numLines;
-      case "coverageZip": return g.coverageZip;
-      case "solutionText": return g.solution?.text;
-      default: return undefined;
+      case "custName":return g?.custName;
+      case "custPhone":return g?.custPhone;
+      case "currentCarrier":return e.currentCarrier;
+      case "numLines":return e.numLines;
+      case "coverageZip":return e.coverageZip;
+      case "deviceStatus":return e.deviceStatus;
+      case "finPath":return e.finPath;
+      case "billPain":return e.billPain;
+      case "dataNeed":return e.dataNeed;
+      case "hotspotNeed":return e.hotspotNeed;
+      case "intlNeed":return e.intlNeed;
+      case "solutionText":return sol.text;
+      default:return undefined;
     }
-  }
-  function computePitchFull(g){
-    const steps = {step1:{earned:0,max:0},step2:{earned:0,max:0},step3:{earned:0,max:0}};
-    let earned=0,max=0;
-    const fields={};
-    for (const [k,wt] of Object.entries(WEIGHTS)){
-      const st = FIELD_STEP[k] || "step1";
-      const v  = _getField(g,k);
-      const ok = hasVal(v);
-      if (ok){ earned+=wt; steps[st].earned+=wt; }
-      steps[st].max += wt; max+=wt;
-      fields[k]={ok,wt};
-    }
-    const pct = max?Math.round(earned/max*100):0;
-    return {pctFull:pct,steps,fields};
   }
 
-  /* ---------------- Export ---------------------------------------------- */
-  g.gpCore = {
-    WEIGHTS,
-    FIELD_STEP,
-    hasVal,
-    digitsOnly,
-    formatDigits10,
-    detectStatus,
-    normGuest,
-    computePitchFull
+  function computePitchFull(g, weights=PITCH_WEIGHTS){
+    const steps={step1:{earned:0,max:0},step2:{earned:0,max:0},step3:{earned:0,max:0}};
+    const fields={};
+    let earned=0,max=0;
+    for(const [k,wt] of Object.entries(weights)){
+      const st=FIELD_STEP[k]||"step1";
+      steps[st].max += wt; max += wt;
+      const ok=hasVal(getField(g,k));
+      if(ok){ steps[st].earned += wt; earned += wt; }
+      fields[k]={ok,wt};
+    }
+    const pctFull = max?Math.round((earned/max)*100):0;
+    return {pctFull,steps,fields};
+  }
+
+  global.gpCore = {
+    PITCH_WEIGHTS,TIER_A_FIELDS,TIER_B_FIELDS,FIELD_STEP,
+    hasVal,digitsOnly,formatDigits10,detectStatus,hasPrefilledStep1,
+    normGuest,computePitchFull
   };
 
 })(window);
