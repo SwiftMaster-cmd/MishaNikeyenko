@@ -1,5 +1,5 @@
 (() => {
-  // Role helpers
+  // Role helpers (reuse or define if needed)
   const ROLES = window.ROLES || { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
   const isAdmin = r => r === ROLES.ADMIN;
   const isDM = r => r === ROLES.DM;
@@ -222,32 +222,6 @@
     window.location.href = url;
   }
 
-  // Toggle overlay panel for actions on a card
-  function toggleActionsOverlay(id, btn) {
-    const overlay = document.getElementById(`guest-actions-overlay-${id}`);
-    if (!overlay) return;
-
-    const isVisible = overlay.style.display === "block";
-    // Hide other overlays
-    document.querySelectorAll(".guest-card-actions-overlay").forEach(el => {
-      if (el !== overlay) el.style.display = "none";
-    });
-
-    if (!isVisible) {
-      overlay.style.display = "block";
-
-      function onClickOutside(event) {
-        if (!overlay.contains(event.target) && event.target !== btn) {
-          overlay.style.display = "none";
-          document.removeEventListener("click", onClickOutside);
-        }
-      }
-      document.addEventListener("click", onClickOutside);
-    } else {
-      overlay.style.display = "none";
-    }
-  }
-
   // Expose public API
   window.guestinfo = window.guestinfo || {};
   Object.assign(window.guestinfo, {
@@ -265,7 +239,6 @@
     markSold,
     deleteSale,
     recomputePitch,
-    openGuestInfoPage,
-    toggleActionsOverlay
+    openGuestInfoPage
   });
 })();
