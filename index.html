@@ -190,7 +190,7 @@
   </main>
   <script type="module" src="JS/Firebase/firebase.js"></script>
   <script type="module" src="JS/Firebase/auth.js"></script>
-    // Auto-redirect if already logged in
+<script>
     auth.onAuthStateChanged(async user => {
       if (user) {
         const snap = await db.ref('users/' + user.uid).get();
