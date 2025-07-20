@@ -184,13 +184,7 @@
       }
     };
 
-    <p class="alt">Don’t have an account?
-      <a href="HTML/register.html">Create one</a>
-    </p>
-  </main>
-  <script type="module" src="JS/Firebase/firebase.js"></script>
-  <script type="module" src="JS/Firebase/auth.js"></script>
-<script>
+    // Auto-redirect if already logged in
     auth.onAuthStateChanged(async user => {
       if (user) {
         const snap = await db.ref('users/' + user.uid).get();
