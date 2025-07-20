@@ -1564,6 +1564,18 @@ td:last-child{text-align:right;}
   border:1px solid rgba(255,255,255,.25);
   opacity:.8;
 }
+.guest-card-actions-overlay {
+  background: #222;
+  border: 1px solid #555;
+  padding: 8px;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  position: absolute;
+  top: 28px;
+  right: 0;
+  z-index: 100;
+  display: none;
+}
 .msg-role-admin{color:#ff5252;border-color:#ff5252;}
 .msg-role-dm{color:#ffb300;border-color:#ffb300;}
 .msg-role-lead{color:#82caff;border-color:#82caff;}
