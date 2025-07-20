@@ -1,17 +1,7 @@
 (() => {
-  // Role helpers (reuse or define if needed)
-  const ROLES = window.ROLES || { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
-  const isAdmin = r => r === ROLES.ADMIN;
-  const isDM = r => r === ROLES.DM;
-  const isLead = r => r === ROLES.LEAD;
-  const isMe = r => r === ROLES.ME;
+  const { normGuest, computeGuestPitchQuality, detectStatus, canDelete, canEditEntry, canMarkSold, ROLES } = window.guestinfoCore;
 
-  const canDelete = r => isAdmin(r) || isDM(r) || isLead(r);
-  const canEditEntry = (r, ownerUid, currentUid) =>
-    r && (isAdmin(r) || isDM(r) || isLead(r) || ownerUid === currentUid);
-  const canMarkSold = canEditEntry;
-
-  // Toggle Quick Edit form visibility for a guest card
+  // Toggle Quick Edit form visibility
   function toggleEdit(id) {
     const card = document.getElementById(`guest-card-${id}`);
     if (!card) return;
@@ -56,7 +46,7 @@
     }
   }
 
-  // Delete guest lead with permission check and confirmation
+  // Delete guest lead
   async function deleteGuestInfo(id) {
     if (!canDelete(window.currentRole)) {
       alert("You don't have permission to delete.");
@@ -71,7 +61,7 @@
     }
   }
 
-  // Mark lead sold and create sale record with optional store credit
+  // Mark lead sold and create sale record
   async function markSold(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -135,7 +125,7 @@
     }
   }
 
-  // Delete sale record, rollback guest status and credits
+  // Delete sale and rollback status + credits
   async function deleteSale(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
@@ -182,16 +172,17 @@
     }
   }
 
-  // Recompute Pitch Quality and persist to guestinfo
+  // Recompute Pitch Quality and persist
   async function recomputePitch(id) {
     try {
       const snap = await window.db.ref(`guestinfo/${id}`).get();
       const data = snap.val() || {};
-      const gNorm = window.guestinfo.normGuest ? window.guestinfo.normGuest(data) : data;
-      const comp = window.guestinfo.computeGuestPitchQuality ? window.guestinfo.computeGuestPitchQuality(gNorm) : { pct: 0 };
+      const gNorm = normGuest(data);
+      const comp = computeGuestPitchQuality(gNorm);
       await window.db.ref(`guestinfo/${id}/completion`).set({
         pct: Math.round(comp.pct),
         steps: comp.steps,
+        fields: comp.fields,
         updatedAt: Date.now()
       });
     } catch (err) {
@@ -199,9 +190,34 @@
     }
   }
 
+  // Filter control setters
+  function setFilterMode(mode) {
+    const { isMe } = window.guestinfoCore;
+    window._guestinfo_filterMode = isMe(window.currentRole) ? "week" : (mode === "all" ? "all" : "week");
+    window.renderAdminApp();
+  }
+  function toggleShowProposals() {
+    if (!window._guestinfo_showProposals) window._guestinfo_soldOnly = false;
+    window._guestinfo_showProposals = !window._guestinfo_showProposals;
+    window.renderAdminApp();
+  }
+  function toggleSoldOnly() {
+    if (!window._guestinfo_soldOnly) window._guestinfo_showProposals = false;
+    window._guestinfo_soldOnly = !window._guestinfo_soldOnly;
+    window.renderAdminApp();
+  }
+
+  // Create new lead (clear last key & redirect)
+  function createNewLead() {
+    try { localStorage.removeItem("last_guestinfo_key"); } catch {}
+    const GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../html/guestinfo.html";
+    window.location.href = GUESTINFO_PAGE.split("?")[0];
+  }
+
   // Open full workflow page for a guest lead with uistart hint
   function openGuestInfoPage(guestKey) {
-    const base = window.GUESTINFO_PAGE || "../html/guestinfo.html";
+    const GUESTINFO_PAGE = window.GUESTINFO_PAGE || "../html/guestinfo.html";
+    const base = GUESTINFO_PAGE;
     const g = (window._guestinfo && window._guestinfo[guestKey]) || null;
 
     let uistart = "step1";
@@ -222,16 +238,8 @@
     window.location.href = url;
   }
 
-  // Expose public API
-  window.guestinfo = window.guestinfo || {};
-  Object.assign(window.guestinfo, {
-    isAdmin,
-    isDM,
-    isLead,
-    isMe,
-    canDelete,
-    canEditEntry,
-    canMarkSold,
+  // Export actions API
+  window.guestinfoActions = {
     toggleEdit,
     cancelEdit,
     saveEdit,
@@ -239,6 +247,10 @@
     markSold,
     deleteSale,
     recomputePitch,
+    setFilterMode,
+    toggleShowProposals,
+    toggleSoldOnly,
+    createNewLead,
     openGuestInfoPage
-  });
+  };
 })();
