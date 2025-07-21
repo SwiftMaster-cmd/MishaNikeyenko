@@ -1,0 +1,270 @@
+/* ==========================================================================
+   DESIGN TOKENS & GLOBAL VARIABLES
+   ========================================================================== */
+:root {
+  /* Brand colors */
+  --brand:            #1e90ff;
+  --brand-hover:      #4aa8ff;
+  --brand-focus-ring: rgba(30,144,255,.6);
+
+  /* Semantic colors */
+  --success:          #00c853;
+  --success-bg:       rgba(0,200,83,.15);
+  --warning:          #ffb300;
+  --warning-bg:       rgba(255,179,0,.15);
+  --danger:           #ff5252;
+  --danger-hover:     #ff1744;
+  --danger-bg:        rgba(255,82,82,.15);
+  --info:             #82caff;
+
+  /* Backgrounds */
+  --bg-page-a:        #0f1117;
+  --bg-page-b:        #1a1c24;
+  --bg-card:          rgba(26,28,36,.75);
+  --bg-card-hover:    rgba(26,28,36,.95);
+
+  /* Borders & text */
+  --border-color:     rgba(255,255,255,.08);
+  --border-strong:    rgba(255,255,255,.18);
+  --text-hi:          #ffffff;
+  --text-med:         #e2e8f0;
+  --text-lo:          #a0aec0;
+  --text-muted:       #718096;
+
+  /* Radii */
+  --radius-sm:        4px;
+  --radius-md:        8px;
+  --radius-lg:        16px;
+  --radius-xl:        20px;
+
+  /* Spacing scale */
+  --space-2xs: clamp(2px, .25vw, 4px);
+  --space-xs:  clamp(4px, .5vw, 8px);
+  --space-sm:  clamp(8px, 1vw, 12px);
+  --space-md:  clamp(16px, 2vw, 24px);
+  --space-lg:  clamp(24px, 4vw, 40px);
+  --space-xl:  clamp(32px, 6vw, 64px);
+
+  /* Type scale */
+  --fs-2xs: clamp(.7rem, 1.5vw, .75rem);
+  --fs-xs:  clamp(.8rem, 1.8vw, .85rem);
+  --fs-sm:  clamp(.9rem, 2vw, .95rem);
+  --fs-md:  clamp(1rem, 2.5vw, 1.05rem);
+  --fs-lg:  clamp(1.2rem, 3.5vw, 1.4rem);
+  --fs-xl:  clamp(1.6rem, 5vw, 1.75rem);
+
+  /* Elevation & shadows */
+  --shadow-card:   0 4px 12px rgba(0,0,0,.6);
+  --shadow-card-h: 0 8px 24px rgba(0,0,0,.8);
+  --shadow-btn:    0 4px 14px rgba(30,144,255,.4);
+  --shadow-btn-h:  0 6px 20px rgba(30,144,255,.6);
+
+  /* Animation timings */
+  --dur-fast: .12s;
+  --dur-med:  .25s;
+  --ease-out: cubic-bezier(.25,.8,.25,1);
+}
+
+/* ==========================================================================
+   REDUCED MOTION SUPPORT
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-med:  0ms;
+  }
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   GLOBAL RESET & BASE STYLES
+   ========================================================================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  min-height: 100%;
+  background: linear-gradient(135deg, var(--bg-page-a) 0%, var(--bg-page-b) 100%) fixed no-repeat;
+  background-size: cover;
+  color: var(--text-med);
+  font-family: 'Segoe UI','SF Pro', Arial, sans-serif;
+  font-size: var(--fs-md);
+  line-height: 1.4;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+/* Media-safe padding on iOS */
+body {
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-sm));
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-xl));
+  padding-left: 5%;
+  padding-right: 5%;
+}
+
+/* Images & media */
+img, svg, video, canvas {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Links */
+a {
+  color: var(--brand);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255,255,255,.05);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.25);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,.4);
+}
+
+/* ==========================================================================
+   BUTTONS & FORMS
+   ========================================================================== */
+button,
+.btn,
+.login-btn {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-weight: 600;
+  line-height: 1.2;
+  transition: transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+
+.btn-sm {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--fs-sm);
+}
+
+.btn-primary {
+  background: var(--brand);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-btn);
+}
+.btn-primary:hover {
+  background: var(--brand-hover);
+  box-shadow: var(--shadow-btn-h);
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,.15);
+  color: var(--text-med);
+}
+.btn-secondary:hover {
+  background: rgba(255,255,255,.25);
+}
+
+.btn-success {
+  background: var(--success);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-card);
+}
+.btn-success:hover {
+  filter: brightness(1.1);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-btn);
+}
+.btn-danger:hover {
+  background: var(--danger-hover);
+}
+
+.btn-warning {
+  background: var(--warning);
+  color: #000;
+  box-shadow: 0 4px 14px rgba(255,179,0,.3);
+}
+.btn-warning:hover {
+  filter: brightness(1.05);
+}
+
+/* Form controls */
+input,
+select,
+textarea {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,.06);
+  color: var(--text-med);
+  font-size: var(--fs-md);
+  transition: border var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  background: rgba(255,255,255,.1);
+  box-shadow: 0 0 0 2px var(--brand-focus-ring);
+}
+
+/* Prevent iOS zoom on inputs */
+@media (max-width:600px) {
+  input, select, textarea, button, .btn {
+    font-size: 16px!important;
+    line-height: 1.2;
+  }
+}
+
+/* ==========================================================================
+   MAIN CONTENT WRAPPER
+   ========================================================================== */
+#adminApp {
+  width: 100%;
+  max-width: 100%;
+  margin: var(--space-lg) auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
+}
+
+@media (min-width: 768px) {
+  #adminApp {
+    max-width: 90%;
+    gap: var(--space-xl);
+  }
+}
+
+@media (min-width: 1200px) {
+  #adminApp {
+    max-width: 1200px;
+  }
+}

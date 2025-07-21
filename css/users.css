@@ -1,0 +1,87 @@
+/* users.css
+   ==========================================================================
+   Users Section (Dashboard)
+   ========================================================================== */
+
+/* Container grid for user cards */
+.users-section .users-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: var(--space-lg);
+  width: 100%;
+}
+
+/* Individual user card */
+.user-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--dur-med) var(--ease-out),
+              background var(--dur-med) var(--ease-out);
+  width: 100%;
+}
+.user-card:hover {
+  box-shadow: var(--shadow-card-h);
+  background: var(--bg-card-hover);
+}
+
+/* Card header */
+.user-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+/* User name and email */
+.user-name {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text-hi);
+}
+.user-email {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Info grid inside card */
+.user-card-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-xs) var(--space-md);
+  margin-bottom: var(--space-md);
+  color: var(--text-med);
+  font-size: var(--fs-sm);
+}
+.user-card-info b {
+  color: var(--text-hi);
+}
+
+/* Action row at bottom */
+.user-card-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-sm);
+  align-items: start;
+  width: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .user-card-actions {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+  .user-card-actions select,
+  .user-card-actions button {
+    width: 100%;
+  }
+  .user-card-info {
+    grid-template-columns: 1fr;
+  }
+}

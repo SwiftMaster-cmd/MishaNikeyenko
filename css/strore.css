@@ -1,0 +1,142 @@
+/* ==========================================================================
+   STORES SECTION (FULL TABLE MODE)
+   ========================================================================== */
+
+/* Section wrapper spacing */
+.stores-section {
+  margin-bottom: var(--space-lg);
+}
+
+/* "Add store" form */
+.store-add {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+  width: 100%;
+  margin-top: var(--space-sm);
+}
+.store-add input {
+  flex: 1;
+}
+
+/* Responsive "Add store" on small screens */
+@media (max-width: 600px) {
+  .store-add {
+    flex-direction: column;
+  }
+  .store-add input,
+  .store-add button {
+    width: 100%;
+  }
+}
+
+/* Table overflow container */
+.store-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Main store table */
+.store-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.store-table th,
+.store-table td {
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+  white-space: nowrap;
+}
+.store-table th {
+  color: var(--text-hi);
+  font-weight: 600;
+}
+.store-table td {
+  color: var(--text-med);
+}
+.store-table tr:nth-child(odd) {
+  background: var(--table-stripe);
+}
+.store-table td:last-child {
+  text-align: right;
+}
+
+/* Budget input cell */
+.store-budget-input {
+  width: 4.5ch;
+  font-size: var(--fs-xs);
+  padding: 0 2px;
+  text-align: right;
+}
+
+/* Metric chips (e.g. sales / goal status) */
+.metric-chip {
+  display: inline-block;
+  padding: 0 var(--space-xs);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,.1);
+  color: var(--text-med);
+  white-space: nowrap;
+}
+.metric-chip.success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.metric-chip.warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.metric-chip.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* Stackable mode for very narrow viewports */
+@media (max-width: 600px) {
+  .store-table.table-stackable,
+  .store-table.table-stackable thead,
+  .store-table.table-stackable tbody,
+  .store-table.table-stackable tr,
+  .store-table.table-stackable th,
+  .store-table.table-stackable td {
+    display: block;
+    width: 100%;
+  }
+  .store-table.table-stackable thead {
+    display: none;
+  }
+  .store-table.table-stackable tr {
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow-card);
+  }
+  .store-table.table-stackable td {
+    padding: var(--space-xs) 0;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    white-space: normal;
+  }
+  .store-table.table-stackable td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-hi);
+    flex: 0 0 auto;
+  }
+  .store-table.table-stackable td:last-child {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: var(--space-xs);
+  }
+}

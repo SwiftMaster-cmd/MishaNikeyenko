@@ -1,0 +1,107 @@
+/* ==========================================================================
+   Guest Form Submissions (Dashboard)
+   ========================================================================== */
+.guest-forms-section {
+  margin-top: var(--space-sm);
+}
+.guest-forms-section h2 {
+  margin-bottom: var(--space-md);
+}
+
+.guest-forms-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.guest-forms-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.guest-forms-table th,
+.guest-forms-table td {
+  padding: var(--space-sm);
+  color: var(--text-med);
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.guest-forms-table th {
+  color: var(--text-hi);
+  font-weight: 600;
+}
+
+.guest-forms-table td:last-child {
+  text-align: right;
+}
+
+.guest-forms-table td button {
+  margin-left: var(--space-xs);
+}
+
+.guest-forms-table tr.consumed td {
+  opacity: .7;
+}
+
+.guest-forms-table tr.linked td {
+  background: var(--success-bg);
+}
+
+@media (max-width: 640px) {
+  .guest-forms-table.table-stackable,
+  .guest-forms-table.table-stackable thead,
+  .guest-forms-table.table-stackable tbody,
+  .guest-forms-table.table-stackable tr,
+  .guest-forms-table.table-stackable th,
+  .guest-forms-table.table-stackable td {
+    display: block;
+    width: 100%;
+  }
+
+  .guest-forms-table.table-stackable thead {
+    display: none;
+  }
+
+  .guest-forms-table.table-stackable tr {
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow-card);
+  }
+
+  .guest-forms-table.table-stackable td {
+    padding: var(--space-xs) 0;
+    border: none;
+    white-space: normal;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .guest-forms-table.table-stackable td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-hi);
+    flex: 0 0 auto;
+  }
+
+  .guest-forms-table.table-stackable td:last-child {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: var(--space-xs);
+  }
+
+  .guest-forms-table.table-stackable td button {
+    margin: 0;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--fs-xs);
+  }
+}
