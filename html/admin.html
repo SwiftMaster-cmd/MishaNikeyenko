@@ -59,16 +59,21 @@
       }
     });
   </script>
+  <!-- 1) Firebase SDKs -->
+  
+  <!-- 2) Questions definition & real-time sync -->
+  <script src="../js/gp/gp-questions.js"></script>
 
-  <!-- Guest-Form modules -->
-  <script src="../js/admin/gf/gf-core.js"></script>
-  <script src="../js/admin/gf/gf-continue.js"></script>
-  <script src="../js/admin/gf/gf-handoff.js"></script>
+  <!-- 3) Core scoring (also bootstraps Firebase) -->
+  <script src="../js/gp/gp-core.js"></script>
 
-  <!-- Messages AFTER admin.js so firebase is ready -->
-  <script src="../js/admin/messages.js"></script>
+  <!-- 4) UI skeleton (injects #adminPanelPlaceholder and forms) -->
+  <script src="../js/gp/gp-ui-render.js"></script>
 
-  <!-- Dashboard renderer last -->
-  <script src="../js/admin/dashboard.js"></script>
+  <!-- 5) Admin UI (reads gpQuestions & injects panel into the placeholder) -->
+  <script src="../js/gp/gp-admin-questions-ui.js"></script>
+
+  <!-- 6) App logic (auth gating, load/save guestinfo, progress) -->
+  <script src="../js/gp/gp-app-min.js"></script>
 </body>
 </html>
