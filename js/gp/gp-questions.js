@@ -1,158 +1,105 @@
-// gp-questions.js -- dynamic Step 2 questions with static fallback & Firebase-backed CRUD
-// Place at ../js/gp/gp-questions.js; load **after** Firebase SDKs and **before** gp-core.js & gp-ui-render.js
-
-(function(global){
-  // ───────────────────────────────────────────────────────────────────────────
-  // 1) Firebase initialization (app-compat)
-  // ───────────────────────────────────────────────────────────────────────────
-  const firebaseConfig = {
-    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
-    authDomain: "osls-644fd.firebaseapp.com",
-    databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
-    projectId: "osls-644fd",
-    storageBucket: "osls-644fd.appspot.com",
-    messagingSenderId: "798578046321",
-    appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
-    measurementId: "G-9HWXNSBE1T"
-  };
-  if (global.firebase && !firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
+const staticQuestions = [
+  {
+    id:      "numLines",
+    label:   "How many lines do you need on your account?",
+    type:    "number",
+    weight:  15
+  },
+  {
+    id:      "carrier",
+    label:   "What carrier are you with right now?",
+    type:    "select",
+    weight:  14,
+    options: [
+      "Verizon", "AT&T", "T-Mobile", "US Cellular", "Cricket", "Metro", "Boost", "Straight Talk", "Tracfone", "Other"
+    ]
+  },
+  {
+    id:      "monthlySpend",
+    label:   "What do you usually pay each month for phone service?",
+    type:    "number",
+    weight:  13
+  },
+  {
+    id:      "deviceStatus",
+    label:   "Is your phone paid off, or do you still owe on it?",
+    type:    "select",
+    weight:  12,
+    options: ["Paid Off", "Still Owe", "Lease", "Mixed", "Not Sure"]
+  },
+  {
+    id:      "upgradeInterest",
+    label:   "Are you looking to upgrade your phone, or keep what you have?",
+    type:    "select",
+    weight:  11,
+    options: ["Upgrade", "Keep Current", "Not Sure"]
+  },
+  {
+    id:      "otherDevices",
+    label:   "Do you have any other devices--tablets, smartwatches, or hotspots?",
+    type:    "select",
+    weight:  10,
+    options: ["Tablet", "Smartwatch", "Hotspot", "Multiple", "None"]
+  },
+  {
+    id:      "coverage",
+    label:   "How’s your coverage at home and at work?",
+    type:    "select",
+    weight:  9,
+    options: ["Great", "Good", "Average", "Poor", "Not Sure"]
+  },
+  {
+    id:      "travel",
+    label:   "Do you travel out of state or internationally?",
+    type:    "select",
+    weight:  8,
+    options: ["Yes, both", "Just out of state", "International", "Rarely", "Never"]
+  },
+  {
+    id:      "hotspot",
+    label:   "Do you use your phone as a hotspot?",
+    type:    "select",
+    weight:  7,
+    options: ["Yes, often", "Sometimes", "Rarely", "Never"]
+  },
+  {
+    id:      "usage",
+    label:   "How do you mainly use your phone? (Streaming, gaming, social, work, calls/texts)",
+    type:    "text",
+    weight:  6
+  },
+  {
+    id:      "discounts",
+    label:   "Anyone on your plan get discounts? (Military, student, senior, first responder)",
+    type:    "select",
+    weight:  5,
+    options: ["Military", "Student", "Senior", "First Responder", "No", "Not Sure"]
+  },
+  {
+    id:      "keepNumber",
+    label:   "Do you want to keep your current number(s) if you switch?",
+    type:    "select",
+    weight:  5,
+    options: ["Yes", "No", "Not Sure"]
+  },
+  {
+    id:      "issues",
+    label:   "Have you had any issues with dropped calls or slow data?",
+    type:    "select",
+    weight:  4,
+    options: ["Yes", "No", "Sometimes"]
+  },
+  {
+    id:      "planPriority",
+    label:   "What’s most important to you in a phone plan? (Price, coverage, upgrades, service)",
+    type:    "text",
+    weight:  3
+  },
+  {
+    id:      "promos",
+    label:   "Would you like to see your options for lower monthly cost or free device promos?",
+    type:    "select",
+    weight:  2,
+    options: ["Yes", "No", "Maybe"]
   }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // 2) Static fallback questions (shown immediately on load)
-  // ───────────────────────────────────────────────────────────────────────────
-  const staticQuestions = [
-    {
-      id:      "deviceStatus",
-      label:   "Devices Paid Off?",
-      type:    "select",
-      weight:  8,
-      options: [
-        "All Paid Off",
-        "Owe Balance",
-        "Lease",
-        "Mixed",
-        "Unknown"
-      ]
-    },
-    {
-      id:      "finPath",
-      label:   "Financial Path (Postpaid vs Prepaid)",
-      type:    "select",
-      weight:  12,
-      options: [
-        "Postpaid OK",
-        "Prefer Prepaid/Cash",
-        "Credit Concern",
-        "Unknown"
-      ]
-    }
-  ];
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // 3) In-memory question list & listeners
-  // ───────────────────────────────────────────────────────────────────────────
-  let questions = [...staticQuestions];
-  const updateListeners = [];
-
-  function notifyUpdate() {
-    global.gpQuestions = questions;
-    updateListeners.forEach(fn => {
-      try { fn(questions); } catch (_) {}
-    });
-  }
-
-  global.gpQuestions = questions;
-  global.onQuestionsUpdated = fn => {
-    if (typeof fn === "function") updateListeners.push(fn);
-  };
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // 4) renderQuestions(containerId)
-  // ───────────────────────────────────────────────────────────────────────────
-  global.renderQuestions = containerId => {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = "";
-    questions.forEach(q => {
-      const labelEl = document.createElement("label");
-      labelEl.className = "glabel";
-      labelEl.innerHTML = `${q.label} <span class="gp-pts">(${q.weight}pts)</span>`;
-
-      let field;
-      if (q.type === "select") {
-        field = document.createElement("select");
-        field.className = "gfield";
-        field.id = q.id;
-        const placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = "Select…";
-        field.appendChild(placeholder);
-        q.options.forEach(opt => {
-          const o = document.createElement("option");
-          o.value = opt;
-          o.textContent = opt;
-          field.appendChild(o);
-        });
-      } else {
-        field = document.createElement("input");
-        field.className = "gfield";
-        field.id = q.id;
-        field.type = q.type; // "text" or "number"
-        field.placeholder = "Enter…";
-      }
-
-      labelEl.appendChild(field);
-      container.appendChild(labelEl);
-    });
-  };
-
-  // Immediately notify so Step 2 renders at once
-  notifyUpdate();
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // 5) Firebase override & CRUD
-  // ───────────────────────────────────────────────────────────────────────────
-  if (global.firebase && firebase.database) {
-    const db  = firebase.database();
-    const ref = db.ref("config/questions");
-
-    // real-time sync
-    ref.on("value", snap => {
-      const data = snap.val();
-      if (data && Object.keys(data).length) {
-        questions = Object.entries(data).map(([id, q]) => ({
-          id,
-          label:   q.label,
-          type:    q.type,
-          weight:  q.weight,
-          options: Array.isArray(q.options) ? q.options : []
-        }));
-      } else {
-        questions = [...staticQuestions];
-      }
-      notifyUpdate();
-      if (typeof global.renderQuestions === "function") {
-        global.renderQuestions("step2Fields");
-      }
-    });
-
-    // admin CRUD
-    global.addQuestion = async ({ label, type, weight, options = [] }) => {
-      const q = { label, type, weight };
-      if (type === "select") q.options = options;
-      const pushRef = await ref.push(q);
-      return pushRef.key;
-    };
-    global.updateQuestion = async (id, { label, type, weight, options = [] }) => {
-      const q = { label, type, weight };
-      if (type === "select") q.options = options;
-      await ref.child(id).set(q);
-    };
-    global.deleteQuestion = async id => {
-      await ref.child(id).remove();
-    };
-  }
-
-})(window);
+];
