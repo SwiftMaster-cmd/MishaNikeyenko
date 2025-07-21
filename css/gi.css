@@ -1,171 +1,22 @@
-/* Top-level controls row (filters, proposals, sales) */
-.guestinfo-controls{
-  display:flex;
-  flex-wrap:wrap;
-  gap:var(--space-sm);
-  margin-bottom:var(--space-md);
-}
-.guestinfo-controls span{
-  line-height:1.5;
-  font-size:var(--fs-xs);
-  color:var(--text-muted);
-}
-
-/* Proposal alert (collapsed view when proposals hidden) */
-.guestinfo-proposal-alert{
-  margin:var(--space-sm) 0;
-  padding:var(--space-sm);
-  border:1px solid var(--warning);
-  border-radius:var(--radius-md);
-  background:var(--warning-bg);
-  color:var(--warning);
-  font-weight:600;
-  text-align:center;
-  line-height:1.35;
-}
-
-/* Sales badge if you want to inline counts elsewhere */
-.guestinfo-sales-badge{
-  display:inline-block;
-  padding:0 var(--space-sm);
-  font-size:var(--fs-xs);
-  line-height:1.4;
-  border-radius:999px;
-  background:var(--success-bg);
-  color:var(--success);
-  font-weight:600;
-}
-
-/* Status subsections (New / Working / Proposal / Sale view) */
-.guestinfo-subsection{
-  margin-top:var(--space-md);
-}
-.guestinfo-subsection>h3{
-  font-size:var(--fs-md);
-  font-weight:700;
-  color:var(--text-hi);
-  margin-bottom:var(--space-sm);
-  display:flex;
-  align-items:center;
-  gap:var(--space-xs);
-}
-.guestinfo-subsection-empty{
-  opacity:.7;
-}
-.guestinfo-subsection-highlight{
-  border:1px solid var(--warning);
-  padding:var(--space-sm);
-  border-radius:var(--radius-md);
-  background:var(--warning-bg);
-}
-.guestinfo-empty-msg{
-  font-size:.95em;
-  opacity:.7;
-  padding:var(--space-sm);
-  text-align:center;
-}
-
-/* Guest card container grid (subsection body) */
-.guestinfo-container{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:var(--space-md);
-  width:100%;
-}
-@media (min-width:640px){
-  .guestinfo-container{
-    grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));
-  }
-}
-
-/* Guest card shell */
-.guest-card{
-  background:var(--bg-card);
-  border:1px solid var(--border-color);
-  border-radius:var(--radius-lg);
-  padding:var(--space-lg);
-  box-shadow:var(--shadow-card);
-  transition:box-shadow var(--dur-med) var(--ease-out),background var(--dur-med) var(--ease-out);
-  width:100%;
-}
-.guest-card:hover{box-shadow:var(--shadow-card-h);background:var(--bg-card-hover);}
-
-/* Display rows */
-.guest-card .guest-display>div{
-  margin-bottom:var(--space-xs);
-  font-size:var(--fs-sm);
-  color:var(--text-med);
-}
-.guest-card .guest-display b{color:var(--text-hi);}
-.guest-card .guest-sale-summary{
-  margin-top:var(--space-xs);
-  font-size:var(--fs-xs);
-  color:var(--success);
-}
-
-/* Quick edit form (hidden by default; see .is-editing) */
-.guest-edit-form{display:none;margin-top:var(--space-sm);padding-top:var(--space-sm);border-top:1px solid var(--border-color);font-size:var(--fs-sm);}
-.guest-edit-form label{display:block;margin-bottom:var(--space-sm);}
-.guest-edit-form input,
-.guest-edit-form textarea{margin-top:var(--space-2xs);}
-.guest-card.is-editing .guest-display{display:none;}
-.guest-card.is-editing .guest-edit-form{display:block;}
-.guest-card.is-editing{background:var(--bg-card-hover);box-shadow:var(--shadow-card-h);}
-
-/* Action row */
-.guest-card-actions{
-  margin-top:var(--space-sm);
-  display:flex;
-  flex-wrap:wrap;
-  gap:var(--space-xs);
-}
-@media (max-width:480px){
-  .guest-card-actions .btn{width:100%;}
-}
-
-/* Optional grid field layout for denser displays */
-.guest-card-fields {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-  gap:var(--space-sm) var(--space-md);
-  margin-bottom:var(--space-sm);
-}
-.guest-card-field-label {
-  display:block;
-  font-size:var(--fs-xs);
-  color:var(--text-muted);
-  margin-bottom:var(--space-2xs);
-  line-height:1.2;
-}
-.guest-card-field-value {
-  display:block;
-  font-size:var(--fs-sm);
-  color:var(--text-med);
-  overflow-wrap:anywhere;
-  line-height:1.35;
-}
-@media (max-width:480px){
-  .guest-card-fields{grid-template-columns:1fr;}
-}
-
-/* Sale pill (used in lists if desired) */
-.sale-pill {
-  display:inline-block;
-  padding:0 var(--space-sm);
-  margin-top:var(--space-xs);
-  font-size:var(--fs-xs);
-  line-height:1.5;
-  border-radius:999px;
-  background:var(--success-bg);
-  color:var(--success);
-  white-space:nowrap;
-}
-.sale-pill b{color:var(--success);font-weight:700;}
-
 /* ==========================================================================
-   Guest Info -- Search wrappers with clear ("×") buttons
+   Guest Info -- Controls & Filters
    ========================================================================== */
 
+.guestinfo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  align-items: center;
+}
+
+.guestinfo-controls span {
+  line-height: 1.5;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* Search wrapper (text/date inputs with clear button) */
 .guestinfo-controls .search-wrapper {
   position: relative;
   display: inline-flex;
@@ -173,11 +24,30 @@
 }
 
 .guestinfo-controls .search-wrapper input {
+  padding: var(--space-xs) var(--space-sm);
   padding-right: calc(var(--space-md) + var(--space-xs));
-  /* ensure room for clear button */
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-hi);
+  font-size: var(--fs-sm);
+  min-width: 100px;
+  max-width: 200px;
   flex: 1;
+  transition: border var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
+.guestinfo-controls .search-wrapper input::placeholder {
+  color: var(--text-muted);
+}
+
+.guestinfo-controls .search-wrapper input:focus {
+  border-color: var(--brand);
+  background: rgba(255,255,255,0.1);
+  outline: none;
+}
+
+/* Clear (×) button inside search-wrapper */
 .guestinfo-controls .search-wrapper .clear-btn {
   position: absolute;
   right: var(--space-xs);
@@ -196,18 +66,259 @@
   color: var(--text-hi);
 }
 
-/* ==========================================================================
-   Guest Info -- Display two info rows side by side
-   ========================================================================== */
-.guest-card .guest-display {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-xs) var(--space-md);
+/* "Clear All" button */
+.btn-clear-filters {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 
-/* On very narrow cards, fall back to one column */
-@media (max-width: 480px) {
-  .guest-card .guest-display {
-    grid-template-columns: 1fr;
+.btn-clear-filters:hover {
+  background: var(--danger);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-danger);
+}
+
+/* Responsive stack on small screens */
+@media (max-width: 640px) {
+  .guestinfo-controls {
+    flex-direction: column;
+    align-items: stretch;
   }
+  .guestinfo-controls .search-wrapper,
+  .guestinfo-controls input,
+  .guestinfo-controls select,
+  .guestinfo-controls button {
+    width: 100%;
+    margin-top: var(--space-xs);
+  }
+}
+
+/* ==========================================================================
+   Guest Info -- Results Grid (Cards)
+   ========================================================================== */
+
+#guestinfo-results {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: 1fr;
+}
+
+/* phones (min 480px): 2 columns */
+@media (min-width: 480px) {
+  #guestinfo-results {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* tablets (min 768px): 3 columns */
+@media (min-width: 768px) {
+  #guestinfo-results {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* desktop (min 1200px): 4 columns */
+@media (min-width: 1200px) {
+  #guestinfo-results {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ==========================================================================
+   Guest Info -- Proposal Alert & Sales Badge
+   ========================================================================== */
+
+.guestinfo-proposal-alert {
+  margin: var(--space-sm) 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-md);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.guestinfo-sales-badge {
+  display: inline-block;
+  padding: 0 var(--space-sm);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  border-radius: 999px;
+  background: var(--success-bg);
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Guest Info -- Subsections & Empty States
+   ========================================================================== */
+
+.guestinfo-subsection {
+  margin-top: var(--space-md);
+}
+
+.guestinfo-subsection > h3 {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text-hi);
+  margin-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.guestinfo-subsection-empty {
+  opacity: .7;
+}
+
+.guestinfo-subsection-highlight {
+  border: 1px solid var(--warning);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  background: var(--warning-bg);
+}
+
+.guestinfo-empty-msg {
+  font-size: .95em;
+  opacity: .7;
+  padding: var(--space-sm);
+  text-align: center;
+}
+
+/* ==========================================================================
+   Guest Info -- Cards
+   ========================================================================== */
+
+.guest-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-card);
+  transition: 
+    box-shadow var(--dur-med) var(--ease-out),
+    background var(--dur-med) var(--ease-out);
+  position: relative;
+  width: 100%;
+}
+
+.guest-card:hover {
+  box-shadow: var(--shadow-card-h);
+  background: var(--bg-card-hover);
+}
+
+/* Action "⋮" toggle button */
+.btn-edit-actions {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* Hidden action row */
+.guest-card-actions {
+  display: none;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.guest-card-actions.show {
+  display: flex !important;
+}
+
+/* Quick-edit form */
+.guest-edit-form {
+  display: none;
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+  font-size: var(--fs-sm);
+}
+
+.guest-card.is-editing .guest-display {
+  display: none;
+}
+
+.guest-card.is-editing .guest-edit-form {
+  display: block;
+}
+
+.guest-card.is-editing {
+  background: var(--bg-card-hover);
+  box-shadow: var(--shadow-card-h);
+}
+
+/* Display rows */
+.guest-card .guest-display > div {
+  margin-bottom: var(--space-xs);
+  font-size: var(--fs-sm);
+  color: var(--text-med);
+}
+
+.guest-card .guest-display b {
+  color: var(--text-hi);
+}
+
+.guest-card .guest-sale-summary {
+  margin-top: var(--space-xs);
+  font-size: var(--fs-xs);
+  color: var(--success);
+}
+
+/* Grid-field layout */
+.guest-card-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.guest-card-field-label {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--space-2xs);
+  line-height: 1.2;
+}
+
+.guest-card-field-value {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--text-med);
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+/* Sale pill */
+.sale-pill {
+  display: inline-block;
+  padding: 0 var(--space-sm);
+  margin-top: var(--space-xs);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  border-radius: 999px;
+  background: var(--success-bg);
+  color: var(--success);
+  white-space: nowrap;
+}
+
+.sale-pill b {
+  color: var(--success);
+  font-weight: 700;
 }
