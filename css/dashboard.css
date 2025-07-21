@@ -127,55 +127,105 @@ a:hover{text-decoration:underline;}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);}
 
 /* ==========================================================================
-   Header
+   HEADER (UPDATED FOR MOBILE-FRIENDLY, NO OVERFLOW)
    ========================================================================== */
-.admin-header{
-  position:sticky;
-  top:0;
-  z-index:var(--z-header);
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  width:100%;
-  margin-left:auto;
-  margin-right:auto;
-  padding:var(--space-sm) 0;
-  background:rgba(26,28,36,.65);
-  backdrop-filter:saturate(180%) blur(12px);
-  border-bottom:1px solid var(--border-color);
+.admin-header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-header);
+  display: flex;
+  flex-wrap: wrap;              /* allow wrapping on narrow screens */
+  justify-content: space-between;
+  align-items: center;
+  width: 100vw;                 /* full viewport width */
+  box-sizing: border-box;       /* include padding in width */
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(26,28,36,.65);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  overflow: hidden;             /* no horizontal scroll */
 }
-.admin-header h2{
-  margin:0;
-  font-size:var(--fs-xl);
-  font-weight:700;
-  color:var(--text-hi);
-}
-.admin-header button{
-  padding:var(--space-xs) var(--space-md);
-  border-radius:var(--radius-md);
-  background:var(--brand);
-  color:var(--text-hi);
-  font-weight:600;
-  border:none;
-  cursor:pointer;
-  box-shadow:var(--shadow-btn);
-  transition:box-shadow var(--dur-med) var(--ease-out);
-}
-.admin-header button:hover{box-shadow:var(--shadow-btn-h);}
 
-/* Logout */
-#logoutBtn{
-  background:rgba(255,255,255,.1);
-  color:var(--text-hi);
-  border:1px solid rgba(255,255,255,.3);
-  padding:var(--space-xs) var(--space-md);
-  font-size:var(--fs-sm);
-  border-radius:var(--radius-md);
-  cursor:pointer;
-  transition:background var(--dur-med) var(--ease-out),transform var(--dur-fast) var(--ease-out);
+/* Title scales down a bit and takes full row on small screens */
+.admin-header h2 {
+  margin: 0;
+  flex: 1 1 100%;               /* allow title to span full width if needed */
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text-hi);
+  text-align: center;           /* center on mobile */
 }
-#logoutBtn:hover{background:rgba(255,255,255,.2);transform:translateY(-1px);}
 
+/* Buttons container flexes and wraps */
+.admin-header > .header-buttons {
+  display: flex;
+  flex-wrap: wrap;              /* wrap on narrow screens */
+  gap: var(--space-xs);
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+/* Individual buttons */
+.admin-header button {
+  flex: 0 0 auto;               /* don’t shrink below its contents */
+  margin: var(--space-xs) 0;    /* vertical spacing when wrapped */
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--brand);
+  color: var(--text-hi);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  transition: box-shadow var(--dur-med) var(--ease-out);
+}
+.admin-header button:hover {
+  box-shadow: var(--shadow-btn-h);
+}
+
+/* Logout button variant */
+#logoutBtn {
+  flex: 0 0 auto;
+  background: rgba(255,255,255,.1);
+  color: var(--text-hi);
+  border: 1px solid rgba(255,255,255,.3);
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    background var(--dur-med) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+#logoutBtn:hover {
+  background: rgba(255,255,255,.2);
+  transform: translateY(-1px);
+}
+
+/* --------------------------------------------------------------------------
+   MEDIA QUERIES
+   - On very small screens, reduce paddings & stack title/buttons nicely
+   -------------------------------------------------------------------------- */
+@media (max-width: 480px) {
+  .admin-header {
+    padding: var(--space-xs) var(--space-sm);
+  }
+  /* Title smaller & full width */
+  .admin-header h2 {
+    font-size: var(--fs-md);
+    flex: 1 1 100%;
+  }
+  /* Buttons full width */
+  .admin-header > .header-buttons {
+    justify-content: center;
+    gap: var(--space-2xs);
+  }
+  .admin-header button {
+    width: 100%;
+  }
+}
 /* ==========================================================================
    Main Content Grid
    ========================================================================== */
