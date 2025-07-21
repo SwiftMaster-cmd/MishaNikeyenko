@@ -29,11 +29,11 @@ export function hasVal(v) {
 }
 
 export function digitsOnly(s) {
-  return (s||"").replace(/\D+/g, "");
+  return (s || "").replace(/\D+/g, "");
 }
 
 export function esc(str) {
-  return String(str||"")
+  return String(str || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -44,17 +44,17 @@ export function esc(str) {
 export function timeAgo(ts) {
   if (!ts) return "-";
   const diff = Date.now() - ts;
-  const m = Math.floor(diff/60000);
+  const m = Math.floor(diff / 60000);
   if (m < 60) return `${m}m`;
-  const h = Math.floor(diff/3600000);
+  const h = Math.floor(diff / 3600000);
   if (h < 24) return `${h}h`;
-  const d = Math.floor(diff/86400000);
+  const d = Math.floor(diff / 86400000);
   return `${d}d`;
 }
 
 // ── Core logic ─────────────────────────────────────────────────────────────
 export function detectStatus(g) {
-  const s = (g?.status||"").toLowerCase();
+  const s = (g?.status || "").toLowerCase();
   if (s) return s;
   if (g?.solution && hasVal(g.solution.text)) return "proposal";
   if (["currentCarrier","numLines","coverageZip","deviceStatus","finPath",
@@ -65,17 +65,18 @@ export function detectStatus(g) {
 }
 
 export function normGuest(src) {
-  src = src||{};
+  src = src || {};
   const custName  = src.custName  ?? src.guestName  ?? "";
   const custPhone = src.custPhone ?? src.guestPhone ?? "";
-  const e = { ...(src.evaluate||{}) };
-  if (e.currentCarrier==null && src.currentCarrier!=null) e.currentCarrier = src.currentCarrier;
-  if (e.numLines     ==null && src.numLines     !=null) e.numLines     = src.numLines;
-  if (e.coverageZip  ==null && src.coverageZip  !=null) e.coverageZip  = src.coverageZip;
-  if (e.deviceStatus ==null && src.deviceStatus !=null) e.deviceStatus = src.deviceStatus;
-  if (e.finPath      ==null && src.finPath      !=null) e.finPath      = src.finPath;
-  const sol = { ...(src.solution||{}) };
-  if (sol.text==null && src.solutionText!=null) sol.text = src.solutionText;
+  const e = { ...(src.evaluate || {}) };
+  if (e.currentCarrier == null && src.currentCarrier != null) e.currentCarrier = src.currentCarrier;
+  if (e.numLines      == null && src.numLines      != null) e.numLines      = src.numLines;
+  if (e.coverageZip   == null && src.coverageZip   != null) e.coverageZip   = src.coverageZip;
+  if (e.deviceStatus  == null && src.deviceStatus  != null) e.deviceStatus  = src.deviceStatus;
+  if (e.finPath       == null && src.finPath       != null) e.finPath       = src.finPath;
+  const sol = { ...(src.solution || {}) };
+  if (sol.text == null && src.solutionText != null) sol.text = src.solutionText;
+
   const out = {
     ...src,
     custName,
@@ -90,8 +91,8 @@ export function normGuest(src) {
 }
 
 export function getField(g, k) {
-  const e = g.evaluate||{}, sol = g.solution||{};
-  switch(k) {
+  const e = g.evaluate || {}, sol = g.solution || {};
+  switch (k) {
     case "custName":      return g?.custName;
     case "custPhone":     return g?.custPhone;
     case "currentCarrier":return e.currentCarrier;
@@ -108,7 +109,7 @@ export function getField(g, k) {
   }
 }
 
-export function computeGuestPitchQuality(g, weights=PITCH_WEIGHTS) {
+export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
   const steps = { step1:{earned:0,max:0}, step2:{earned:0,max:0}, step3:{earned:0,max:0} };
   let earned = 0, max = 0;
   for (const [k, wt] of Object.entries(weights)) {
@@ -120,8 +121,7 @@ export function computeGuestPitchQuality(g, weights=PITCH_WEIGHTS) {
       earned += wt;
     }
   }
-  const pct = max ? Math.round(earned/max*100) : 0;
-  return { pct, steps };
+  return { pct: max ? Math.round(earned/max*100) : 0, steps };
 }
 
 export function statusBadge(status) {
@@ -151,11 +151,11 @@ export function groupByStatus(guestMap) {
 }
 
 // ── Section renderer ───────────────────────────────────────────────────────
-export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight=false) {
+export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight = false) {
   if (!rows?.length) {
     return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
   }
-  return rows.map(([id,g]) =>
+  return rows.map(([id, g]) =>
     guestCardHtml(id, g, users, currentUid, currentRole)
   ).join("");
 }
@@ -165,30 +165,42 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
   const { pct } = computeGuestPitchQuality(normGuest(g));
-  const pcls = pct >= 75 ? "pitch-good" : pct >= 40 ? "pitch-warn" : "pitch-low";
+  const pcls    = pct >= 75 ? "pitch-good" : pct >= 40 ? "pitch-warn" : "pitch-low";
+  const bg      = pct >= 75
+                  ? "rgba(200,255,200,0.3)"
+                  : pct >= 40
+                    ? "rgba(255,235,150,0.3)"
+                    : "rgba(255,200,200,0.3)";
 
-  // container background by pitch
-  const bg = pct >= 75
-    ? "rgba(200,255,200,0.3)"
-    : pct >= 40
-      ? "rgba(255,235,150,0.3)"
-      : "rgba(255,200,200,0.3)";
-
-  // phone mask
-  const raw   = esc(g.custPhone || "");
-  const num   = digitsOnly(g.custPhone || "");
-  const last4 = num.slice(-4).padStart(4, "0");
+  // Phone masking
+  const raw    = esc(g.custPhone || "");
+  const num    = digitsOnly(g.custPhone || "");
+  const last4  = num.slice(-4).padStart(4, "0");
   const masked = `XXX-${last4}`;
 
-  // time ago
-  const when = timeAgo(g.submittedAt);
+  // Time ago
+  const when   = timeAgo(g.submittedAt);
 
-  // submitter badge
-  const roleCls = currentRole === "me"   ? "role-badge role-me"
-                 : currentRole === "lead"? "role-badge role-lead"
-                 : currentRole === "dm"  ? "role-badge role-dm"
-                                          : "role-badge role-admin";
+  // Submitter badge
+  const roleCls = currentRole === "me"    ? "role-badge role-me"
+                 : currentRole === "lead" ? "role-badge role-lead"
+                 : currentRole === "dm"   ? "role-badge role-dm"
+                                            : "role-badge role-admin";
   const nameLabel = esc(submitter.name || submitter.email || "");
+
+  // Action buttons
+  const isSold    = detectStatus(g) === "sold";
+  const canEdit   = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
+  const canSold   = canEdit && !isSold;
+  const actions = [
+    `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">
+       ${g.evaluate||g.solution||g.sale ? "Open" : "Continue"}
+     </button>`,
+    canEdit ? `<button class="btn btn-primary btn-sm" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
+    canSold ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
+    isSold  ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
+    canEdit ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
+  ].filter(Boolean).join("");
 
   return `
     <div class="guest-card" id="guest-card-${id}"
@@ -228,6 +240,19 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
       </div>
 
       <div class="guest-card-actions"
-           style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;"></div>
+           style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
+        ${actions}
+      </div>
+
+      <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
+        <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}"></label>
+        <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}"></label>
+        <label>Service Type  <input type="text" name="serviceType" value="${esc(g.serviceType||"")}"></label>
+        <label>Situation     <textarea name="situation">${esc(g.situation||"")}</textarea></label>
+        <div style="margin-top:8px;">
+          <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
+        </div>
+      </form>
     </div>`;
 }
