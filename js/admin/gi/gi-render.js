@@ -29,11 +29,11 @@ export function hasVal(v) {
 }
 
 export function digitsOnly(s) {
-  return (s || "").replace(/\D+/g, "");
+  return (s||"").replace(/\D+/g, "");
 }
 
 export function esc(str) {
-  return String(str || "")
+  return String(str||"")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -41,20 +41,9 @@ export function esc(str) {
     .replace(/'/g, "&#39;");
 }
 
-export function timeAgo(ts) {
-  if (!ts) return "-";
-  const diff = Date.now() - ts;
-  const m = Math.floor(diff/60000);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(diff/3600000);
-  if (h < 24) return `${h}h`;
-  const d = Math.floor(diff/86400000);
-  return `${d}d`;
-}
-
-// ── Core logic ─────────────────────────────────────────────────────────────
+// ── Core status & pitch logic ─────────────────────────────────────────────
 export function detectStatus(g) {
-  const s = (g?.status || "").toLowerCase();
+  const s = (g?.status||"").toLowerCase();
   if (s) return s;
   if (g?.solution && hasVal(g.solution.text)) return "proposal";
   if (["currentCarrier","numLines","coverageZip","deviceStatus","finPath",
@@ -65,18 +54,17 @@ export function detectStatus(g) {
 }
 
 export function normGuest(src) {
-  src = src || {};
+  src = src||{};
   const custName  = src.custName  ?? src.guestName  ?? "";
   const custPhone = src.custPhone ?? src.guestPhone ?? "";
   const e = { ...(src.evaluate||{}) };
-  if (e.currentCarrier == null && src.currentCarrier != null) e.currentCarrier = src.currentCarrier;
-  if (e.numLines      == null && src.numLines      != null) e.numLines      = src.numLines;
-  if (e.coverageZip   == null && src.coverageZip   != null) e.coverageZip   = src.coverageZip;
-  if (e.deviceStatus  == null && src.deviceStatus  != null) e.deviceStatus  = src.deviceStatus;
-  if (e.finPath       == null && src.finPath       != null) e.finPath       = src.finPath;
+  if (e.currentCarrier==null && src.currentCarrier!=null) e.currentCarrier = src.currentCarrier;
+  if (e.numLines     ==null && src.numLines     !=null) e.numLines     = src.numLines;
+  if (e.coverageZip  ==null && src.coverageZip  !=null) e.coverageZip  = src.coverageZip;
+  if (e.deviceStatus ==null && src.deviceStatus !=null) e.deviceStatus = src.deviceStatus;
+  if (e.finPath      ==null && src.finPath      !=null) e.finPath      = src.finPath;
   const sol = { ...(src.solution||{}) };
-  if (sol.text == null && src.solutionText != null) sol.text = src.solutionText;
-
+  if (sol.text==null && src.solutionText!=null) sol.text = src.solutionText;
   const out = {
     ...src,
     custName,
@@ -92,7 +80,7 @@ export function normGuest(src) {
 
 export function getField(g, k) {
   const e = g.evaluate||{}, sol = g.solution||{};
-  switch (k) {
+  switch(k) {
     case "custName":      return g?.custName;
     case "custPhone":     return g?.custPhone;
     case "currentCarrier":return e.currentCarrier;
@@ -109,18 +97,25 @@ export function getField(g, k) {
   }
 }
 
-export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
+export function computeGuestPitchQuality(g, weights=PITCH_WEIGHTS) {
   const steps = { step1:{earned:0,max:0}, step2:{earned:0,max:0}, step3:{earned:0,max:0} };
+  const fields = {};
   let earned = 0, max = 0;
-  for (const [k, wt] of Object.entries(weights)) {
+  Object.entries(weights).forEach(([k, wt]) => {
+    max += wt;
+    const ok = hasVal(getField(g,k));
+    if (ok) earned += wt;
+    fields[k] = { ok, wt };
     const st = FIELD_STEP[k] || "step1";
-    steps[st].max += wt; max += wt;
-    if (hasVal(getField(g, k))) {
-      steps[st].earned += wt;
-      earned += wt;
-    }
-  }
-  return { pct: max ? Math.round(earned/max*100) : 0, steps };
+    steps[st].max += wt;
+    if (ok) steps[st].earned += wt;
+  });
+  const pctFull = max ? Math.round(earned/max*100) : 0;
+  // add step %. not used in summary
+  Object.values(steps).forEach(s => {
+    s.pct = s.max ? Math.round((s.earned/s.max)*100) : 0;
+  });
+  return { pctFull, steps, fields };
 }
 
 export function statusBadge(status) {
@@ -130,126 +125,109 @@ export function statusBadge(status) {
     proposal: ["role-badge role-dm",    "PROPOSAL"],
     sold:     ["role-badge role-admin", "SOLD"]
   };
-  return map[status] || map.new;
+  const [cls, lbl] = map[status] || map.new;
+  return `<span class="${cls}">${lbl}</span>`;
+}
+
+export function decoratePitch(pct, status) {
+  const p   = Math.min(100, Math.max(0, Math.round(pct)));
+  const cls = p>=75 ? "pitch-good" : p>=40 ? "pitch-warn" : "pitch-low";
+  const tooltip = status
+    ? `Pitch: ${p}% • Status: ${status.toUpperCase()}`
+    : `Pitch: ${p}%`;
+  return { pct: p, cls, tooltip };
 }
 
 export function groupByStatus(guestMap) {
   const groups = { new:[], working:[], proposal:[], sold:[] };
-  for (const [id, g] of Object.entries(guestMap)) {
+  Object.entries(guestMap).forEach(([id,g]) => {
     const st = detectStatus(g);
-    (groups[st] ||= []).push([id, g]);
-  }
-  for (const arr of Object.values(groups)) {
-    arr.sort((a, b) => {
-      const ta = Math.max(a[1].updatedAt||0, a[1].submittedAt||0, a[1].sale?.soldAt||0);
-      const tb = Math.max(b[1].updatedAt||0, b[1].submittedAt||0, b[1].sale?.soldAt||0);
+    groups[st] = groups[st]||[];
+    groups[st].push([id,g]);
+  });
+  Object.values(groups).forEach(arr => {
+    arr.sort((a,b)=>{
+      const ta = Math.max(a[1].updatedAt||0, a[1].submittedAt||0, a[1].sale?.soldAt||0, a[1].solution?.completedAt||0);
+      const tb = Math.max(b[1].updatedAt||0, b[1].submittedAt||0, b[1].sale?.soldAt||0, b[1].solution?.completedAt||0);
       return tb - ta;
     });
-  }
+  });
   return groups;
 }
 
-// ── Section renderer ───────────────────────────────────────────────────────
-export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight = false) {
+// ── HTML renderers ────────────────────────────────────────────────────────
+export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight=false) {
   if (!rows?.length) {
-    return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
+    return `
+      <div class="guestinfo-subsection guestinfo-subsection-empty">
+        <h3>${esc(title)}</h3>
+        <div class="guestinfo-empty-msg"><i>None.</i></div>
+      </div>`;
   }
-  return rows.map(([id, g]) =>
-    guestCardHtml(id, g, users, currentUid, currentRole)
-  ).join("");
+  const cards = rows.map(([id,g])=>guestCardHtml(id,g,users,currentUid,currentRole)).join("");
+  return `
+    <div class="guestinfo-subsection ${highlight?"guestinfo-subsection-highlight":""}">
+      <h3>${esc(title)}</h3>
+      <div class="guestinfo-container">${cards}</div>
+    </div>`;
 }
 
-// ── Card renderer ──────────────────────────────────────────────────────────
 export function guestCardHtml(id, g, users, currentUid, currentRole) {
-  const submitter = users[g.userUid] || {};
-  const [statusCls, statusLbl] = statusBadge(detectStatus(g));
-  const { pct } = computeGuestPitchQuality(normGuest(g));
-  const pcls    = pct >= 75 ? "pitch-good" : pct >= 40 ? "pitch-warn" : "pitch-low";
-  const bg      = pct >= 75
-                  ? "rgba(200,255,200,0.3)"
-                  : pct >= 40
-                    ? "rgba(255,235,150,0.3)"
-                    : "rgba(255,200,200,0.3)";
+  const submitter = users[g.userUid]||{};
+  const ev = g.evaluate||{};
+  const serviceType = g.serviceType ?? ev.serviceType ?? "";
+  const situation   = g.situation   ?? ev.situation   ?? "";
+  const sitPreview  = situation.length>140 ? situation.slice(0,137)+"…" : situation;
+  const status      = detectStatus(g);
+  const statBadge   = statusBadge(status);
 
-  // Phone masking
-  const raw    = esc(g.custPhone || "");
-  const num    = digitsOnly(g.custPhone || "");
-  const last4  = num.slice(-4).padStart(4, "0");
-  const masked = `XXX-${last4}`;
+  // check firebase-saved pct first, then transient completion.pct
+  const savedPct = typeof g.completionPct==="number"
+    ? g.completionPct
+    : (typeof g.completion?.pct==="number" ? g.completion.pct : null);
 
-  // Time ago
-  const when   = timeAgo(g.submittedAt);
+  const pct       = savedPct!=null
+    ? savedPct
+    : computeGuestPitchQuality(normGuest(g)).pctFull;
 
-  // Submitter badge
-  const roleCls = currentRole === "me"    ? "role-badge role-me"
-                 : currentRole === "lead" ? "role-badge role-lead"
-                 : currentRole === "dm"   ? "role-badge role-dm"
-                                           : "role-badge role-admin";
-  const nameLabel = esc(submitter.name || submitter.email || "");
+  const pitchInfo = decoratePitch(pct, status);
+  const pitchHtml = `<span class="guest-pitch-pill ${pitchInfo.cls}" title="${esc(pitchInfo.tooltip)}">${pitchInfo.pct}%</span>`;
 
-  // Action buttons
-  const sold   = detectStatus(g) === "sold";
-  const canEdit = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
-  const canSold = canEdit && !sold;
+  const isSold     = status==="sold";
+  const saleSummary = isSold
+    ? `<div class="guest-sale-summary"><b>Sold:</b> ${new Date(g.sale.soldAt).toLocaleString()} • Units: ${g.sale.units}</div>`
+    : "";
+
+  const allowDelete = ["admin","dm","lead"].includes(currentRole);
+  const allowEdit   = allowDelete || g.userUid===currentUid;
+  const allowSold   = allowEdit;
+
   const actions = [
-    `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">
-       ${g.evaluate||g.solution||g.sale ? "Open" : "Continue"}
-     </button>`,
-    canEdit ? `<button class="btn btn-primary btn-sm" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
-    canSold ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
-    sold    ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
-    canEdit ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
+    `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">${g.evaluate||g.solution||g.sale?"Open":"Continue"}</button>`,
+    allowEdit    ? `<button class="btn btn-primary btn-sm"    onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
+    (!isSold && allowSold) ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
+    (isSold && allowSold)  ? `<button class="btn btn-danger btn-sm"  onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
+    allowDelete ? `<button class="btn btn-danger btn-sm"     onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
   ].filter(Boolean).join("");
 
   return `
-    <div class="guest-card" id="guest-card-${id}"
-         style="position:relative;padding:12px;border-radius:8px;background:${bg};margin-bottom:8px;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="${statusCls}"
-              style="padding:2px 8px;border-radius:999px;font-size:.85em;">
-          ${statusLbl}
-        </span>
-        <span class="guest-pitch-pill ${pcls}"
-              style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};">
-          ${pct}%
-        </span>  
-        <button class="btn-edit-actions"
-                style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
-                onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
+    <div class="guest-card" id="guest-card-${id}">
+      <div class="guest-display">
+        <div><b>Status:</b> ${statBadge}</div>
+        <div><b>Pitch:</b> ${pitchHtml}</div>
+        <div><b>Submitted by:</b> ${esc(submitter.name||submitter.email||g.userUid)}</div>
+        <div><b>Customer:</b> ${esc(g.custName)||"-"}</div>
+        ${serviceType? `<div><b>Type:</b> ${esc(serviceType)}</div>` : ""}
+        ${situation?   `<div><b>Situation:</b> ${esc(sitPreview)}</div>`   : ""}
+        <div><b>When:</b> ${g.submittedAt? new Date(g.submittedAt).toLocaleString() : "-"}</div>
+        ${saleSummary}
+        <div class="guest-card-actions" style="margin-top:8px;">${actions}</div>
       </div>
-
-      <div style="text-align:center;font-weight:600;font-size:1.1em;margin:8px 0;">
-        ${esc(g.custName || "-")}
-      </div>
-
-      <div style="display:flex;align-items:center;justify-content:center;position:relative;">
-        <span class="${roleCls}"
-              style="padding:2px 6px;border-radius:999px;font-size:.85em;background:${bg};">
-          ${nameLabel}
-        </span>
-        <span class="guest-phone"
-              data-raw="${raw}"
-              data-mask="${masked}"
-              style="margin:0 12px;padding:2px 6px;border-radius:999px;font-size:.85em;cursor:pointer;background:${bg};"
-              onclick="window.guestinfo.togglePhone('${id}')">
-          ${masked}
-        </span>
-        <span class="guest-time"
-              style="position:absolute;right:0;padding:2px 6px;border-radius:999px;font-size:.75em;background:${bg};">
-          ${when}
-        </span>
-      </div>
-
-      <div class="guest-card-actions"
-           style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
-        ${actions}
-      </div>
-
       <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
-        <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}"></label>
-        <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}"></label>
-        <label>Service Type  <input type="text" name="serviceType" value="${esc(g.serviceType||"")}"></label>
-        <label>Situation     <textarea name="situation">${esc(g.situation||"")}</textarea></label>
+        <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}" /></label>
+        <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}" /></label>
+        <label>Service Type  <input type="text" name="serviceType" value="${esc(serviceType)}" /></label>
+        <label>Situation     <textarea name="situation">${esc(situation)}</textarea></label>
         <div style="margin-top:8px;">
           <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
