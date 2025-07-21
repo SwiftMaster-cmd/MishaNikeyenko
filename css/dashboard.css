@@ -1550,6 +1550,31 @@ td:last-child{text-align:right;}
   opacity:.5;
   cursor:not-allowed;
 }
+.guest-card {
+  position: relative;
+}
+
+.btn-edit-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.guest-card-actions {
+  display: none;      /* hidden by default */
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 8px;
+}
+
+.guest-card-actions.show {
+  display: flex;      /* optional if you prefer toggling a class instead */
+}
 
 /* role badges within dialog */
 .msg-role{

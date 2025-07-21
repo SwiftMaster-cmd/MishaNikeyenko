@@ -6,9 +6,15 @@ import {
 } from './gi-render.js';
 
 import {
-  toggleEdit, cancelEdit, saveEdit, deleteGuestInfo,
-  markSold, deleteSale, openGuestInfoPage,
-  recomputePitch
+  toggleEdit,
+  cancelEdit,
+  saveEdit,
+  deleteGuestInfo,
+  markSold,
+  deleteSale,
+  openGuestInfoPage,
+  recomputePitch,
+  toggleActionButtons   // ← import the new toggle helper
 } from './gi-action.js';
 
 // ── Time & filter helpers ─────────────────────────────────────────────────
@@ -103,10 +109,10 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
   // 1) filter by role
   const visible = filterGuestinfo(guestinfo, users, uid, role);
 
-  // 2) count proposals & sales on the full set (so button appears)
-  const fullGroups = groupByStatus(visible);
-  const propCount  = fullGroups.proposal.length;
-  const soldCount  = fullGroups.sold.length;
+  // 2) count proposals & sales on full set
+  const fullGroups  = groupByStatus(visible);
+  const propCount   = fullGroups.proposal.length;
+  const soldCount   = fullGroups.sold.length;
 
   // 3) choose subset to render
   let items;
@@ -135,7 +141,7 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
       </section>`;
   }
 
-  // proposals view (manual toggle)
+  // proposals view
   if (showProps) {
     return `
       <section class="guestinfo-section">
@@ -146,7 +152,7 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
       </section>`;
   }
 
-  // default view: include proposals section immediately
+  // default view (always show proposals section inline)
   const isEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
   return `
     <section class="guestinfo-section">
@@ -163,7 +169,9 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
 
 // ── Filter controls ────────────────────────────────────────────────────────
 export function setFilterMode(mode) {
-  window._guestinfo_filterMode = window.currentRole === "me" ? "week" : (mode === "all" ? "all" : "week");
+  window._guestinfo_filterMode = window.currentRole === "me"
+    ? "week"
+    : (mode === "all" ? "all" : "week");
   window.renderAdminApp();
 }
 
@@ -188,10 +196,35 @@ export function createNewLead() {
 export function ensurePitchCss() {
   if (document.getElementById("guestinfo-pitch-css")) return;
   const css = `
-    .guest-pitch-pill { display:inline-block;padding:2px 10px;margin-left:4px;font-size:12px;font-weight:700;line-height:1.2;border-radius:999px;border:1px solid rgba(0,0,0,.2); }
+    .guest-pitch-pill {
+      display:inline-block;
+      padding:2px 10px;
+      margin-left:4px;
+      font-size:12px;
+      font-weight:700;
+      line-height:1.2;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.2);
+    }
     .guest-pitch-pill.pitch-good { background:rgba(0,200,83,.15); color:#00c853; }
     .guest-pitch-pill.pitch-warn { background:rgba(255,179,0,.15); color:#ffb300; }
     .guest-pitch-pill.pitch-low  { background:rgba(255,82,82,.15); color:#ff5252; }
+    .btn-edit-actions {
+      position:absolute;
+      top:8px; right:8px;
+      background:none; border:none;
+      font-size:1.2rem; cursor:pointer;
+      z-index:1;
+    }
+    .guest-card-actions {
+      display:none;
+      flex-wrap:wrap;
+      gap:.5rem;
+      margin-top:8px;
+    }
+    .guest-card-actions.show {
+      display:flex;
+    }
   `.trim();
   const style = document.createElement("style");
   style.id = "guestinfo-pitch-css";
@@ -204,9 +237,18 @@ export function initGuestinfo() {
   ensurePitchCss();
   window.guestinfo = {
     renderGuestinfoSection,
-    toggleEdit, cancelEdit, saveEdit, deleteGuestInfo,
-    markSold, deleteSale, openGuestInfoPage,
-    setFilterMode, toggleShowProposals, toggleSoldOnly, createNewLead,
+    toggleActionButtons,
+    toggleEdit,
+    cancelEdit,
+    saveEdit,
+    deleteGuestInfo,
+    markSold,
+    deleteSale,
+    openGuestInfoPage,
+    setFilterMode,
+    toggleShowProposals,
+    toggleSoldOnly,
+    createNewLead,
     recomputePitch
   };
 }
