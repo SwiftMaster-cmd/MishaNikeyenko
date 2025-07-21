@@ -71,7 +71,7 @@ function filterByRole(guestinfo, users, uid, role) {
   return {};
 }
 
-// ── Filter state ───────────────────────────────────────────────────────────
+// ── Persistent filter state ────────────────────────────────────────────────
 if (!window._guestinfo_filters) {
   window._guestinfo_filters = {
     name: "",
@@ -84,44 +84,44 @@ if (!window._guestinfo_filters) {
   };
 }
 
-// ── Controls bar with filter panel ─────────────────────────────────────────
-function controlsBarHtml(propCount, soldCount, role, showCreate = true) {
+// ── Controls bar + Filters panel ────────────────────────────────────────────
+function controlsBarHtml(propCount, soldCount, role) {
   const f = window._guestinfo_filters;
 
-  // Toggle Filters button + New Lead
-  const headerBtns = `
-    <button class="btn btn-secondary btn-sm"
-            onclick="window.guestinfo.toggleFilterPanel()">
-      ${f.panelOpen ? 'Filters ▴' : 'Filters ▾'}
-    </button>
-    ${ showCreate
-      ? `<button class="btn btn-success btn-sm"
-                 onclick="window.guestinfo.createNewLead()">
-           + New Lead
-         </button>`
-      : '' }`;
+  // Header buttons
+  const header = `
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-secondary btn-sm"
+              onclick="window.guestinfo.toggleFilterPanel()">
+        ${f.panelOpen ? 'Filters ▴' : 'Filters ▾'}
+      </button>
+      <button class="btn btn-success btn-sm"
+              onclick="window.guestinfo.createNewLead()">
+        + New Lead
+      </button>
+    </div>`;
 
-  // Filter panel (hidden/shown)
+  // Panel contents
   const panelStyle = f.panelOpen
     ? 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;'
     : 'display:none;';
-  const filterPanel = `
+  const panel = `
     <div id="filter-panel" style="${panelStyle}">
       <div class="search-wrapper">
-        <input id="filter-name" type="text" placeholder="🔍 Customer name…"
-               value="${f.name}"
+        <input id="filter-name" type="text" placeholder="🔍 Customer name…" 
+               value="${f.name}" 
                oninput="window.guestinfo.setSearchName(this.value)" />
         <button class="clear-btn" onclick="window.guestinfo.clearSearchName()">×</button>
       </div>
       <div class="search-wrapper">
-        <input id="filter-emp" type="text" placeholder="🔍 Employee…"
-               value="${f.employee}"
+        <input id="filter-emp" type="text" placeholder="🔍 Employee…" 
+               value="${f.employee}" 
                oninput="window.guestinfo.setSearchEmployee(this.value)" />
         <button class="clear-btn" onclick="window.guestinfo.clearSearchEmployee()">×</button>
       </div>
       <div class="search-wrapper">
-        <input id="filter-date" type="date"
-               value="${f.date}"
+        <input id="filter-date" type="date" 
+               value="${f.date}" 
                onchange="window.guestinfo.setSearchDate(this.value)" />
         <button class="clear-btn" onclick="window.guestinfo.clearSearchDate()">×</button>
       </div>
@@ -133,25 +133,19 @@ function controlsBarHtml(propCount, soldCount, role, showCreate = true) {
               onclick="window.guestinfo.toggleShowProposals()">
         ${f.showProposals ? 'Back to Leads' : `⚠ Follow-Ups (${propCount})`}
       </button>
-      ${ role !== 'me'
+      ${role !== 'me'
         ? `<button class="btn btn-secondary btn-sm"
                    onclick="window.guestinfo.toggleSoldOnly()">
              ${f.soldOnly ? 'Back to Leads' : `Sales (${soldCount})`}
            </button>`
-        : '' }
-      <button class="btn-clear-filters btn-sm"
+        : ''}
+      <button class="btn-clear-filters btn-sm" 
               onclick="window.guestinfo.clearAllFilters()">
         Clear All
       </button>
     </div>`;
 
-  return `
-    <div class="guestinfo-controls" style="display:flex;flex-direction:column;gap:4px;">
-      <div style="display:flex;gap:8px;align-items:center;">
-        ${headerBtns}
-      </div>
-      ${filterPanel}
-    </div>`;
+  return `<div class="guestinfo-controls">${header}${panel}</div>`;
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────
@@ -210,44 +204,48 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
   const soldCount  = fullGroups.sold.length;
 
   // 5) Timeframe / proposals / sales toggles
-  if (f.showProposals) {
-    // show all proposals
-  } else if (f.soldOnly) {
-    // show all sold
-  } else if (f.filterMode === 'week' && role !== 'me') {
+  if (!f.showProposals && !f.soldOnly && f.filterMode === 'week' && role !== 'me') {
     items = Object.fromEntries(
       Object.entries(items).filter(([,g]) => inCurrentWeek(g))
     );
   }
+
   // 6) Regroup
   const groups = groupByStatus(items);
 
-  // 7) Build HTML
+  // 7) Build inner HTML
   let inner = '';
   if (f.soldOnly && role !== 'me') {
-    inner = statusSectionHtml("Sales", groups.sold, users, uid, role)
-          || emptyHtml("No sales in this view.");
+    if (groups.sold.length) {
+      inner = statusSectionHtml('Sales', groups.sold, users, uid, role);
+    } else {
+      inner = emptyHtml('No sales in this view.');
+    }
   } else if (f.showProposals) {
-    inner = statusSectionHtml("Follow-Ups", groups.proposal, users, uid, role, true)
-          || emptyHtml("No follow-ups in this view.");
+    if (groups.proposal.length) {
+      inner = statusSectionHtml('Follow-Ups', groups.proposal, users, uid, role, true);
+    } else {
+      inner = emptyHtml('No follow-ups in this view.');
+    }
   } else {
-    const isEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
-    if (isEmpty) {
+    const hasAny = groups.new.length || groups.working.length || groups.proposal.length;
+    if (!hasAny) {
       inner = emptyHtml("You're all caught up!");
     } else {
-      inner += statusSectionHtml("New",     groups.new,     users, uid, role) || '';
-      inner += statusSectionHtml("Working", groups.working, users, uid, role) || '';
-      inner += statusSectionHtml("Proposal",groups.proposal,users, uid, role) || '';
+      if (groups.new.length)     inner += statusSectionHtml('New',      groups.new,     users, uid, role);
+      if (groups.working.length) inner += statusSectionHtml('Working',  groups.working, users, uid, role);
+      if (groups.proposal.length)inner += statusSectionHtml('Proposal', groups.proposal,users, uid, role, true);
     }
   }
 
   return `
-    <div id="guestinfo-container">
-      ${controlsBarHtml(propCount, soldCount, role, /* showCreate */ true)}
+    <section class="admin-section guestinfo-section" id="guestinfo-section">
+      ${controlsBarHtml(propCount, soldCount, role)}
       <div id="guestinfo-results">
         ${inner}
       </div>
-    </div>`;
+    </section>
+  `;
 }
 
 // ── Filter setters & clearers ─────────────────────────────────────────────
@@ -308,7 +306,6 @@ export function clearAllFilters() {
   };
   window.renderAdminApp();
 }
-
 export function createNewLead() {
   try { localStorage.removeItem("last_guestinfo_key"); } catch (_) {}
   window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split('?')[0];
