@@ -63,7 +63,7 @@
       window.location.href = DASHBOARD_URL;
     });
 
-    // Progress bar container + label
+    // Progress bar container + label (only one here)
     const progressContainer = create("div", { style: "margin:12px 0;" });
     const progressLabel = create("div", { id: "progressLabel", style:"margin-bottom:4px;font-weight:bold;" }, "Progress: 0%");
     const progressBar = create("progress", { id: "progressBar", value: 0, max: 100, style: "width: 100%; height: 20px;" });
@@ -71,7 +71,7 @@
     progressContainer.appendChild(progressBar);
     app.appendChild(progressContainer);
 
-    // Progress & NBQ placeholders
+    // Progress & NBQ placeholders (kept if needed for other UI)
     app.appendChild(create("div", { id: "gp-progress-hook" }));
     app.appendChild(create("div", { id: "gp-nbq" }));
 
@@ -193,7 +193,7 @@
     if (!global.gpApp?.guestKey || !global.firebase?.database) return;
     const db = global.firebase.database();
 
-    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7; // add points for custName/custPhone
+    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7; // include custName/custPhone points
     const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
     const percent = Math.min(100, Math.round((total / maxPoints) * 100));
 
@@ -203,7 +203,7 @@
   }
 
   function updateTotalPoints() {
-    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7; // customer info points included
+    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7; // include customer info points
     const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
     const percent = Math.min(100, Math.round((total / maxPoints) * 100));
     const progressLabel = document.getElementById("progressLabel");
