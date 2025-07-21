@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with dynamic questions from global.gpQuestions, no admin panel
+// gp-ui-render.js -- Guest Portal UI with async gpQuestions loading, error handling, no admin panel
 // Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
@@ -25,13 +25,42 @@
     return el;
   }
 
+  // Waits for gpQuestions array to be loaded (max 5 seconds)
+  async function waitForGpQuestions(timeoutMs = 5000) {
+    const start = Date.now();
+    while ((!global.gpQuestions || !global.gpQuestions.length) && (Date.now() - start) < timeoutMs) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+    if (!global.gpQuestions || !global.gpQuestions.length) {
+      throw new Error("gpQuestions did not load within timeout");
+    }
+  }
+
+  async function renderUIWhenReady() {
+    try {
+      console.log("Waiting for gpQuestions to load...");
+      await waitForGpQuestions();
+      console.log("gpQuestions loaded:", global.gpQuestions.length, "questions");
+      renderUI();
+    } catch (err) {
+      console.error("Error loading gpQuestions:", err);
+      // Optionally show fallback UI or message
+      renderUIFallback();
+    }
+  }
+
+  function renderUIFallback() {
+    const app = document.getElementById("guestApp");
+    if (!app) return;
+    app.innerHTML = "<p style='color:red;'>Unable to load questions. Please try again later.</p>";
+  }
+
   function renderUI() {
     const app = document.getElementById("guestApp");
     if (!app) return;
 
     app.innerHTML = "";
 
-    // Header
     const header = create("header", { class: "guest-header" }, `
       <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}">← Dashboard</a>
     `);
@@ -42,11 +71,9 @@
       window.location.href = DASHBOARD_URL;
     });
 
-    // Progress & NBQ placeholders
     app.appendChild(create("div", { id: "gp-progress-hook" }));
     app.appendChild(create("div", { id: "gp-nbq" }));
 
-    // Main container
     const box = create("div", { class: "guest-box" });
 
     box.insertAdjacentHTML("beforeend", `
@@ -92,10 +119,10 @@
     setupStepNavigation();
   }
 
-  // Render all questions dynamically from global.gpQuestions
   function renderQuestions(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
+
     container.innerHTML = "";
 
     const questions = global.gpQuestions || [];
@@ -175,12 +202,24 @@
       }
 
       alert("Solution saved. Process complete.");
-      // Add your saving logic here
+      // TODO: Add save logic here
     });
   }
 
   auth.onAuthStateChanged(() => {
-    renderUI();
+    renderUIWhenReady();
   });
+
+  async function renderUIWhenReady() {
+    try {
+      console.log("Waiting for gpQuestions to load...");
+      await waitForGpQuestions();
+      console.log("gpQuestions loaded:", global.gpQuestions.length, "questions");
+      renderUI();
+    } catch (err) {
+      console.error("Error loading gpQuestions:", err);
+      renderUIFallback();
+    }
+  }
 
 })(window);
