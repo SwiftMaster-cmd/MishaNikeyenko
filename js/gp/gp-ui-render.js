@@ -1,5 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with dynamic questions from global.gpQuestions, no admin panel
-// Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
+// gp-ui-render.js -- Guest Portal UI, uses staticQuestions fallback, no admin panel
 
 (function(global){
   const firebaseConfig = global.GP_FIREBASE_CONFIG || {
@@ -18,6 +17,7 @@
   const auth = firebase.auth();
 
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
+
   function create(tag, attrs = {}, html = "") {
     const el = document.createElement(tag);
     Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
@@ -31,7 +31,6 @@
 
     app.innerHTML = "";
 
-    // Header
     const header = create("header", { class: "guest-header" }, `
       <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}">← Dashboard</a>
     `);
@@ -42,11 +41,9 @@
       window.location.href = DASHBOARD_URL;
     });
 
-    // Progress & NBQ placeholders
     app.appendChild(create("div", { id: "gp-progress-hook" }));
     app.appendChild(create("div", { id: "gp-nbq" }));
 
-    // Main container
     const box = create("div", { class: "guest-box" });
 
     box.insertAdjacentHTML("beforeend", `
@@ -92,13 +89,14 @@
     setupStepNavigation();
   }
 
-  // Render all questions dynamically from global.gpQuestions
   function renderQuestions(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
+
     container.innerHTML = "";
 
-    const questions = global.gpQuestions || [];
+    // Use global.gpQuestions if ready, otherwise fallback to staticQuestions
+    const questions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : window.staticQuestions;
 
     questions.forEach(q => {
       let fieldHTML = "";
