@@ -44,11 +44,11 @@ export function esc(str) {
 export function timeAgo(ts) {
   if (!ts) return "-";
   const diff = Date.now() - ts;
-  const m = Math.floor(diff / 60000);
+  const m = Math.floor(diff/60000);
   if (m < 60) return `${m}m`;
-  const h = Math.floor(diff / 3600000);
+  const h = Math.floor(diff/3600000);
   if (h < 24) return `${h}h`;
-  const d = Math.floor(diff / 86400000);
+  const d = Math.floor(diff/86400000);
   return `${d}d`;
 }
 
@@ -68,13 +68,13 @@ export function normGuest(src) {
   src = src || {};
   const custName  = src.custName  ?? src.guestName  ?? "";
   const custPhone = src.custPhone ?? src.guestPhone ?? "";
-  const e = { ...(src.evaluate || {}) };
+  const e = { ...(src.evaluate||{}) };
   if (e.currentCarrier == null && src.currentCarrier != null) e.currentCarrier = src.currentCarrier;
   if (e.numLines      == null && src.numLines      != null) e.numLines      = src.numLines;
   if (e.coverageZip   == null && src.coverageZip   != null) e.coverageZip   = src.coverageZip;
   if (e.deviceStatus  == null && src.deviceStatus  != null) e.deviceStatus  = src.deviceStatus;
   if (e.finPath       == null && src.finPath       != null) e.finPath       = src.finPath;
-  const sol = { ...(src.solution || {}) };
+  const sol = { ...(src.solution||{}) };
   if (sol.text == null && src.solutionText != null) sol.text = src.solutionText;
 
   const out = {
@@ -91,7 +91,7 @@ export function normGuest(src) {
 }
 
 export function getField(g, k) {
-  const e = g.evaluate || {}, sol = g.solution || {};
+  const e = g.evaluate||{}, sol = g.solution||{};
   switch (k) {
     case "custName":      return g?.custName;
     case "custPhone":     return g?.custPhone;
@@ -114,8 +114,7 @@ export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
   let earned = 0, max = 0;
   for (const [k, wt] of Object.entries(weights)) {
     const st = FIELD_STEP[k] || "step1";
-    steps[st].max += wt;
-    max += wt;
+    steps[st].max += wt; max += wt;
     if (hasVal(getField(g, k))) {
       steps[st].earned += wt;
       earned += wt;
@@ -185,20 +184,20 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const roleCls = currentRole === "me"    ? "role-badge role-me"
                  : currentRole === "lead" ? "role-badge role-lead"
                  : currentRole === "dm"   ? "role-badge role-dm"
-                                            : "role-badge role-admin";
+                                           : "role-badge role-admin";
   const nameLabel = esc(submitter.name || submitter.email || "");
 
   // Action buttons
-  const isSold    = detectStatus(g) === "sold";
-  const canEdit   = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
-  const canSold   = canEdit && !isSold;
+  const sold   = detectStatus(g) === "sold";
+  const canEdit = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
+  const canSold = canEdit && !sold;
   const actions = [
     `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">
        ${g.evaluate||g.solution||g.sale ? "Open" : "Continue"}
      </button>`,
     canEdit ? `<button class="btn btn-primary btn-sm" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
     canSold ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
-    isSold  ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
+    sold    ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
     canEdit ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
   ].filter(Boolean).join("");
 
@@ -213,7 +212,7 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         <span class="guest-pitch-pill ${pcls}"
               style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};">
           ${pct}%
-        </span>
+        </span>  
         <button class="btn-edit-actions"
                 style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
                 onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
@@ -229,8 +228,10 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
           ${nameLabel}
         </span>
         <span class="guest-phone"
+              data-raw="${raw}"
+              data-mask="${masked}"
               style="margin:0 12px;padding:2px 6px;border-radius:999px;font-size:.85em;cursor:pointer;background:${bg};"
-              onclick="this.textContent = this.textContent==='${masked}' ? '${raw}' : '${masked}'">
+              onclick="window.guestinfo.togglePhone('${id}')">
           ${masked}
         </span>
         <span class="guest-time"
