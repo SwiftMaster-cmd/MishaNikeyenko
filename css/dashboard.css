@@ -127,23 +127,22 @@ a:hover{text-decoration:underline;}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);}
 
 /* ==========================================================================
-   Professional Sticky Header
+   Professional Sticky Header (Full-Width + Tab-Style Links)
    ========================================================================== */
 .admin-header {
   position: sticky;
   top: 0;
   z-index: var(--z-header);
   width: 100%;
-  box-sizing: border-box;
-  /* safe‐area top inset + vertical padding */
-  padding: env(safe-area-inset-top) var(--space-md) var(--space-sm);
+  /* only vertical padding; no left/right padding so bg goes full-bleed */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: var(--space-sm);
   background: rgba(26, 28, 36, 0.85);
   backdrop-filter: saturate(180%) blur(12px);
-  /* prevent horizontal scroll from header */
   overflow: hidden;
 }
 
-/* container to center & constrain content */
+/* inner container keeps content centered and padded */
 .admin-header .header-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -151,10 +150,12 @@ a:hover{text-decoration:underline;}
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
+  /* horizontal padding just for content, not bg */
+  padding: 0 var(--space-md);
   gap: var(--space-sm);
 }
 
-/* title */
+/* header title */
 .admin-header h2 {
   flex: 1 1 auto;
   margin: 0;
@@ -166,46 +167,29 @@ a:hover{text-decoration:underline;}
   text-overflow: ellipsis;
 }
 
-/* right‐side buttons group */
+/* replace buttons with simple tabs/links */
 .admin-header .header-actions {
   display: flex;
-  flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: var(--space-xs);
+  flex: 0 0 auto;
 }
 
-/* button reset */
-.admin-header button {
-  padding: var(--space-xs) var(--space-md);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--brand);
-  color: var(--text-hi);
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: var(--shadow-btn);
-  transition: box-shadow var(--dur-med) var(--ease-out),
-              background var(--dur-fast) var(--ease-out);
-}
-.admin-header button:hover {
-  box-shadow: var(--shadow-btn-h);
-  background: var(--brand-hover);
-}
-
-/* logout button variant stays the same */
-#logoutBtn {
-  background: rgba(255,255,255,0.1);
-  color: var(--text-hi);
-  border: 1px solid rgba(255,255,255,0.3);
+.admin-header .header-actions a.tab {
+  display: inline-block;
   padding: var(--space-xs) var(--space-md);
   font-size: var(--fs-sm);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background var(--dur-med) var(--ease-out),
-              transform var(--dur-fast) var(--ease-out);
+  color: var(--text-med);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
-#logoutBtn:hover {
-  background: rgba(255,255,255,0.2);
-  transform: translateY(-1px);
+.admin-header .header-actions a.tab:hover,
+.admin-header .header-actions a.tab.active {
+  color: var(--text-hi);
+  border-color: var(--brand);
 }
 
 /* on very small screens, stack actions under title */
