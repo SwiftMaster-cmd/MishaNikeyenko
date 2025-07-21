@@ -34,24 +34,24 @@
   /* ------------------------------------------------------------------ Field IO */
   function readFields(){
     return {
-      custName:      el("custName")?.value || "",
-      custPhone:     el("custPhone")?.value || "",
-      currentCarrier:el("currentCarrierSel")?.value || "",
-      numLines:      el("numLines")?.value || "",
-      coverageZip:   el("coverageZip")?.value || "",
-      solutionText:  el("solutionText")?.value || ""
+      custName:       el("custName")?.value || "",
+      custPhone:      el("custPhone")?.value || "",
+      currentCarrier: el("currentCarrierSel")?.value || "",
+      numLines:       el("numLines")?.value || "",
+      coverageZip:    el("coverageZip")?.value || "",
+      solutionText:   el("solutionText")?.value || ""
     };
   }
   function writeFields(g){
-    if (el("custName"))         el("custName").value = g.custName || "";
-    if (el("custPhone"))        el("custPhone").value = g.custPhone || "";
+    if (el("custName"))         el("custName").value       = g.custName || "";
+    if (el("custPhone"))        el("custPhone").value      = g.custPhone || "";
     if (el("currentCarrierSel"))el("currentCarrierSel").value = g.currentCarrier || "";
-    if (el("numLines"))         el("numLines").value = g.numLines || "";
-    if (el("coverageZip"))      el("coverageZip").value = g.coverageZip || "";
-    if (el("solutionText"))     el("solutionText").value = g.solution?.text || "";
+    if (el("numLines"))         el("numLines").value       = g.numLines || "";
+    if (el("coverageZip"))      el("coverageZip").value    = g.coverageZip || "";
+    if (el("solutionText"))     el("solutionText").value   = g.solution?.text || "";
   }
 
-  /* ------------------------------------------------------------------ Progress (optional) */
+  /* ------------------------------------------------------------------ Progress */
   function ensureProgressBar(){
     if (el("gp-progress")) return;
     const bar = document.createElement("div");
@@ -84,35 +84,28 @@
     }
   }
 
-  // Updated to persist to Firebase and exclude solutionText
+  // Updated: include every field's weight (no exclusions),
+  // persist to Firebase so completionPct is stored server-side.
   function updateProgressFromGuest(g){
     if (!global.gpCore){
       setProgress(0);
       return;
     }
-    // calculate excluding solutionText
-    const comp    = global.gpCore.computePitchFull(g || {});
-    const weights = global.gpCore.PITCH_WEIGHTS;
-    const exclude = new Set(["solutionText"]);
-    let earned = 0, total = 0;
-    for (const [field, wt] of Object.entries(weights)){
-      if (exclude.has(field)) continue;
-      total += wt;
-      if (comp.fields[field]?.ok) earned += wt;
-    }
-    const pct = total ? Math.round((earned / total) * 100) : 0;
+    // compute full pitch including solutionText
+    const comp = global.gpCore.computePitchFull(g || {});
+    const pct  = comp.pctFull || 0;
     setProgress(pct);
 
-    // persist to Firebase so it can be read later without recomputing
+    // persist for later retrieval without re-compute
     if (_guestKey){
       db.ref(`guestinfo/${_guestKey}/completionPct`)
         .set(pct)
-        .catch(()=>{/* silent */});
+        .catch(()=>{/* silently fail */});
     }
   }
 
   /* ------------------------------------------------------------------ Local key */
-  function saveLocalKey(k){ try{ localStorage.setItem("last_guestinfo_key", k || ""); } catch(_){} }
+  function saveLocalKey(k){ try{ localStorage.setItem("last_guestinfo_key", k || ""); }catch(_){} }
 
   /* ------------------------------------------------------------------ Initial step */
   function initialStep(g){
@@ -121,8 +114,8 @@
       if (s === "proposal") return "step3";
       if (s === "working")  return "step2";
     } else {
-      if ((g?.custName || g?.custPhone)) return "step2";
-      if (g?.solution?.text)            return "step3";
+      if (g?.custName || g?.custPhone) return "step2";
+      if (g?.solution?.text)           return "step3";
     }
     return "step1";
   }
@@ -168,22 +161,20 @@
     const uid    = auth.currentUser?.uid || null;
     const now    = Date.now();
     const status = global.gpCore
-      ? global.gpCore.detectStatus({..._guestObj,...f,solution:{text:f.solutionText}})
+      ? global.gpCore.detectStatus({ ..._guestObj, ...f, solution:{text:f.solutionText} })
       : "new";
 
     if (!_guestKey){
       const payload = {
-        custName:      f.custName,
-        custPhone:     f.custPhone,
-        currentCarrier:f.currentCarrier,
-        numLines:      f.numLines,
-        coverageZip:   f.coverageZip,
-        submittedAt:   now,
-        userUid:       uid,
+        custName:       f.custName,
+        custPhone:      f.custPhone,
+        currentCarrier: f.currentCarrier,
+        numLines:       f.numLines,
+        coverageZip:    f.coverageZip,
+        submittedAt:    now,
+        userUid:        uid,
         status,
-        solution:      f.solutionText
-                         ? {text:f.solutionText,completedAt:now}
-                         : null
+        solution:       f.solutionText ? {text:f.solutionText,completedAt:now} : null
       };
       try {
         const ref = await db.ref("guestinfo").push(payload);
@@ -207,12 +198,13 @@
       updates[`guestinfo/${_guestKey}/updatedAt`] = now;
       try {
         await db.ref().update(updates);
-        Object.assign(_guestObj, {...f, status, solution:{text:f.solutionText,completedAt:now}});
+        Object.assign(_guestObj, {...f,status,solution:{text:f.solutionText,completedAt:now}});
       } catch {
         alert("Save error");
         return;
       }
     }
+
     updateProgressFromGuest(_guestObj);
     alert("Saved.");
   }
@@ -269,8 +261,7 @@
         const fld = el(id); if (!fld) return;
         const ev  = fld.tagName === "SELECT" ? "change" : "input";
         fld.addEventListener(ev, () => {
-          const live = {..._guestObj,...readFields(),solution:{text:el("solutionText")?.value||""}};
-          updateProgressFromGuest(live);
+          updateProgressFromGuest({ ..._guestObj, ...readFields(), solution:{text:el("solutionText")?.value||""} });
         });
       });
 
