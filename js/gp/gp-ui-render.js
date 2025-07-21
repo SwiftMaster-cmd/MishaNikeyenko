@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with staticQuestions fallback, no admin panel
+// gp-ui-render.js -- Guest Portal UI with instant save + weighted scoring, no admin panel
 // Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
@@ -126,6 +126,8 @@
 
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
 
+  const answers = {}; // { questionId: { value, points } }
+
   function create(tag, attrs = {}, html = "") {
     const el = document.createElement(tag);
     Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
@@ -153,6 +155,11 @@
     // Progress & NBQ placeholders
     app.appendChild(create("div", { id: "gp-progress-hook" }));
     app.appendChild(create("div", { id: "gp-nbq" }));
+
+    // Total points display
+    const totalPointsEl = create("div", { id: "totalPoints", style:"font-weight:bold;margin-bottom:12px;" });
+    app.appendChild(totalPointsEl);
+    updateTotalPoints();
 
     // Main container
     const box = create("div", { class: "guest-box" });
@@ -206,24 +213,50 @@
 
     container.innerHTML = "";
 
-    // Use global.gpQuestions if loaded, else fallback to staticQuestions
     const questions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
 
     questions.forEach(q => {
       let fieldHTML = "";
       if (q.type === "text" || q.type === "number") {
         fieldHTML = `<label class="glabel">${q.label}
-          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" required />
+          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" value="" />
         </label>`;
       } else if (q.type === "select" && Array.isArray(q.options)) {
         fieldHTML = `<label class="glabel">${q.label}
-          <select class="gfield" id="${q.id}" name="${q.id}" required>
+          <select class="gfield" id="${q.id}" name="${q.id}">
+            <option value="">-- Select --</option>
             ${q.options.map(opt => `<option value="${opt}">${opt}</option>`).join("")}
           </select>
         </label>`;
       }
       container.insertAdjacentHTML("beforeend", fieldHTML);
     });
+
+    // Add immediate save listeners:
+    questions.forEach(q => {
+      const input = document.getElementById(q.id);
+      if (!input) return;
+
+      input.addEventListener(q.type === "select" ? "change" : "input", (e) => {
+        const val = e.target.value.trim();
+        const points = val === "" ? 0 : q.weight;
+        answers[q.id] = { value: val, points };
+        saveAnswer(q.id, val, points);
+        updateTotalPoints();
+      });
+    });
+  }
+
+  // Placeholder save function -- replace with real backend call
+  function saveAnswer(questionId, value, points) {
+    console.log(`Saved answer: ${questionId}="${value}", points=${points}`);
+    // Implement real save logic here (Firebase, API, localStorage, etc)
+  }
+
+  function updateTotalPoints() {
+    const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
+    const el = document.getElementById("totalPoints");
+    if (el) el.textContent = `Total Points: ${total}`;
   }
 
   function setupStepNavigation() {
@@ -284,7 +317,7 @@
       }
 
       alert("Solution saved. Process complete.");
-      // Insert your saving logic here
+      // Add your final save logic here
     });
   }
 
