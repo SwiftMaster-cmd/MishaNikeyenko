@@ -9,7 +9,7 @@ import {
   toggleEdit, cancelEdit, saveEdit, deleteGuestInfo,
   markSold, deleteSale, openGuestInfoPage,
   recomputePitch
-} from './gi-actions.js';
+} from './gi-action.js';
 
 // ── Time & filter helpers ─────────────────────────────────────────────────
 function msNDaysAgo(n){ return Date.now() - n*864e5; }
