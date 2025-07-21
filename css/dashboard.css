@@ -127,102 +127,96 @@ a:hover{text-decoration:underline;}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);}
 
 /* ==========================================================================
-   HEADER (UPDATED FOR MOBILE-FRIENDLY, NO OVERFLOW)
+   Professional Sticky Header
    ========================================================================== */
 .admin-header {
   position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
   z-index: var(--z-header);
-  display: flex;
-  flex-wrap: wrap;              /* allow wrapping on narrow screens */
-  justify-content: space-between;
-  align-items: center;
-  width: 100vw;                 /* full viewport width */
-  box-sizing: border-box;       /* include padding in width */
-  padding: var(--space-sm) var(--space-md);
-  background: rgba(26,28,36,.65);
+  width: 100%;
+  box-sizing: border-box;
+  /* safe‐area top inset + vertical padding */
+  padding: env(safe-area-inset-top) var(--space-md) var(--space-sm);
+  background: rgba(26, 28, 36, 0.85);
   backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid var(--border-color);
-  overflow: hidden;             /* no horizontal scroll */
+  /* prevent horizontal scroll from header */
+  overflow: hidden;
 }
 
-/* Title scales down a bit and takes full row on small screens */
+/* container to center & constrain content */
+.admin-header .header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+/* title */
 .admin-header h2 {
+  flex: 1 1 auto;
   margin: 0;
-  flex: 1 1 100%;               /* allow title to span full width if needed */
-  font-size: var(--fs-lg);
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-hi);
-  text-align: center;           /* center on mobile */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Buttons container flexes and wraps */
-.admin-header > .header-buttons {
+/* right‐side buttons group */
+.admin-header .header-actions {
   display: flex;
-  flex-wrap: wrap;              /* wrap on narrow screens */
+  flex: 0 0 auto;
   gap: var(--space-xs);
-  flex: 1 1 auto;
-  justify-content: flex-end;
 }
 
-/* Individual buttons */
+/* button reset */
 .admin-header button {
-  flex: 0 0 auto;               /* don’t shrink below its contents */
-  margin: var(--space-xs) 0;    /* vertical spacing when wrapped */
   padding: var(--space-xs) var(--space-md);
+  border: none;
   border-radius: var(--radius-md);
   background: var(--brand);
   color: var(--text-hi);
   font-weight: 600;
-  border: none;
   cursor: pointer;
   box-shadow: var(--shadow-btn);
-  transition: box-shadow var(--dur-med) var(--ease-out);
+  transition: box-shadow var(--dur-med) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
 }
 .admin-header button:hover {
   box-shadow: var(--shadow-btn-h);
+  background: var(--brand-hover);
 }
 
-/* Logout button variant */
+/* logout button variant stays the same */
 #logoutBtn {
-  flex: 0 0 auto;
-  background: rgba(255,255,255,.1);
+  background: rgba(255,255,255,0.1);
   color: var(--text-hi);
-  border: 1px solid rgba(255,255,255,.3);
+  border: 1px solid rgba(255,255,255,0.3);
   padding: var(--space-xs) var(--space-md);
   font-size: var(--fs-sm);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition:
-    background var(--dur-med) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
+  transition: background var(--dur-med) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
 }
 #logoutBtn:hover {
-  background: rgba(255,255,255,.2);
+  background: rgba(255,255,255,0.2);
   transform: translateY(-1px);
 }
 
-/* --------------------------------------------------------------------------
-   MEDIA QUERIES
-   - On very small screens, reduce paddings & stack title/buttons nicely
-   -------------------------------------------------------------------------- */
+/* on very small screens, stack actions under title */
 @media (max-width: 480px) {
-  .admin-header {
-    padding: var(--space-xs) var(--space-sm);
+  .admin-header .header-container {
+    flex-direction: column;
+    align-items: stretch;
   }
-  /* Title smaller & full width */
-  .admin-header h2 {
-    font-size: var(--fs-md);
-    flex: 1 1 100%;
-  }
-  /* Buttons full width */
-  .admin-header > .header-buttons {
-    justify-content: center;
-    gap: var(--space-2xs);
-  }
-  .admin-header button {
+  .admin-header .header-actions {
+    justify-content: flex-end;
+    margin-top: var(--space-xs);
     width: 100%;
   }
 }
