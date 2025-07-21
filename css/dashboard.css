@@ -1684,6 +1684,81 @@ td:last-child{text-align:right;}
     margin-top: var(--space-xs);
   }
 }
+/* ==========================================================================
+   Guest Info -- Search wrappers with clear ("×") buttons
+   ========================================================================== */
+
+.guestinfo-controls .search-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.guestinfo-controls .search-wrapper input {
+  padding-right: calc(var(--space-md) + var(--space-xs));
+  /* ensure room for clear button */
+  flex: 1;
+}
+
+.guestinfo-controls .search-wrapper .clear-btn {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: var(--fs-sm);
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.guestinfo-controls .search-wrapper .clear-btn:hover {
+  color: var(--text-hi);
+}
+
+/* ==========================================================================
+   Guest Info -- "Clear Filters" button
+   ========================================================================== */
+
+.btn-clear-filters {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.btn-clear-filters:hover {
+  background: var(--danger);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-danger);
+}
+
+/* ==========================================================================
+   Responsive -- stack controls on small screens
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .guestinfo-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .guestinfo-controls .search-wrapper,
+  .guestinfo-controls input,
+  .guestinfo-controls select,
+  .guestinfo-controls button {
+    width: 100%;
+    margin-top: var(--space-xs);
+  }
+}
 .msg-role-admin{color:#ff5252;border-color:#ff5252;}
 .msg-role-dm{color:#ffb300;border-color:#ffb300;}
 .msg-role-lead{color:#82caff;border-color:#82caff;}
