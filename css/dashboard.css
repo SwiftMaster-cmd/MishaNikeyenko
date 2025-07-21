@@ -1611,6 +1611,24 @@ td:last-child{text-align:right;}
   z-index: 100;
   display: none;
 }
+/* Override guestinfo-container to allow 1 → 2 → 3 columns */
+.guestinfo-container {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 600px) {
+  .guestinfo-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .guestinfo-container {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
 .msg-role-admin{color:#ff5252;border-color:#ff5252;}
 .msg-role-dm{color:#ffb300;border-color:#ffb300;}
 .msg-role-lead{color:#82caff;border-color:#82caff;}
