@@ -1,26 +1,9 @@
-// gp-questions.js -- dynamic Step 2 questions with static fallback & Firebase-backed CRUD
-// Place at ../js/gp/gp-questions.js; load **after** Firebase SDKs and **before** gp-core.js & gp-ui-render.js
+// gp-questions.js -- dynamic Step 2 questions with static fallback & Firebase‐backed CRUD
+// Place at ../js/gp/gp-questions.js; load after Firebase SDKs and before gp-core.js & gp-ui-render.js
 
 (function(global){
   // ───────────────────────────────────────────────────────────────────────────
-  // Firebase initialization (app-compat) -- ensure we have a default app
-  // ───────────────────────────────────────────────────────────────────────────
-  const firebaseConfig = global.GP_FIREBASE_CONFIG || {
-    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
-    authDomain: "osls-644fd.firebaseapp.com",
-    databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
-    projectId: "osls-644fd",
-    storageBucket: "osls-644fd.appspot.com",
-    messagingSenderId: "798578046321",
-    appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
-    measurementId: "G-XXXXXXX"
-  };
-  if (global.firebase && !firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Static fallback questions (shown immediately on load)
+  // Static fallback questions (used if config/questions is empty)
   // ───────────────────────────────────────────────────────────────────────────
   const staticQuestions = [
     {
@@ -51,25 +34,21 @@
   ];
 
   // ───────────────────────────────────────────────────────────────────────────
-  // In-memory question list & update listeners
+  // In-memory question list & listeners
   // ───────────────────────────────────────────────────────────────────────────
   let questions = [...staticQuestions];
   const updateListeners = [];
 
   function notifyUpdate() {
     global.gpQuestions = questions;
-    updateListeners.forEach(fn => {
-      try { fn(questions); } catch (_) {}
-    });
+    updateListeners.forEach(fn => fn(questions));
   }
 
-  // expose initial static list
   global.gpQuestions = questions;
   global.onQuestionsUpdated = function(fn) {
     if (typeof fn === "function") updateListeners.push(fn);
   };
 
-  // render helper
   global.renderQuestions = function(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -83,14 +62,12 @@
         field = document.createElement("select");
         field.className = "gfield";
         field.id = q.id;
-        const placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = "Select…";
-        field.appendChild(placeholder);
+        const opt0 = document.createElement("option");
+        opt0.value = ""; opt0.textContent = "Select…";
+        field.appendChild(opt0);
         q.options.forEach(opt => {
           const o = document.createElement("option");
-          o.value = opt;
-          o.textContent = opt;
+          o.value = opt; o.textContent = opt;
           field.appendChild(o);
         });
       } else {
@@ -105,21 +82,23 @@
     });
   };
 
-  // initial notify so forms/admin UI render static immediately
-  notifyUpdate();
-
   // ───────────────────────────────────────────────────────────────────────────
-  // Firebase override: real-time sync + CRUD if DB rules allow
+  // Firebase init & override
   // ───────────────────────────────────────────────────────────────────────────
   if (global.firebase && firebase.database) {
+    // ensure default app
+    if (!firebase.apps.length) {
+      const cfg = global.GP_FIREBASE_CONFIG || {/* your config */};
+      firebase.initializeApp(cfg);
+    }
     const db  = firebase.database();
     const ref = db.ref("config/questions");
 
-    // sync from Firebase
-    ref.on("value", snapshot => {
-      const data = snapshot.val();
+    ref.on("value", snap => {
+      const data = snap.val();
       if (data && Object.keys(data).length) {
-        questions = Object.entries(data).map(([id, q]) => ({
+        // override with real data
+        questions = Object.entries(data).map(([id,q]) => ({
           id,
           label:   q.label,
           type:    q.type,
@@ -127,7 +106,7 @@
           options: Array.isArray(q.options) ? q.options : []
         }));
       } else {
-        // if no data, keep fallback
+        // no questions in DB → keep static fallback
         questions = [...staticQuestions];
       }
       notifyUpdate();
@@ -136,14 +115,14 @@
       }
     });
 
-    // Admin CRUD
-    global.addQuestion = async function({ label, type, weight, options = [] }) {
+    // ADMIN CRUD
+    global.addQuestion = async function({ label, type, weight, options=[] }) {
       const q = { label, type, weight };
       if (type === "select") q.options = options;
       const newRef = await ref.push(q);
       return newRef.key;
     };
-    global.updateQuestion = async function(id, { label, type, weight, options = [] }) {
+    global.updateQuestion = async function(id, { label, type, weight, options=[] }) {
       const q = { label, type, weight };
       if (type === "select") q.options = options;
       await ref.child(id).set(q);
