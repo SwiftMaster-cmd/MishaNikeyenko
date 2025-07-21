@@ -1,81 +1,113 @@
-// gp-ui-render.js -- builds & injects the entire Guest Portal UI into #guestApp
-// Place this at ../js/gp/gp-ui-render.js, loaded **after** gp-core.js (and gp-questions.js)
+// gp-core.js -- scoring engine, status detection, and normalization with dynamic Step 2 support
+// Place this at ../js/gp/gp-core.js, loaded **after** gp-questions.js
 
 (function(global){
-  const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
-
-  // helper: create an element with attributes and innerHTML
-  function create(tag, attrs = {}, html = "") {
-    const el = document.createElement(tag);
-    Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
-    if (html) el.innerHTML = html;
-    return el;
+  // ───────────────────────────────────────────────────────────────────────────
+  // Build the point weights, combining static Step 1 & Step 3 with dynamic Step 2
+  // ───────────────────────────────────────────────────────────────────────────
+  function buildWeights() {
+    const w = {
+      // Step 1
+      custName:  8,
+      custPhone: 7
+    };
+    // Step 2: dynamic questions from gpQuestions[]
+    (global.gpQuestions || []).forEach(q => {
+      w[q.id] = q.weight;
+    });
+    // Step 3: solution text
+    w.solutionText = 25;
+    return w;
   }
 
-  // when DOM is ready, inject everything
-  window.addEventListener("DOMContentLoaded", () => {
-    const app = document.getElementById("guestApp");
-    if (!app) return;
+  const PITCH_WEIGHTS = buildWeights();
 
-    // ─── Header ────────────────────────────────────────────────────────────
-    const header = create("header", { class: "guest-header" }, `
-      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}" aria-label="Back to Dashboard">
-        ← Dashboard
-      </a>
-    `);
-    app.appendChild(header);
-    header.querySelector("#backToDash").addEventListener("click", e => {
-      if (e.metaKey||e.ctrlKey||e.shiftKey||e.altKey) return;
-      e.preventDefault();
-      window.location.href = DASHBOARD_URL;
+  // ───────────────────────────────────────────────────────────────────────────
+  // computePitchFull
+  //  - g: guest object (after normalization)
+  // Returns { pctFull, fields }
+  //   - pctFull: percentage of total points earned
+  //   - fields:  { [fieldId]: { wt: number, ok: boolean } }
+  // ───────────────────────────────────────────────────────────────────────────
+  function computePitchFull(g) {
+    const fields = {};
+    let total = 0, earned = 0;
+
+    for (const [field, wt] of Object.entries(PITCH_WEIGHTS)) {
+      total += wt;
+      let ok = false;
+      const val = (field === 'solutionText')
+        ? (g.solution && g.solution.text)
+        : g[field];
+
+      if (typeof val === 'string') {
+        ok = val.trim() !== '';
+      } else if (typeof val === 'number') {
+        ok = !isNaN(val);
+      } else {
+        ok = Boolean(val);
+      }
+
+      if (ok) earned += wt;
+      fields[field] = { wt, ok };
+    }
+
+    const pctFull = total > 0 ? (earned / total) * 100 : 0;
+    return { pctFull, fields };
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // detectStatus
+  //  - g: guest object (after normalization)
+  // Returns one of: "new" | "working" | "proposal"
+  // ───────────────────────────────────────────────────────────────────────────
+  function detectStatus(g) {
+    // Step 3 if solution provided
+    if (g.solution && g.solution.text && g.solution.text.trim() !== '') {
+      return 'proposal';
+    }
+
+    // Step 2 if any Step 2 question or Step 1 field answered
+    const answeredStep1 = 
+      (typeof g.custName === 'string' && g.custName.trim() !== '') ||
+      (typeof g.custPhone === 'string' && g.custPhone.trim() !== '');
+
+    const answeredStep2 = (global.gpQuestions || []).some(q => {
+      const v = g[q.id];
+      if (typeof v === 'string') return v.trim() !== '';
+      if (typeof v === 'number') return !isNaN(v);
+      return Boolean(v);
     });
 
-    // ─── Progress & NBQ hooks (populated by gp-app-min.js / gp-ui.js) ───
-    app.appendChild(create("div", { id: "gp-progress-hook" }));
-    app.appendChild(create("div", { id: "gp-nbq" }));
-
-    // ─── Guest Forms Container ────────────────────────────────────────────
-    const box = create("div", { class: "guest-box" });
-    box.innerHTML = `
-      <!-- Step 1: Customer Info -->
-      <form id="step1Form" autocomplete="off" data-step="1">
-        <div class="guest-title">Step 1: Customer Info</div>
-        <label class="glabel">Customer Name <span class="gp-pts">(8pts)</span>
-          <input class="gfield" type="text" id="custName" placeholder="Full name" />
-        </label>
-        <label class="glabel">Customer Phone <span class="gp-pts">(7pts)</span>
-          <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" />
-        </label>
-        <button class="guest-btn" type="submit">Save &amp; Continue to Step 2</button>
-      </form>
-
-      <!-- Step 2: Evaluate (dynamic questions) -->
-      <form id="step2Form" class="hidden" data-step="2">
-        <div class="guest-title">
-          Step 2: Evaluate
-          <span id="gp-revert-step1" class="gp-revert-link hidden">(revert to Step 1)</span>
-        </div>
-        <div id="step2Fields"></div>
-        <button class="guest-btn" type="submit">Save &amp; Continue to Step 3</button>
-      </form>
-
-      <!-- Step 3: Solution -->
-      <form id="step3Form" class="hidden" data-step="3">
-        <div class="guest-title">
-          Step 3: Solution
-          <span id="gp-revert-step2" class="gp-revert-link hidden">(revert to Step 2)</span>
-        </div>
-        <label class="glabel">Proposed Solution <span class="gp-pts">(25pts)</span>
-          <textarea class="gfield" id="solutionText" rows="3" placeholder="What we’ll offer…"></textarea>
-        </label>
-        <button class="guest-btn" type="submit">Save Solution</button>
-      </form>
-    `;
-    app.appendChild(box);
-
-    // ─── Render Step 2 Dynamic Questions ────────────────────────────────────
-    if (typeof global.renderQuestions === "function") {
-      global.renderQuestions("step2Fields");
+    if (answeredStep1 || answeredStep2) {
+      return 'working';
     }
-  });
+
+    // Otherwise, still on Step 1
+    return 'new';
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // normGuest
+  //  - g: raw object from Firebase (may have `evaluate` sub-object)
+  // Returns a flattened guest object where each question ID is top-level
+  // ───────────────────────────────────────────────────────────────────────────
+  function normGuest(g) {
+    if (g.evaluate && typeof g.evaluate === 'object') {
+      Object.assign(g, g.evaluate);
+      delete g.evaluate;
+    }
+    return g;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Expose API
+  // ───────────────────────────────────────────────────────────────────────────
+  global.gpCore = {
+    PITCH_WEIGHTS,
+    computePitchFull,
+    detectStatus,
+    normGuest
+  };
+
 })(window);
