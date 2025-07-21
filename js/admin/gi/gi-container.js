@@ -15,14 +15,14 @@ import {
 
 // ── Time helpers ────────────────────────────────────────────────────────────
 function msNDaysAgo(n) {
-  return Date.now() - n * 864e5;
+  return Date.now() - n * 86400000;
 }
 function latestActivityTs(g) {
   return Math.max(
-    g.updatedAt         || 0,
-    g.submittedAt       || 0,
-    g.sale?.soldAt      || 0,
-    g.solution?.completedAt || 0
+    g.updatedAt            || 0,
+    g.submittedAt          || 0,
+    g.sale?.soldAt         || 0,
+    g.solution?.completedAt|| 0
   );
 }
 function inCurrentWeek(g) {
@@ -107,15 +107,15 @@ function emptyHtml(msg = "No guest leads in this view.") {
 
 // ── Main renderer ───────────────────────────────────────────────────────────
 export function renderGuestinfoSection(guestinfo, users, uid, role) {
-  // Initialize filter mode
+  // initialize filter mode
   window._guestinfo_filterMode ||= "week";
   if (role === "me") window._guestinfo_filterMode = "week";
   const mode = window._guestinfo_filterMode;
 
-  // Filter by role
+  // role-based filter
   const visible = filterGuestinfo(guestinfo, users, uid, role);
 
-  // Pick subset based on mode
+  // select subset
   let items;
   if (mode === "week") {
     items = Object.fromEntries(
@@ -124,7 +124,7 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
   } else if (mode === "all") {
     items = visible;
   } else {
-    // progress → only show those with a solution (level 3)
+    // progress → proposals only (level 3)
     items = Object.fromEntries(
       Object.entries(visible).filter(([,g]) =>
         g.solution?.text?.trim() !== ""
@@ -132,18 +132,18 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
     );
   }
 
-  // Group by status
+  // group by status
   const groups = groupByStatus(items);
 
-  // Build inner content
+  // build content
   let contentHtml;
   if (mode === "progress") {
     contentHtml = groups.proposal.length
       ? statusSectionHtml("Proposals", groups.proposal, users, uid, role, true)
       : emptyHtml("No proposals yet.");
   } else {
-    const hasNewOrWorking = groups.new.length || groups.working.length;
-    contentHtml = !hasNewOrWorking
+    const hasNW = groups.new.length || groups.working.length;
+    contentHtml = !hasNW
       ? emptyHtml("You're all caught up!")
       : `
         ${statusSectionHtml("New",     groups.new,     users, uid, role)}
@@ -151,11 +151,11 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
       `;
   }
 
-  // Wrap in styled container (.admin-section applies background, rounding, shadow)
+  // wrap in dark, muted container (.admin-section uses var(--bg-card))
   return `
     <section class="admin-section guestinfo-section" id="guestinfo-container">
       ${controlsBarHtml(
-        mode !== "progress" || (groups.new.length || groups.working.length)
+        mode !== "progress" ? Boolean(groups.new.length || groups.working.length) : false
       )}
       ${contentHtml}
     </section>`;
@@ -179,7 +179,8 @@ export function initGuestinfo() {
     recomputePitch,
     createNewLead: () => {
       try { localStorage.removeItem("last_guestinfo_key"); } catch {}
-      window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split("?")[0];
+      window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html")
+        .split("?")[0];
     }
   };
 }
