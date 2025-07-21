@@ -1554,6 +1554,16 @@ td:last-child{text-align:right;}
   position: relative;
 }
 
+.guest-card-actions {
+  display: none;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.guest-card-actions.show {
+  display: flex !important;
+}
 .btn-edit-actions {
   position: absolute;
   top: 8px;
