@@ -144,7 +144,7 @@ a:hover{text-decoration:underline;}
 
 /* inner container keeps content centered and padded */
 .admin-header .header-container {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   align-items: center;
