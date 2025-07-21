@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with optional answers + live pitch update, delegates progress to gp-app-min.js
+// gp-ui-render.js -- Guest Portal UI with optional answers + live progress bar + live pitch update, no admin panel
 // Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
@@ -109,6 +109,23 @@
     }
   ];
 
+  const firebaseConfig = global.GP_FIREBASE_CONFIG || {
+    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+    authDomain: "osls-644fd.firebaseapp.com",
+    databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
+    projectId: "osls-644fd",
+    storageBucket: "osls-644fd.appspot.com",
+    messagingSenderId: "798578046321",
+    appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
+    measurementId: "G-XXXXXXX"
+  };
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const auth = firebase.auth();
+
+  const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
+
   const answers = {}; // { questionId: { value, points } }
 
   function create(tag, attrs = {}, html = "") {
@@ -126,16 +143,24 @@
 
     // Header
     const header = create("header", { class: "guest-header" }, `
-      <a id="backToDash" class="guest-back-btn" href="${global.DASHBOARD_URL || "../html/admin.html"}">← Dashboard</a>
+      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}">← Dashboard</a>
     `);
     app.appendChild(header);
     header.querySelector("#backToDash").addEventListener("click", e => {
       if (e.metaKey||e.ctrlKey||e.shiftKey||e.altKey) return;
       e.preventDefault();
-      window.location.href = global.DASHBOARD_URL || "../html/admin.html";
+      window.location.href = DASHBOARD_URL;
     });
 
-    // Placeholders for progress and NBQ managed by gp-app-min.js
+    // Progress bar container + label
+    const progressContainer = create("div", { style: "margin:12px 0;" });
+    const progressLabel = create("div", { id: "progressLabel", style:"margin-bottom:4px;font-weight:bold;" }, "Progress: 0%");
+    const progressBar = create("progress", { id: "progressBar", value: 0, max: 100, style: "width: 100%; height: 20px;" });
+    progressContainer.appendChild(progressLabel);
+    progressContainer.appendChild(progressBar);
+    app.appendChild(progressContainer);
+
+    // Progress & NBQ placeholders
     app.appendChild(create("div", { id: "gp-progress-hook" }));
     app.appendChild(create("div", { id: "gp-nbq" }));
 
@@ -221,7 +246,7 @@
         const points = val === "" ? 0 : q.weight;
         answers[q.id] = { value: val, points };
         saveAnswer(q.id, val, points);
-        triggerProgressUpdate();
+        updateTotalPoints();
         updatePitchText();
       });
     });
@@ -236,7 +261,7 @@
         const val = e.target.value.trim();
         answers["custName"] = { value: val, points: val ? 8 : 0 };
         saveAnswer("custName", val, answers["custName"].points);
-        triggerProgressUpdate();
+        updateTotalPoints();
         updatePitchText();
       });
     }
@@ -245,7 +270,7 @@
         const val = e.target.value.trim();
         answers["custPhone"] = { value: val, points: val ? 7 : 0 };
         saveAnswer("custPhone", val, answers["custPhone"].points);
-        triggerProgressUpdate();
+        updateTotalPoints();
         updatePitchText();
       });
     }
@@ -253,23 +278,18 @@
 
   function saveAnswer(questionId, value, points) {
     console.log(`Saved answer: ${questionId} = "${value}", points: ${points}`);
-    // You can optionally trigger a local save or notify gp-app-min here
+    // TODO: implement real save (Firebase, API, localStorage, etc)
   }
 
-  function triggerProgressUpdate() {
-    if (!global.gpApp || typeof global.gpApp.updateProgressFromGuest !== "function") return;
-    const guestObj = answersToGuestObject();
-    global.gpApp.updateProgressFromGuest(guestObj);
+  function updateTotalPoints() {
+    const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
+    const progressLabel = document.getElementById("progressLabel");
+    const progressBar = document.getElementById("progressBar");
+    if (progressLabel) progressLabel.textContent = `Progress: ${total}%`;
+    if (progressBar) progressBar.value = total;
   }
 
-  function answersToGuestObject() {
-    const guestObj = {};
-    for (const [key, val] of Object.entries(answers)) {
-      guestObj[key] = val.value || "";
-    }
-    return guestObj;
-  }
-
+  // Build a pitch summary dynamically from current answers
   function updatePitchText() {
     const answersArr = Object.entries(answers);
     if (!answersArr.length) return;
@@ -331,7 +351,7 @@
     step3Form.addEventListener("submit", e => {
       e.preventDefault();
       alert("Process complete. All answers saved.");
-      // Optionally trigger final save here if needed
+      // TODO: add final save logic
     });
   }
 
