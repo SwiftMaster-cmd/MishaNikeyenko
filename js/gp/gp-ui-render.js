@@ -1,11 +1,29 @@
-// gp-ui-render.js -- builds Guest Portal UI + in-place Admin panel
-// Load after Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
+// gp-ui-render.js -- builds Guest Portal UI + in-place Admin panel, with Firebase init
+// Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
+  // ───────────────────────────────────────────────────────────────────────────
+  // Firebase initialization (in case not already initialized)
+  // ───────────────────────────────────────────────────────────────────────────
+  const firebaseConfig = global.GP_FIREBASE_CONFIG || {
+    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+    authDomain: "osls-644fd.firebaseapp.com",
+    databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
+    projectId: "osls-644fd",
+    storageBucket: "osls-644fd.appspot.com",
+    messagingSenderId: "798578046321",
+    appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
+    measurementId: "G-XXXXXXX"
+  };
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
   const auth = firebase.auth();
-  const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
 
-  // helper: create element
+  // ───────────────────────────────────────────────────────────────────────────
+  // Constants & helpers
+  // ───────────────────────────────────────────────────────────────────────────
+  const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
   function create(tag, attrs = {}, html = "") {
     const el = document.createElement(tag);
     Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
@@ -13,12 +31,14 @@
     return el;
   }
 
-  // 1) Always render the core UI on DOMContentLoaded
+  // ───────────────────────────────────────────────────────────────────────────
+  // 1) Render core UI (forms, nav, progress) on DOMContentLoaded
+  // ───────────────────────────────────────────────────────────────────────────
   function renderUI() {
     const app = document.getElementById("guestApp");
     if (!app) return;
 
-    // header
+    // Header
     const header = create("header", { class: "guest-header" }, `
       <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}">← Dashboard</a>
     `);
@@ -29,14 +49,14 @@
       window.location.href = DASHBOARD_URL;
     });
 
-    // progress + NBQ hooks
+    // Progress & NBQ placeholders
     app.appendChild(create("div", { id: "gp-progress-hook" }));
     app.appendChild(create("div", { id: "gp-nbq" }));
 
-    // main container
+    // Main container
     const box = create("div", { class: "guest-box" });
 
-    // placeholder for admin panel
+    // Admin panel placeholder
     box.appendChild(create("div", { id: "adminPanelPlaceholder" }));
 
     // Step 1 form
@@ -53,7 +73,7 @@
       </form>
     `);
 
-    // Step 2 form
+    // Step 2 form (dynamic questions)
     box.insertAdjacentHTML("beforeend", `
       <form id="step2Form" class="hidden" data-step="2">
         <div class="guest-title">
@@ -81,21 +101,20 @@
 
     app.appendChild(box);
 
-    // inject dynamic Step 2 fields
+    // Render dynamic Step 2 fields
     if (typeof global.renderQuestions === "function") {
       global.renderQuestions("step2Fields");
     }
   }
 
-  // 2) Render the admin panel if user is admin
+  // ───────────────────────────────────────────────────────────────────────────
+  // 2) Render admin panel if user has admin claim
+  // ───────────────────────────────────────────────────────────────────────────
   function renderAdminPanel() {
     const placeholder = document.getElementById("adminPanelPlaceholder");
     if (!placeholder) return;
-
-    // already rendered?
     if (document.getElementById("adminPanel")) return;
 
-    // build admin panel
     const panel = create("section", { id: "adminPanel", class: "admin-panel" },
       create("h2", {}, "Admin: Manage Step 2 Questions"),
       create("div", { id: "adminQuestionsList", class: "admin-questions-list" }),
@@ -114,12 +133,10 @@
     );
     placeholder.appendChild(panel);
 
-    // toggle options
     panel.querySelector("#newQType").addEventListener("change", e => {
       panel.querySelector("#newQOptions").style.display = e.target.value==="select" ? "" : "none";
     });
 
-    // handle add
     panel.querySelector("#adminAddForm").addEventListener("submit", async e => {
       e.preventDefault();
       const label  = e.target.newQLabel.value.trim();
@@ -133,12 +150,13 @@
       panel.querySelector("#newQOptions").style.display = "none";
     });
 
-    // subscribe & render list
     global.onQuestionsUpdated(renderQuestionsList);
     renderQuestionsList(global.gpQuestions);
   }
 
-  // render the list of questions for admin
+  // ───────────────────────────────────────────────────────────────────────────
+  // Build & render the list of questions with Edit/Delete
+  // ───────────────────────────────────────────────────────────────────────────
   function renderQuestionsList(list) {
     const elList = document.getElementById("adminQuestionsList");
     if (!elList) return;
@@ -153,25 +171,25 @@
       elList.appendChild(item);
     });
 
-    // delete handlers
     elList.querySelectorAll(".adminDelBtn").forEach(btn => {
       btn.addEventListener("click", async e => {
         if (!confirm("Remove this question?")) return;
         await global.deleteQuestion(e.target.parentElement.dataset.id);
       });
     });
-
-    // edit handlers
     elList.querySelectorAll(".adminEditBtn").forEach(btn => {
       btn.addEventListener("click", e => startEdit(e.target.parentElement.dataset.id));
     });
   }
 
-  // inline edit flow
+  // ───────────────────────────────────────────────────────────────────────────
+  // Inline edit flow for existing questions
+  // ───────────────────────────────────────────────────────────────────────────
   function startEdit(id) {
     const item = document.querySelector(`.admin-question-item[data-id="${id}"]`);
     if (!item) return;
     const q = global.gpQuestions.find(x=>x.id===id);
+    if (!q) return;
     item.innerHTML = "";
     const form = create("form",{ class:"adminEditForm" },
       create("input",{ type:"text",   name:"label",  value:q.label, required:"" }),
@@ -187,11 +205,12 @@
       create("button",{ type:"button", class:"cancelEdit" },"Cancel")
     );
     item.appendChild(form);
-    form.type.addEventListener("change", e => {
-      form.options.style.display = e.target.value==="select"?"":"none";
+
+    form.type.addEventListener("change", e=>{
+      form.options.style.display = e.target.value==="select"? "": "none";
     });
     form.cancelEdit.addEventListener("click", ()=> renderQuestionsList(global.gpQuestions));
-    form.addEventListener("submit", async e => {
+    form.addEventListener("submit", async e=>{
       e.preventDefault();
       const label  = form.label.value.trim();
       const type   = form.type.value;
@@ -203,12 +222,16 @@
     });
   }
 
-  // 3) Wire auth: first render UI, then if admin render panel
+  // ───────────────────────────────────────────────────────────────────────────
+  // 3) On auth change: render UI always; if admin also render admin panel
+  // ───────────────────────────────────────────────────────────────────────────
   auth.onAuthStateChanged(async user => {
     renderUI();
     if (user) {
       const token = await user.getIdTokenResult();
-      if (token.claims.admin) renderAdminPanel();
+      if (token.claims.admin) {
+        renderAdminPanel();
+      }
     }
   });
 
