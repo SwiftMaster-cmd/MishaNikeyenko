@@ -13,22 +13,32 @@ export function toggleEdit(id) {
   disp.style.display = showing ? "none" : "block";
 }
 
+// **NEW**: toggle visibility of the action buttons container
+export function toggleActionButtons(id) {
+  const card = document.getElementById(`guest-card-${id}`);
+  if (!card) return;
+  const actions = card.querySelector(".guest-card-actions");
+  if (!actions) return;
+  const isVisible = getComputedStyle(actions).display !== "none";
+  actions.style.display = isVisible ? "none" : "flex";
+}
+
 export function cancelEdit(id) {
   const card = document.getElementById(`guest-card-${id}`);
   if (!card) return;
   card.querySelector(".guest-edit-form").style.display = "none";
-  card.querySelector(".guest-display") .style.display = "block";
+  card.querySelector(".guest-display").style.display = "block";
 }
 
 export async function saveEdit(id) {
   const form = document.getElementById(`guest-edit-form-${id}`);
   if (!form) return alert("Edit form not found.");
   const data = {
-    custName:   form.custName.value.trim(),
-    custPhone:  form.custPhone.value.trim(),
-    serviceType:form.serviceType.value.trim(),
-    situation:  form.situation.value.trim(),
-    updatedAt:  Date.now()
+    custName:    form.custName.value.trim(),
+    custPhone:   form.custPhone.value.trim(),
+    serviceType: form.serviceType.value.trim(),
+    situation:   form.situation.value.trim(),
+    updatedAt:   Date.now()
   };
   try {
     await window.db.ref(`guestinfo/${id}`).update(data);
@@ -73,7 +83,7 @@ export async function markSold(id) {
     const saleId = saleRef.key;
 
     await window.db.ref(`guestinfo/${id}`).update({
-      sale: { saleId, soldAt: now, storeNumber, units },
+      sale:   { saleId, soldAt: now, storeNumber, units },
       status: "sold"
     });
 
@@ -104,7 +114,7 @@ export async function deleteSale(id) {
 
     await window.db.ref(`sales/${saleId}`).remove();
     await window.db.ref(`guestinfo/${id}`).update({
-      sale: null,
+      sale:   null,
       status: hasEval ? "working" : "new"
     });
 
@@ -113,8 +123,8 @@ export async function deleteSale(id) {
       const creditsObj  = creditsSnap.val()||{};
       await Promise.all(
         Object.entries(creditsObj)
-          .filter(([,c])=>c.saleId===saleId)
-          .map(([cid])=>window.db.ref(`storeCredits/${storeNumber}/${cid}`).remove())
+          .filter(([,c]) => c.saleId === saleId)
+          .map(([cid]) => window.db.ref(`storeCredits/${storeNumber}/${cid}`).remove())
       );
     }
 
@@ -131,22 +141,23 @@ export async function recomputePitch(id) {
     const data = snap.val()||{};
     const comp = computeGuestPitchQuality(normGuest(data));
     await window.db.ref(`guestinfo/${id}/completion`).set({
-      pct: Math.round(comp.pct),
-      steps: comp.steps,
-      fields: comp.fields,
+      pct:       Math.round(comp.pct),
+      steps:     comp.steps,
+      fields:    comp.fields,
       updatedAt: Date.now()
     });
   } catch(_) {}
 }
 
 export function openGuestInfoPage(guestKey) {
-  const base = window.GUESTINFO_PAGE || "../html/guestinfo.html";
-  const g    = (window._guestinfo||{})[guestKey] || null;
-  let uistart = "step1";
+  const base   = window.GUESTINFO_PAGE || "../html/guestinfo.html";
+  const g      = (window._guestinfo||{})[guestKey] || null;
+  let uistart  = "step1";
   const status = (g?.status||"").toLowerCase();
   if (["proposal","sold"].includes(status)) uistart = "step3";
-  else if (status==="working") uistart = "step2";
-  else uistart = g.prefilledStep1 ? "step2" : "step1";
+  else if (status === "working")            uistart = "step2";
+  else                                      uistart = g.prefilledStep1 ? "step2" : "step1";
+
   const sep = base.includes("?") ? "&" : "?";
   try { localStorage.setItem("last_guestinfo_key", guestKey); } catch(_) {}
   window.location.href = `${base}${sep}gid=${encodeURIComponent(guestKey)}&uistart=${uistart}`;

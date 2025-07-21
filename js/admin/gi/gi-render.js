@@ -192,16 +192,24 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const allowEdit   = allowDelete || g.userUid===currentUid;
   const allowSold   = allowEdit;
 
+  // build action buttons (hidden by default via CSS)
   const actions = [
     `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">${g.evaluate||g.solution||g.sale?"Open":"Continue"}</button>`,
-    allowEdit ? `<button class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
-    (!isSold && allowSold) ? `<button class="btn btn-success btn-sm" style="margin-left:8px;" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
-    (isSold  && allowSold) ? `<button class="btn btn-danger btn-sm"  style="margin-left:8px;" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
-    allowDelete ? `<button class="btn btn-danger btn-sm" style="margin-left:8px;" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
+    allowEdit ? `<button class="btn btn-primary btn-sm" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
+    (!isSold && allowSold) ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
+    (isSold  && allowSold) ? `<button class="btn btn-danger btn-sm"  onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
+    allowDelete ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
   ].filter(Boolean).join("");
 
   return `
-    <div class="guest-card" id="guest-card-${id}">
+    <div class="guest-card" id="guest-card-${id}" style="position:relative;">
+      <!-- toggle button -->
+      <button class="btn btn-sm btn-edit-actions"
+              style="position:absolute; top:8px; right:8px; z-index:1;"
+              onclick="window.guestinfo.toggleActionButtons('${id}')">
+        ⋮
+      </button>
+
       <div class="guest-display">
         <div><b>Status:</b> ${statBadge}</div>
         <div><b>Pitch:</b> ${pitchHtml}</div>
@@ -211,10 +219,13 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         ${situation?   `<div><b>Situation:</b> ${esc(sitPreview)}</div>`   : ""}
         <div><b>When:</b> ${g.submittedAt? new Date(g.submittedAt).toLocaleString() : "-"}</div>
         ${saleSummary}
-        <div class="guest-card-actions" style="margin-top:8px;">${actions}</div>
+        <div class="guest-card-actions" style="display:none; gap:8px; margin-top:8px;">
+          ${actions}
+        </div>
       </div>
+
       <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
-        <label>Customer Name<input type="text" name="custName" value="${esc(g.custName)}" /></label>
+        <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}" /></label>
         <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}" /></label>
         <label>Service Type  <input type="text" name="serviceType" value="${esc(serviceType)}" /></label>
         <label>Situation     <textarea name="situation">${esc(situation)}</textarea></label>
