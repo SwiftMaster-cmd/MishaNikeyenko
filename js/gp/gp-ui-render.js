@@ -1,23 +1,6 @@
-// gp-ui-render.js -- Guest Portal UI with async gpQuestions loading, error handling, no admin panel
-// Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
-
 (function(global){
-  const firebaseConfig = global.GP_FIREBASE_CONFIG || {
-    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
-    authDomain: "osls-644fd.firebaseapp.com",
-    databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
-    projectId: "osls-644fd",
-    storageBucket: "osls-644fd.appspot.com",
-    messagingSenderId: "798578046321",
-    appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
-    measurementId: "G-XXXXXXX"
-  };
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  const auth = firebase.auth();
+  console.log("gp-ui-render.js loaded");
 
-  const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
   function create(tag, attrs = {}, html = "") {
     const el = document.createElement(tag);
     Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
@@ -25,50 +8,35 @@
     return el;
   }
 
-  // Waits for gpQuestions array to be loaded (max 5 seconds)
   async function waitForGpQuestions(timeoutMs = 5000) {
     const start = Date.now();
+    console.log("Waiting for gpQuestions...");
     while ((!global.gpQuestions || !global.gpQuestions.length) && (Date.now() - start) < timeoutMs) {
       await new Promise(r => setTimeout(r, 100));
     }
     if (!global.gpQuestions || !global.gpQuestions.length) {
-      throw new Error("gpQuestions did not load within timeout");
+      console.error("gpQuestions failed to load within timeout");
+      return false;
     }
-  }
-
-  async function renderUIWhenReady() {
-    try {
-      console.log("Waiting for gpQuestions to load...");
-      await waitForGpQuestions();
-      console.log("gpQuestions loaded:", global.gpQuestions.length, "questions");
-      renderUI();
-    } catch (err) {
-      console.error("Error loading gpQuestions:", err);
-      // Optionally show fallback UI or message
-      renderUIFallback();
-    }
-  }
-
-  function renderUIFallback() {
-    const app = document.getElementById("guestApp");
-    if (!app) return;
-    app.innerHTML = "<p style='color:red;'>Unable to load questions. Please try again later.</p>";
+    console.log("gpQuestions loaded:", global.gpQuestions.length);
+    return true;
   }
 
   function renderUI() {
+    console.log("Rendering UI");
     const app = document.getElementById("guestApp");
-    if (!app) return;
+    if (!app) {
+      console.error("No #guestApp element found");
+      return;
+    }
 
     app.innerHTML = "";
 
-    const header = create("header", { class: "guest-header" }, `
-      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}">← Dashboard</a>
-    `);
+    const header = create("header", { class: "guest-header" }, `<a href="#" id="backToDash">← Dashboard</a>`);
     app.appendChild(header);
     header.querySelector("#backToDash").addEventListener("click", e => {
-      if (e.metaKey||e.ctrlKey||e.shiftKey||e.altKey) return;
       e.preventDefault();
-      window.location.href = DASHBOARD_URL;
+      alert("Dashboard link clicked"); // placeholder action
     });
 
     app.appendChild(create("div", { id: "gp-progress-hook" }));
@@ -79,37 +47,25 @@
     box.insertAdjacentHTML("beforeend", `
       <form id="step1Form" autocomplete="off" data-step="1">
         <div class="guest-title">Step 1: Customer Info</div>
-        <label class="glabel">Customer Name <span class="gp-pts">(8pts)</span>
-          <input class="gfield" type="text" id="custName" placeholder="Full name" required/>
-        </label>
-        <label class="glabel">Customer Phone <span class="gp-pts">(7pts)</span>
-          <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" required/>
-        </label>
-        <button class="guest-btn" type="submit">Save &amp; Continue to Step 2</button>
+        <label>Customer Name <input type="text" id="custName" required/></label>
+        <label>Customer Phone <input type="tel" id="custPhone" required/></label>
+        <button type="submit">Next</button>
       </form>
     `);
 
     box.insertAdjacentHTML("beforeend", `
       <form id="step2Form" class="hidden" data-step="2">
-        <div class="guest-title">
-          Step 2: Evaluate
-          <span id="gp-revert-step1" class="gp-revert-link hidden">(revert to Step 1)</span>
-        </div>
+        <div class="guest-title">Step 2: Evaluate <span id="gp-revert-step1" class="gp-revert-link hidden">(Back)</span></div>
         <div id="step2Fields"></div>
-        <button class="guest-btn" type="submit">Save &amp; Continue to Step 3</button>
+        <button type="submit">Next</button>
       </form>
     `);
 
     box.insertAdjacentHTML("beforeend", `
       <form id="step3Form" class="hidden" data-step="3">
-        <div class="guest-title">
-          Step 3: Solution
-          <span id="gp-revert-step2" class="gp-revert-link hidden">(revert to Step 2)</span>
-        </div>
-        <label class="glabel">Proposed Solution <span class="gp-pts">(25pts)</span>
-          <textarea class="gfield" id="solutionText" rows="3" placeholder="What we’ll offer…" required></textarea>
-        </label>
-        <button class="guest-btn" type="submit">Save Solution</button>
+        <div class="guest-title">Step 3: Solution <span id="gp-revert-step2" class="gp-revert-link hidden">(Back)</span></div>
+        <label>Proposed Solution <textarea id="solutionText" required></textarea></label>
+        <button type="submit">Finish</button>
       </form>
     `);
 
@@ -120,106 +76,96 @@
   }
 
   function renderQuestions(containerId) {
+    console.log("Rendering questions");
     const container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container) {
+      console.error("No container for questions:", containerId);
+      return;
+    }
 
     container.innerHTML = "";
 
-    const questions = global.gpQuestions || [];
+    const questions = global.gpQuestions || [
+      { id: "sample1", label: "Sample Question 1", type: "text" },
+      { id: "sample2", label: "Sample Question 2", type: "number" },
+      { id: "sample3", label: "Sample Select", type: "select", options: ["Option A", "Option B"] }
+    ];
 
     questions.forEach(q => {
-      let fieldHTML = "";
+      let html = "";
       if (q.type === "text" || q.type === "number") {
-        fieldHTML = `<label class="glabel">${q.label}
-          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" required />
-        </label>`;
+        html = `<label>${q.label} <input type="${q.type}" id="${q.id}" name="${q.id}" required></label>`;
       } else if (q.type === "select" && Array.isArray(q.options)) {
-        fieldHTML = `<label class="glabel">${q.label}
-          <select class="gfield" id="${q.id}" name="${q.id}" required>
-            ${q.options.map(opt => `<option value="${opt}">${opt}</option>`).join("")}
-          </select>
-        </label>`;
+        html = `<label>${q.label} <select id="${q.id}" name="${q.id}" required>${q.options.map(opt => `<option>${opt}</option>`).join("")}</select></label>`;
       }
-      container.insertAdjacentHTML("beforeend", fieldHTML);
+      container.insertAdjacentHTML("beforeend", html);
     });
   }
 
   function setupStepNavigation() {
-    const step1Form = document.getElementById("step1Form");
-    const step2Form = document.getElementById("step2Form");
-    const step3Form = document.getElementById("step3Form");
+    console.log("Setting up step navigation");
+    const step1 = document.getElementById("step1Form");
+    const step2 = document.getElementById("step2Form");
+    const step3 = document.getElementById("step3Form");
 
-    const revertToStep1 = document.getElementById("gp-revert-step1");
-    const revertToStep2 = document.getElementById("gp-revert-step2");
+    const revert1 = document.getElementById("gp-revert-step1");
+    const revert2 = document.getElementById("gp-revert-step2");
 
-    step1Form.addEventListener("submit", e => {
+    step1.addEventListener("submit", e => {
       e.preventDefault();
-
-      if (!step1Form.custName.value.trim() || !step1Form.custPhone.value.trim()) {
-        alert("Please fill in all fields in Step 1.");
-        return;
-      }
-
-      step1Form.classList.add("hidden");
-      step2Form.classList.remove("hidden");
-      revertToStep1.classList.remove("hidden");
+      step1.classList.add("hidden");
+      step2.classList.remove("hidden");
+      revert1.classList.remove("hidden");
     });
 
-    revertToStep1.addEventListener("click", () => {
-      step2Form.classList.add("hidden");
-      step1Form.classList.remove("hidden");
-      revertToStep1.classList.add("hidden");
+    revert1.addEventListener("click", () => {
+      step2.classList.add("hidden");
+      step1.classList.remove("hidden");
+      revert1.classList.add("hidden");
     });
 
-    step2Form.addEventListener("submit", e => {
+    step2.addEventListener("submit", e => {
       e.preventDefault();
-
-      const inputs = step2Form.querySelectorAll("input, select");
-      for (const input of inputs) {
-        if (!input.value.trim()) {
-          alert("Please fill in all Step 2 fields.");
-          return;
-        }
-      }
-
-      step2Form.classList.add("hidden");
-      step3Form.classList.remove("hidden");
-      revertToStep2.classList.remove("hidden");
+      step2.classList.add("hidden");
+      step3.classList.remove("hidden");
+      revert2.classList.remove("hidden");
     });
 
-    revertToStep2.addEventListener("click", () => {
-      step3Form.classList.add("hidden");
-      step2Form.classList.remove("hidden");
-      revertToStep2.classList.add("hidden");
+    revert2.addEventListener("click", () => {
+      step3.classList.add("hidden");
+      step2.classList.remove("hidden");
+      revert2.classList.add("hidden");
     });
 
-    step3Form.addEventListener("submit", e => {
+    step3.addEventListener("submit", e => {
       e.preventDefault();
-
-      if (!step3Form.solutionText.value.trim()) {
-        alert("Please enter a proposed solution.");
-        return;
-      }
-
-      alert("Solution saved. Process complete.");
-      // TODO: Add save logic here
+      alert("Form completed!");
     });
   }
 
-  auth.onAuthStateChanged(() => {
-    renderUIWhenReady();
-  });
-
-  async function renderUIWhenReady() {
+  async function main() {
     try {
-      console.log("Waiting for gpQuestions to load...");
-      await waitForGpQuestions();
-      console.log("gpQuestions loaded:", global.gpQuestions.length, "questions");
-      renderUI();
+      const loaded = await waitForGpQuestions();
+      if (!loaded) {
+        console.warn("gpQuestions not found, rendering fallback");
+      }
     } catch (err) {
-      console.error("Error loading gpQuestions:", err);
-      renderUIFallback();
+      console.error("Error waiting for gpQuestions", err);
     }
+    renderUI();
   }
+
+  async function waitForGpQuestions(timeoutMs = 5000) {
+    const start = Date.now();
+    while ((!global.gpQuestions || !global.gpQuestions.length) && (Date.now() - start) < timeoutMs) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return !!(global.gpQuestions && global.gpQuestions.length);
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    console.log("DOM ready, starting main");
+    main();
+  });
 
 })(window);
