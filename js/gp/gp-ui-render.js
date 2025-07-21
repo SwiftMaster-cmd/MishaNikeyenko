@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with instant save + weighted scoring, no admin panel
+// gp-ui-render.js -- Guest Portal UI with optional answers + live progress bar, no admin panel
 // Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
@@ -152,14 +152,17 @@
       window.location.href = DASHBOARD_URL;
     });
 
+    // Progress bar container + label
+    const progressContainer = create("div", { style: "margin:12px 0;" });
+    const progressLabel = create("div", { id: "progressLabel", style:"margin-bottom:4px;font-weight:bold;" }, "Progress: 0%");
+    const progressBar = create("progress", { id: "progressBar", value: 0, max: 100, style: "width: 100%; height: 20px;" });
+    progressContainer.appendChild(progressLabel);
+    progressContainer.appendChild(progressBar);
+    app.appendChild(progressContainer);
+
     // Progress & NBQ placeholders
     app.appendChild(create("div", { id: "gp-progress-hook" }));
     app.appendChild(create("div", { id: "gp-nbq" }));
-
-    // Total points display
-    const totalPointsEl = create("div", { id: "totalPoints", style:"font-weight:bold;margin-bottom:12px;" });
-    app.appendChild(totalPointsEl);
-    updateTotalPoints();
 
     // Main container
     const box = create("div", { class: "guest-box" });
@@ -168,12 +171,12 @@
       <form id="step1Form" autocomplete="off" data-step="1">
         <div class="guest-title">Step 1: Customer Info</div>
         <label class="glabel">Customer Name <span class="gp-pts">(8pts)</span>
-          <input class="gfield" type="text" id="custName" placeholder="Full name" required/>
+          <input class="gfield" type="text" id="custName" placeholder="Full name" />
         </label>
         <label class="glabel">Customer Phone <span class="gp-pts">(7pts)</span>
-          <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" required/>
+          <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" />
         </label>
-        <button class="guest-btn" type="submit">Save &amp; Continue to Step 2</button>
+        <button class="guest-btn" type="submit">Continue to Step 2</button>
       </form>
     `);
 
@@ -181,10 +184,10 @@
       <form id="step2Form" class="hidden" data-step="2">
         <div class="guest-title">
           Step 2: Evaluate
-          <span id="gp-revert-step1" class="gp-revert-link hidden">(revert to Step 1)</span>
+          <span id="gp-revert-step1" class="gp-revert-link hidden">(Back to Step 1)</span>
         </div>
         <div id="step2Fields"></div>
-        <button class="guest-btn" type="submit">Save &amp; Continue to Step 3</button>
+        <button class="guest-btn" type="submit">Continue to Step 3</button>
       </form>
     `);
 
@@ -192,12 +195,12 @@
       <form id="step3Form" class="hidden" data-step="3">
         <div class="guest-title">
           Step 3: Solution
-          <span id="gp-revert-step2" class="gp-revert-link hidden">(revert to Step 2)</span>
+          <span id="gp-revert-step2" class="gp-revert-link hidden">(Back to Step 2)</span>
         </div>
         <label class="glabel">Proposed Solution <span class="gp-pts">(25pts)</span>
-          <textarea class="gfield" id="solutionText" rows="3" placeholder="What we’ll offer…" required></textarea>
+          <textarea class="gfield" id="solutionText" rows="3" placeholder="What we’ll offer…"></textarea>
         </label>
-        <button class="guest-btn" type="submit">Save Solution</button>
+        <button class="guest-btn" type="submit">Finish</button>
       </form>
     `);
 
@@ -205,6 +208,7 @@
 
     renderQuestions("step2Fields");
     setupStepNavigation();
+    setupInstantSaveForStep1();
   }
 
   function renderQuestions(containerId) {
@@ -232,7 +236,7 @@
       container.insertAdjacentHTML("beforeend", fieldHTML);
     });
 
-    // Add immediate save listeners:
+    // Immediate save listeners for Step 2 questions
     questions.forEach(q => {
       const input = document.getElementById(q.id);
       if (!input) return;
@@ -247,16 +251,39 @@
     });
   }
 
-  // Placeholder save function -- replace with real backend call
+  function setupInstantSaveForStep1() {
+    const custName = document.getElementById("custName");
+    const custPhone = document.getElementById("custPhone");
+
+    if (custName) {
+      custName.addEventListener("input", e => {
+        const val = e.target.value.trim();
+        answers["custName"] = { value: val, points: val ? 8 : 0 };
+        saveAnswer("custName", val, answers["custName"].points);
+        updateTotalPoints();
+      });
+    }
+    if (custPhone) {
+      custPhone.addEventListener("input", e => {
+        const val = e.target.value.trim();
+        answers["custPhone"] = { value: val, points: val ? 7 : 0 };
+        saveAnswer("custPhone", val, answers["custPhone"].points);
+        updateTotalPoints();
+      });
+    }
+  }
+
   function saveAnswer(questionId, value, points) {
-    console.log(`Saved answer: ${questionId}="${value}", points=${points}`);
-    // Implement real save logic here (Firebase, API, localStorage, etc)
+    console.log(`Saved answer: ${questionId} = "${value}", points: ${points}`);
+    // TODO: implement real save (Firebase, API, localStorage, etc)
   }
 
   function updateTotalPoints() {
     const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
-    const el = document.getElementById("totalPoints");
-    if (el) el.textContent = `Total Points: ${total}`;
+    const progressLabel = document.getElementById("progressLabel");
+    const progressBar = document.getElementById("progressBar");
+    if (progressLabel) progressLabel.textContent = `Progress: ${total}%`;
+    if (progressBar) progressBar.value = total;
   }
 
   function setupStepNavigation() {
@@ -269,12 +296,6 @@
 
     step1Form.addEventListener("submit", e => {
       e.preventDefault();
-
-      if (!step1Form.custName.value.trim() || !step1Form.custPhone.value.trim()) {
-        alert("Please fill in all fields in Step 1.");
-        return;
-      }
-
       step1Form.classList.add("hidden");
       step2Form.classList.remove("hidden");
       revertToStep1.classList.remove("hidden");
@@ -288,15 +309,6 @@
 
     step2Form.addEventListener("submit", e => {
       e.preventDefault();
-
-      const inputs = step2Form.querySelectorAll("input, select");
-      for (const input of inputs) {
-        if (!input.value.trim()) {
-          alert("Please fill in all Step 2 fields.");
-          return;
-        }
-      }
-
       step2Form.classList.add("hidden");
       step3Form.classList.remove("hidden");
       revertToStep2.classList.remove("hidden");
@@ -310,14 +322,8 @@
 
     step3Form.addEventListener("submit", e => {
       e.preventDefault();
-
-      if (!step3Form.solutionText.value.trim()) {
-        alert("Please enter a proposed solution.");
-        return;
-      }
-
-      alert("Solution saved. Process complete.");
-      // Add your final save logic here
+      alert("Process complete. All answers saved.");
+      // TODO: add final save logic
     });
   }
 
