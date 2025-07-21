@@ -75,7 +75,7 @@
   <!-- GuestInfo – now ES modules -->
   <script type="module" src="../js/admin/gi/gi-container.js"></script>
   <script type="module">
-    import { initGuestinfo } from '../js/admin/gi/guestinfo-container.js';
+    import { initGuestinfo } from '../js/admin/gi/gi-container.js';
     // once Firebase and your core admin.js have set up window.db, uid & role:
     window.addEventListener('DOMContentLoaded', () => {
       initGuestinfo();
