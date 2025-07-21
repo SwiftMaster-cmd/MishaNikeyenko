@@ -29,6 +29,10 @@ function latestActivityTs(g) {
   );
 }
 function inCurrentWeek(g) { return latestActivityTs(g) >= msNDaysAgo(7); }
+function dateToISO(dt) {
+  const d = new Date(dt);
+  return d.toISOString().slice(0, 10);
+}
 
 function getUsersUnderDM(users, dmUid) {
   const leads = Object.entries(users)
@@ -72,24 +76,23 @@ function filterGuestinfoByRole(guestinfo, users, uid, role) {
 
 // ── Controls & empty state ─────────────────────────────────────────────────
 function controlsBarHtml(filterMode, showProposals, soldOnly, role, showCreate = true) {
-  const searchInput = `
+  const nameInput = `
     <input type="text"
-           placeholder="🔍 Search by name..."
-           value="${window._guestinfo_searchText || ''}"
-           oninput="window.guestinfo.setSearch(this.value)"
-           style="flex:1;min-width:120px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#fff;" />`;
-
-  const statusOptions = ["all","new","working","proposal","sold"]
-    .map(status => {
-      const label = status === "all" ? "All Status" : status.charAt(0).toUpperCase() + status.slice(1);
-      const sel = window._guestinfo_statusFilter === status ? "selected" : "";
-      return `<option value="${status}" ${sel}>${label}</option>`;
-    }).join("");
-  const statusSelect = `
-    <select onchange="window.guestinfo.setStatusFilter(this.value)"
-            style="padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#fff;">
-      ${statusOptions}
-    </select>`;
+           placeholder="🔍 Customer name..."
+           value="${window._guestinfo_searchName || ''}"
+           oninput="window.guestinfo.setSearchName(this.value)"
+           style="flex:1;min-width:100px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#fff;" />`;
+  const empInput = `
+    <input type="text"
+           placeholder="🔍 Employee..."
+           value="${window._guestinfo_searchEmployee || ''}"
+           oninput="window.guestinfo.setSearchEmployee(this.value)"
+           style="flex:1;min-width:100px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#fff;" />`;
+  const dateInput = `
+    <input type="date"
+           value="${window._guestinfo_searchDate || ''}"
+           onchange="window.guestinfo.setSearchDate(this.value)"
+           style="padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#fff;" />`;
 
   const toggleLabel = filterMode === "week" ? "Show All" : "This Week";
   const filterBtn = `
@@ -114,8 +117,9 @@ function controlsBarHtml(filterMode, showProposals, soldOnly, role, showCreate =
 
   return `
     <div class="guestinfo-controls" style="display:flex;gap:8px;align-items:center;">
-      ${searchInput}
-      ${statusSelect}
+      ${nameInput}
+      ${empInput}
+      ${dateInput}
       ${filterBtn}
       ${propBtn}
       ${soldBtn}
@@ -133,52 +137,64 @@ function emptyHtml(msg = "No guest leads in this view.") {
 
 // ── Main renderer ─────────────────────────────────────────────────────────
 export function renderGuestinfoSection(guestinfo, users, uid, role) {
-  // ensure filter defaults exist
-  window._guestinfo_searchText     ??= "";
-  window._guestinfo_statusFilter   ??= "all";
-  window._guestinfo_filterMode     ??= "week";
-  window._guestinfo_showProposals  ??= false;
-  window._guestinfo_soldOnly       ??= false;
+  // init filter state
+  window._guestinfo_searchName      ??= "";
+  window._guestinfo_searchEmployee  ??= "";
+  window._guestinfo_searchDate      ??= "";
+  window._guestinfo_filterMode      ??= "week";
+  window._guestinfo_showProposals   ??= false;
+  window._guestinfo_soldOnly        ??= false;
 
-  // 1) Role-based visibility
+  // 1) Role filter
   const byRole = filterGuestinfoByRole(guestinfo, users, uid, role);
 
-  // 2) Search filter
-  const searchLower = (window._guestinfo_searchText || "").toLowerCase();
-  const bySearch = Object.fromEntries(
+  // 2) Name filter
+  const nameLower = window._guestinfo_searchName.toLowerCase();
+  const byName = Object.fromEntries(
     Object.entries(byRole)
-      .filter(([,g]) => g.custName?.toLowerCase().includes(searchLower))
+      .filter(([,g]) => g.custName?.toLowerCase().includes(nameLower))
   );
 
-  // 3) Status filter
-  const statusF = window._guestinfo_statusFilter;
-  const byStatus = statusF === "all"
-    ? bySearch
-    : Object.fromEntries(
-        Object.entries(bySearch)
-          .filter(([,g]) => detectStatus(g) === statusF)
-      );
+  // 3) Employee filter
+  const empLower = window._guestinfo_searchEmployee.toLowerCase();
+  const byEmp = Object.fromEntries(
+    Object.entries(byName)
+      .filter(([,g]) => {
+        const sub = users[g.userUid] || {};
+        const n = (sub.name||sub.email||"").toLowerCase();
+        return n.includes(empLower);
+      })
+  );
 
-  // 4) Count full groups (for button labels when needed)
-  const fullGroups = groupByStatus(byRole);
+  // 4) Date filter
+  const dateVal = window._guestinfo_searchDate;
+  const byDate = dateVal
+    ? Object.fromEntries(
+        Object.entries(byEmp)
+          .filter(([,g]) => dateToISO(g.submittedAt) === dateVal)
+      )
+    : byEmp;
+
+  // 5) count full groups for labels
+  const fullGroups = groupByStatus(byDate);
   const propCount  = fullGroups.proposal.length;
   const soldCount  = fullGroups.sold.length;
 
-  // 5) Timeframe or proposals/sales view determines final items
+  // 6) timeframe/proposals/sales
   let items;
   if (window._guestinfo_showProposals) {
-    items = byStatus;
+    items = byDate;
   } else if (window._guestinfo_soldOnly) {
-    items = byStatus;
+    items = byDate;
   } else if (window._guestinfo_filterMode === "week" || role === "me") {
     items = Object.fromEntries(
-      Object.entries(byStatus).filter(([,g]) => inCurrentWeek(g))
+      Object.entries(byDate).filter(([,g]) => inCurrentWeek(g))
     );
   } else {
-    items = byStatus;
+    items = byDate;
   }
 
-  // 6) Group and render
+  // 7) group and render
   const groups    = groupByStatus(items);
   const showProps = window._guestinfo_showProposals;
   const soldOnly  = window._guestinfo_soldOnly;
@@ -219,16 +235,17 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
   return `<div id="guestinfo-container">${html}</div>`;
 }
 
-// ── Filter controls & toggles ─────────────────────────────────────────────
-export function setSearch(text) {
-  window._guestinfo_searchText = text;
+// ── Filter setters & toggles ─────────────────────────────────────────────
+export function setSearchName(text) {
+  window._guestinfo_searchName = text;
   window.renderAdminApp();
 }
-
-export function setStatusFilter(status) {
-  window._guestinfo_statusFilter = status;
-  window._guestinfo_showProposals = false;
-  window._guestinfo_soldOnly = false;
+export function setSearchEmployee(text) {
+  window._guestinfo_searchEmployee = text;
+  window.renderAdminApp();
+}
+export function setSearchDate(dateStr) {
+  window._guestinfo_searchDate = dateStr;
   window.renderAdminApp();
 }
 
@@ -261,8 +278,9 @@ export function createNewLead() {
 export function initGuestinfo() {
   window.guestinfo = {
     renderGuestinfoSection,
-    setSearch,
-    setStatusFilter,
+    setSearchName,
+    setSearchEmployee,
+    setSearchDate,
     toggleFilterMode,
     toggleShowProposals,
     toggleSoldOnly,

@@ -1629,6 +1629,61 @@ td:last-child{text-align:right;}
     grid-template-columns: repeat(3, 1fr);
   }
 }
+/* ==========================================================================
+   Guest Info Controls -- new search & date inputs
+   ========================================================================== */
+
+.guestinfo-controls input[type="text"],
+.guestinfo-controls input[type="date"],
+.guestinfo-controls select {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-hi);
+  font-size: var(--fs-sm);
+  transition:
+    border var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+  appearance: none;
+}
+
+.guestinfo-controls input[type="date"] {
+  cursor: pointer;
+}
+
+.guestinfo-controls input::placeholder {
+  color: var(--text-muted);
+}
+
+.guestinfo-controls input:focus,
+.guestinfo-controls select:focus {
+  border-color: var(--brand);
+  background: rgba(255,255,255,0.1);
+  outline: none;
+}
+
+/* sizing & flex behavior */
+.guestinfo-controls input[type="text"],
+.guestinfo-controls input[type="date"] {
+  min-width: 100px;
+  max-width: 200px;
+  flex: 1;
+}
+
+/* responsive stacking on narrow viewports */
+@media (max-width: 640px) {
+  .guestinfo-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .guestinfo-controls input,
+  .guestinfo-controls select,
+  .guestinfo-controls button {
+    width: 100%;
+    margin-top: var(--space-xs);
+  }
+}
 .msg-role-admin{color:#ff5252;border-color:#ff5252;}
 .msg-role-dm{color:#ffb300;border-color:#ffb300;}
 .msg-role-lead{color:#82caff;border-color:#82caff;}
