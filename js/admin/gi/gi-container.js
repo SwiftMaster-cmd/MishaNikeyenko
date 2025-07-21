@@ -1,6 +1,11 @@
 // guestinfo-container.js
 
-import { groupByStatus, statusSectionHtml } from './gi-render.js';
+import {
+  groupByStatus,
+  statusSectionHtml,
+  detectStatus
+} from './gi-render.js';
+
 import {
   toggleEdit,
   cancelEdit,
@@ -13,23 +18,18 @@ import {
   toggleActionButtons
 } from './gi-action.js';
 
-// ── Time helpers ────────────────────────────────────────────────────────────
-function msNDaysAgo(n) {
-  return Date.now() - n * 86400000;
-}
+// ── Time & filter helpers ─────────────────────────────────────────────────
+function msNDaysAgo(n) { return Date.now() - n * 864e5; }
 function latestActivityTs(g) {
   return Math.max(
-    g.updatedAt            || 0,
-    g.submittedAt          || 0,
-    g.sale?.soldAt         || 0,
-    g.solution?.completedAt|| 0
+    g.updatedAt || 0,
+    g.submittedAt || 0,
+    g.sale?.soldAt || 0,
+    g.solution?.completedAt || 0
   );
 }
-function inCurrentWeek(g) {
-  return latestActivityTs(g) >= msNDaysAgo(7);
-}
+function inCurrentWeek(g) { return latestActivityTs(g) >= msNDaysAgo(7); }
 
-// ── Role-based filtering ────────────────────────────────────────────────────
 function getUsersUnderDM(users, dmUid) {
   const leads = Object.entries(users)
     .filter(([,u]) => u.role === "lead" && u.assignedDM === dmUid)
@@ -40,14 +40,15 @@ function getUsersUnderDM(users, dmUid) {
   return new Set([...leads, ...mes]);
 }
 
-function filterGuestinfo(guestinfo, users, uid, role) {
+function filterGuestinfoByRole(guestinfo, users, uid, role) {
   if (!guestinfo || !users || !uid || !role) return {};
   if (role === "admin") return guestinfo;
   if (role === "dm") {
     const under = getUsersUnderDM(users, uid);
     under.add(uid);
     return Object.fromEntries(
-      Object.entries(guestinfo).filter(([,g]) => under.has(g.userUid))
+      Object.entries(guestinfo)
+        .filter(([,g]) => under.has(g.userUid))
     );
   }
   if (role === "lead") {
@@ -56,118 +57,215 @@ function filterGuestinfo(guestinfo, users, uid, role) {
       .map(([uid]) => uid);
     const vis = new Set([...mes, uid]);
     return Object.fromEntries(
-      Object.entries(guestinfo).filter(([,g]) => vis.has(g.userUid))
+      Object.entries(guestinfo)
+        .filter(([,g]) => vis.has(g.userUid))
     );
   }
-  // role === "me"
-  return Object.fromEntries(
-    Object.entries(guestinfo).filter(([,g]) => g.userUid === uid)
-  );
-}
-
-// ── Filter modes ────────────────────────────────────────────────────────────
-const FILTER_MODES  = ["week", "all", "progress"];
-const FILTER_LABELS = {
-  week:     "This Week",
-  all:      "Show All",
-  progress: "Proposals"
-};
-
-export function toggleFilterMode() {
-  if (window.currentRole === "me") return;
-  const current = window._guestinfo_filterMode || "week";
-  const next = FILTER_MODES[(FILTER_MODES.indexOf(current) + 1) % FILTER_MODES.length];
-  window._guestinfo_filterMode = next;
-  window.renderAdminApp();
+  if (role === "me") {
+    return Object.fromEntries(
+      Object.entries(guestinfo)
+        .filter(([,g]) => g.userUid === uid)
+    );
+  }
+  return {};
 }
 
 // ── Controls & empty state ─────────────────────────────────────────────────
-function controlsBarHtml(showCreate) {
-  const mode = window._guestinfo_filterMode || "week";
-  const label = FILTER_LABELS[mode];
+function controlsBarHtml(filterMode, showProposals, soldOnly, role, showCreate = true) {
+  const searchInput = `
+    <input type="text"
+           placeholder="🔍 Search by name..."
+           value="${window._guestinfo_searchText || ''}"
+           oninput="window.guestinfo.setSearch(this.value)"
+           style="flex:1;min-width:120px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#fff;" />`;
+
+  const statusOptions = ["all","new","working","proposal","sold"]
+    .map(status => {
+      const label = status === "all" ? "All Status" : status.charAt(0).toUpperCase() + status.slice(1);
+      const sel = window._guestinfo_statusFilter === status ? "selected" : "";
+      return `<option value="${status}" ${sel}>${label}</option>`;
+    }).join("");
+  const statusSelect = `
+    <select onchange="window.guestinfo.setStatusFilter(this.value)"
+            style="padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#fff;">
+      ${statusOptions}
+    </select>`;
+
+  const toggleLabel = filterMode === "week" ? "Show All" : "This Week";
+  const filterBtn = `
+    <button class="btn btn-secondary btn-sm"
+            onclick="window.guestinfo.toggleFilterMode()">
+      ${toggleLabel}
+    </button>`;
+
+  const propBtn = showProposals
+    ? `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleShowProposals()">Back to Leads</button>`
+    : `<button class="btn btn-warning btn-sm" onclick="window.guestinfo.toggleShowProposals()">⚠ Follow-Ups</button>`;
+
+  const soldBtn = role === "me"
+    ? ""
+    : (soldOnly
+      ? `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleSoldOnly()">Back to Leads</button>`
+      : `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleSoldOnly()">Sales</button>`);
+
+  const createBtn = showCreate
+    ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>`
+    : "";
+
   return `
-    <div class="guestinfo-controls">
-      <button class="btn btn-secondary btn-sm"
-              onclick="window.guestinfo.toggleFilterMode()">
-        ${label}
-      </button>
-      ${showCreate
-        ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>`
-        : ""}
+    <div class="guestinfo-controls" style="display:flex;gap:8px;align-items:center;">
+      ${searchInput}
+      ${statusSelect}
+      ${filterBtn}
+      ${propBtn}
+      ${soldBtn}
+      ${createBtn}
     </div>`;
 }
 
 function emptyHtml(msg = "No guest leads in this view.") {
   return `
-    <div class="guestinfo-empty">
+    <div class="guestinfo-empty" style="text-align:center;margin-top:16px;">
       <p><b>${msg}</b></p>
       <button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
     </div>`;
 }
 
-// ── Main renderer ───────────────────────────────────────────────────────────
+// ── Main renderer ─────────────────────────────────────────────────────────
 export function renderGuestinfoSection(guestinfo, users, uid, role) {
-  // initialize filter mode
-  window._guestinfo_filterMode ||= "week";
-  if (role === "me") window._guestinfo_filterMode = "week";
-  const mode = window._guestinfo_filterMode;
+  // ensure filter defaults exist
+  window._guestinfo_searchText     ??= "";
+  window._guestinfo_statusFilter   ??= "all";
+  window._guestinfo_filterMode     ??= "week";
+  window._guestinfo_showProposals  ??= false;
+  window._guestinfo_soldOnly       ??= false;
 
-  // role-based filter
-  const visible = filterGuestinfo(guestinfo, users, uid, role);
+  // 1) Role-based visibility
+  const byRole = filterGuestinfoByRole(guestinfo, users, uid, role);
 
-  // select subset
+  // 2) Search filter
+  const searchLower = (window._guestinfo_searchText || "").toLowerCase();
+  const bySearch = Object.fromEntries(
+    Object.entries(byRole)
+      .filter(([,g]) => g.custName?.toLowerCase().includes(searchLower))
+  );
+
+  // 3) Status filter
+  const statusF = window._guestinfo_statusFilter;
+  const byStatus = statusF === "all"
+    ? bySearch
+    : Object.fromEntries(
+        Object.entries(bySearch)
+          .filter(([,g]) => detectStatus(g) === statusF)
+      );
+
+  // 4) Count full groups (for button labels when needed)
+  const fullGroups = groupByStatus(byRole);
+  const propCount  = fullGroups.proposal.length;
+  const soldCount  = fullGroups.sold.length;
+
+  // 5) Timeframe or proposals/sales view determines final items
   let items;
-  if (mode === "week") {
+  if (window._guestinfo_showProposals) {
+    items = byStatus;
+  } else if (window._guestinfo_soldOnly) {
+    items = byStatus;
+  } else if (window._guestinfo_filterMode === "week" || role === "me") {
     items = Object.fromEntries(
-      Object.entries(visible).filter(([,g]) => inCurrentWeek(g))
+      Object.entries(byStatus).filter(([,g]) => inCurrentWeek(g))
     );
-  } else if (mode === "all") {
-    items = visible;
   } else {
-    // progress → proposals only (level 3)
-    items = Object.fromEntries(
-      Object.entries(visible).filter(([,g]) =>
-        g.solution?.text?.trim() !== ""
-      )
-    );
+    items = byStatus;
   }
 
-  // group by status
-  const groups = groupByStatus(items);
+  // 6) Group and render
+  const groups    = groupByStatus(items);
+  const showProps = window._guestinfo_showProposals;
+  const soldOnly  = window._guestinfo_soldOnly;
+  const filterMode= window._guestinfo_filterMode;
 
-  // build content
-  let contentHtml;
-  if (mode === "progress") {
-    contentHtml = groups.proposal.length
-      ? statusSectionHtml("Proposals", groups.proposal, users, uid, role, true)
-      : emptyHtml("No proposals yet.");
-  } else {
-    const hasNW = groups.new.length || groups.working.length;
-    contentHtml = !hasNW
-      ? emptyHtml("You're all caught up!")
-      : `
-        ${statusSectionHtml("New",     groups.new,     users, uid, role)}
-        ${statusSectionHtml("Working", groups.working, users, uid, role)}
-      `;
+  let html = "";
+
+  if (soldOnly && role !== "me") {
+    html = `
+      <section class="guestinfo-section">
+        ${controlsBarHtml(filterMode, showProps, soldOnly, role)}
+        ${statusSectionHtml("Sales", groups.sold, users, uid, role)}
+        ${groups.sold.length ? "" : emptyHtml("No sales in this view.")}
+      </section>`;
+  }
+  else if (showProps) {
+    html = `
+      <section class="guestinfo-section">
+        ${controlsBarHtml(filterMode, showProps, soldOnly, role)}
+        ${statusSectionHtml("Follow-Ups", groups.proposal, users, uid, role, true)}
+        ${groups.proposal.length ? "" : emptyHtml("No follow-ups in this view.")}
+      </section>`;
+  }
+  else {
+    const isEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
+    html = `
+      <section class="guestinfo-section">
+        ${controlsBarHtml(filterMode, showProps, soldOnly, role, !isEmpty)}
+        ${isEmpty ? emptyHtml("You're all caught up!") : ""}
+        ${!isEmpty ? statusSectionHtml("New",     groups.new,     users, uid, role) : ""}
+        ${!isEmpty ? statusSectionHtml("Working", groups.working, users, uid, role) : ""}
+        ${!isEmpty && groups.proposal.length
+           ? statusSectionHtml("Follow-Ups", groups.proposal, users, uid, role, true)
+           : ""}
+      </section>`;
   }
 
-  // wrap in dark, muted container (.admin-section uses var(--bg-card))
-  return `
-    <section class="admin-section guestinfo-section" id="guestinfo-container">
-      ${controlsBarHtml(
-        mode !== "progress" ? Boolean(groups.new.length || groups.working.length) : false
-      )}
-      ${contentHtml}
-    </section>`;
+  return `<div id="guestinfo-container">${html}</div>`;
 }
 
-// ── Initialization ────────────────────────────────────────────────────────
-export function initGuestinfo() {
-  window._guestinfo_filterMode ||= "week";
+// ── Filter controls & toggles ─────────────────────────────────────────────
+export function setSearch(text) {
+  window._guestinfo_searchText = text;
+  window.renderAdminApp();
+}
 
+export function setStatusFilter(status) {
+  window._guestinfo_statusFilter = status;
+  window._guestinfo_showProposals = false;
+  window._guestinfo_soldOnly = false;
+  window.renderAdminApp();
+}
+
+export function toggleFilterMode() {
+  if (window.currentRole === "me") return;
+  window._guestinfo_filterMode = window._guestinfo_filterMode === "week" ? "all" : "week";
+  window._guestinfo_showProposals = false;
+  window._guestinfo_soldOnly = false;
+  window.renderAdminApp();
+}
+
+export function toggleShowProposals() {
+  window._guestinfo_showProposals = !window._guestinfo_showProposals;
+  window._guestinfo_soldOnly = false;
+  window.renderAdminApp();
+}
+
+export function toggleSoldOnly() {
+  window._guestinfo_soldOnly = !window._guestinfo_soldOnly;
+  window._guestinfo_showProposals = false;
+  window.renderAdminApp();
+}
+
+export function createNewLead() {
+  try { localStorage.removeItem("last_guestinfo_key"); } catch(_) {}
+  window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split("?")[0];
+}
+
+// ── Initialization ───────────────────────────────────────────────────────
+export function initGuestinfo() {
   window.guestinfo = {
     renderGuestinfoSection,
+    setSearch,
+    setStatusFilter,
     toggleFilterMode,
+    toggleShowProposals,
+    toggleSoldOnly,
     toggleActionButtons,
     toggleEdit,
     cancelEdit,
@@ -176,11 +274,7 @@ export function initGuestinfo() {
     markSold,
     deleteSale,
     openGuestInfoPage,
-    recomputePitch,
-    createNewLead: () => {
-      try { localStorage.removeItem("last_guestinfo_key"); } catch {}
-      window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html")
-        .split("?")[0];
-    }
+    createNewLead,
+    recomputePitch
   };
 }
