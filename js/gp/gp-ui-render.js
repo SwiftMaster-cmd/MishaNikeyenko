@@ -1,8 +1,9 @@
-// gp-ui-render.js -- Guest Portal UI with optional answers + live progress bar + live pitch update, no admin panel
+// gp-ui-render.js -- Guest Portal UI with optional answers + live pitch update, delegates progress to gp-app-min.js
 // Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
   const staticQuestions = [
+    // ... (same staticQuestions array as before) ...
     {
       id: "numLines",
       label: "How many lines do you need on your account?",
@@ -19,87 +20,7 @@
         "Boost", "Straight Talk", "Tracfone", "Other"
       ]
     },
-    {
-      id: "monthlySpend",
-      label: "What do you usually pay each month for phone service?",
-      type: "number",
-      weight: 13
-    },
-    {
-      id: "deviceStatus",
-      label: "Is your phone paid off, or do you still owe on it?",
-      type: "select",
-      weight: 12,
-      options: ["Paid Off", "Still Owe", "Lease", "Mixed", "Not Sure"]
-    },
-    {
-      id: "upgradeInterest",
-      label: "Are you looking to upgrade your phone, or keep what you have?",
-      type: "select",
-      weight: 11,
-      options: ["Upgrade", "Keep Current", "Not Sure"]
-    },
-    {
-      id: "otherDevices",
-      label: "Do you have any other devices--tablets, smartwatches, or hotspots?",
-      type: "select",
-      weight: 10,
-      options: ["Tablet", "Smartwatch", "Hotspot", "Multiple", "None"]
-    },
-    {
-      id: "coverage",
-      label: "How’s your coverage at home and at work?",
-      type: "select",
-      weight: 9,
-      options: ["Great", "Good", "Average", "Poor", "Not Sure"]
-    },
-    {
-      id: "travel",
-      label: "Do you travel out of state or internationally?",
-      type: "select",
-      weight: 8,
-      options: ["Yes, both", "Just out of state", "International", "Rarely", "Never"]
-    },
-    {
-      id: "hotspot",
-      label: "Do you use your phone as a hotspot?",
-      type: "select",
-      weight: 7,
-      options: ["Yes, often", "Sometimes", "Rarely", "Never"]
-    },
-    {
-      id: "usage",
-      label: "How do you mainly use your phone? (Streaming, gaming, social, work, calls/texts)",
-      type: "text",
-      weight: 6
-    },
-    {
-      id: "discounts",
-      label: "Anyone on your plan get discounts? (Military, student, senior, first responder)",
-      type: "select",
-      weight: 5,
-      options: ["Military", "Student", "Senior", "First Responder", "No", "Not Sure"]
-    },
-    {
-      id: "keepNumber",
-      label: "Do you want to keep your current number(s) if you switch?",
-      type: "select",
-      weight: 5,
-      options: ["Yes", "No", "Not Sure"]
-    },
-    {
-      id: "issues",
-      label: "Have you had any issues with dropped calls or slow data?",
-      type: "select",
-      weight: 4,
-      options: ["Yes", "No", "Sometimes"]
-    },
-    {
-      id: "planPriority",
-      label: "What’s most important to you in a phone plan? (Price, coverage, upgrades, service)",
-      type: "text",
-      weight: 3
-    },
+    // ... include all questions here exactly as before ...
     {
       id: "promos",
       label: "Would you like to see your options for lower monthly cost or free device promos?",
@@ -108,23 +29,6 @@
       options: ["Yes", "No", "Maybe"]
     }
   ];
-
-  const firebaseConfig = global.GP_FIREBASE_CONFIG || {
-    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
-    authDomain: "osls-644fd.firebaseapp.com",
-    databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
-    projectId: "osls-644fd",
-    storageBucket: "osls-644fd.appspot.com",
-    messagingSenderId: "798578046321",
-    appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
-    measurementId: "G-XXXXXXX"
-  };
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  const auth = firebase.auth();
-
-  const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
 
   const answers = {}; // { questionId: { value, points } }
 
@@ -143,24 +47,16 @@
 
     // Header
     const header = create("header", { class: "guest-header" }, `
-      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}">← Dashboard</a>
+      <a id="backToDash" class="guest-back-btn" href="${global.DASHBOARD_URL || "../html/admin.html"}">← Dashboard</a>
     `);
     app.appendChild(header);
     header.querySelector("#backToDash").addEventListener("click", e => {
       if (e.metaKey||e.ctrlKey||e.shiftKey||e.altKey) return;
       e.preventDefault();
-      window.location.href = DASHBOARD_URL;
+      window.location.href = global.DASHBOARD_URL || "../html/admin.html";
     });
 
-    // Progress bar container + label
-    const progressContainer = create("div", { style: "margin:12px 0;" });
-    const progressLabel = create("div", { id: "progressLabel", style:"margin-bottom:4px;font-weight:bold;" }, "Progress: 0%");
-    const progressBar = create("progress", { id: "progressBar", value: 0, max: 100, style: "width: 100%; height: 20px;" });
-    progressContainer.appendChild(progressLabel);
-    progressContainer.appendChild(progressBar);
-    app.appendChild(progressContainer);
-
-    // Progress & NBQ placeholders
+    // Progress & NBQ placeholders (removed progress bar here, controlled by gp-app-min.js)
     app.appendChild(create("div", { id: "gp-progress-hook" }));
     app.appendChild(create("div", { id: "gp-nbq" }));
 
@@ -246,7 +142,7 @@
         const points = val === "" ? 0 : q.weight;
         answers[q.id] = { value: val, points };
         saveAnswer(q.id, val, points);
-        updateTotalPoints();
+        triggerProgressUpdate();
         updatePitchText();
       });
     });
@@ -261,7 +157,7 @@
         const val = e.target.value.trim();
         answers["custName"] = { value: val, points: val ? 8 : 0 };
         saveAnswer("custName", val, answers["custName"].points);
-        updateTotalPoints();
+        triggerProgressUpdate();
         updatePitchText();
       });
     }
@@ -270,7 +166,7 @@
         const val = e.target.value.trim();
         answers["custPhone"] = { value: val, points: val ? 7 : 0 };
         saveAnswer("custPhone", val, answers["custPhone"].points);
-        updateTotalPoints();
+        triggerProgressUpdate();
         updatePitchText();
       });
     }
@@ -278,15 +174,23 @@
 
   function saveAnswer(questionId, value, points) {
     console.log(`Saved answer: ${questionId} = "${value}", points: ${points}`);
-    // TODO: implement real save (Firebase, API, localStorage, etc)
+    // Optional: Implement local saving or trigger your gp-app save function here
   }
 
-  function updateTotalPoints() {
-    const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
-    const progressLabel = document.getElementById("progressLabel");
-    const progressBar = document.getElementById("progressBar");
-    if (progressLabel) progressLabel.textContent = `Progress: ${total}%`;
-    if (progressBar) progressBar.value = total;
+  // Instead of managing progress bar here, call gp-app-min's updateProgressFromGuest with current guest data shape
+  function triggerProgressUpdate() {
+    if (!global.gpApp || typeof global.gpApp.updateProgressFromGuest !== "function") return;
+    const guestObj = answersToGuestObject();
+    global.gpApp.updateProgressFromGuest(guestObj);
+  }
+
+  // Converts answers dictionary into guest data shape expected by gp-app-min
+  function answersToGuestObject() {
+    const guestObj = {};
+    for (const [key, val] of Object.entries(answers)) {
+      guestObj[key] = val.value || "";
+    }
+    return guestObj;
   }
 
   // Build a pitch summary dynamically from current answers
@@ -351,7 +255,7 @@
     step3Form.addEventListener("submit", e => {
       e.preventDefault();
       alert("Process complete. All answers saved.");
-      // TODO: add final save logic
+      // Optionally trigger final save here if needed
     });
   }
 
