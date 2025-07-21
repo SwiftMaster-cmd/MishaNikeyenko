@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with optional answers + live progress bar, no admin panel
+// gp-ui-render.js -- Guest Portal UI with optional answers + live progress bar + live pitch update, no admin panel
 // Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
@@ -247,6 +247,7 @@
         answers[q.id] = { value: val, points };
         saveAnswer(q.id, val, points);
         updateTotalPoints();
+        updatePitchText();
       });
     });
   }
@@ -261,6 +262,7 @@
         answers["custName"] = { value: val, points: val ? 8 : 0 };
         saveAnswer("custName", val, answers["custName"].points);
         updateTotalPoints();
+        updatePitchText();
       });
     }
     if (custPhone) {
@@ -269,6 +271,7 @@
         answers["custPhone"] = { value: val, points: val ? 7 : 0 };
         saveAnswer("custPhone", val, answers["custPhone"].points);
         updateTotalPoints();
+        updatePitchText();
       });
     }
   }
@@ -284,6 +287,31 @@
     const progressBar = document.getElementById("progressBar");
     if (progressLabel) progressLabel.textContent = `Progress: ${total}%`;
     if (progressBar) progressBar.value = total;
+  }
+
+  // Build a pitch summary dynamically from current answers
+  function updatePitchText() {
+    const answersArr = Object.entries(answers);
+    if (!answersArr.length) return;
+
+    let pitch = "Customer Info Summary:\n";
+    answersArr.forEach(([qId, {value}]) => {
+      if (value) {
+        const label = getQuestionLabelById(qId);
+        pitch += `${label}: ${value}\n`;
+      }
+    });
+
+    const solutionText = document.getElementById("solutionText");
+    if (solutionText) {
+      solutionText.value = pitch.trim();
+    }
+  }
+
+  function getQuestionLabelById(id) {
+    const allQuestions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
+    const q = allQuestions.find(q => q.id === id);
+    return q ? q.label : id;
   }
 
   function setupStepNavigation() {
