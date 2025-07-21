@@ -127,28 +127,31 @@ a:hover{text-decoration:underline;}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);}
 
 /* ==========================================================================
-   Professional Sticky Header (Centered + Rounded Tabs)
+   Professional Sticky Header (Centered + Rounded Corners)
    ========================================================================== */
 .admin-header {
   position: sticky;
   top: 0;
   z-index: var(--z-header);
   width: 100%;
-  background: rgba(26,28,36,0.65);
-  backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid var(--border-color);
+  background: transparent;           /* remove full-width bg */
+  border-bottom: none;               /* we'll handle border on inner container */
 }
 
-/* inner wrapper to center content and constrain max-width */
+/* inner wrapper: background + rounding */
 .admin-header .header-container {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between; /* space title and tabs apart */
+  justify-content: space-between;
   flex-wrap: wrap;
   padding: var(--space-sm) var(--space-md);
   gap: var(--space-sm);
+  background: rgba(26,28,36,0.65);
+  backdrop-filter: saturate(180%) blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);    /* <<< rounded corners */
 }
 
 /* title */
@@ -157,8 +160,8 @@ a:hover{text-decoration:underline;}
   font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-hi);
-  text-align: center;
   flex: 1 1 auto;
+  text-align: center;
 }
 
 /* nav tabs */
@@ -170,7 +173,7 @@ a:hover{text-decoration:underline;}
   flex: 1 1 auto;
 }
 
-/* pill-style tabs */
+/* pill-style tabs (already rounded) */
 .admin-header .header-actions a.tab {
   display: inline-block;
   padding: var(--space-xs) var(--space-md);
@@ -195,7 +198,7 @@ a:hover{text-decoration:underline;}
   background: rgba(30,144,255,0.15);
 }
 
-/* responsive stack on very small screens */
+/* responsive stacking on very small screens */
 @media (max-width: 480px) {
   .admin-header .header-container {
     flex-direction: column;
