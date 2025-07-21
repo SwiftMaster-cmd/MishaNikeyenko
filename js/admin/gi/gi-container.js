@@ -19,9 +19,9 @@ function msNDaysAgo(n) {
 }
 function latestActivityTs(g) {
   return Math.max(
-    g.updatedAt      || 0,
-    g.submittedAt    || 0,
-    g.sale?.soldAt   || 0,
+    g.updatedAt         || 0,
+    g.submittedAt       || 0,
+    g.sale?.soldAt      || 0,
     g.solution?.completedAt || 0
   );
 }
@@ -29,7 +29,7 @@ function inCurrentWeek(g) {
   return latestActivityTs(g) >= msNDaysAgo(7);
 }
 
-// ── Role filtering ──────────────────────────────────────────────────────────
+// ── Role-based filtering ────────────────────────────────────────────────────
 function getUsersUnderDM(users, dmUid) {
   const leads = Object.entries(users)
     .filter(([,u]) => u.role === "lead" && u.assignedDM === dmUid)
@@ -47,8 +47,7 @@ function filterGuestinfo(guestinfo, users, uid, role) {
     const under = getUsersUnderDM(users, uid);
     under.add(uid);
     return Object.fromEntries(
-      Object.entries(guestinfo)
-        .filter(([,g]) => under.has(g.userUid))
+      Object.entries(guestinfo).filter(([,g]) => under.has(g.userUid))
     );
   }
   if (role === "lead") {
@@ -57,14 +56,12 @@ function filterGuestinfo(guestinfo, users, uid, role) {
       .map(([uid]) => uid);
     const vis = new Set([...mes, uid]);
     return Object.fromEntries(
-      Object.entries(guestinfo)
-        .filter(([,g]) => vis.has(g.userUid))
+      Object.entries(guestinfo).filter(([,g]) => vis.has(g.userUid))
     );
   }
   // role === "me"
   return Object.fromEntries(
-    Object.entries(guestinfo)
-      .filter(([,g]) => g.userUid === uid)
+    Object.entries(guestinfo).filter(([,g]) => g.userUid === uid)
   );
 }
 
@@ -77,6 +74,7 @@ const FILTER_LABELS = {
 };
 
 export function toggleFilterMode() {
+  if (window.currentRole === "me") return;
   const current = window._guestinfo_filterMode || "week";
   const next = FILTER_MODES[(FILTER_MODES.indexOf(current) + 1) % FILTER_MODES.length];
   window._guestinfo_filterMode = next;
@@ -84,20 +82,24 @@ export function toggleFilterMode() {
 }
 
 // ── Controls & empty state ─────────────────────────────────────────────────
-function controlsBarHtml(filterMode, role, showCreate = true) {
-  const label = FILTER_LABELS[filterMode] || FILTER_LABELS.week;
+function controlsBarHtml(showCreate) {
+  const mode = window._guestinfo_filterMode || "week";
+  const label = FILTER_LABELS[mode];
   return `
-    <div class="guestinfo-controls" style="display:flex;gap:8px;align-items:center;margin-bottom:16px;">
-      <button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleFilterMode()">
+    <div class="guestinfo-controls">
+      <button class="btn btn-secondary btn-sm"
+              onclick="window.guestinfo.toggleFilterMode()">
         ${label}
       </button>
-      ${showCreate ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>` : ""}
+      ${showCreate
+        ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>`
+        : ""}
     </div>`;
 }
 
 function emptyHtml(msg = "No guest leads in this view.") {
   return `
-    <div class="guestinfo-empty" style="text-align:center;margin:24px 0;">
+    <div class="guestinfo-empty">
       <p><b>${msg}</b></p>
       <button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
     </div>`;
@@ -105,14 +107,15 @@ function emptyHtml(msg = "No guest leads in this view.") {
 
 // ── Main renderer ───────────────────────────────────────────────────────────
 export function renderGuestinfoSection(guestinfo, users, uid, role) {
-  // init filter mode
+  // Initialize filter mode
   window._guestinfo_filterMode ||= "week";
   if (role === "me") window._guestinfo_filterMode = "week";
-
   const mode = window._guestinfo_filterMode;
+
+  // Filter by role
   const visible = filterGuestinfo(guestinfo, users, uid, role);
 
-  // pick items based on mode
+  // Pick subset based on mode
   let items;
   if (mode === "week") {
     items = Object.fromEntries(
@@ -120,47 +123,48 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
     );
   } else if (mode === "all") {
     items = visible;
-  } else { // progress → proposals only (level 3)
+  } else {
+    // progress → only show those with a solution (level 3)
     items = Object.fromEntries(
-      Object.entries(visible)
-        .filter(([,g]) => g.solution?.text && g.solution.text.trim() !== "")
+      Object.entries(visible).filter(([,g]) =>
+        g.solution?.text?.trim() !== ""
+      )
     );
   }
 
+  // Group by status
   const groups = groupByStatus(items);
 
-  // build section HTML
-  let sectionHtml;
+  // Build inner content
+  let contentHtml;
   if (mode === "progress") {
-    sectionHtml = `
-      ${controlsBarHtml(mode, role)}
-      ${groups.proposal.length
-        ? statusSectionHtml("Proposals", groups.proposal, users, uid, role, true)
-        : emptyHtml("No proposals yet.")}
-    `;
+    contentHtml = groups.proposal.length
+      ? statusSectionHtml("Proposals", groups.proposal, users, uid, role, true)
+      : emptyHtml("No proposals yet.");
   } else {
     const hasNewOrWorking = groups.new.length || groups.working.length;
-    sectionHtml = `
-      ${controlsBarHtml(mode, role, hasNewOrWorking)}
-      ${!hasNewOrWorking
-        ? emptyHtml("You're all caught up!")
-        : `
-          ${statusSectionHtml("New",     groups.new,     users, uid, role)}
-          ${statusSectionHtml("Working", groups.working, users, uid, role)}
-        `}
-    `;
+    contentHtml = !hasNewOrWorking
+      ? emptyHtml("You're all caught up!")
+      : `
+        ${statusSectionHtml("New",     groups.new,     users, uid, role)}
+        ${statusSectionHtml("Working", groups.working, users, uid, role)}
+      `;
   }
 
-  // wrap in styled container
+  // Wrap in styled container (.admin-section applies background, rounding, shadow)
   return `
-    <div id="guestinfo-container"
-         style="background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);padding:16px;">
-      ${sectionHtml}
-    </div>`;
+    <section class="admin-section guestinfo-section" id="guestinfo-container">
+      ${controlsBarHtml(
+        mode !== "progress" || (groups.new.length || groups.working.length)
+      )}
+      ${contentHtml}
+    </section>`;
 }
 
 // ── Initialization ────────────────────────────────────────────────────────
 export function initGuestinfo() {
+  window._guestinfo_filterMode ||= "week";
+
   window.guestinfo = {
     renderGuestinfoSection,
     toggleFilterMode,
