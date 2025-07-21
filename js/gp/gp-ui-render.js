@@ -1,8 +1,7 @@
-// gp-ui-render.js -- builds Guest Portal UI, step navigation, dynamic Step 2 fields, no admin panel
+// gp-ui-render.js -- Guest Portal UI with dynamic questions from global.gpQuestions, no admin panel
 // Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
-  // Firebase initialization (in case not already initialized)
   const firebaseConfig = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
     authDomain: "osls-644fd.firebaseapp.com",
@@ -30,7 +29,6 @@
     const app = document.getElementById("guestApp");
     if (!app) return;
 
-    // Clear app content first
     app.innerHTML = "";
 
     // Header
@@ -51,7 +49,6 @@
     // Main container
     const box = create("div", { class: "guest-box" });
 
-    // Step 1 form
     box.insertAdjacentHTML("beforeend", `
       <form id="step1Form" autocomplete="off" data-step="1">
         <div class="guest-title">Step 1: Customer Info</div>
@@ -65,7 +62,6 @@
       </form>
     `);
 
-    // Step 2 form (dynamic questions)
     box.insertAdjacentHTML("beforeend", `
       <form id="step2Form" class="hidden" data-step="2">
         <div class="guest-title">
@@ -77,7 +73,6 @@
       </form>
     `);
 
-    // Step 3 form
     box.insertAdjacentHTML("beforeend", `
       <form id="step3Form" class="hidden" data-step="3">
         <div class="guest-title">
@@ -93,42 +88,35 @@
 
     app.appendChild(box);
 
-    // Render dynamic Step 2 fields
     renderQuestions("step2Fields");
-
-    // Setup form navigation handlers
     setupStepNavigation();
   }
 
-  // Example dynamic questions renderer (replace or expand with your real questions)
+  // Render all questions dynamically from global.gpQuestions
   function renderQuestions(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
-
-    // Clear first
     container.innerHTML = "";
 
-    // Example questions array (replace with your actual questions source)
-    const questions = [
-      { id: "currentCarrier", label: "Current Carrier", type: "text" },
-      { id: "numLines", label: "Number of Lines", type: "number" },
-      { id: "coverageZip", label: "Coverage Zip Code", type: "text" }
-    ];
+    const questions = global.gpQuestions || [];
 
     questions.forEach(q => {
       let fieldHTML = "";
       if (q.type === "text" || q.type === "number") {
         fieldHTML = `<label class="glabel">${q.label}
-          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" required/>
+          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" required />
+        </label>`;
+      } else if (q.type === "select" && Array.isArray(q.options)) {
+        fieldHTML = `<label class="glabel">${q.label}
+          <select class="gfield" id="${q.id}" name="${q.id}" required>
+            ${q.options.map(opt => `<option value="${opt}">${opt}</option>`).join("")}
+          </select>
         </label>`;
       }
-      // Add other input types if needed
-
       container.insertAdjacentHTML("beforeend", fieldHTML);
     });
   }
 
-  // Setup navigation between steps with revert links
   function setupStepNavigation() {
     const step1Form = document.getElementById("step1Form");
     const step2Form = document.getElementById("step2Form");
@@ -140,13 +128,11 @@
     step1Form.addEventListener("submit", e => {
       e.preventDefault();
 
-      // Basic validation
       if (!step1Form.custName.value.trim() || !step1Form.custPhone.value.trim()) {
         alert("Please fill in all fields in Step 1.");
         return;
       }
 
-      // Hide Step 1, show Step 2
       step1Form.classList.add("hidden");
       step2Form.classList.remove("hidden");
       revertToStep1.classList.remove("hidden");
@@ -161,8 +147,7 @@
     step2Form.addEventListener("submit", e => {
       e.preventDefault();
 
-      // Validate all Step 2 inputs
-      const inputs = step2Form.querySelectorAll("input");
+      const inputs = step2Form.querySelectorAll("input, select");
       for (const input of inputs) {
         if (!input.value.trim()) {
           alert("Please fill in all Step 2 fields.");
@@ -170,7 +155,6 @@
         }
       }
 
-      // Hide Step 2, show Step 3
       step2Form.classList.add("hidden");
       step3Form.classList.remove("hidden");
       revertToStep2.classList.remove("hidden");
@@ -190,9 +174,8 @@
         return;
       }
 
-      // Submit data or perform save here
       alert("Solution saved. Process complete.");
-      // Optionally reset all forms or redirect here
+      // Add your saving logic here
     });
   }
 
