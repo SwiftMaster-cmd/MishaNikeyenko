@@ -129,79 +129,71 @@ a:hover{text-decoration:underline;}
 /* ==========================================================================
    Professional Sticky Header (Full-Width + Tab-Style Links)
    ========================================================================== */
-.admin-header {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-header);
-  width: 100%;
-  /* only vertical padding; no left/right padding so bg goes full-bleed */
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: var(--space-sm);
-  background: rgba(26, 28, 36, 0.85);
-  backdrop-filter: saturate(180%) blur(12px);
-  overflow: hidden;
-}
-
-/* inner container keeps content centered and padded */
+/* ==========================================================================
+   Professional Sticky Header (Centered + Rounded Tabs)
+   ========================================================================== */
 .admin-header .header-container {
-  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;       /* center title & actions */
   flex-wrap: wrap;
-  /* horizontal padding just for content, not bg */
   padding: 0 var(--space-md);
   gap: var(--space-sm);
 }
 
 /* header title */
 .admin-header h2 {
-  flex: 1 1 auto;
   margin: 0;
   font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-hi);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* replace buttons with simple tabs/links */
-.admin-header .header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
+  text-align: center;            /* center text */
   flex: 0 0 auto;
 }
 
+/* tab-style links */
+.admin-header .header-actions {
+  display: flex;
+  gap: var(--space-xs);
+  justify-content: center;       /* center tabs under title */
+  flex-wrap: wrap;
+}
+
+/* pill-shaped tabs */
 .admin-header .header-actions a.tab {
   display: inline-block;
   padding: var(--space-xs) var(--space-md);
   font-size: var(--fs-sm);
   color: var(--text-med);
   text-decoration: none;
-  border-bottom: 2px solid transparent;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);  /* rounded corners */
   transition:
     color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
 }
-.admin-header .header-actions a.tab:hover,
+.admin-header .header-actions a.tab:hover {
+  color: var(--text-hi);
+  border-color: var(--brand);
+  background: rgba(30,144,255,0.1);
+}
 .admin-header .header-actions a.tab.active {
   color: var(--text-hi);
   border-color: var(--brand);
+  background: rgba(30,144,255,0.15);
 }
 
-/* on very small screens, stack actions under title */
+/* responsive stacking on small screens */
 @media (max-width: 480px) {
   .admin-header .header-container {
     flex-direction: column;
     align-items: stretch;
   }
   .admin-header .header-actions {
-    justify-content: flex-end;
     margin-top: var(--space-xs);
-    width: 100%;
   }
 }
 /* ==========================================================================
