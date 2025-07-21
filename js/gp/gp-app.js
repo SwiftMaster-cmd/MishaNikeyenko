@@ -29,17 +29,16 @@
     });
     return p[name] || null;
   }
-  function digitsOnly(s){ return (s||"").replace(/\D+/g,""); }
 
   /* ------------------------------------------------------------------ Field IO */
   function readFields(){
     return {
-      custName:       el("custName")?.value || "",
-      custPhone:      el("custPhone")?.value || "",
+      custName:       el("custName")?.value       || "",
+      custPhone:      el("custPhone")?.value      || "",
       currentCarrier: el("currentCarrierSel")?.value || "",
-      numLines:       el("numLines")?.value || "",
-      coverageZip:    el("coverageZip")?.value || "",
-      solutionText:   el("solutionText")?.value || ""
+      numLines:       el("numLines")?.value       || "",
+      coverageZip:    el("coverageZip")?.value    || "",
+      solutionText:   el("solutionText")?.value   || ""
     };
   }
   function writeFields(g){
@@ -51,7 +50,7 @@
     if (el("solutionText"))     el("solutionText").value   = g.solution?.text || "";
   }
 
-  /* ------------------------------------------------------------------ Progress */
+  /* ------------------------------------------------------------------ Progress Bar */
   function ensureProgressBar(){
     if (el("gp-progress")) return;
     const bar = document.createElement("div");
@@ -84,16 +83,33 @@
     }
   }
 
-  // compute and persist progressPct to Firebase
+  // compute progress (all fields weighted equally per gpCore), persist & tooltip
   function updateProgressFromGuest(g){
     if (!global.gpCore){
       setProgress(0);
       return;
     }
+    // full scoring
     const comp    = global.gpCore.computePitchFull(g || {});
     const pct     = comp.pctFull || 0;
     setProgress(pct);
 
+    // build tooltip: show earned points, total points, and list answered fields
+    const weights    = global.gpCore.PITCH_WEIGHTS;
+    const totalPts   = Object.values(weights).reduce((sum,w)=>sum+w, 0);
+    let earnedPts    = 0;
+    const fieldLines = [];
+    Object.entries(comp.fields).forEach(([field, meta])=>{
+      if (meta.ok){
+        earnedPts += meta.wt;
+        fieldLines.push(`• ${field}: ${meta.wt}pt`);
+      }
+    });
+    const tooltip = `Points: ${earnedPts}/${totalPts}\nAnswered:\n${fieldLines.join("\n")}`;
+    const pctEl = el("gp-progress-pct");
+    if (pctEl) pctEl.title = tooltip;
+
+    // persist to Firebase
     if (_guestKey){
       db.ref(`guestinfo/${_guestKey}/completionPct`)
         .set(pct)
@@ -141,14 +157,14 @@
   }
   function markStepActive(step){
     const nav = el("gp-step-nav"); if (!nav) return;
-    [...nav.querySelectorAll("button[data-step]")].forEach(b =>
-      b.classList.toggle("active", b.dataset.step === step)
+    [...nav.querySelectorAll("button[data-step]")].forEach(b=>
+      b.classList.toggle("active", b.dataset.step===step)
     );
   }
   function gotoStep(step){
-    ["step1","step2","step3"].forEach(s => {
-      const f = el(s + "Form"); if (!f) return;
-      f.classList.toggle("hidden", s !== step);
+    ["step1","step2","step3"].forEach(s=>{
+      const f = el(s+"Form"); if (!f) return;
+      f.classList.toggle("hidden", s!==step);
     });
   }
 
@@ -158,7 +174,7 @@
     const uid    = auth.currentUser?.uid || null;
     const now    = Date.now();
     const status = global.gpCore
-      ? global.gpCore.detectStatus({..._guestObj,...f,solution:{text:f.solutionText}})
+      ? global.gpCore.detectStatus({..._guestObj, ...f, solution:{text:f.solutionText}})
       : "new";
 
     if (!_guestKey){
@@ -185,9 +201,9 @@
     } else {
       const updates = {};
       ["custName","custPhone","currentCarrier","numLines","coverageZip","status"]
-        .forEach(k => {
+        .forEach(k=>{
           updates[`guestinfo/${_guestKey}/${k}`] =
-            k === "status" ? status : (f[k] || "");
+            k==="status" ? status : (f[k]||"");
         });
       updates[`guestinfo/${_guestKey}/solution`] = f.solutionText
         ? {text:f.solutionText,completedAt:now}
@@ -195,7 +211,7 @@
       updates[`guestinfo/${_guestKey}/updatedAt`] = now;
       try {
         await db.ref().update(updates);
-        Object.assign(_guestObj, {...f,status,solution:{text:f.solutionText,completedAt:now}});
+        Object.assign(_guestObj,{...f,status,solution:{text:f.solutionText,completedAt:now}});
       } catch {
         alert("Save error");
         return;
@@ -210,11 +226,11 @@
   async function loadContext(){
     const gid = qs("gid") || localStorage.getItem("last_guestinfo_key");
     if (gid){
-      const snap = await db.ref("guestinfo/" + gid).get();
+      const snap = await db.ref("guestinfo/"+gid).get();
       if (snap.exists()){
         let g = snap.val();
-        // show persisted progress if any
-        if (typeof g.completionPct === "number") {
+        // show persisted progress
+        if (typeof g.completionPct==="number"){
           setProgress(g.completionPct);
         }
         g = global.gpCore ? global.gpCore.normGuest(g) : g;
@@ -225,11 +241,11 @@
         writeFields(_guestObj);
         gotoStep(_uiStep);
         markStepActive(_uiStep);
-        // subscribe to realtime updates of completionPct
+        // listen for realtime progress updates
         db.ref(`guestinfo/${_guestKey}/completionPct`)
-          .on("value", snap => {
+          .on("value", snap=>{
             const v = snap.val();
-            if (typeof v === "number") setProgress(v);
+            if (typeof v==="number") setProgress(v);
           });
         return;
       }
@@ -255,35 +271,29 @@
   }
 
   /* ------------------------------------------------------------------ Auth */
-  auth.onAuthStateChanged(async user => {
+  auth.onAuthStateChanged(async user=>{
     if (!user){ showAuthOverlay(); return; }
     const ov = el("gp-auth-overlay"); if (ov) ov.remove();
     ensureProgressBar();
     ensureStepNav();
     await loadContext();
 
-    // live update on input
     ["custName","custPhone","currentCarrierSel","numLines","coverageZip","solutionText"]
-      .forEach(id => {
+      .forEach(id=>{
         const fld = el(id); if (!fld) return;
-        const ev  = fld.tagName === "SELECT" ? "change" : "input";
-        fld.addEventListener(ev, () => {
-          updateProgressFromGuest({
-            ..._guestObj,
-            ...readFields(),
-            solution:{ text: el("solutionText")?.value || "" }
-          });
+        const ev  = fld.tagName==="SELECT" ? "change" : "input";
+        fld.addEventListener(ev, ()=>{
+          updateProgressFromGuest({..._guestObj, ...readFields(), solution:{text:el("solutionText")?.value||""}});
         });
       });
 
-    // form submits
-    ["step1Form","step2Form","step3Form"].forEach((fid,idx) => {
+    ["step1Form","step2Form","step3Form"].forEach((fid,idx)=>{
       const frm = el(fid); if (!frm) return;
-      frm.addEventListener("submit", async e => {
+      frm.addEventListener("submit", async e=>{
         e.preventDefault();
         await saveGuestNow();
-        if (idx < 2){
-          _uiStep = "step" + (idx + 2);
+        if (idx<2){
+          _uiStep = "step"+(idx+2);
           markStepActive(_uiStep);
           gotoStep(_uiStep);
         }
