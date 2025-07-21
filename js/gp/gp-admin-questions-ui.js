@@ -2,10 +2,27 @@
 // Load after Firebase SDKs and gp-questions.js
 
 (function(global){
+  // ───────────────────────────────────────────────────────────────────────────
+  // Ensure Firebase is initialized (app-compat)
+  // ───────────────────────────────────────────────────────────────────────────
+  const firebaseConfig = global.GP_FIREBASE_CONFIG || {
+    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+    authDomain: "osls-644fd.firebaseapp.com",
+    databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
+    projectId: "osls-644fd",
+    storageBucket: "osls-644fd.appspot.com",
+    messagingSenderId: "798578046321",
+    appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
+    measurementId: "G-XXXXXXX"
+  };
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
   const auth = firebase.auth();
-  let isAdmin = false;
 
+  // ───────────────────────────────────────────────────────────────────────────
   // Utility: create element with attrs & children
+  // ───────────────────────────────────────────────────────────────────────────
   function create(tag, attrs = {}, ...children) {
     const el = document.createElement(tag);
     Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
@@ -16,19 +33,21 @@
     return el;
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
   // Render admin panel into the placeholder
+  // ───────────────────────────────────────────────────────────────────────────
   function renderAdminPanel() {
     const placeholder = document.getElementById('adminPanelPlaceholder');
-    if (!placeholder || !isAdmin) return;
+    if (!placeholder) return;
     if (document.getElementById('adminPanel')) return;
 
     const panel = create('section', { id: 'adminPanel', class: 'admin-panel' },
-      create('h2', {}, 'Step 2 Questions Admin'),
+      create('h2', {}, 'Admin: Manage Step 2 Questions'),
       create('div', { id: 'adminQuestionsList', class: 'admin-questions-list' }),
       create('h3', {}, 'Add New Question'),
       create('form', { id: 'adminAddForm' },
         create('input',  { type: 'text',    id: 'newQLabel',   placeholder: 'Label', required: true }),
-        create('select', { id: 'newQType' },
+        create('select',{ id: 'newQType' },
           create('option',{ value: 'text'   }, 'Text'),
           create('option',{ value: 'number' }, 'Number'),
           create('option',{ value: 'select' }, 'Select')
@@ -38,10 +57,9 @@
         create('button',{ type: 'submit'   }, 'Add Question')
       )
     );
-
     placeholder.appendChild(panel);
 
-    // Toggle options field visibility
+    // Toggle options field
     panel.querySelector('#newQType').addEventListener('change', e => {
       panel.querySelector('#newQOptions').style.display = e.target.value === 'select' ? '' : 'none';
     });
@@ -70,77 +88,71 @@
     renderQuestionsList(global.gpQuestions);
   }
 
-  // Build the list of existing questions with Edit/Delete controls
-  function renderQuestionsList(qList) {
-    const list = document.getElementById('adminQuestionsList');
-    if (!list) return;
-    list.innerHTML = '';
-
-    qList.forEach(q => {
+  // ───────────────────────────────────────────────────────────────────────────
+  // Build & render the list of existing questions with Edit/Delete
+  // ───────────────────────────────────────────────────────────────────────────
+  function renderQuestionsList(list) {
+    const elList = document.getElementById('adminQuestionsList');
+    if (!elList) return;
+    elList.innerHTML = '';
+    list.forEach(q => {
       const item = create('div', { class: 'admin-question-item', 'data-id': q.id },
         create('strong', {}, q.label),
         ` [${q.type}] (${q.weight}pts) `,
         create('button',{ class: 'adminDelBtn' }, 'Delete'),
         create('button',{ class: 'adminEditBtn' }, 'Edit')
       );
-      list.appendChild(item);
+      elList.appendChild(item);
     });
 
-    // Attach delete handlers
-    list.querySelectorAll('.adminDelBtn').forEach(btn => {
+    // Delete handlers
+    elList.querySelectorAll('.adminDelBtn').forEach(btn => {
       btn.addEventListener('click', async e => {
         if (!confirm('Remove this question?')) return;
         await global.deleteQuestion(e.target.parentElement.dataset.id);
       });
     });
-
-    // Attach edit handlers
-    list.querySelectorAll('.adminEditBtn').forEach(btn => {
+    // Edit handlers
+    elList.querySelectorAll('.adminEditBtn').forEach(btn => {
       btn.addEventListener('click', e => startEdit(e.target.parentElement.dataset.id));
     });
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
   // Inline edit flow
+  // ───────────────────────────────────────────────────────────────────────────
   function startEdit(id) {
     const item = document.querySelector(`.admin-question-item[data-id="${id}"]`);
     if (!item) return;
     const q = global.gpQuestions.find(x => x.id === id);
     if (!q) return;
-
     item.innerHTML = '';
     const form = create('form', { class: 'adminEditForm' },
-      create('input',{ type:'text',   name:'label',  value:q.label, required:true }),
-      create('select',{ name:'type' },
+      create('input',{ type: 'text',   name: 'label',  value: q.label, required:true }),
+      create('select',{ name: 'type' },
         ['text','number','select'].map(t =>
-          create('option',{ value:t, selected:t===q.type }, t)
+          create('option',{ value: t, selected: t === q.type }, t)
         )
       ),
-      create('input',{ type:'number', name:'weight', value:q.weight, min:0, required:true }),
-      create('input',{ type:'text',   name:'options', placeholder:'Comma-separated',
-                       value:q.options.join(','), style:q.type==='select'?'':'display:none' }),
+      create('input',{ type: 'number', name: 'weight', value: q.weight, min: 0, required:true }),
+      create('input',{ type: 'text',   name: 'options', placeholder: 'Comma-separated',
+                       value: q.options.join(','), style: q.type === 'select' ? '' : 'display:none' }),
       create('button',{ type:'submit' }, 'Save'),
       create('button',{ type:'button', class:'cancelEdit' }, 'Cancel')
     );
     item.appendChild(form);
 
-    // Toggle options field
     form.type.addEventListener('change', e => {
       form.options.style.display = e.target.value === 'select' ? '' : 'none';
     });
-
-    // Cancel edit
-    form.querySelector('.cancelEdit').addEventListener('click', () => {
-      renderQuestionsList(global.gpQuestions);
-    });
-
-    // Submit update
+    form.cancelEdit.addEventListener('click', () => renderQuestionsList(global.gpQuestions));
     form.addEventListener('submit', async e => {
       e.preventDefault();
       const label  = form.label.value.trim();
       const type   = form.type.value;
       const weight = parseInt(form.weight.value, 10);
-      const opts   = type==='select'
-        ? form.options.value.split(',').map(s=>s.trim()).filter(Boolean)
+      const opts   = type === 'select'
+        ? form.options.value.split(',').map(s => s.trim()).filter(Boolean)
         : [];
       try {
         await global.updateQuestion(id, { label, type, weight, options: opts });
@@ -151,17 +163,13 @@
     });
   }
 
-  // Initialize: check admin claim and render panel inside placeholder
+  // ───────────────────────────────────────────────────────────────────────────
+  // On auth change: render admin panel if user has admin claim
+  // ───────────────────────────────────────────────────────────────────────────
   auth.onAuthStateChanged(async user => {
     if (!user) return;
     const token = await user.getIdTokenResult();
-    isAdmin = Boolean(token.claims.admin);
-    if (!isAdmin) return;
-    if (document.readyState === 'loading') {
-      window.addEventListener('DOMContentLoaded', renderAdminPanel);
-    } else {
-      renderAdminPanel();
-    }
+    if (token.claims.admin) renderAdminPanel();
   });
 
 })(window);
