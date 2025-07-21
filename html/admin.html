@@ -61,19 +61,22 @@
   </script>
   <!-- 1) Firebase SDKs -->
   
-  <!-- 2) Questions definition & real-time sync -->
+  <!-- 2) Shared core & data logic -->
   <script src="../js/gp/gp-questions.js"></script>
-
-  <!-- 3) Core scoring (also bootstraps Firebase) -->
   <script src="../js/gp/gp-core.js"></script>
 
-  <!-- 4) UI skeleton (injects #adminPanelPlaceholder and forms) -->
-  <script src="../js/gp/gp-ui-render.js"></script>
-
-  <!-- 5) Admin UI (reads gpQuestions & injects panel into the placeholder) -->
+  <!-- 3) UI injectors -->
   <script src="../js/gp/gp-admin-questions-ui.js"></script>
 
-  <!-- 6) App logic (auth gating, load/save guestinfo, progress) -->
+  <!-- 4) Messages admin -->
+  <script src="../js/gp/gp-messages.js"></script>
+  <script src="../js/gp/gp-messages-ui.js"></script>
+
+  <!-- 5) Reviews admin -->
+  <script src="../js/gp/gp-reviews.js"></script>
+  <script src="../js/gp/gp-reviews-ui.js"></script>
+
+  <!-- 6) (Optional) Shared app controller if you want to preview guest form logic here too -->
   <script src="../js/gp/gp-app-min.js"></script>
 </body>
 </html>
