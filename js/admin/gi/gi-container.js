@@ -14,7 +14,7 @@ import {
   deleteSale,
   openGuestInfoPage,
   recomputePitch,
-  toggleActionButtons   // ← import the new toggle helper
+  toggleActionButtons
 } from './gi-action.js';
 
 // ── Time & filter helpers ─────────────────────────────────────────────────
@@ -71,23 +71,29 @@ function filterGuestinfo(guestinfo, users, uid, role) {
 
 // ── Controls & empty state ─────────────────────────────────────────────────
 function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly, role, showCreate = true) {
-  const weekActive = filterMode === "week";
-  const allBtn = role === "me"
-    ? ""
-    : `<button class="btn ${weekActive ? "btn-secondary" : "btn-primary"} btn-sm" onclick="window.guestinfo.setFilterMode('all')">All</button>`;
+  // single-toggle for week/all
+  const filterLabel = filterMode === "week" ? "Show All" : "This Week";
+  const filterBtn = `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleFilterMode()">${filterLabel}</button>`;
+
   const propBtn = (proposalCount > 0 || showProposals)
-    ? `<button class="btn ${showProposals ? "btn-secondary" : (proposalCount ? "btn-warning" : "btn-secondary")} btn-sm" onclick="window.guestinfo.toggleShowProposals()">${showProposals ? "Back to Leads" : `⚠ Follow-Ups (${proposalCount})`}</button>`
+    ? `<button class="btn ${showProposals ? "btn-secondary" : "btn-warning"} btn-sm" onclick="window.guestinfo.toggleShowProposals()">
+         ${showProposals ? "Back to Leads" : `⚠ Follow-Ups (${proposalCount})`}
+       </button>`
     : "";
+
   const soldBtn = role === "me"
     ? ""
-    : `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleSoldOnly()">${soldOnly ? "Back to Leads" : `Sales (${soldCount})`}</button>`;
+    : `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleSoldOnly()">
+         ${soldOnly ? "Back to Leads" : `Sales (${soldCount})`}
+       </button>`;
+
   const createBtn = showCreate
     ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>`
     : "";
+
   return `
     <div class="guestinfo-controls" style="display:flex;gap:8px;align-items:center;">
-      <button class="btn ${weekActive ? "btn-primary" : "btn-secondary"} btn-sm" onclick="window.guestinfo.setFilterMode('week')">This Week</button>
-      ${allBtn}
+      ${filterBtn}
       ${propBtn}
       ${soldBtn}
       ${createBtn}
@@ -106,15 +112,15 @@ function emptyHtml(msg = "No guest leads in this view.") {
 export function renderGuestinfoSection(guestinfo, users, uid, role) {
   if (role === "me") window._guestinfo_filterMode = "week";
 
-  // 1) filter by role
+  // filter by role
   const visible = filterGuestinfo(guestinfo, users, uid, role);
 
-  // 2) count proposals & sales on full set
-  const fullGroups  = groupByStatus(visible);
-  const propCount   = fullGroups.proposal.length;
-  const soldCount   = fullGroups.sold.length;
+  // count proposals & sales on full set
+  const fullGroups = groupByStatus(visible);
+  const propCount  = fullGroups.proposal.length;
+  const soldCount  = fullGroups.sold.length;
 
-  // 3) choose subset to render
+  // choose subset to render
   let items;
   if (window._guestinfo_showProposals) {
     items = visible;
@@ -130,9 +136,12 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
   const showProps = window._guestinfo_showProposals;
   const soldOnly  = window._guestinfo_soldOnly;
 
+  // build the inner section HTML
+  let sectionHtml = "";
+
   // sales view
   if (soldOnly && role !== "me") {
-    return `
+    sectionHtml = `
       <section class="guestinfo-section">
         <h2>Guest Info</h2>
         ${controlsBarHtml(window._guestinfo_filterMode, propCount, soldCount, showProps, soldOnly, role)}
@@ -140,10 +149,9 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
         ${groups.sold.length ? "" : emptyHtml("No sales in this view.")}
       </section>`;
   }
-
   // proposals view
-  if (showProps) {
-    return `
+  else if (showProps) {
+    sectionHtml = `
       <section class="guestinfo-section">
         <h2>Guest Info</h2>
         ${controlsBarHtml(window._guestinfo_filterMode, propCount, soldCount, showProps, soldOnly, role)}
@@ -151,27 +159,35 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
         ${groups.proposal.length ? "" : emptyHtml("No follow-ups in this view.")}
       </section>`;
   }
+  // default view (inline proposals at bottom)
+  else {
+    const isEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
+    sectionHtml = `
+      <section class="guestinfo-section">
+        <h2>Guest Info</h2>
+        ${controlsBarHtml(window._guestinfo_filterMode, propCount, soldCount, showProps, soldOnly, role, !isEmpty)}
+        ${isEmpty ? emptyHtml("You're all caught up!") : ""}
+        ${!isEmpty ? statusSectionHtml("New",     groups.new,     users, uid, role) : ""}
+        ${!isEmpty ? statusSectionHtml("Working", groups.working, users, uid, role) : ""}
+        ${!isEmpty && groups.proposal.length
+           ? statusSectionHtml("Follow-Ups (Proposals)", groups.proposal, users, uid, role, true)
+           : ""}
+      </section>`;
+  }
 
-  // default view (always show proposals section inline)
-  const isEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
-  return `
-    <section class="guestinfo-section">
-      <h2>Guest Info</h2>
-      ${controlsBarHtml(window._guestinfo_filterMode, propCount, soldCount, showProps, soldOnly, role, !isEmpty)}
-      ${isEmpty ? emptyHtml("You're all caught up!") : ""}
-      ${!isEmpty ? statusSectionHtml("New",     groups.new,     users, uid, role) : ""}
-      ${!isEmpty ? statusSectionHtml("Working", groups.working, users, uid, role) : ""}
-      ${!isEmpty && groups.proposal.length
-         ? statusSectionHtml("Follow-Ups (Proposals)", groups.proposal, users, uid, role, true)
-         : ""}
-    </section>`;
+  // wrap in a container
+  return `<div id="guestinfo-container">${sectionHtml}</div>`;
 }
 
-// ── Filter controls ────────────────────────────────────────────────────────
+// ── Filter controls & toggles ─────────────────────────────────────────────
+export function toggleFilterMode() {
+  if (window.currentRole === "me") return;
+  window._guestinfo_filterMode = window._guestinfo_filterMode === "week" ? "all" : "week";
+  window.renderAdminApp();
+}
+
 export function setFilterMode(mode) {
-  window._guestinfo_filterMode = window.currentRole === "me"
-    ? "week"
-    : (mode === "all" ? "all" : "week");
+  window._guestinfo_filterMode = mode === "all" ? "all" : "week";
   window.renderAdminApp();
 }
 
@@ -192,51 +208,14 @@ export function createNewLead() {
   window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split("?")[0];
 }
 
-// ── Pitch CSS injector ─────────────────────────────────────────────────────
-export function ensurePitchCss() {
-  if (document.getElementById("guestinfo-pitch-css")) return;
-  const css = `
-    .guest-pitch-pill {
-      display:inline-block;
-      padding:2px 10px;
-      margin-left:4px;
-      font-size:12px;
-      font-weight:700;
-      line-height:1.2;
-      border-radius:999px;
-      border:1px solid rgba(0,0,0,.2);
-    }
-    .guest-pitch-pill.pitch-good { background:rgba(0,200,83,.15); color:#00c853; }
-    .guest-pitch-pill.pitch-warn { background:rgba(255,179,0,.15); color:#ffb300; }
-    .guest-pitch-pill.pitch-low  { background:rgba(255,82,82,.15); color:#ff5252; }
-    .btn-edit-actions {
-      position:absolute;
-      top:8px; right:8px;
-      background:none; border:none;
-      font-size:1.2rem; cursor:pointer;
-      z-index:1;
-    }
-    .guest-card-actions {
-      display:none;
-      flex-wrap:wrap;
-      gap:.5rem;
-      margin-top:8px;
-    }
-    .guest-card-actions.show {
-      display:flex;
-    }
-  `.trim();
-  const style = document.createElement("style");
-  style.id = "guestinfo-pitch-css";
-  style.textContent = css;
-  document.head.appendChild(style);
-}
-
 // ── Initialization ────────────────────────────────────────────────────────
 export function initGuestinfo() {
-  ensurePitchCss();
+  // inject any needed CSS here if not already done
   window.guestinfo = {
     renderGuestinfoSection,
+    toggleFilterMode,      // ← single-toggle for week/all
+    toggleShowProposals,
+    toggleSoldOnly,
     toggleActionButtons,
     toggleEdit,
     cancelEdit,
@@ -245,9 +224,6 @@ export function initGuestinfo() {
     markSold,
     deleteSale,
     openGuestInfoPage,
-    setFilterMode,
-    toggleShowProposals,
-    toggleSoldOnly,
     createNewLead,
     recomputePitch
   };
