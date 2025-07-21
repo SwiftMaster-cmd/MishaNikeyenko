@@ -1618,13 +1618,13 @@ td:last-child{text-align:right;}
   grid-template-columns: 1fr;
 }
 
-@media (min-width: 300px) {
+@media (min-width: 900px) {
   .guestinfo-container {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (min-width: 600px) {
+@media (min-width: 1200px) {
   .guestinfo-container {
     grid-template-columns: repeat(3, 1fr);
   }
