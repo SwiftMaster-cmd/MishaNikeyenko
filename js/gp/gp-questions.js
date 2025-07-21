@@ -1,7 +1,25 @@
 // gp-questions.js -- dynamic Step 2 questions with static fallback & Firebase-backed CRUD
-// Place at ../js/gp/gp-questions.js; load after Firebase SDKs and before gp-core.js & gp-ui-render.js
+// Place at ../js/gp/gp-questions.js; load **after** Firebase SDKs and **before** gp-core.js & gp-ui-render.js
 
 (function(global){
+  // ───────────────────────────────────────────────────────────────────────────
+  // Firebase initialization (app-compat) -- ensure we have a default app
+  // ───────────────────────────────────────────────────────────────────────────
+  const firebaseConfig = global.GP_FIREBASE_CONFIG || {
+    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
+    authDomain: "osls-644fd.firebaseapp.com",
+    databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
+    projectId: "osls-644fd",
+    storageBucket: "osls-644fd.appspot.com",
+    messagingSenderId: "798578046321",
+    appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
+    measurementId: "G-XXXXXXX"
+  };
+  if (global.firebase && !firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  // ───────────────────────────────────────────────────────────────────────────
+
   // ───────────────────────────────────────────────────────────────────────────
   // Static fallback questions (used if Firebase config is missing/unreachable)
   // ───────────────────────────────────────────────────────────────────────────
