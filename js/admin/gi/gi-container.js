@@ -3,13 +3,13 @@
 import {
   groupByStatus,
   statusSectionHtml
-} from './guestinfo-render.js';
+} from './gi-render.js';
 
 import {
   toggleEdit, cancelEdit, saveEdit, deleteGuestInfo,
   markSold, deleteSale, openGuestInfoPage,
   recomputePitch
-} from './guestinfo-actions.js';
+} from './gi-actions.js';
 
 // ── Time & filter helpers ─────────────────────────────────────────────────
 function msNDaysAgo(n){ return Date.now() - n*864e5; }

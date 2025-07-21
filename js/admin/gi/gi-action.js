@@ -1,6 +1,6 @@
 // guestinfo-actions.js
 
-import { normGuest, computeGuestPitchQuality } from './guestinfo-render.js';
+import { normGuest, computeGuestPitchQuality } from './gi-render.js';
 
 export function toggleEdit(id) {
   const card = document.getElementById(`guest-card-${id}`);
