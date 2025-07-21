@@ -59,7 +59,7 @@
     bar.className = "gp-progress";
     bar.innerHTML = `
       <div class="gp-progress-label">
-        Pitch Quality: <span id="gp-progress-pct">0%</span>
+        Progress: <span id="gp-progress-pct">0%</span>
       </div>
       <div class="gp-progress-bar">
         <div id="gp-progress-fill" class="gp-progress-fill" style="width:0%;"></div>
@@ -68,9 +68,9 @@
   }
   function _progressColor(fillEl, p){
     fillEl.className = "gp-progress-fill";
-    if (p >= 75)       fillEl.classList.add("gp-progress-green");
-    else if (p >= 40)  fillEl.classList.add("gp-progress-yellow");
-    else               fillEl.classList.add("gp-progress-red");
+    if (p >= 75)      fillEl.classList.add("gp-progress-green");
+    else if (p >= 40) fillEl.classList.add("gp-progress-yellow");
+    else              fillEl.classList.add("gp-progress-red");
   }
   function setProgress(p){
     ensureProgressBar();
@@ -78,33 +78,41 @@
     const fillEl = el("gp-progress-fill");
     const pct    = Math.max(0, Math.min(100, Math.round(p)));
     if (pctEl)  pctEl.textContent = pct + "%";
-    if (fillEl) {
+    if (fillEl){
       fillEl.style.width = pct + "%";
       _progressColor(fillEl, pct);
     }
   }
 
-  // ---- Updated: exclude solutionText so 100% = end of step2 ----
+  // Updated to persist to Firebase and exclude solutionText
   function updateProgressFromGuest(g){
-    if (!global.gpCore) {
+    if (!global.gpCore){
       setProgress(0);
       return;
     }
+    // calculate excluding solutionText
     const comp    = global.gpCore.computePitchFull(g || {});
     const weights = global.gpCore.PITCH_WEIGHTS;
     const exclude = new Set(["solutionText"]);
     let earned = 0, total = 0;
-    for (const [field, wt] of Object.entries(weights)) {
+    for (const [field, wt] of Object.entries(weights)){
       if (exclude.has(field)) continue;
       total += wt;
       if (comp.fields[field]?.ok) earned += wt;
     }
     const pct = total ? Math.round((earned / total) * 100) : 0;
     setProgress(pct);
+
+    // persist to Firebase so it can be read later without recomputing
+    if (_guestKey){
+      db.ref(`guestinfo/${_guestKey}/completionPct`)
+        .set(pct)
+        .catch(()=>{/* silent */});
+    }
   }
 
   /* ------------------------------------------------------------------ Local key */
-  function saveLocalKey(k){ try { localStorage.setItem("last_guestinfo_key", k || ""); } catch(_) {} }
+  function saveLocalKey(k){ try{ localStorage.setItem("last_guestinfo_key", k || ""); } catch(_){} }
 
   /* ------------------------------------------------------------------ Initial step */
   function initialStep(g){
@@ -126,13 +134,13 @@
     nav.id = "gp-step-nav";
     nav.className = "gp-step-nav";
     nav.innerHTML = `
-      <button type="button" data-step="step1">1. Customer</button>
-      <button type="button" data-step="step2">2. Evaluate</button>
-      <button type="button" data-step="step3">3. Solution</button>`;
-    const hook = el("gp-progress") || document.body.firstChild;
-    hook.parentNode.insertBefore(nav, hook.nextSibling);
+      <button data-step="step1">1. Customer</button>
+      <button data-step="step2">2. Evaluate</button>
+      <button data-step="step3">3. Solution</button>`;
+    document.body.insertBefore(nav, document.body.firstChild);
     nav.addEventListener("click", e => {
-      const btn = e.target.closest("button[data-step]"); if (!btn) return;
+      const btn = e.target.closest("button[data-step]");
+      if (!btn) return;
       navHandler(btn.dataset.step);
     });
   }
@@ -143,24 +151,24 @@
   }
   function markStepActive(step){
     const nav = el("gp-step-nav"); if (!nav) return;
-    [...nav.querySelectorAll("button")].forEach(b =>
+    [...nav.querySelectorAll("button[data-step]")].forEach(b =>
       b.classList.toggle("active", b.dataset.step === step)
     );
   }
   function gotoStep(step){
     ["step1","step2","step3"].forEach(s => {
-      const f = el(`${s}Form`); if (!f) return;
+      const f = el(s + "Form"); if (!f) return;
       f.classList.toggle("hidden", s !== step);
     });
   }
 
   /* ------------------------------------------------------------------ Save */
   async function saveGuestNow(){
-    const f   = readFields();
-    const uid = auth.currentUser?.uid || null;
-    const now = Date.now();
+    const f      = readFields();
+    const uid    = auth.currentUser?.uid || null;
+    const now    = Date.now();
     const status = global.gpCore
-      ? global.gpCore.detectStatus({ ..._guestObj, ...f, solution:{ text:f.solutionText } })
+      ? global.gpCore.detectStatus({..._guestObj,...f,solution:{text:f.solutionText}})
       : "new";
 
     if (!_guestKey){
@@ -174,15 +182,15 @@
         userUid:       uid,
         status,
         solution:      f.solutionText
-                         ? { text:f.solutionText, completedAt:now }
+                         ? {text:f.solutionText,completedAt:now}
                          : null
       };
       try {
-        const pushRef = await db.ref("guestinfo").push(payload);
-        _guestKey = pushRef.key;
+        const ref = await db.ref("guestinfo").push(payload);
+        _guestKey = ref.key;
         _guestObj = payload;
         saveLocalKey(_guestKey);
-      } catch(e){
+      } catch {
         alert("Save error");
         return;
       }
@@ -194,13 +202,13 @@
             k === "status" ? status : (f[k] || "");
         });
       updates[`guestinfo/${_guestKey}/solution`] = f.solutionText
-        ? { text:f.solutionText, completedAt:now }
+        ? {text:f.solutionText,completedAt:now}
         : null;
       updates[`guestinfo/${_guestKey}/updatedAt`] = now;
       try {
         await db.ref().update(updates);
-        Object.assign(_guestObj, { ...f, status, solution:{ text:f.solutionText, completedAt:now } });
-      } catch(e){
+        Object.assign(_guestObj, {...f, status, solution:{text:f.solutionText,completedAt:now}});
+      } catch {
         alert("Save error");
         return;
       }
@@ -230,7 +238,7 @@
     }
     _guestObj = {};
     _guestKey = null;
-    _uiStep    = "step1";
+    _uiStep   = "step1";
     gotoStep(_uiStep);
     markStepActive(_uiStep);
     updateProgressFromGuest(_guestObj);
@@ -244,7 +252,7 @@
     div.style.cssText =
       "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;" +
       "background:rgba(0,0,0,.8);color:#fff;z-index:9999;font-size:1.1rem;text-align:center;padding:1rem;";
-    div.innerHTML = `<div><p>Please sign in to continue.</p></div>`;
+    div.innerHTML = "<p>Please sign in to continue.</p>";
     document.body.appendChild(div);
   }
 
@@ -258,15 +266,15 @@
 
     ["custName","custPhone","currentCarrierSel","numLines","coverageZip","solutionText"]
       .forEach(id => {
-        const field = el(id); if (!field) return;
-        const ev = field.tagName === "SELECT" ? "change" : "input";
-        field.addEventListener(ev, () => {
-          const live = { ..._guestObj, ...readFields(), solution:{ text: el("solutionText")?.value || "" } };
+        const fld = el(id); if (!fld) return;
+        const ev  = fld.tagName === "SELECT" ? "change" : "input";
+        fld.addEventListener(ev, () => {
+          const live = {..._guestObj,...readFields(),solution:{text:el("solutionText")?.value||""}};
           updateProgressFromGuest(live);
         });
       });
 
-    ["step1Form","step2Form","step3Form"].forEach((fid, idx) => {
+    ["step1Form","step2Form","step3Form"].forEach((fid,idx) => {
       const frm = el(fid); if (!frm) return;
       frm.addEventListener("submit", async e => {
         e.preventDefault();
