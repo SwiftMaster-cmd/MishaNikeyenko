@@ -1,10 +1,6 @@
 // guestinfo-container.js
 
-import {
-  groupByStatus,
-  statusSectionHtml
-} from './gi-render.js';
-
+import { groupByStatus, statusSectionHtml } from './gi-render.js';
 import {
   toggleEdit,
   cancelEdit,
@@ -14,21 +10,27 @@ import {
   deleteSale,
   openGuestInfoPage,
   recomputePitch,
-  toggleActionButtons
+  toggleActionButtons,
+  togglePhone
 } from './gi-action.js';
 
-// ── Time & filter helpers ─────────────────────────────────────────────────
-function msNDaysAgo(n) { return Date.now() - n * 864e5; }
+// ── Time helpers ────────────────────────────────────────────────────────────
+function msNDaysAgo(n) {
+  return Date.now() - n * 86400000;
+}
 function latestActivityTs(g) {
   return Math.max(
-    g.updatedAt || 0,
-    g.submittedAt || 0,
-    g.sale?.soldAt || 0,
-    g.solution?.completedAt || 0
+    g.updatedAt  || 0,
+    g.submittedAt|| 0,
+    g.sale?.soldAt|| 0,
+    g.solution?.completedAt|| 0
   );
 }
-function inCurrentWeek(g) { return latestActivityTs(g) >= msNDaysAgo(7); }
+function inCurrentWeek(g) {
+  return latestActivityTs(g) >= msNDaysAgo(7);
+}
 
+// ── Role filtering ──────────────────────────────────────────────────────────
 function getUsersUnderDM(users, dmUid) {
   const leads = Object.entries(users)
     .filter(([,u]) => u.role === "lead" && u.assignedDM === dmUid)
@@ -52,170 +54,111 @@ function filterGuestinfo(guestinfo, users, uid, role) {
   }
   if (role === "lead") {
     const mes = Object.entries(users)
-      .filter(([,u]) => u.role === "me" && u.assignedLead === uid)
-      .map(([uid]) => uid);
+      .filter(([,u]) => u.role==="me" && u.assignedLead===uid)
+      .map(([uid])=>uid);
     const vis = new Set([...mes, uid]);
     return Object.fromEntries(
       Object.entries(guestinfo)
         .filter(([,g]) => vis.has(g.userUid))
     );
   }
-  if (role === "me") {
-    return Object.fromEntries(
-      Object.entries(guestinfo)
-        .filter(([,g]) => g.userUid === uid)
-    );
-  }
-  return {};
+  // me
+  return Object.fromEntries(
+    Object.entries(guestinfo)
+      .filter(([,g]) => g.userUid === uid)
+  );
+}
+
+// ── Filter modes ────────────────────────────────────────────────────────────
+const FILTER_MODES  = ["week", "all", "progress"];
+const FILTER_LABELS = {
+  week:     "This Week",
+  all:      "Show All",
+  progress: "Proposals"
+};
+
+export function toggleFilterMode() {
+  const current = window._guestinfo_filterMode || "week";
+  const next = FILTER_MODES[(FILTER_MODES.indexOf(current) + 1) % FILTER_MODES.length];
+  window._guestinfo_filterMode = next;
+  window.renderAdminApp();
 }
 
 // ── Controls & empty state ─────────────────────────────────────────────────
-function controlsBarHtml(filterMode, proposalCount, soldCount, showProposals, soldOnly, role, showCreate = true) {
-  // single-toggle for week/all
-  const filterLabel = filterMode === "week" ? "Show All" : "This Week";
-  const filterBtn = `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleFilterMode()">${filterLabel}</button>`;
-
-  const propBtn = (proposalCount > 0 || showProposals)
-    ? `<button class="btn ${showProposals ? "btn-secondary" : "btn-warning"} btn-sm" onclick="window.guestinfo.toggleShowProposals()">
-         ${showProposals ? "Back to Leads" : `⚠ Follow-Ups (${proposalCount})`}
-       </button>`
-    : "";
-
-  const soldBtn = role === "me"
-    ? ""
-    : `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleSoldOnly()">
-         ${soldOnly ? "Back to Leads" : `Sales (${soldCount})`}
-       </button>`;
-
-  const createBtn = showCreate
-    ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>`
-    : "";
-
+function controlsBarHtml(filterMode, showCreate = true) {
+  const label = FILTER_LABELS[filterMode] || FILTER_LABELS.week;
   return `
-    <div class="guestinfo-controls" style="display:flex;gap:8px;align-items:center;">
-      ${filterBtn}
-      ${propBtn}
-      ${soldBtn}
-      ${createBtn}
+    <div class="guestinfo-controls" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleFilterMode()">
+        ${label}
+      </button>
+      ${showCreate ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>` : ""}
     </div>`;
 }
 
 function emptyHtml(msg = "No guest leads in this view.") {
   return `
-    <div class="guestinfo-empty" style="text-align:center;margin-top:16px;">
+    <div class="guestinfo-empty" style="text-align:center;margin:16px 0;">
       <p><b>${msg}</b></p>
       <button class="btn btn-success btn-sm" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
     </div>`;
 }
 
-// ── Main renderer ─────────────────────────────────────────────────────────
+// ── Main renderer ───────────────────────────────────────────────────────────
 export function renderGuestinfoSection(guestinfo, users, uid, role) {
   if (role === "me") window._guestinfo_filterMode = "week";
 
-  // filter by role
+  const mode    = window._guestinfo_filterMode || "week";
   const visible = filterGuestinfo(guestinfo, users, uid, role);
 
-  // count proposals & sales on full set
-  const fullGroups = groupByStatus(visible);
-  const propCount  = fullGroups.proposal.length;
-  const soldCount  = fullGroups.sold.length;
-
-  // choose subset to render
   let items;
-  if (window._guestinfo_showProposals) {
-    items = visible;
-  } else if (window._guestinfo_filterMode === "week" || role === "me") {
+  if (mode === "week") {
     items = Object.fromEntries(
       Object.entries(visible).filter(([,g]) => inCurrentWeek(g))
     );
-  } else {
+  } else if (mode === "all") {
     items = visible;
+  } else { // progress → proposals only
+    items = Object.fromEntries(
+      Object.entries(visible)
+        .filter(([,g]) => g.solution && g.solution.text && g.solution.text.trim() !== "")
+    );
   }
 
-  const groups    = groupByStatus(items);
-  const showProps = window._guestinfo_showProposals;
-  const soldOnly  = window._guestinfo_soldOnly;
+  const groups = groupByStatus(items);
 
-  // build the inner section HTML
-  let sectionHtml = "";
-
-  // sales view
-  if (soldOnly && role !== "me") {
-    sectionHtml = `
+  // PROGRESS mode: only proposals
+  if (mode === "progress") {
+    return `
       <section class="guestinfo-section">
-        <h2>Guest Info</h2>
-        ${controlsBarHtml(window._guestinfo_filterMode, propCount, soldCount, showProps, soldOnly, role)}
-        ${statusSectionHtml("Sales", groups.sold, users, uid, role)}
-        ${groups.sold.length ? "" : emptyHtml("No sales in this view.")}
-      </section>`;
-  }
-  // proposals view
-  else if (showProps) {
-    sectionHtml = `
-      <section class="guestinfo-section">
-        <h2>Guest Info</h2>
-        ${controlsBarHtml(window._guestinfo_filterMode, propCount, soldCount, showProps, soldOnly, role)}
-        ${statusSectionHtml("Follow-Ups (Proposals)", groups.proposal, users, uid, role, true)}
-        ${groups.proposal.length ? "" : emptyHtml("No follow-ups in this view.")}
-      </section>`;
-  }
-  // default view (inline proposals at bottom)
-  else {
-    const isEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
-    sectionHtml = `
-      <section class="guestinfo-section">
-        <h2>Guest Info</h2>
-        ${controlsBarHtml(window._guestinfo_filterMode, propCount, soldCount, showProps, soldOnly, role, !isEmpty)}
-        ${isEmpty ? emptyHtml("You're all caught up!") : ""}
-        ${!isEmpty ? statusSectionHtml("New",     groups.new,     users, uid, role) : ""}
-        ${!isEmpty ? statusSectionHtml("Working", groups.working, users, uid, role) : ""}
-        ${!isEmpty && groups.proposal.length
-           ? statusSectionHtml("Follow-Ups (Proposals)", groups.proposal, users, uid, role, true)
-           : ""}
+        ${controlsBarHtml(mode)}
+        ${groups.proposal.length
+          ? statusSectionHtml("Proposals", groups.proposal, users, uid, role, true)
+          : emptyHtml("No proposals yet.")}
       </section>`;
   }
 
-  // wrap in a container
-  return `<div id="guestinfo-container">${sectionHtml}</div>`;
-}
-
-// ── Filter controls & toggles ─────────────────────────────────────────────
-export function toggleFilterMode() {
-  if (window.currentRole === "me") return;
-  window._guestinfo_filterMode = window._guestinfo_filterMode === "week" ? "all" : "week";
-  window.renderAdminApp();
-}
-
-export function setFilterMode(mode) {
-  window._guestinfo_filterMode = mode === "all" ? "all" : "week";
-  window.renderAdminApp();
-}
-
-export function toggleShowProposals() {
-  if (!window._guestinfo_showProposals) window._guestinfo_soldOnly = false;
-  window._guestinfo_showProposals = !window._guestinfo_showProposals;
-  window.renderAdminApp();
-}
-
-export function toggleSoldOnly() {
-  if (!window._guestinfo_soldOnly) window._guestinfo_showProposals = false;
-  window._guestinfo_soldOnly = !window._guestinfo_soldOnly;
-  window.renderAdminApp();
-}
-
-export function createNewLead() {
-  try { localStorage.removeItem("last_guestinfo_key"); } catch(_) {}
-  window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split("?")[0];
+  // WEEK / ALL modes: show New & Working
+  const isEmpty = !groups.new.length && !groups.working.length;
+  return `
+    <section class="guestinfo-section">
+      ${controlsBarHtml(mode, !isEmpty)}
+      ${isEmpty
+        ? emptyHtml("You're all caught up!")
+        : `
+          ${statusSectionHtml("New",     groups.new,     users, uid, role)}
+          ${statusSectionHtml("Working", groups.working, users, uid, role)}
+        `}
+    </section>`;
 }
 
 // ── Initialization ────────────────────────────────────────────────────────
 export function initGuestinfo() {
-  // inject any needed CSS here if not already done
+  window._guestinfo_filterMode ||= "week";
+
   window.guestinfo = {
     renderGuestinfoSection,
-    toggleFilterMode,      // ← single-toggle for week/all
-    toggleShowProposals,
-    toggleSoldOnly,
+    toggleFilterMode,
     toggleActionButtons,
     toggleEdit,
     cancelEdit,
@@ -224,7 +167,11 @@ export function initGuestinfo() {
     markSold,
     deleteSale,
     openGuestInfoPage,
-    createNewLead,
-    recomputePitch
+    recomputePitch,
+    togglePhone,
+    createNewLead: () => {
+      try { localStorage.removeItem("last_guestinfo_key"); } catch {}
+      window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split("?")[0];
+    }
   };
 }
