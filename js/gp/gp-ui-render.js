@@ -1,4 +1,4 @@
-// gp-ui-render.js -- builds Guest Portal UI + in-place Admin panel, with Firebase init
+// gp-ui-render.js -- builds Guest Portal UI without admin panel, with Firebase init
 // Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
@@ -44,7 +44,7 @@
     `);
     app.appendChild(header);
     header.querySelector("#backToDash").addEventListener("click", e => {
-      if (e.metaKey||e.ctrlKey||e.shiftKey||e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
       window.location.href = DASHBOARD_URL;
     });
@@ -55,9 +55,6 @@
 
     // Main container
     const box = create("div", { class: "guest-box" });
-
-    // Admin panel placeholder
-    box.appendChild(create("div", { id: "adminPanelPlaceholder" }));
 
     // Step 1 form
     box.insertAdjacentHTML("beforeend", `
@@ -108,131 +105,10 @@
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // 2) Render admin panel if user has admin claim
+  // 3) On auth change: render UI only, no admin panel
   // ───────────────────────────────────────────────────────────────────────────
-  function renderAdminPanel() {
-    const placeholder = document.getElementById("adminPanelPlaceholder");
-    if (!placeholder) return;
-    if (document.getElementById("adminPanel")) return;
-
-    const panel = create("section", { id: "adminPanel", class: "admin-panel" },
-      create("h2", {}, "Admin: Manage Step 2 Questions"),
-      create("div", { id: "adminQuestionsList", class: "admin-questions-list" }),
-      create("h3", {}, "Add New Question"),
-      create("form", { id: "adminAddForm" },
-        create("input",  { type:"text",    id:"newQLabel",   placeholder:"Label", required:"" }),
-        create("select",{ id:"newQType" },
-          create("option",{ value:"text"   },"Text"),
-          create("option",{ value:"number" },"Number"),
-          create("option",{ value:"select" },"Select")
-        ),
-        create("input",  { type:"number",  id:"newQWeight",  placeholder:"Weight", required:"", min:"0" }),
-        create("input",  { type:"text",    id:"newQOptions", placeholder:"Options (comma-separated)", style:"display:none" }),
-        create("button",{ type:"submit"   },"Add Question")
-      )
-    );
-    placeholder.appendChild(panel);
-
-    panel.querySelector("#newQType").addEventListener("change", e => {
-      panel.querySelector("#newQOptions").style.display = e.target.value==="select" ? "" : "none";
-    });
-
-    panel.querySelector("#adminAddForm").addEventListener("submit", async e => {
-      e.preventDefault();
-      const label  = e.target.newQLabel.value.trim();
-      const type   = e.target.newQType.value;
-      const weight = parseInt(e.target.newQWeight.value, 10);
-      const opts   = type==="select"
-        ? e.target.newQOptions.value.split(",").map(s=>s.trim()).filter(Boolean)
-        : [];
-      await global.addQuestion({ label, type, weight, options: opts });
-      e.target.reset();
-      panel.querySelector("#newQOptions").style.display = "none";
-    });
-
-    global.onQuestionsUpdated(renderQuestionsList);
-    renderQuestionsList(global.gpQuestions);
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Build & render the list of questions with Edit/Delete
-  // ───────────────────────────────────────────────────────────────────────────
-  function renderQuestionsList(list) {
-    const elList = document.getElementById("adminQuestionsList");
-    if (!elList) return;
-    elList.innerHTML = "";
-    list.forEach(q => {
-      const item = create("div", { class:"admin-question-item", "data-id":q.id },
-        create("strong", {}, q.label),
-        ` [${q.type}] (${q.weight}pts) `,
-        create("button",{ class:"adminDelBtn" },"Delete"),
-        create("button",{ class:"adminEditBtn" },"Edit")
-      );
-      elList.appendChild(item);
-    });
-
-    elList.querySelectorAll(".adminDelBtn").forEach(btn => {
-      btn.addEventListener("click", async e => {
-        if (!confirm("Remove this question?")) return;
-        await global.deleteQuestion(e.target.parentElement.dataset.id);
-      });
-    });
-    elList.querySelectorAll(".adminEditBtn").forEach(btn => {
-      btn.addEventListener("click", e => startEdit(e.target.parentElement.dataset.id));
-    });
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Inline edit flow for existing questions
-  // ───────────────────────────────────────────────────────────────────────────
-  function startEdit(id) {
-    const item = document.querySelector(`.admin-question-item[data-id="${id}"]`);
-    if (!item) return;
-    const q = global.gpQuestions.find(x=>x.id===id);
-    if (!q) return;
-    item.innerHTML = "";
-    const form = create("form",{ class:"adminEditForm" },
-      create("input",{ type:"text",   name:"label",  value:q.label, required:"" }),
-      create("select",{ name:"type" },
-        ["text","number","select"].map(t=>
-          create("option",{ value:t, selected:t===q.type }, t)
-        )
-      ),
-      create("input",{ type:"number", name:"weight", value:q.weight, min:"0", required:"" }),
-      create("input",{ type:"text",   name:"options", placeholder:"Comma-separated",
-                       value:q.options.join(","), style:q.type==="select"?"":"display:none" }),
-      create("button",{ type:"submit" },"Save"),
-      create("button",{ type:"button", class:"cancelEdit" },"Cancel")
-    );
-    item.appendChild(form);
-
-    form.type.addEventListener("change", e=>{
-      form.options.style.display = e.target.value==="select"? "": "none";
-    });
-    form.cancelEdit.addEventListener("click", ()=> renderQuestionsList(global.gpQuestions));
-    form.addEventListener("submit", async e=>{
-      e.preventDefault();
-      const label  = form.label.value.trim();
-      const type   = form.type.value;
-      const weight = parseInt(form.weight.value,10);
-      const opts   = type==="select"
-        ? form.options.value.split(",").map(s=>s.trim()).filter(Boolean)
-        : [];
-      await global.updateQuestion(id, { label, type, weight, options: opts });
-    });
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // 3) On auth change: render UI always; if admin also render admin panel
-  // ───────────────────────────────────────────────────────────────────────────
-  auth.onAuthStateChanged(async user => {
+  auth.onAuthStateChanged(() => {
     renderUI();
-    if (user) {
-      const token = await user.getIdTokenResult();
-      if (token.claims.admin) {
-        renderAdminPanel();
-      }
-    }
   });
 
 })(window);
