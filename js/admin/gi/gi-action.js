@@ -2,6 +2,15 @@
 
 import { normGuest, computeGuestPitchQuality } from './gi-render.js';
 
+// Toggle visibility of the action buttons container
+export function toggleActionButtons(id) {
+  const card = document.getElementById(`guest-card-${id}`);
+  if (!card) return;
+  const actions = card.querySelector('.guest-card-actions');
+  if (!actions) return;
+  actions.classList.toggle('show');
+}
+
 export function toggleEdit(id) {
   const card = document.getElementById(`guest-card-${id}`);
   if (!card) return;
@@ -13,21 +22,11 @@ export function toggleEdit(id) {
   disp.style.display = showing ? "none" : "block";
 }
 
-// **NEW**: toggle visibility of the action buttons container
-export function toggleActionButtons(id) {
-  const card = document.getElementById(`guest-card-${id}`);
-  if (!card) return;
-  const actions = card.querySelector(".guest-card-actions");
-  if (!actions) return;
-  const isVisible = getComputedStyle(actions).display !== "none";
-  actions.style.display = isVisible ? "none" : "flex";
-}
-
 export function cancelEdit(id) {
   const card = document.getElementById(`guest-card-${id}`);
   if (!card) return;
   card.querySelector(".guest-edit-form").style.display = "none";
-  card.querySelector(".guest-display").style.display = "block";
+  card.querySelector(".guest-display") .style.display = "block";
 }
 
 export async function saveEdit(id) {
@@ -112,7 +111,9 @@ export async function deleteSale(id) {
     const { saleId, storeNumber } = g.sale;
     const hasEval = !!g.evaluate;
 
+    // remove sale record
     await window.db.ref(`sales/${saleId}`).remove();
+    // rollback guestinfo
     await window.db.ref(`guestinfo/${id}`).update({
       sale:   null,
       status: hasEval ? "working" : "new"
@@ -120,7 +121,7 @@ export async function deleteSale(id) {
 
     if (storeNumber) {
       const creditsSnap = await window.db.ref(`storeCredits/${storeNumber}`).get();
-      const creditsObj  = creditsSnap.val()||{};
+      const creditsObj  = creditsSnap.val() || {};
       await Promise.all(
         Object.entries(creditsObj)
           .filter(([,c]) => c.saleId === saleId)
@@ -138,7 +139,7 @@ export async function deleteSale(id) {
 export async function recomputePitch(id) {
   try {
     const snap = await window.db.ref(`guestinfo/${id}`).get();
-    const data = snap.val()||{};
+    const data = snap.val() || {};
     const comp = computeGuestPitchQuality(normGuest(data));
     await window.db.ref(`guestinfo/${id}/completion`).set({
       pct:       Math.round(comp.pct),
