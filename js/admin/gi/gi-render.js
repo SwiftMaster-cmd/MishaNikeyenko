@@ -44,15 +44,15 @@ export function esc(str) {
 export function timeAgo(ts) {
   if (!ts) return "-";
   const diff = Date.now() - ts;
-  const m = Math.floor(diff / 60000);
+  const m = Math.floor(diff/60000);
   if (m < 60) return `${m}m`;
-  const h = Math.floor(diff / 3600000);
+  const h = Math.floor(diff/3600000);
   if (h < 24) return `${h}h`;
-  const d = Math.floor(diff / 86400000);
+  const d = Math.floor(diff/86400000);
   return `${d}d`;
 }
 
-// ── Core data logic ────────────────────────────────────────────────────────
+// ── Core logic ─────────────────────────────────────────────────────────────
 export function detectStatus(g) {
   const s = (g?.status||"").toLowerCase();
   if (s) return s;
@@ -124,16 +124,14 @@ export function computeGuestPitchQuality(g, weights=PITCH_WEIGHTS) {
   return { pct, steps };
 }
 
-// ── UI helpers ─────────────────────────────────────────────────────────────
 export function statusBadge(status) {
   const map = {
-    new:      ["role-badge role-guest",   "NEW"],
-    working:  ["role-badge role-lead",    "WORKING"],
-    proposal: ["role-badge role-dm",      "PROPOSAL"],
-    sold:     ["role-badge role-admin",   "SOLD"]
+    new:      ["role-badge role-guest", "NEW"],
+    working:  ["role-badge role-lead",  "WORKING"],
+    proposal: ["role-badge role-dm",    "PROPOSAL"],
+    sold:     ["role-badge role-admin", "SOLD"]
   };
-  const [cls, lbl] = map[status] || map.new;
-  return { cls, lbl };
+  return map[status] || map.new;
 }
 
 export function groupByStatus(guestMap) {
@@ -143,7 +141,7 @@ export function groupByStatus(guestMap) {
     (groups[st] ||= []).push([id, g]);
   }
   for (const arr of Object.values(groups)) {
-    arr.sort((a,b) => {
+    arr.sort((a, b) => {
       const ta = Math.max(a[1].updatedAt||0, a[1].submittedAt||0, a[1].sale?.soldAt||0);
       const tb = Math.max(b[1].updatedAt||0, b[1].submittedAt||0, b[1].sale?.soldAt||0);
       return tb - ta;
@@ -153,8 +151,10 @@ export function groupByStatus(guestMap) {
 }
 
 // ── Section renderer ───────────────────────────────────────────────────────
-export function statusSectionHtml(_, rows, users, currentUid, currentRole) {
-  if (!rows?.length) return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
+export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight=false) {
+  if (!rows?.length) {
+    return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
+  }
   return rows.map(([id,g]) =>
     guestCardHtml(id, g, users, currentUid, currentRole)
   ).join("");
@@ -163,48 +163,71 @@ export function statusSectionHtml(_, rows, users, currentUid, currentRole) {
 // ── Card renderer ──────────────────────────────────────────────────────────
 export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
-  const { cls: statusCls, lbl: statusLbl } = statusBadge(detectStatus(g));
+  const [statusCls, statusLbl] = statusBadge(detectStatus(g));
   const { pct } = computeGuestPitchQuality(normGuest(g));
   const pcls = pct >= 75 ? "pitch-good" : pct >= 40 ? "pitch-warn" : "pitch-low";
 
-  // mask phone
-  const raw   = digitsOnly(g.custPhone || "");
-  const last4 = raw.slice(-4).padStart(4,"0");
+  // container background by pitch
+  const bg = pct >= 75
+    ? "rgba(200,255,200,0.3)"
+    : pct >= 40
+      ? "rgba(255,235,150,0.3)"
+      : "rgba(255,200,200,0.3)";
+
+  // phone mask
+  const raw   = esc(g.custPhone || "");
+  const num   = digitsOnly(g.custPhone || "");
+  const last4 = num.slice(-4).padStart(4, "0");
   const masked = `XXX-${last4}`;
 
   // time ago
   const when = timeAgo(g.submittedAt);
 
   // submitter badge
-  const roleCls = currentRole === "me"
-    ? "role-badge role-me"
-    : currentRole === "lead"
-      ? "role-badge role-lead"
-      : currentRole === "dm"
-        ? "role-badge role-dm"
-        : "role-badge role-admin";
-  const nameLabel = esc(submitter.name || submitter.email || g.userUid);
+  const roleCls = currentRole === "me"   ? "role-badge role-me"
+                 : currentRole === "lead"? "role-badge role-lead"
+                 : currentRole === "dm"  ? "role-badge role-dm"
+                                          : "role-badge role-admin";
+  const nameLabel = esc(submitter.name || submitter.email || "");
 
   return `
-    <div class="guest-card" id="guest-card-${id}" style="position:relative;padding:8px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;">
+    <div class="guest-card" id="guest-card-${id}"
+         style="position:relative;padding:12px;border-radius:8px;background:${bg};margin-bottom:8px;">
       <div style="display:flex;align-items:center;gap:8px;">
-        <span class="${statusCls}" style="border-radius:999px;padding:2px 8px;font-size:.85em;">${statusLbl}</span>
-        <span class="guest-pitch-pill ${pcls}" style="border-radius:999px;padding:2px 8px;font-size:.85em;">${pct}%</span>
-        <button class="btn-sm btn-edit-actions" style="margin-left:auto;background:none;border:none;cursor:pointer;"
+        <span class="${statusCls}"
+              style="padding:2px 8px;border-radius:999px;font-size:.85em;">
+          ${statusLbl}
+        </span>
+        <span class="guest-pitch-pill ${pcls}"
+              style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};">
+          ${pct}%
+        </span>
+        <button class="btn-edit-actions"
+                style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
                 onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
       </div>
-      <div style="text-align:center;font-weight:600;padding:8px 0;font-size:1.1em;">
+
+      <div style="text-align:center;font-weight:600;font-size:1.1em;margin:8px 0;">
         ${esc(g.custName || "-")}
       </div>
-      <div style="display:flex;align-items:center;position:relative;font-size:.85em;">
-        <span class="${roleCls}" style="border-radius:999px;padding:2px 6px;">${nameLabel}</span>
-        <span class="guest-phone" style="margin-left:12px;cursor:pointer;" onclick="this.textContent='${esc(g.custPhone||"")}'">
+
+      <div style="display:flex;align-items:center;justify-content:center;position:relative;">
+        <span class="${roleCls}"
+              style="padding:2px 6px;border-radius:999px;font-size:.85em;background:${bg};">
+          ${nameLabel}
+        </span>
+        <span class="guest-phone"
+              style="margin:0 12px;padding:2px 6px;border-radius:999px;font-size:.85em;cursor:pointer;background:${bg};"
+              onclick="this.textContent = this.textContent==='${masked}' ? '${raw}' : '${masked}'">
           ${masked}
         </span>
-        <span class="guest-time" style="position:absolute;right:0;background:rgba(0,0,0,0.1);border-radius:999px;padding:2px 6px;">
+        <span class="guest-time"
+              style="position:absolute;right:0;padding:2px 6px;border-radius:999px;font-size:.75em;background:${bg};">
           ${when}
         </span>
       </div>
-      <div class="guest-card-actions" style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;"></div>
+
+      <div class="guest-card-actions"
+           style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;"></div>
     </div>`;
 }
