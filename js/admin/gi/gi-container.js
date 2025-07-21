@@ -3,7 +3,9 @@
 import {
   groupByStatus,
   statusSectionHtml,
-  detectStatus
+  detectStatus,
+  computeGuestPitchQuality,
+  normGuest
 } from './gi-render.js';
 
 import {
@@ -18,6 +20,8 @@ import {
   toggleActionButtons
 } from './gi-action.js';
 
+let nameDebounceTimer, empDebounceTimer;
+
 // ── Time & filter helpers ─────────────────────────────────────────────────
 function msNDaysAgo(n) { return Date.now() - n * 864e5; }
 function latestActivityTs(g) {
@@ -30,8 +34,7 @@ function latestActivityTs(g) {
 }
 function inCurrentWeek(g) { return latestActivityTs(g) >= msNDaysAgo(7); }
 function dateToISO(ts) {
-  if (!ts) return '';
-  return new Date(ts).toISOString().slice(0, 10);
+  return ts ? new Date(ts).toISOString().slice(0, 10) : '';
 }
 
 function getUsersUnderDM(users, dmUid) {
@@ -72,10 +75,10 @@ function filterByRole(guestinfo, users, uid, role) {
 }
 
 // ── Controls & empty state ─────────────────────────────────────────────────
-function controlsBarHtml(propCount, soldCount, role, showCreate = true) {
+function controlsBarHtml(propCount, role, showCreate = true) {
   const f = window._guestinfo_filters;
 
-  // name search
+  // search name
   const nameWrapper = `
     <div class="search-wrapper">
       <input id="filter-name"
@@ -86,7 +89,7 @@ function controlsBarHtml(propCount, soldCount, role, showCreate = true) {
       <button class="clear-btn" onclick="window.guestinfo.clearSearchName()">×</button>
     </div>`;
 
-  // employee search
+  // search employee
   const empWrapper = `
     <div class="search-wrapper">
       <input id="filter-emp"
@@ -107,6 +110,18 @@ function controlsBarHtml(propCount, soldCount, role, showCreate = true) {
       <button class="clear-btn" onclick="window.guestinfo.clearSearchDate()">×</button>
     </div>`;
 
+  // progress filter
+  const progOptions = [
+    { v: 'all',  l: 'All Progress' },
+    { v: 'good', l: 'Good ≥75%' },
+    { v: 'warn', l: 'Med 40–74%' },
+    { v: 'low',  l: 'Low <40%' },
+  ].map(opt => `<option value="${opt.v}" ${f.progress===opt.v?'selected':''}>${opt.l}</option>`).join('');
+  const progressSelect = `
+    <select onchange="window.guestinfo.setProgressFilter(this.value)">
+      ${progOptions}
+    </select>`;
+
   // week/all toggle
   const filterLabel = f.filterMode === "week" ? "Show All" : "This Week";
   const filterBtn = `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleFilterMode()">${filterLabel}</button>`;
@@ -116,15 +131,8 @@ function controlsBarHtml(propCount, soldCount, role, showCreate = true) {
     ? `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleShowProposals()">Back to Leads</button>`
     : `<button class="btn btn-warning btn-sm" onclick="window.guestinfo.toggleShowProposals()">⚠ Follow-Ups (${propCount})</button>`;
 
-  // sales toggle
-  const soldBtn = role === "me"
-    ? ""
-    : (f.soldOnly
-      ? `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleSoldOnly()">Back to Leads</button>`
-      : `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.toggleSoldOnly()">Sales (${soldCount})</button>`);
-
   // clear all filters
-  const clearAllBtn = `<button class="btn-clear-filters btn-sm" onclick="window.guestinfo.clearAllFilters()">Clear Filters</button>`;
+  const clearAll = `<button class="btn-clear-filters btn-sm" onclick="window.guestinfo.clearAllFilters()">Clear Filters</button>`;
 
   // new lead
   const createBtn = showCreate
@@ -136,10 +144,10 @@ function controlsBarHtml(propCount, soldCount, role, showCreate = true) {
       ${nameWrapper}
       ${empWrapper}
       ${dateWrapper}
+      ${progressSelect}
       ${filterBtn}
       ${propBtn}
-      ${soldBtn}
-      ${clearAllBtn}
+      ${clearAll}
       ${createBtn}
     </div>`;
 }
@@ -154,15 +162,15 @@ function emptyHtml(msg = "No guest leads in this view.") {
 
 // ── Main renderer ─────────────────────────────────────────────────────────
 export function renderGuestinfoSection(guestinfo, users, uid, role) {
-  // initialize filters
+  // init filter state
   if (!window._guestinfo_filters) {
     window._guestinfo_filters = {
       name: "",
       employee: "",
       date: "",
+      progress: "all",
       filterMode: "week",
-      showProposals: false,
-      soldOnly: false
+      showProposals: false
     };
   }
   const f = window._guestinfo_filters;
@@ -198,47 +206,51 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
       )
     : byEmp;
 
-  // counts for buttons
-  const fullGroups = groupByStatus(byDate);
+  // compute progress for each and filter
+  const byProg = f.progress === 'all'
+    ? byDate
+    : Object.fromEntries(
+        Object.entries(byDate).filter(([,g]) => {
+          const pct = computeGuestPitchQuality(normGuest(g)).pct;
+          return f.progress === 'good' ? pct >= 75
+               : f.progress === 'warn' ? pct >= 40 && pct < 75
+               : pct < 40;
+        })
+      );
+
+  // counts for proposals
+  const fullGroups = groupByStatus(byProg);
   const propCount  = fullGroups.proposal.length;
-  const soldCount  = fullGroups.sold.length;
 
-  // 5) timeframe / proposals / sales
+  // timeframe / proposals
   let items;
-  if (f.showProposals)      items = byDate;
-  else if (f.soldOnly)      items = byDate;
-  else if (f.filterMode==="week" || role==="me") {
+  if (f.showProposals) {
+    items = byProg;
+  } else if (f.filterMode === "week" || role === "me") {
     items = Object.fromEntries(
-      Object.entries(byDate).filter(([,g]) => inCurrentWeek(g))
+      Object.entries(byProg).filter(([,g]) => inCurrentWeek(g))
     );
-  } else items = byDate;
-
-  // 6) groups
-  const groups    = groupByStatus(items);
-
-  // 7) build HTML
-  let html = "";
-  if (f.soldOnly && role!=="me") {
-    html = `
-      <section class="guestinfo-section">
-        ${controlsBarHtml(propCount, soldCount, role)}
-        ${statusSectionHtml("Sales", groups.sold, users, uid, role)}
-        ${groups.sold.length ? "" : emptyHtml("No sales in this view.")}
-      </section>`;
+  } else {
+    items = byProg;
   }
-  else if (f.showProposals) {
+
+  // group and render
+  const groups = groupByStatus(items);
+  const showProps = f.showProposals;
+
+  let html = "";
+  if (showProps) {
     html = `
       <section class="guestinfo-section">
-        ${controlsBarHtml(propCount, soldCount, role)}
+        ${controlsBarHtml(propCount, role)}
         ${statusSectionHtml("Follow-Ups", groups.proposal, users, uid, role, true)}
         ${groups.proposal.length ? "" : emptyHtml("No follow-ups in this view.")}
       </section>`;
-  }
-  else {
+  } else {
     const isEmpty = !groups.new.length && !groups.working.length && !groups.proposal.length;
     html = `
       <section class="guestinfo-section">
-        ${controlsBarHtml(propCount, soldCount, role, !isEmpty)}
+        ${controlsBarHtml(propCount, role, !isEmpty)}
         ${isEmpty ? emptyHtml("You're all caught up!") : ""}
         ${!isEmpty ? statusSectionHtml("New",     groups.new,     users, uid, role) : ""}
         ${!isEmpty ? statusSectionHtml("Working", groups.working, users, uid, role) : ""}
@@ -251,10 +263,11 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
   return `<div id="guestinfo-container">${html}</div>`;
 }
 
-// ── Filter setter & clear functions ───────────────────────────────────────
+// ── Filter setters & clears ────────────────────────────────────────────────
 export function setSearchName(val) {
   window._guestinfo_filters.name = val;
-  window.renderAdminApp();
+  clearTimeout(nameDebounceTimer);
+  nameDebounceTimer = setTimeout(() => window.renderAdminApp(), 300);
 }
 export function clearSearchName() {
   window._guestinfo_filters.name = "";
@@ -263,7 +276,8 @@ export function clearSearchName() {
 
 export function setSearchEmployee(val) {
   window._guestinfo_filters.employee = val;
-  window.renderAdminApp();
+  clearTimeout(empDebounceTimer);
+  empDebounceTimer = setTimeout(() => window.renderAdminApp(), 300);
 }
 export function clearSearchEmployee() {
   window._guestinfo_filters.employee = "";
@@ -279,25 +293,21 @@ export function clearSearchDate() {
   window.renderAdminApp();
 }
 
+export function setProgressFilter(val) {
+  window._guestinfo_filters.progress = val;
+  window.renderAdminApp();
+}
+
 export function toggleFilterMode() {
   const f = window._guestinfo_filters;
   f.filterMode = f.filterMode === "week" ? "all" : "week";
   f.showProposals = false;
-  f.soldOnly = false;
   window.renderAdminApp();
 }
 
 export function toggleShowProposals() {
   const f = window._guestinfo_filters;
   f.showProposals = !f.showProposals;
-  f.soldOnly = false;
-  window.renderAdminApp();
-}
-
-export function toggleSoldOnly() {
-  const f = window._guestinfo_filters;
-  f.soldOnly = !f.soldOnly;
-  f.showProposals = false;
   window.renderAdminApp();
 }
 
@@ -306,16 +316,16 @@ export function clearAllFilters() {
     name: "",
     employee: "",
     date: "",
+    progress: "all",
     filterMode: "week",
-    showProposals: false,
-    soldOnly: false
+    showProposals: false
   };
   window.renderAdminApp();
 }
 
 export function createNewLead() {
   try { localStorage.removeItem("last_guestinfo_key"); } catch(_) {}
-  window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split("?")[0];
+  window.location.href = (window.GUESTINFO_PAGE||"../html/guestinfo.html").split("?")[0];
 }
 
 // ── Initialization ───────────────────────────────────────────────────────
@@ -325,9 +335,9 @@ export function initGuestinfo() {
     setSearchName, clearSearchName,
     setSearchEmployee, clearSearchEmployee,
     setSearchDate, clearSearchDate,
+    setProgressFilter,
     toggleFilterMode,
     toggleShowProposals,
-    toggleSoldOnly,
     clearAllFilters,
     toggleActionButtons,
     toggleEdit,
