@@ -1,324 +1,120 @@
-// gp-app-min.js -- Minimal Guest Portal logic with realtime progress via Firebase
+// gp-questions.js -- dynamic question definitions for Step 2
+// Place this file at ../js/gp/gp-questions.js and load it before gp-core.js & gp-ui-render.js
+
 (function(global){
-  /* ------------------------------------------------------------------ Firebase */
-  const cfg = global.GP_FIREBASE_CONFIG || {
-    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
-    authDomain: "osls-644fd.firebaseapp.com",
-    databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
-    projectId: "osls-644fd",
-    storageBucket: "osls-644fd.appspot.com",
-    messagingSenderId: "798578046321",
-    appId: "1:798578046321:web:8758776701786a2fccf2d0",
-    measurementId: "G-9HWXNSBE1T"
-  };
-  if (!firebase.apps.length) firebase.initializeApp(cfg);
-  const db   = firebase.database();
-  const auth = firebase.auth();
-
-  /* ------------------------------------------------------------------ State */
-  let _guestObj = null;
-  let _guestKey = null;
-  let _uiStep   = "step1";
-
-  /* ------------------------------------------------------------------ Utils */
-  const el = id => document.getElementById(id);
-  function qs(name){
-    const p = {};
-    window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, (m,k,v) => {
-      p[decodeURIComponent(k)] = decodeURIComponent(v);
-    });
-    return p[name] || null;
-  }
-
-  /* ------------------------------------------------------------------ Field IO */
-  function readFields(){
-    return {
-      custName:       el("custName")?.value       || "",
-      custPhone:      el("custPhone")?.value      || "",
-      currentCarrier: el("currentCarrierSel")?.value || "",
-      numLines:       el("numLines")?.value       || "",
-      coverageZip:    el("coverageZip")?.value    || "",
-      solutionText:   el("solutionText")?.value   || ""
-    };
-  }
-  function writeFields(g){
-    if (el("custName"))         el("custName").value       = g.custName || "";
-    if (el("custPhone"))        el("custPhone").value      = g.custPhone || "";
-    if (el("currentCarrierSel"))el("currentCarrierSel").value = g.currentCarrier || "";
-    if (el("numLines"))         el("numLines").value       = g.numLines || "";
-    if (el("coverageZip"))      el("coverageZip").value    = g.coverageZip || "";
-    if (el("solutionText"))     el("solutionText").value   = g.solution?.text || "";
-  }
-
-  /* ------------------------------------------------------------------ Progress Bar */
-  function ensureProgressBar(){
-    if (el("gp-progress")) return;
-    const bar = document.createElement("div");
-    bar.id = "gp-progress";
-    bar.className = "gp-progress";
-    bar.innerHTML = `
-      <div class="gp-progress-label">
-        Progress: <span id="gp-progress-pct">0%</span>
-      </div>
-      <div class="gp-progress-bar">
-        <div id="gp-progress-fill" class="gp-progress-fill" style="width:0%;"></div>
-      </div>`;
-    document.body.insertBefore(bar, document.body.firstChild);
-  }
-  function _progressColor(fillEl, p){
-    fillEl.className = "gp-progress-fill";
-    if (p >= 75)      fillEl.classList.add("gp-progress-green");
-    else if (p >= 40) fillEl.classList.add("gp-progress-yellow");
-    else              fillEl.classList.add("gp-progress-red");
-  }
-  function setProgress(p){
-    ensureProgressBar();
-    const pctEl  = el("gp-progress-pct");
-    const fillEl = el("gp-progress-fill");
-    const pct    = Math.max(0, Math.min(100, Math.round(p)));
-    if (pctEl)  pctEl.textContent = pct + "%";
-    if (fillEl){
-      fillEl.style.width = pct + "%";
-      _progressColor(fillEl, pct);
+  /**
+   * QUESTION BANK
+   *
+   * Admins can edit this array at runtime or replace it with
+   * a fetch() from a backend to add/remove questions dynamically.
+   *
+   * Each question object must have:
+   *  - id:      unique key (used for input id & data storage)
+   *  - label:   the question text shown to users
+   *  - type:    "text" | "number" | "select"
+   *  - weight:  point value for scoring
+   *  - options: array of strings (only for type === "select")
+   */
+  const questions = [
+    {
+      id:     "deviceStatus",
+      label:  "Devices Paid Off?",
+      type:   "select",
+      weight: 8,
+      options: [
+        "All Paid Off",
+        "Owe Balance",
+        "Lease",
+        "Mixed",
+        "Unknown"
+      ]
+    },
+    {
+      id:     "finPath",
+      label:  "Financial Path (Postpaid vs Prepaid)",
+      type:   "select",
+      weight: 12,
+      options: [
+        "Postpaid OK",
+        "Prefer Prepaid/Cash",
+        "Credit Concern",
+        "Unknown"
+      ]
     }
-  }
+    // ─────────────────────────────────────────────────────────────────────
+    // Admins: Add new question objects here to extend Step 2.
+    // Example text question:
+    // {
+    //   id:     "specialOffer",
+    //   label:  "Interested in Special Offers?",
+    //   type:   "text",
+    //   weight: 5
+    // }
+    // Example number question:
+    // {
+    //   id:     "numDevices",
+    //   label:  "Number of Devices",
+    //   type:   "number",
+    //   weight: 4
+    // }
+  ];
 
-  // compute progress (all fields weighted equally per gpCore), persist & tooltip
-  function updateProgressFromGuest(g){
-    if (!global.gpCore){
-      setProgress(0);
-      return;
-    }
-    // full scoring
-    const comp    = global.gpCore.computePitchFull(g || {});
-    const pct     = comp.pctFull || 0;
-    setProgress(pct);
+  // Expose the questions array
+  global.gpQuestions = questions;
 
-    // build tooltip: show earned points, total points, and list answered fields
-    const weights    = global.gpCore.PITCH_WEIGHTS;
-    const totalPts   = Object.values(weights).reduce((sum,w)=>sum+w, 0);
-    let earnedPts    = 0;
-    const fieldLines = [];
-    Object.entries(comp.fields).forEach(([field, meta])=>{
-      if (meta.ok){
-        earnedPts += meta.wt;
-        fieldLines.push(`• ${field}: ${meta.wt}pt`);
-      }
-    });
-    const tooltip = `Points: ${earnedPts}/${totalPts}\nAnswered:\n${fieldLines.join("\n")}`;
-    const pctEl = el("gp-progress-pct");
-    if (pctEl) pctEl.title = tooltip;
+  /**
+   * renderQuestions(containerId)
+   *   - containerId: the id of the element (<div>) where questions should be rendered
+   *
+   * This function clears the container, iterates over gpQuestions,
+   * and injects the appropriate <label> + <input> or <select> for each.
+   */
+  global.renderQuestions = function(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
 
-    // persist to Firebase
-    if (_guestKey){
-      db.ref(`guestinfo/${_guestKey}/completionPct`)
-        .set(pct)
-        .catch(()=>{/* silent */});
-    }
-  }
+    // clear any existing content
+    container.innerHTML = "";
 
-  /* ------------------------------------------------------------------ Local key */
-  function saveLocalKey(k){ try{ localStorage.setItem("last_guestinfo_key", k || ""); }catch(_){} }
+    // iterate and build fields
+    questions.forEach(q => {
+      // wrapper <label>
+      const label = document.createElement("label");
+      label.className = "glabel";
+      label.innerHTML = `
+        ${q.label} <span class="gp-pts">(${q.weight}pts)</span>
+      `;
 
-  /* ------------------------------------------------------------------ Initial step */
-  function initialStep(g){
-    if (global.gpCore){
-      const s = global.gpCore.detectStatus(g);
-      if (s === "proposal") return "step3";
-      if (s === "working")  return "step2";
-    } else {
-      if (g?.custName || g?.custPhone) return "step2";
-      if (g?.solution?.text)           return "step3";
-    }
-    return "step1";
-  }
-
-  /* ------------------------------------------------------------------ Nav UI */
-  function ensureStepNav(){
-    if (el("gp-step-nav")) return;
-    const nav = document.createElement("div");
-    nav.id = "gp-step-nav";
-    nav.className = "gp-step-nav";
-    nav.innerHTML = `
-      <button data-step="step1">1. Customer</button>
-      <button data-step="step2">2. Evaluate</button>
-      <button data-step="step3">3. Solution</button>`;
-    document.body.insertBefore(nav, document.body.firstChild);
-    nav.addEventListener("click", e => {
-      const btn = e.target.closest("button[data-step]");
-      if (!btn) return;
-      navHandler(btn.dataset.step);
-    });
-  }
-  function navHandler(step){
-    _uiStep = step;
-    markStepActive(step);
-    gotoStep(step);
-  }
-  function markStepActive(step){
-    const nav = el("gp-step-nav"); if (!nav) return;
-    [...nav.querySelectorAll("button[data-step]")].forEach(b=>
-      b.classList.toggle("active", b.dataset.step===step)
-    );
-  }
-  function gotoStep(step){
-    ["step1","step2","step3"].forEach(s=>{
-      const f = el(s+"Form"); if (!f) return;
-      f.classList.toggle("hidden", s!==step);
-    });
-  }
-
-  /* ------------------------------------------------------------------ Save */
-  async function saveGuestNow(){
-    const f      = readFields();
-    const uid    = auth.currentUser?.uid || null;
-    const now    = Date.now();
-    const status = global.gpCore
-      ? global.gpCore.detectStatus({..._guestObj, ...f, solution:{text:f.solutionText}})
-      : "new";
-
-    if (!_guestKey){
-      const payload = {
-        custName:       f.custName,
-        custPhone:      f.custPhone,
-        currentCarrier: f.currentCarrier,
-        numLines:       f.numLines,
-        coverageZip:    f.coverageZip,
-        submittedAt:    now,
-        userUid:        uid,
-        status,
-        solution:       f.solutionText ? {text:f.solutionText,completedAt:now} : null
-      };
-      try {
-        const ref = await db.ref("guestinfo").push(payload);
-        _guestKey = ref.key;
-        _guestObj = payload;
-        saveLocalKey(_guestKey);
-      } catch {
-        alert("Save error");
-        return;
-      }
-    } else {
-      const updates = {};
-      ["custName","custPhone","currentCarrier","numLines","coverageZip","status"]
-        .forEach(k=>{
-          updates[`guestinfo/${_guestKey}/${k}`] =
-            k==="status" ? status : (f[k]||"");
+      // input or select
+      let field;
+      if (q.type === "select") {
+        field = document.createElement("select");
+        field.className = "gfield";
+        field.id = q.id;
+        // add placeholder option
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Select…";
+        field.appendChild(placeholder);
+        // add each option
+        q.options.forEach(opt => {
+          const o = document.createElement("option");
+          o.value = opt;
+          o.textContent = opt;
+          field.appendChild(o);
         });
-      updates[`guestinfo/${_guestKey}/solution`] = f.solutionText
-        ? {text:f.solutionText,completedAt:now}
-        : null;
-      updates[`guestinfo/${_guestKey}/updatedAt`] = now;
-      try {
-        await db.ref().update(updates);
-        Object.assign(_guestObj,{...f,status,solution:{text:f.solutionText,completedAt:now}});
-      } catch {
-        alert("Save error");
-        return;
+      } else {
+        field = document.createElement("input");
+        field.className = "gfield";
+        field.id = q.id;
+        field.type = q.type;               // "text" or "number"
+        field.placeholder = "Enter…";
       }
-    }
 
-    updateProgressFromGuest(_guestObj);
-    alert("Saved.");
-  }
-
-  /* ------------------------------------------------------------------ Context Loader */
-  async function loadContext(){
-    const gid = qs("gid") || localStorage.getItem("last_guestinfo_key");
-    if (gid){
-      const snap = await db.ref("guestinfo/"+gid).get();
-      if (snap.exists()){
-        let g = snap.val();
-        // show persisted progress
-        if (typeof g.completionPct==="number"){
-          setProgress(g.completionPct);
-        }
-        g = global.gpCore ? global.gpCore.normGuest(g) : g;
-        _guestObj = g;
-        _guestKey = gid;
-        saveLocalKey(gid);
-        _uiStep = initialStep(_guestObj);
-        writeFields(_guestObj);
-        gotoStep(_uiStep);
-        markStepActive(_uiStep);
-        // listen for realtime progress updates
-        db.ref(`guestinfo/${_guestKey}/completionPct`)
-          .on("value", snap=>{
-            const v = snap.val();
-            if (typeof v==="number") setProgress(v);
-          });
-        return;
-      }
-    }
-    _guestObj = {};
-    _guestKey = null;
-    _uiStep   = "step1";
-    gotoStep(_uiStep);
-    markStepActive(_uiStep);
-    updateProgressFromGuest(_guestObj);
-  }
-
-  /* ------------------------------------------------------------------ Auth overlay */
-  function showAuthOverlay(){
-    if (el("gp-auth-overlay")) return;
-    const div = document.createElement("div");
-    div.id = "gp-auth-overlay";
-    div.style.cssText =
-      "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;" +
-      "background:rgba(0,0,0,.8);color:#fff;z-index:9999;font-size:1.1rem;text-align:center;padding:1rem;";
-    div.innerHTML = "<p>Please sign in to continue.</p>";
-    document.body.appendChild(div);
-  }
-
-  /* ------------------------------------------------------------------ Auth */
-  auth.onAuthStateChanged(async user=>{
-    if (!user){ showAuthOverlay(); return; }
-    const ov = el("gp-auth-overlay"); if (ov) ov.remove();
-    ensureProgressBar();
-    ensureStepNav();
-    await loadContext();
-
-    ["custName","custPhone","currentCarrierSel","numLines","coverageZip","solutionText"]
-      .forEach(id=>{
-        const fld = el(id); if (!fld) return;
-        const ev  = fld.tagName==="SELECT" ? "change" : "input";
-        fld.addEventListener(ev, ()=>{
-          updateProgressFromGuest({..._guestObj, ...readFields(), solution:{text:el("solutionText")?.value||""}});
-        });
-      });
-
-    ["step1Form","step2Form","step3Form"].forEach((fid,idx)=>{
-      const frm = el(fid); if (!frm) return;
-      frm.addEventListener("submit", async e=>{
-        e.preventDefault();
-        await saveGuestNow();
-        if (idx<2){
-          _uiStep = "step"+(idx+2);
-          markStepActive(_uiStep);
-          gotoStep(_uiStep);
-        }
-      });
+      // append the field into label, then label into container
+      label.appendChild(field);
+      container.appendChild(label);
     });
-  });
-
-  /* ------------------------------------------------------------------ Public */
-  const gpBasic = {
-    get guestKey(){ return _guestKey; },
-    get guest(){ return _guestObj; },
-    get uiStep(){ return _uiStep; },
-    save: saveGuestNow,
-    sync: writeFields,
-    goto: navHandler,
-    open: loadContext
-  };
-  global.gpBasic = gpBasic;
-  global.gpApp   = {
-    get guestKey(){ return gpBasic.guestKey; },
-    get guest(){ return gpBasic.guest; },
-    get uiStep(){ return gpBasic.uiStep; },
-    saveNow: gpBasic.save,
-    syncUi:  gpBasic.sync,
-    gotoStep:gpBasic.goto
   };
 
 })(window);

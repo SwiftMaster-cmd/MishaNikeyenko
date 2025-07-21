@@ -1,123 +1,81 @@
-/* gp-handoff-lite.js -------------------------------------------------------
- * Minimal cross-surface handoff for Guest Portal.
- * Stores {gid,entry,name,phone,status,prefilledStep1,ts} in localStorage,
- * appends ?gid=&entry=&uistart=… to dest URL, and lets receiver merge.
- * ------------------------------------------------------------------------ */
+// gp-ui-render.js -- builds & injects the entire Guest Portal UI into #guestApp
+// Place this at ../js/gp/gp-ui-render.js, loaded **after** gp-core.js (and gp-questions.js)
+
 (function(global){
-  const LS_KEY  = "gp_handoff_payload_v1";
-  const MAX_AGE = 15*60*1000; // 15 min
+  const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
 
-  function safeSet(obj){
-    try{localStorage.setItem(LS_KEY,JSON.stringify({ts:Date.now(),payload:obj||{}}));}catch(_){}
-  }
-  function safeGet(){
-    try{
-      const raw=localStorage.getItem(LS_KEY);
-      if(!raw) return null;
-      const wrap=JSON.parse(raw);
-      if(!wrap||typeof wrap!=="object")return null;
-      if(Date.now()-wrap.ts>MAX_AGE)return null;
-      return wrap.payload||null;
-    }catch(_){return null;}
-  }
-  function safeClear(){ try{localStorage.removeItem(LS_KEY);}catch(_){ } }
-
-  function computeUiStart(p){
-    if(!p) return "step1";
-    const u=(p.uistart||"").toLowerCase();
-    if(["step1","step2","step3"].includes(u)) return u;
-    const st=(p.status||"").toLowerCase();
-    if(st==="proposal"||st==="sold") return "step3";
-    if(p.prefilledStep1 || p.name || p.phone) return "step2";
-    return "step1";
+  // helper: create an element with attributes and innerHTML
+  function create(tag, attrs = {}, html = "") {
+    const el = document.createElement(tag);
+    Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
+    if (html) el.innerHTML = html;
+    return el;
   }
 
-  /* Sender --------------------------------------------------------------- */
-  function open(payload){
-    payload=payload||{};
-    const dest = payload.dest || global.GUESTINFO_PAGE || "../html/guestinfo.html";
-    const store = {
-      gid:payload.gid||null,
-      entry:payload.entry||null,
-      name:payload.name||"",
-      phone:payload.phone||"",
-      status:(payload.status||"").toLowerCase()||null,
-      prefilledStep1: !!payload.prefilledStep1
-    };
-    if(!store.prefilledStep1 && (store.name||store.phone)) store.prefilledStep1=true;
+  // when DOM is ready, inject everything
+  window.addEventListener("DOMContentLoaded", () => {
+    const app = document.getElementById("guestApp");
+    if (!app) return;
 
-    safeSet(store);
-    if(store.gid){
-      try{localStorage.setItem("last_guestinfo_key",store.gid);}catch(_){}
+    // ─── Header ────────────────────────────────────────────────────────────
+    const header = create("header", { class: "guest-header" }, `
+      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}" aria-label="Back to Dashboard">
+        ← Dashboard
+      </a>
+    `);
+    app.appendChild(header);
+    header.querySelector("#backToDash").addEventListener("click", e => {
+      if (e.metaKey||e.ctrlKey||e.shiftKey||e.altKey) return;
+      e.preventDefault();
+      window.location.href = DASHBOARD_URL;
+    });
+
+    // ─── Progress & NBQ hooks (populated by gp-app-min.js / gp-ui.js) ───
+    app.appendChild(create("div", { id: "gp-progress-hook" }));
+    app.appendChild(create("div", { id: "gp-nbq" }));
+
+    // ─── Guest Forms Container ────────────────────────────────────────────
+    const box = create("div", { class: "guest-box" });
+    box.innerHTML = `
+      <!-- Step 1: Customer Info -->
+      <form id="step1Form" autocomplete="off" data-step="1">
+        <div class="guest-title">Step 1: Customer Info</div>
+        <label class="glabel">Customer Name <span class="gp-pts">(8pts)</span>
+          <input class="gfield" type="text" id="custName" placeholder="Full name" />
+        </label>
+        <label class="glabel">Customer Phone <span class="gp-pts">(7pts)</span>
+          <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" />
+        </label>
+        <button class="guest-btn" type="submit">Save &amp; Continue to Step 2</button>
+      </form>
+
+      <!-- Step 2: Evaluate (dynamic questions) -->
+      <form id="step2Form" class="hidden" data-step="2">
+        <div class="guest-title">
+          Step 2: Evaluate
+          <span id="gp-revert-step1" class="gp-revert-link hidden">(revert to Step 1)</span>
+        </div>
+        <div id="step2Fields"></div>
+        <button class="guest-btn" type="submit">Save &amp; Continue to Step 3</button>
+      </form>
+
+      <!-- Step 3: Solution -->
+      <form id="step3Form" class="hidden" data-step="3">
+        <div class="guest-title">
+          Step 3: Solution
+          <span id="gp-revert-step2" class="gp-revert-link hidden">(revert to Step 2)</span>
+        </div>
+        <label class="glabel">Proposed Solution <span class="gp-pts">(25pts)</span>
+          <textarea class="gfield" id="solutionText" rows="3" placeholder="What we’ll offer…"></textarea>
+        </label>
+        <button class="guest-btn" type="submit">Save Solution</button>
+      </form>
+    `;
+    app.appendChild(box);
+
+    // ─── Render Step 2 Dynamic Questions ────────────────────────────────────
+    if (typeof global.renderQuestions === "function") {
+      global.renderQuestions("step2Fields");
     }
-
-    const q=[];
-    if(store.gid)   q.push("gid="+encodeURIComponent(store.gid));
-    if(store.entry) q.push("entry="+encodeURIComponent(store.entry));
-    q.push("uistart="+encodeURIComponent(computeUiStart(store)));
-    const joiner=dest.indexOf("?")>=0?"&":"?";
-    const url=q.length?dest+joiner+q.join("&"):dest;
-    window.location.href=url;
-  }
-
-  /* Receiver -------------------------------------------------------------- */
-  function parseParams(){
-    const out={};
-    const add=(kv)=>{
-      if(!kv)return;
-      const i=kv.indexOf("="); if(i<0)return;
-      out[decodeURIComponent(kv.slice(0,i))]=decodeURIComponent(kv.slice(i+1));
-    };
-    const grab=str=>{
-      if(!str)return;
-      str=str.replace(/^[?#]/,""); if(!str)return;
-      str.split("&").forEach(add);
-    };
-    grab(window.location.search);
-    grab(window.location.hash);
-    return out;
-  }
-
-  function receive(){
-    const urlP=parseParams();
-    const lsP=safeGet();
-    const out=Object.assign({},lsP||{});
-    if(urlP.gid!=null)out.gid=urlP.gid;
-    if(urlP.entry!=null)out.entry=urlP.entry;
-    if(urlP.uistart!=null)out.uistart=urlP.uistart;
-    // we *don't* overwrite name/phone from URL (keep LS)
-    out.prefilledStep1 = out.prefilledStep1 || !!(out.name||out.phone);
-    out.uistart = computeUiStart(out);
-    out.ts = Date.now();
-    global.GP_HANDOFF = out;
-    return out;
-  }
-
-  function consume(opts){
-    opts=opts||{};
-    const p=receive();
-    if(opts.clearLocal!==false) safeClear();
-    return p;
-  }
-
-  /* mapped shape for gp-basic (optional) */
-  function consumePrefill(opts){
-    const raw=consume(opts);
-    if(!raw) return null;
-    return {
-      gid:raw.gid||null,
-      entry:raw.entry||null,
-      uistart:raw.uistart||null,
-      custName:raw.name||"",
-      custPhone:raw.phone||"",
-      statusHint:raw.status||null,
-      prefilledStep1:!!raw.prefilledStep1,
-      ts:raw.ts||Date.now()
-    };
-  }
-
-  global.gpHandoffLite = {
-    open,receive,consume,consumePrefill,
-    _get:safeGet,_clear:safeClear,_compute:computeUiStart
-  };
+  });
 })(window);

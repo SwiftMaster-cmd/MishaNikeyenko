@@ -24,198 +24,21 @@
   </style>
 </head>
 <body>
-  <!-- Small top header with Back button -->
   <header class="guest-header">
-    <!-- Plain href works even if JS fails -->
-    <a id="backToDash" class="guest-back-btn" href="../html/admin.html" aria-label="Back to Dashboard">← Dashboard</a>
+    <a id="backToDash" class="guest-back-btn" href="../html/admin.html">← Dashboard</a>
   </header>
+  <div id="guestApp"></div> <!-- container JS will fill -->
 
-  <!-- Progress/nav insertion hook -->
-  <div id="gp-progress-hook"></div>
-  <!-- Optional: Next Best Questions dynamic container (JS will manage) -->
-  <div id="gp-nbq"></div>
-
-  <div class="guest-box">
-
-    <!-- Step 1: only name & phone -->
-    <form id="step1Form" autocomplete="off" data-step="1">
-      <div class="guest-title">
-        Step 1: Customer Info
-      </div>
-
-      <label class="glabel">Customer Name <span class="gp-pts">(8pts)</span>
-        <input class="gfield" type="text" id="custName" placeholder="Full name" />
-      </label>
-      <label class="glabel">Customer Phone <span class="gp-pts">(7pts)</span>
-        <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" />
-      </label>
-
-      <button class="guest-btn" type="submit">Save &amp; Continue to Step 2</button>
-      <div class="g-status" id="status1"></div>
-    </form>
-
-    <!-- Step 2: evaluate -->
-    <form id="step2Form" class="hidden" data-step="2">
-      <div class="guest-title">
-        Step 2: Evaluate
-        <span id="gp-revert-step1" class="gp-revert-link hidden" title="Clear later steps & revert to Step 1">(revert to Step 1)</span>
-      </div>
-
-      <!-- 5 CORE QUESTIONS -->
-      <label class="glabel">Current Carrier <span class="gp-pts">(12pts)</span>
-        <select class="gfield" id="currentCarrierSel">
-          <option value="">Select...</option>
-          <option>Verizon</option>
-          <option>AT&amp;T</option>
-          <option>T-Mobile</option>
-          <option>Cricket</option>
-          <option>Metro</option>
-          <option>Boost</option>
-          <option>Tracfone/Prepaid</option>
-          <option>None / New</option>
-          <option>Unknown</option>
-        </select>
-      </label>
-
-      <label class="glabel">Lines to Move <span class="gp-pts">(8pts)</span>
-        <input class="gfield" type="number" min="0" max="20" id="numLines" placeholder="# lines" />
-      </label>
-
-      <label class="glabel">Customer ZIP / Area <span class="gp-pts">(8pts)</span>
-        <input class="gfield" type="text" id="coverageZip" placeholder="##### or city" />
-      </label>
-
-      <label class="glabel">Devices Paid Off? <span class="gp-pts">(8pts)</span>
-        <select class="gfield" id="deviceStatus">
-          <option value="">Select...</option>
-          <option value="PaidOff">All Paid Off</option>
-          <option value="Owe">Owe Balance</option>
-          <option value="Lease">Lease</option>
-          <option value="Mixed">Mixed</option>
-          <option value="Unknown">Unknown</option>
-        </select>
-      </label>
-
-      <label class="glabel">Financial Path (Postpaid vs Prepaid) <span class="gp-pts">(12pts)</span>
-        <select class="gfield" id="finPath">
-          <option value="">Select...</option>
-          <option value="PostpaidOK">Postpaid OK</option>
-          <option value="Prepaid">Prefer Prepaid / Cash</option>
-          <option value="CreditConcern">Credit Concern / Not Sure</option>
-          <option value="Unknown">Unknown</option>
-        </select>
-      </label>
-
-      <!-- COLLAPSIBLE OPTIONAL DETAILS -->
-      <details id="gp-more-step2" class="gp-more">
-        <summary id="gp-more-step2-summary">More details (optional)</summary>
-        <div class="gp-more-body">
-
-          <!-- Medium-value -->
-          <label class="glabel">Current Bill / Pain Point <span class="gp-pts">(4pts)</span>
-            <input class="gfield" type="text" id="billPain" placeholder="$ / Too high / Unknown" />
-          </label>
-
-          <label class="glabel">Data Needs <span class="gp-pts">(4pts)</span>
-            <select class="gfield" id="dataNeed">
-              <option value="">Select...</option>
-              <option value="Light">Light</option>
-              <option value="Moderate">Moderate</option>
-              <option value="Heavy">Heavy</option>
-              <option value="Unlimited">Unlimited Required</option>
-            </select>
-          </label>
-
-          <label class="glabel">Needs Hotspot? <span class="gp-pts">(2pts)</span>
-            <select class="gfield" id="hotspotNeed">
-              <option value="">Select...</option>
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </label>
-
-          <label class="glabel">International Use? <span class="gp-pts">(2pts)</span>
-            <select class="gfield" id="intlNeed">
-              <option value="">Select...</option>
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </label>
-
-          <!-- Legacy free-text fields (0pt; retained for backward compatibility) -->
-          <hr aria-hidden="true" />
-          <label class="glabel">Service Type (legacy)
-            <select class="gfield" id="serviceType">
-              <option value="">Select...</option>
-              <option>Verizon</option>
-              <option>AT&amp;T</option>
-              <option>T-Mobile</option>
-              <option>Prepaid</option>
-              <option>Accessories</option>
-              <option>Other</option>
-            </select>
-          </label>
-
-          <label class="glabel">Situation / Notes (legacy)
-            <textarea class="gfield" id="situation" rows="2" placeholder="Short notes…"></textarea>
-          </label>
-
-          <label class="glabel">Carrier Info (legacy)
-            <textarea class="gfield" id="evalCarrier" rows="2" placeholder="Current carrier details…"></textarea>
-          </label>
-
-          <label class="glabel">Requirements (legacy)
-            <textarea class="gfield" id="evalRequirements" rows="2" placeholder="What is needed…"></textarea>
-          </label>
-        </div>
-      </details>
-
-      <button class="guest-btn" type="submit">Save &amp; Continue to Step 3</button>
-      <div class="g-status" id="status2"></div>
-    </form>
-
-    <!-- Step 3: solution -->
-    <form id="step3Form" class="hidden" data-step="3">
-      <div class="guest-title">
-        Step 3: Solution
-        <span id="gp-revert-step2" class="gp-revert-link hidden" title="Clear solution & revert to Step 2">(revert to Step 2)</span>
-      </div>
-
-      <label class="glabel">Proposed Solution <span class="gp-pts">(25pts)</span>
-        <textarea class="gfield" id="solutionText" rows="3" placeholder="What we’ll offer…"></textarea>
-      </label>
-
-      <button class="guest-btn" type="submit">Save Solution</button>
-      <div class="g-status" id="status3"></div>
-    </form>
-
-  </div><!-- /.guest-box -->
-
-  <!-- Firebase SDKs (must load BEFORE guest-portal.js) -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-  <script>
-    /* Centralize dashboard URL. */
-    window.DASHBOARD_URL = window.DASHBOARD_URL || "../html/admin.html";
-    window.addEventListener("DOMContentLoaded", () => {
-      const btn = document.getElementById("backToDash");
-      if (btn && window.DASHBOARD_URL) {
-        btn.addEventListener("click", (e) => {
-          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // new-tab combos
-          e.preventDefault();
-          window.location.href = window.DASHBOARD_URL;
-        });
-      }
-    });
-  </script>
-
-  <!-- Weighted / revertable multi-step logic -->
-<script src="../js/gp/gp-core.js"></script>
-<script src="../js/gp/gp-ui.js"></script>
-<script src="../js/gp/gp-handoff.js"></script>
-<script src="../js/gp/gp-basics.js"></script>
-<script src="../js/gp/gp-app.js"></script>
+  <!-- App Logic -->
+  <script src="../js/gp/gp-core.js"></script>
+  <script src="../js/gp/gp-basics.js"></script>
+  <script src="../js/gp/gp-handoff.js"></script>
+    <script src="../js/gp/gp-render.js"></script>
+  <script src="../js/gp/gp-app.js"></script>
 </body>
 </html>
