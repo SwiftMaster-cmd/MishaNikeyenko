@@ -1,11 +1,11 @@
-// gp-ui-render.js -- builds Guest Portal UI + inline Admin question-panel in #guestApp
+// gp-ui-render.js -- builds Guest Portal UI + in-place Admin panel
 // Load after Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
   const auth = firebase.auth();
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
 
-  // Helper: create element
+  // helper: create element
   function create(tag, attrs = {}, html = "") {
     const el = document.createElement(tag);
     Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
@@ -13,12 +13,12 @@
     return el;
   }
 
-  // Inject all UI
+  // 1) Always render the core UI on DOMContentLoaded
   function renderUI() {
     const app = document.getElementById("guestApp");
     if (!app) return;
 
-    // Header
+    // header
     const header = create("header", { class: "guest-header" }, `
       <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}">← Dashboard</a>
     `);
@@ -29,17 +29,17 @@
       window.location.href = DASHBOARD_URL;
     });
 
-    // Progress & NBQ
+    // progress + NBQ hooks
     app.appendChild(create("div", { id: "gp-progress-hook" }));
     app.appendChild(create("div", { id: "gp-nbq" }));
 
-    // Main container
+    // main container
     const box = create("div", { class: "guest-box" });
 
-    // Admin placeholder
+    // placeholder for admin panel
     box.appendChild(create("div", { id: "adminPanelPlaceholder" }));
 
-    // Step 1
+    // Step 1 form
     box.insertAdjacentHTML("beforeend", `
       <form id="step1Form" autocomplete="off" data-step="1">
         <div class="guest-title">Step 1: Customer Info</div>
@@ -49,11 +49,11 @@
         <label class="glabel">Customer Phone <span class="gp-pts">(7pts)</span>
           <input class="gfield" type="tel" id="custPhone" placeholder="Phone number"/>
         </label>
-        <button class="guest-btn" type="submit">Save & Continue to Step 2</button>
+        <button class="guest-btn" type="submit">Save &amp; Continue to Step 2</button>
       </form>
     `);
 
-    // Step 2 (dynamic)
+    // Step 2 form
     box.insertAdjacentHTML("beforeend", `
       <form id="step2Form" class="hidden" data-step="2">
         <div class="guest-title">
@@ -61,11 +61,11 @@
           <span id="gp-revert-step1" class="gp-revert-link hidden">(revert to Step 1)</span>
         </div>
         <div id="step2Fields"></div>
-        <button class="guest-btn" type="submit">Save & Continue to Step 3</button>
+        <button class="guest-btn" type="submit">Save &amp; Continue to Step 3</button>
       </form>
     `);
 
-    // Step 3
+    // Step 3 form
     box.insertAdjacentHTML("beforeend", `
       <form id="step3Form" class="hidden" data-step="3">
         <div class="guest-title">
@@ -81,100 +81,93 @@
 
     app.appendChild(box);
 
-    // Render Step 2 questions
+    // inject dynamic Step 2 fields
     if (typeof global.renderQuestions === "function") {
       global.renderQuestions("step2Fields");
     }
   }
 
-  // Inject Admin panel if user is admin
+  // 2) Render the admin panel if user is admin
   function renderAdminPanel() {
     const placeholder = document.getElementById("adminPanelPlaceholder");
     if (!placeholder) return;
 
-    // Avoid duplicate
+    // already rendered?
     if (document.getElementById("adminPanel")) return;
 
+    // build admin panel
     const panel = create("section", { id: "adminPanel", class: "admin-panel" },
       create("h2", {}, "Admin: Manage Step 2 Questions"),
       create("div", { id: "adminQuestionsList", class: "admin-questions-list" }),
       create("h3", {}, "Add New Question"),
       create("form", { id: "adminAddForm" },
-        create("input", { type:"text",    id:"newQLabel",   placeholder:"Label", required:"" }),
+        create("input",  { type:"text",    id:"newQLabel",   placeholder:"Label", required:"" }),
         create("select",{ id:"newQType" },
           create("option",{ value:"text"   },"Text"),
           create("option",{ value:"number" },"Number"),
           create("option",{ value:"select" },"Select")
         ),
-        create("input", { type:"number",  id:"newQWeight",  placeholder:"Weight", required:"", min:"0" }),
-        create("input", { type:"text",    id:"newQOptions", placeholder:"Options (comma-separated)", style:"display:none" }),
-        create("button",{ type:"submit" },"Add Question")
+        create("input",  { type:"number",  id:"newQWeight",  placeholder:"Weight", required:"", min:"0" }),
+        create("input",  { type:"text",    id:"newQOptions", placeholder:"Options (comma-separated)", style:"display:none" }),
+        create("button",{ type:"submit"   },"Add Question")
       )
     );
     placeholder.appendChild(panel);
 
-    // Toggle options field
+    // toggle options
     panel.querySelector("#newQType").addEventListener("change", e => {
       panel.querySelector("#newQOptions").style.display = e.target.value==="select" ? "" : "none";
     });
 
-    // Handle adding questions
-    panel.querySelector("#adminAddForm").addEventListener("submit", async e=>{
+    // handle add
+    panel.querySelector("#adminAddForm").addEventListener("submit", async e => {
       e.preventDefault();
       const label  = e.target.newQLabel.value.trim();
       const type   = e.target.newQType.value;
-      const weight = parseInt(e.target.newQWeight.value,10);
+      const weight = parseInt(e.target.newQWeight.value, 10);
       const opts   = type==="select"
         ? e.target.newQOptions.value.split(",").map(s=>s.trim()).filter(Boolean)
         : [];
-      try {
-        await global.addQuestion({ label, type, weight, options: opts });
-        e.target.reset();
-        panel.querySelector("#newQOptions").style.display = "none";
-      } catch(err) {
-        alert("Error adding question");
-        console.error(err);
-      }
+      await global.addQuestion({ label, type, weight, options: opts });
+      e.target.reset();
+      panel.querySelector("#newQOptions").style.display = "none";
     });
 
-    // Subscribe & render list
+    // subscribe & render list
     global.onQuestionsUpdated(renderQuestionsList);
     renderQuestionsList(global.gpQuestions);
   }
 
-  // Build question list with edit/delete
-  function renderQuestionsList(qList) {
-    const list = document.getElementById("adminQuestionsList");
-    if (!list) return;
-    list.innerHTML = "";
-
-    qList.forEach(q=>{
+  // render the list of questions for admin
+  function renderQuestionsList(list) {
+    const elList = document.getElementById("adminQuestionsList");
+    if (!elList) return;
+    elList.innerHTML = "";
+    list.forEach(q => {
       const item = create("div", { class:"admin-question-item", "data-id":q.id },
         create("strong", {}, q.label),
         ` [${q.type}] (${q.weight}pts) `,
         create("button",{ class:"adminDelBtn" },"Delete"),
         create("button",{ class:"adminEditBtn" },"Edit")
       );
-      list.appendChild(item);
+      elList.appendChild(item);
     });
 
-    // Delete handlers
-    list.querySelectorAll(".adminDelBtn").forEach(btn=>{
-      btn.addEventListener("click", async e=>{
+    // delete handlers
+    elList.querySelectorAll(".adminDelBtn").forEach(btn => {
+      btn.addEventListener("click", async e => {
         if (!confirm("Remove this question?")) return;
         await global.deleteQuestion(e.target.parentElement.dataset.id);
       });
     });
 
-    // Edit handlers
-    list.querySelectorAll(".adminEditBtn").forEach(btn=>{
-      btn.addEventListener("click", e=>{
-        startEdit(e.target.parentElement.dataset.id);
-      });
+    // edit handlers
+    elList.querySelectorAll(".adminEditBtn").forEach(btn => {
+      btn.addEventListener("click", e => startEdit(e.target.parentElement.dataset.id));
     });
   }
 
-  // Inline edit flow
+  // inline edit flow
   function startEdit(id) {
     const item = document.querySelector(`.admin-question-item[data-id="${id}"]`);
     if (!item) return;
@@ -194,13 +187,11 @@
       create("button",{ type:"button", class:"cancelEdit" },"Cancel")
     );
     item.appendChild(form);
-
-    form.type.addEventListener("change", e=>{
-      form.options.style.display = e.target.value==="select"? "": "none";
+    form.type.addEventListener("change", e => {
+      form.options.style.display = e.target.value==="select"?"":"none";
     });
     form.cancelEdit.addEventListener("click", ()=> renderQuestionsList(global.gpQuestions));
-
-    form.addEventListener("submit", async e=>{
+    form.addEventListener("submit", async e => {
       e.preventDefault();
       const label  = form.label.value.trim();
       const type   = form.type.value;
@@ -212,28 +203,13 @@
     });
   }
 
-  // On auth change, render admin panel if admin
-  auth.onAuthStateChanged(async user=>{
-    if (!user) return;
-    const token = await user.getIdTokenResult();
-    if (!token.claims.admin) return;
-    // ensure UI exists
-    if (document.readyState==="loading") {
-      window.addEventListener("DOMContentLoaded", ()=>{
-        renderUI();
-        renderAdminPanel();
-      });
-    } else {
-      renderUI();
-      renderAdminPanel();
+  // 3) Wire auth: first render UI, then if admin render panel
+  auth.onAuthStateChanged(async user => {
+    renderUI();
+    if (user) {
+      const token = await user.getIdTokenResult();
+      if (token.claims.admin) renderAdminPanel();
     }
   });
 
-  // If not admin, just render UI
-  auth.onAuthStateChanged(user=>{
-    if (!user) return;
-    user.getIdTokenResult().then(token=>{
-      if (!token.claims.admin) renderUI();
-    });
-  });
 })(window);
