@@ -1,40 +1,48 @@
 /* ==========================================================================
-   Guest Info Controls & Filters
+   guest-info.css
+   Styles for Guest Info section: controls, container, cards, subsections
    ========================================================================== */
 
-/* Top-level controls row (filter inputs, toggles & buttons) */
+/* --------------------------------------------------------------------------
+   Guest Info Controls & Filters
+   -------------------------------------------------------------------------- */
 .guestinfo-controls {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
-  align-items: center;
 }
 
-/* Small note text inside controls */
-.guestinfo-controls span {
-  line-height: 1.5;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-}
-
-/* Text & date inputs, selects in the controls bar */
-.guestinfo-controls input[type="text"],
+/* Each filter/input/button occupies equal flex space */
+.guestinfo-controls .search-wrapper,
 .guestinfo-controls input[type="date"],
-.guestinfo-controls select {
+.guestinfo-controls .btn-clear-filters {
+  flex: 1 1 150px;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+/* Prevent toggle & action buttons from stretching */
+.guestinfo-controls button:not(.btn-clear-filters):not(.clear-btn) {
+  flex: 0 0 auto;
+}
+
+/* Text & date inputs */
+.guestinfo-controls .search-wrapper input,
+.guestinfo-controls input[type="date"] {
+  width: 100%;
+  box-sizing: border-box;
   padding: var(--space-xs) var(--space-sm);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: rgba(255,255,255,0.05);
   color: var(--text-hi);
   font-size: var(--fs-sm);
-  transition:
-    border var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
+  transition: border var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
   appearance: none;
-  min-width: 100px;
-  max-width: 200px;
-  flex: 1;
 }
 
 /* Placeholder color */
@@ -50,20 +58,10 @@
   outline: none;
 }
 
-/* Search-wrapper around each text/date input */
+/* Clear ("×") button in search inputs */
 .guestinfo-controls .search-wrapper {
   position: relative;
-  display: inline-flex;
-  align-items: center;
 }
-
-/* Make room for the clear "×" */
-.guestinfo-controls .search-wrapper input {
-  padding-right: calc(var(--space-md) + var(--space-xs));
-  flex: 1;
-}
-
-/* Clear ("×") button inside search wrapper */
 .guestinfo-controls .search-wrapper .clear-btn {
   position: absolute;
   right: var(--space-xs);
@@ -77,7 +75,6 @@
   cursor: pointer;
   padding: 0;
 }
-
 .guestinfo-controls .search-wrapper .clear-btn:hover {
   color: var(--text-hi);
 }
@@ -91,19 +88,17 @@
   border-radius: var(--radius-md);
   font-size: var(--fs-sm);
   cursor: pointer;
-  transition:
-    background var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
 }
-
 .btn-clear-filters:hover {
   background: var(--danger);
   color: var(--text-hi);
   box-shadow: var(--shadow-danger);
 }
 
-/* Stack and stretch controls on narrow screens */
+/* Responsive stacking of controls */
 @media (max-width: 640px) {
   .guestinfo-controls {
     flex-direction: column;
@@ -114,19 +109,19 @@
   .guestinfo-controls select,
   .guestinfo-controls button {
     width: 100%;
+    max-width: none;
     margin-top: var(--space-xs);
   }
 }
 
-/* ==========================================================================
+/* --------------------------------------------------------------------------
    Guest Info Container & Responsive Grid
-   ========================================================================== */
-
-/* Wrapper around all guest-cards */
+   -------------------------------------------------------------------------- */
 .guestinfo-container {
   display: grid;
   gap: var(--space-md);
   grid-template-columns: 1fr;
+  width: 100%;
 }
 
 @media (min-width: 500px) {
@@ -141,10 +136,9 @@
   }
 }
 
-/* ==========================================================================
+/* --------------------------------------------------------------------------
    Guest Card Styles
-   ========================================================================== */
-
+   -------------------------------------------------------------------------- */
 /* Card shell */
 .guest-card {
   background: var(--bg-card);
@@ -152,9 +146,8 @@
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   box-shadow: var(--shadow-card);
-  transition:
-    box-shadow var(--dur-med) var(--ease-out),
-    background var(--dur-med) var(--ease-out);
+  transition: box-shadow var(--dur-med) var(--ease-out),
+              background var(--dur-med) var(--ease-out);
   position: relative;
   width: 100%;
 }
@@ -163,7 +156,7 @@
   background: var(--bg-card-hover);
 }
 
-/* Action "⋮" toggle button */
+/* Action toggle button (⋮) */
 .btn-edit-actions {
   position: absolute;
   top: var(--space-xs);
@@ -182,8 +175,6 @@
   gap: var(--space-xs);
   margin-top: var(--space-sm);
 }
-
-/* Shown when .show is toggled */
 .guest-card-actions.show {
   display: flex !important;
 }
@@ -197,7 +188,7 @@
   font-size: var(--fs-sm);
 }
 
-/* When editing, hide display and show form */
+/* Show edit form when card has .is-editing */
 .guest-card.is-editing .guest-display {
   display: none;
 }
@@ -209,7 +200,7 @@
   box-shadow: var(--shadow-card-h);
 }
 
-/* Display region inside card */
+/* Display rows inside card */
 .guest-card .guest-display > div {
   margin-bottom: var(--space-xs);
   font-size: var(--fs-sm);
@@ -226,14 +217,12 @@
   color: var(--success);
 }
 
-/* ==========================================================================
+/* --------------------------------------------------------------------------
    Guest Info Subsections & Empty States
-   ========================================================================== */
-
+   -------------------------------------------------------------------------- */
 .guestinfo-subsection {
   margin-top: var(--space-md);
 }
-
 .guestinfo-subsection > h3 {
   font-size: var(--fs-md);
   font-weight: 700;
@@ -243,18 +232,15 @@
   align-items: center;
   gap: var(--space-xs);
 }
-
 .guestinfo-subsection-empty {
   opacity: .7;
 }
-
 .guestinfo-subsection-highlight {
   border: 1px solid var(--warning);
   padding: var(--space-sm);
   border-radius: var(--radius-md);
   background: var(--warning-bg);
 }
-
 .guestinfo-empty-msg {
   font-size: .95em;
   opacity: .7;
