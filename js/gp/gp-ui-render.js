@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with optional answers + live pitch + progress update logic, no progress bar element here, no admin panel
+// gp-ui-render.js -- Guest Portal UI with optional answers + live progress bar + live pitch update, no admin panel
 // Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
@@ -62,6 +62,18 @@
       e.preventDefault();
       window.location.href = DASHBOARD_URL;
     });
+
+    // Progress bar container + label (only one here)
+    const progressContainer = create("div", { style: "margin:12px 0;" });
+    const progressLabel = create("div", { id: "progressLabel", style:"margin-bottom:4px;font-weight:bold;" }, "Progress: 0%");
+    const progressBar = create("progress", { id: "progressBar", value: 0, max: 100, style: "width: 100%; height: 20px;" });
+    progressContainer.appendChild(progressLabel);
+    progressContainer.appendChild(progressBar);
+    app.appendChild(progressContainer);
+
+    // Progress & NBQ placeholders (kept if needed for other UI)
+    app.appendChild(create("div", { id: "gp-progress-hook" }));
+    app.appendChild(create("div", { id: "gp-nbq" }));
 
     // Main container
     const box = create("div", { class: "guest-box" });
@@ -144,8 +156,8 @@
         const points = val === "" ? 0 : q.weight;
         answers[q.id] = { value: val, points };
         saveAnswer(q.id, val, points);
+        updateTotalPoints();
         updatePitchText();
-        updateProgress(); // <-- Update progress live here
       });
     });
   }
@@ -159,8 +171,8 @@
         const val = e.target.value.trim();
         answers["custName"] = { value: val, points: val ? 8 : 0 };
         saveAnswer("custName", val, answers["custName"].points);
+        updateTotalPoints();
         updatePitchText();
-        updateProgress(); // <-- Update progress live here
       });
     }
     if (custPhone) {
@@ -168,15 +180,36 @@
         const val = e.target.value.trim();
         answers["custPhone"] = { value: val, points: val ? 7 : 0 };
         saveAnswer("custPhone", val, answers["custPhone"].points);
+        updateTotalPoints();
         updatePitchText();
-        updateProgress(); // <-- Update progress live here
       });
     }
   }
 
   function saveAnswer(questionId, value, points) {
     console.log(`Saved answer: ${questionId} = "${value}", points: ${points}`);
-    // TODO: implement real save (Firebase, API, localStorage, etc)
+
+    // Sync progress to Firebase if possible
+    if (!global.gpApp?.guestKey || !global.firebase?.database) return;
+    const db = global.firebase.database();
+
+    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7; // include custName/custPhone points
+    const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
+    const percent = Math.min(100, Math.round((total / maxPoints) * 100));
+
+    db.ref(`guestinfo/${global.gpApp.guestKey}/completionPct`).set(percent).catch(() => {
+      console.warn("Failed to update progress in Firebase");
+    });
+  }
+
+  function updateTotalPoints() {
+    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7; // include customer info points
+    const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
+    const percent = Math.min(100, Math.round((total / maxPoints) * 100));
+    const progressLabel = document.getElementById("progressLabel");
+    const progressBar = document.getElementById("progressBar");
+    if (progressLabel) progressLabel.textContent = `Progress: ${percent}%`;
+    if (progressBar) progressBar.value = percent;
   }
 
   function updatePitchText() {
@@ -201,19 +234,6 @@
     const allQuestions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
     const q = allQuestions.find(q => q.id === id);
     return q ? q.label : id;
-  }
-
-  function updateProgress() {
-    const questions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
-    const maxPoints = questions.reduce((sum, q) => sum + q.weight, 0) + 8 + 7; // + custName & custPhone
-    const totalPoints = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
-    const percent = maxPoints ? Math.round((totalPoints / maxPoints) * 100) : 0;
-
-    // Update any existing progress bar & label if they exist on the page
-    const progressLabel = document.getElementById("progressLabel");
-    const progressBar = document.getElementById("progressBar");
-    if (progressLabel) progressLabel.textContent = `Progress: ${percent}%`;
-    if (progressBar) progressBar.value = percent;
   }
 
   function setupStepNavigation() {
