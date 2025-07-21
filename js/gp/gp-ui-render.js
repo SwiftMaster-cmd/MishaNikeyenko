@@ -63,17 +63,13 @@
       window.location.href = DASHBOARD_URL;
     });
 
-    // Progress bar container + label (only one here)
+    // Single Progress bar container + label
     const progressContainer = create("div", { style: "margin:12px 0;" });
     const progressLabel = create("div", { id: "progressLabel", style:"margin-bottom:4px;font-weight:bold;" }, "Progress: 0%");
     const progressBar = create("progress", { id: "progressBar", value: 0, max: 100, style: "width: 100%; height: 20px;" });
     progressContainer.appendChild(progressLabel);
     progressContainer.appendChild(progressBar);
     app.appendChild(progressContainer);
-
-    // Progress & NBQ placeholders (kept if needed for other UI)
-    app.appendChild(create("div", { id: "gp-progress-hook" }));
-    app.appendChild(create("div", { id: "gp-nbq" }));
 
     // Main container
     const box = create("div", { class: "guest-box" });
