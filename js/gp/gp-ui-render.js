@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with optional answers + live pitch update, no progress bar, no admin panel
+// gp-ui-render.js -- Guest Portal UI with optional answers + live pitch + progress update logic, no progress bar element here, no admin panel
 // Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
@@ -145,6 +145,7 @@
         answers[q.id] = { value: val, points };
         saveAnswer(q.id, val, points);
         updatePitchText();
+        updateProgress(); // <-- Update progress live here
       });
     });
   }
@@ -159,6 +160,7 @@
         answers["custName"] = { value: val, points: val ? 8 : 0 };
         saveAnswer("custName", val, answers["custName"].points);
         updatePitchText();
+        updateProgress(); // <-- Update progress live here
       });
     }
     if (custPhone) {
@@ -167,6 +169,7 @@
         answers["custPhone"] = { value: val, points: val ? 7 : 0 };
         saveAnswer("custPhone", val, answers["custPhone"].points);
         updatePitchText();
+        updateProgress(); // <-- Update progress live here
       });
     }
   }
@@ -176,7 +179,6 @@
     // TODO: implement real save (Firebase, API, localStorage, etc)
   }
 
-  // Build a pitch summary dynamically from current answers
   function updatePitchText() {
     const answersArr = Object.entries(answers);
     if (!answersArr.length) return;
@@ -199,6 +201,19 @@
     const allQuestions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
     const q = allQuestions.find(q => q.id === id);
     return q ? q.label : id;
+  }
+
+  function updateProgress() {
+    const questions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
+    const maxPoints = questions.reduce((sum, q) => sum + q.weight, 0) + 8 + 7; // + custName & custPhone
+    const totalPoints = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
+    const percent = maxPoints ? Math.round((totalPoints / maxPoints) * 100) : 0;
+
+    // Update any existing progress bar & label if they exist on the page
+    const progressLabel = document.getElementById("progressLabel");
+    const progressBar = document.getElementById("progressBar");
+    if (progressLabel) progressLabel.textContent = `Progress: ${percent}%`;
+    if (progressBar) progressBar.value = percent;
   }
 
   function setupStepNavigation() {
