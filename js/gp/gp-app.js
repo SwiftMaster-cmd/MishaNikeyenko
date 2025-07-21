@@ -1,4 +1,4 @@
-// gp-app-min.js -- Minimal Guest Portal logic (depends on Firebase; optional gpCore)
+// gp-app-min.js -- Minimal Guest Portal logic with realtime progress via Firebase
 (function(global){
   /* ------------------------------------------------------------------ Firebase */
   const cfg = global.GP_FIREBASE_CONFIG || {
@@ -84,23 +84,20 @@
     }
   }
 
-  // Updated: include every field's weight (no exclusions),
-  // persist to Firebase so completionPct is stored server-side.
+  // compute and persist progressPct to Firebase
   function updateProgressFromGuest(g){
     if (!global.gpCore){
       setProgress(0);
       return;
     }
-    // compute full pitch including solutionText
-    const comp = global.gpCore.computePitchFull(g || {});
-    const pct  = comp.pctFull || 0;
+    const comp    = global.gpCore.computePitchFull(g || {});
+    const pct     = comp.pctFull || 0;
     setProgress(pct);
 
-    // persist for later retrieval without re-compute
     if (_guestKey){
       db.ref(`guestinfo/${_guestKey}/completionPct`)
         .set(pct)
-        .catch(()=>{/* silently fail */});
+        .catch(()=>{/* silent */});
     }
   }
 
@@ -161,7 +158,7 @@
     const uid    = auth.currentUser?.uid || null;
     const now    = Date.now();
     const status = global.gpCore
-      ? global.gpCore.detectStatus({ ..._guestObj, ...f, solution:{text:f.solutionText} })
+      ? global.gpCore.detectStatus({..._guestObj,...f,solution:{text:f.solutionText}})
       : "new";
 
     if (!_guestKey){
@@ -216,6 +213,10 @@
       const snap = await db.ref("guestinfo/" + gid).get();
       if (snap.exists()){
         let g = snap.val();
+        // show persisted progress if any
+        if (typeof g.completionPct === "number") {
+          setProgress(g.completionPct);
+        }
         g = global.gpCore ? global.gpCore.normGuest(g) : g;
         _guestObj = g;
         _guestKey = gid;
@@ -224,7 +225,12 @@
         writeFields(_guestObj);
         gotoStep(_uiStep);
         markStepActive(_uiStep);
-        updateProgressFromGuest(_guestObj);
+        // subscribe to realtime updates of completionPct
+        db.ref(`guestinfo/${_guestKey}/completionPct`)
+          .on("value", snap => {
+            const v = snap.val();
+            if (typeof v === "number") setProgress(v);
+          });
         return;
       }
     }
@@ -256,15 +262,21 @@
     ensureStepNav();
     await loadContext();
 
+    // live update on input
     ["custName","custPhone","currentCarrierSel","numLines","coverageZip","solutionText"]
       .forEach(id => {
         const fld = el(id); if (!fld) return;
         const ev  = fld.tagName === "SELECT" ? "change" : "input";
         fld.addEventListener(ev, () => {
-          updateProgressFromGuest({ ..._guestObj, ...readFields(), solution:{text:el("solutionText")?.value||""} });
+          updateProgressFromGuest({
+            ..._guestObj,
+            ...readFields(),
+            solution:{ text: el("solutionText")?.value || "" }
+          });
         });
       });
 
+    // form submits
     ["step1Form","step2Form","step3Form"].forEach((fid,idx) => {
       const frm = el(fid); if (!frm) return;
       frm.addEventListener("submit", async e => {
