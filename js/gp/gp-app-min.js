@@ -1,4 +1,4 @@
-// gp-app-min.js -- Guest Portal controller with UI-ready wait for loading data
+// gp-app-min.js -- Guest Portal controller with proper Step 2 data loading and fluid save flow
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -40,18 +40,21 @@
   function writeFields(g) {
     if (el("custName"))     el("custName").value     = g.custName || "";
     if (el("custPhone"))    el("custPhone").value    = g.custPhone || "";
+
     (global.gpQuestions||[]).forEach(q => {
       const f = el(q.id);
       if (!f) return;
       if (f.tagName === "SELECT" || f.tagName === "INPUT" || f.tagName==="TEXTAREA") {
-        f.value = g[q.id] || "";
+        f.value = (g.evaluate && g.evaluate[q.id]) || g[q.id] || "";
       }
     });
+
     if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
   }
 
-  // Progress update is noop here (handled by gp-ui-render)
-  function updateProgressFromGuest(g) {}
+  function updateProgressFromGuest(g) {
+    // noop to avoid conflict with gp-ui-render.js
+  }
 
   function saveLocalKey(k) {
     try { localStorage.setItem("last_guestinfo_key", k || ""); }
@@ -132,7 +135,7 @@
         _guestObj = { ...payload };
         saveLocalKey(_guestKey);
       } catch {
-        // silent fail or retry
+        // silent fail or retry logic can go here
       }
     } else {
       const updates = {};
@@ -149,10 +152,9 @@
         await db.ref().update(updates);
         Object.assign(_guestObj, { ...f, status, evaluate });
       } catch {
-        // silent fail or retry
+        // silent fail or retry logic can go here
       }
     }
-    // No alert for fluid UX
   }
 
   async function loadContext() {
@@ -177,7 +179,7 @@
             markStepActive(_uiStep);
           });
         } else {
-          // fallback: small delay
+          // fallback delay
           await new Promise(r => setTimeout(r, 50));
           writeFields(_guestObj);
           _uiStep = initialStep(_guestObj);
@@ -189,6 +191,7 @@
         return;
       }
     }
+
     _guestObj = {};
     _guestKey = null;
     _uiStep   = "step1";
