@@ -1,4 +1,4 @@
-// gp-app-min.js -- Guest Portal controller, no progress bar UI or progress save (delegated to gp-ui-render.js)
+// gp-app-min.js -- Guest Portal controller, no save popups, fluid save flow
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -50,13 +50,11 @@
     if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
   }
 
-  // NO progress bar UI or progress save here
-
+  // Progress bar UI and progress updates handled exclusively in gp-ui-render.js
   function updateProgressFromGuest(g) {
-    // noop: progress handled in gp-ui-render.js
+    // noop to avoid conflicts
   }
 
-  // Local storage for last guest key
   function saveLocalKey(k) {
     try { localStorage.setItem("last_guestinfo_key", k || ""); }
     catch(_) {}
@@ -136,8 +134,7 @@
         _guestObj = { ...payload };
         saveLocalKey(_guestKey);
       } catch {
-        alert("Save error");
-        return;
+        // optionally log silently or retry
       }
     } else {
       const updates = {};
@@ -154,13 +151,10 @@
         await db.ref().update(updates);
         Object.assign(_guestObj, { ...f, status, evaluate });
       } catch {
-        alert("Save error");
-        return;
+        // optionally log silently or retry
       }
     }
-
-    // NO progress bar update here
-    alert("Saved.");
+    // No alert here for smooth UX
   }
 
   async function loadContext() {
@@ -180,8 +174,7 @@
         gotoStep(_uiStep);
         markStepActive(_uiStep);
 
-        db.ref(`guestinfo/${_guestKey}/completionPct`).off(); // disable firebase progress listeners from gp-app-min.js
-
+        db.ref(`guestinfo/${_guestKey}/completionPct`).off(); // prevent conflict
         return;
       }
     }
@@ -210,7 +203,7 @@
     ensureStepNav();
     await loadContext();
 
-    // Remove progress update event listeners to avoid duplication
+    // No input event listeners for progress updates here; handled by gp-ui-render.js
   });
 
   global.gpBasic = {
