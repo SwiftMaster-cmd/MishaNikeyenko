@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with progress bar and live pitch
+// gp-ui-render.js -- Guest Portal UI with instant save on input (debounced)
 (function(global){
   const staticQuestions = [
     { id: "numLines", label: "How many lines do you need on your account?", type: "number", weight: 15 },
@@ -38,6 +38,15 @@
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
 
   const answers = {};
+
+  // Debounce helper
+  function debounce(fn, delay = 300) {
+    let timer = null;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    };
+  }
 
   function create(tag, attrs = {}, html = "") {
     const el = document.createElement(tag);
@@ -202,14 +211,17 @@
       const input = document.getElementById(q.id);
       if (!input) return;
 
-      input.addEventListener(q.type === "select" ? "change" : "input", (e) => {
-        const val = e.target.value.trim();
+      const debouncedSave = debounce(() => {
+        const val = input.value.trim();
         const points = val === "" ? 0 : q.weight;
         answers[q.id] = { value: val, points };
         saveAnswer(q.id, val, points);
         updateTotalPoints();
         updatePitchText();
-      });
+        global.gpApp?.saveNow();
+      }, 300);
+
+      input.addEventListener(q.type === "select" ? "change" : "input", debouncedSave);
     });
   }
 
@@ -218,35 +230,41 @@
     const custPhone = document.getElementById("custPhone");
 
     if (custName) {
-      custName.addEventListener("input", e => {
-        const val = e.target.value.trim();
+      const debouncedNameSave = debounce(() => {
+        const val = custName.value.trim();
         answers["custName"] = { value: val, points: val ? 8 : 0 };
         saveAnswer("custName", val, answers["custName"].points);
         updateTotalPoints();
         updatePitchText();
-      });
+        global.gpApp?.saveNow();
+      }, 300);
+      custName.addEventListener("input", debouncedNameSave);
     }
     if (custPhone) {
-      custPhone.addEventListener("input", e => {
-        const val = e.target.value.trim();
+      const debouncedPhoneSave = debounce(() => {
+        const val = custPhone.value.trim();
         answers["custPhone"] = { value: val, points: val ? 7 : 0 };
         saveAnswer("custPhone", val, answers["custPhone"].points);
         updateTotalPoints();
         updatePitchText();
-      });
+        global.gpApp?.saveNow();
+      }, 300);
+      custPhone.addEventListener("input", debouncedPhoneSave);
     }
   }
 
   function setupSolutionSave() {
     const solutionText = document.getElementById("solutionText");
     if (solutionText) {
-      solutionText.addEventListener("input", e => {
-        const val = e.target.value.trim();
+      const debouncedSolutionSave = debounce(() => {
+        const val = solutionText.value.trim();
         answers["solutionText"] = { value: val, points: val ? 25 : 0 };
         saveAnswer("solutionText", val, answers["solutionText"].points);
         updateTotalPoints();
         updatePitchText();
-      });
+        global.gpApp?.saveNow();
+      }, 300);
+      solutionText.addEventListener("input", debouncedSolutionSave);
     }
   }
 
@@ -289,7 +307,6 @@
 
     const solutionText = document.getElementById("solutionText");
     if (solutionText) {
-      // Only overwrite solution if empty (prevents clobber while typing)
       if (!solutionText.value.trim()) {
         solutionText.value = pitch.trim();
       }
