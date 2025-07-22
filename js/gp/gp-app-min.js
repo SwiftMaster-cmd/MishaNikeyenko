@@ -1,4 +1,4 @@
-// gp-app-min.js -- Guest Portal controller, no save popups, fluid save flow
+// gp-app-min.js -- Guest Portal controller with UI-ready wait for loading data
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -50,10 +50,8 @@
     if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
   }
 
-  // Progress bar UI and progress updates handled exclusively in gp-ui-render.js
-  function updateProgressFromGuest(g) {
-    // noop to avoid conflicts
-  }
+  // Progress update is noop here (handled by gp-ui-render)
+  function updateProgressFromGuest(g) {}
 
   function saveLocalKey(k) {
     try { localStorage.setItem("last_guestinfo_key", k || ""); }
@@ -134,7 +132,7 @@
         _guestObj = { ...payload };
         saveLocalKey(_guestKey);
       } catch {
-        // optionally log silently or retry
+        // silent fail or retry
       }
     } else {
       const updates = {};
@@ -151,39 +149,62 @@
         await db.ref().update(updates);
         Object.assign(_guestObj, { ...f, status, evaluate });
       } catch {
-        // optionally log silently or retry
+        // silent fail or retry
       }
     }
-    // No alert here for smooth UX
+    // No alert for fluid UX
   }
 
   async function loadContext() {
     const params = new URLSearchParams(window.location.search);
     const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
+
     if (gid) {
       const snap = await db.ref("guestinfo/" + gid).get();
       if (snap.exists()) {
-        let g       = snap.val();
+        let g = snap.val();
         if (global.gpCore) g = global.gpCore.normGuest(g);
-        _guestKey   = gid;
-        _guestObj   = g;
+        _guestKey = gid;
+        _guestObj = g;
         saveLocalKey(gid);
 
-        _uiStep = initialStep(_guestObj);
-        writeFields(_guestObj);
-        gotoStep(_uiStep);
-        markStepActive(_uiStep);
+        // Wait for UI ready before writing fields and setting step
+        if (typeof global.onGuestUIReady === "function") {
+          global.onGuestUIReady(() => {
+            writeFields(_guestObj);
+            _uiStep = initialStep(_guestObj);
+            gotoStep(_uiStep);
+            markStepActive(_uiStep);
+          });
+        } else {
+          // fallback: small delay
+          await new Promise(r => setTimeout(r, 50));
+          writeFields(_guestObj);
+          _uiStep = initialStep(_guestObj);
+          gotoStep(_uiStep);
+          markStepActive(_uiStep);
+        }
 
-        db.ref(`guestinfo/${_guestKey}/completionPct`).off(); // prevent conflict
+        db.ref(`guestinfo/${_guestKey}/completionPct`).off(); // prevent conflicts
         return;
       }
     }
     _guestObj = {};
     _guestKey = null;
     _uiStep   = "step1";
-    writeFields(_guestObj);
-    gotoStep(_uiStep);
-    markStepActive(_uiStep);
+
+    if (typeof global.onGuestUIReady === "function") {
+      global.onGuestUIReady(() => {
+        writeFields(_guestObj);
+        gotoStep(_uiStep);
+        markStepActive(_uiStep);
+      });
+    } else {
+      await new Promise(r => setTimeout(r, 50));
+      writeFields(_guestObj);
+      gotoStep(_uiStep);
+      markStepActive(_uiStep);
+    }
   }
 
   auth.onAuthStateChanged(async user => {
@@ -202,8 +223,6 @@
 
     ensureStepNav();
     await loadContext();
-
-    // No input event listeners for progress updates here; handled by gp-ui-render.js
   });
 
   global.gpBasic = {

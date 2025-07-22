@@ -167,6 +167,11 @@
     renderQuestions("step2Fields");
     setupInstantSaveForStep1();
     setupSolutionSave();
+
+    // Notify UI ready for external code to write saved data
+    if (typeof global.onGuestUIReady === "function") {
+      global.onGuestUIReady();
+    }
   }
 
   function renderQuestions(containerId) {
