@@ -274,7 +274,7 @@
   }
 
   function saveAnswer(questionId, value, points) {
-    console.log(`Saved answer: ${questionId} = "${value}", points: ${points}`);
+    // console.log(`Saved answer: ${questionId} = "${value}", points: ${points}`);
 
     if (!global.gpApp?.guestKey || !global.firebase?.database) return;
     const db = global.firebase.database();
@@ -326,6 +326,11 @@
     const q = allQuestions.find(q => q.id === id);
     return q ? q.label : id;
   }
+
+  // Expose for external use (e.g. from gp-app-min.js)
+  global.answers = answers;
+  global.updateTotalPoints = updateTotalPoints;
+  global.updatePitchText = updatePitchText;
 
   auth.onAuthStateChanged(() => {
     renderUI();

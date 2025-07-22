@@ -52,8 +52,29 @@
     if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
   }
 
+  // rebuild answers object for progress and pitch
+  function loadAnswersFromGuest(g) {
+    const answers = global.answers;
+    if (!answers) return;
+    Object.keys(answers).forEach(k => delete answers[k]);
+
+    if (g.custName) answers["custName"] = { value: g.custName, points: 8 };
+    if (g.custPhone) answers["custPhone"] = { value: g.custPhone, points: 7 };
+
+    if (g.evaluate) {
+      (global.gpQuestions || []).forEach(q => {
+        const val = g.evaluate[q.id] || "";
+        if (val) answers[q.id] = { value: val, points: q.weight };
+      });
+    }
+
+    if (g.solution && g.solution.text) {
+      answers["solutionText"] = { value: g.solution.text, points: 25 };
+    }
+  }
+
   function updateProgressFromGuest(g) {
-    // noop to avoid conflict with gp-ui-render.js
+    // noop, handled by gp-ui-render.js
   }
 
   function saveLocalKey(k) {
@@ -170,21 +191,26 @@
         _guestObj = g;
         saveLocalKey(gid);
 
-        // Wait for UI ready before writing fields and setting step
         if (typeof global.onGuestUIReady === "function") {
           global.onGuestUIReady(() => {
             writeFields(_guestObj);
+            loadAnswersFromGuest(_guestObj);
             _uiStep = initialStep(_guestObj);
             gotoStep(_uiStep);
             markStepActive(_uiStep);
+
+            if (global.updateTotalPoints) global.updateTotalPoints();
+            if (global.updatePitchText) global.updatePitchText();
           });
         } else {
-          // fallback delay
           await new Promise(r => setTimeout(r, 50));
           writeFields(_guestObj);
+          loadAnswersFromGuest(_guestObj);
           _uiStep = initialStep(_guestObj);
           gotoStep(_uiStep);
           markStepActive(_uiStep);
+          if (global.updateTotalPoints) global.updateTotalPoints();
+          if (global.updatePitchText) global.updatePitchText();
         }
 
         db.ref(`guestinfo/${_guestKey}/completionPct`).off(); // prevent conflicts
@@ -199,14 +225,20 @@
     if (typeof global.onGuestUIReady === "function") {
       global.onGuestUIReady(() => {
         writeFields(_guestObj);
+        loadAnswersFromGuest(_guestObj);
         gotoStep(_uiStep);
         markStepActive(_uiStep);
+        if (global.updateTotalPoints) global.updateTotalPoints();
+        if (global.updatePitchText) global.updatePitchText();
       });
     } else {
       await new Promise(r => setTimeout(r, 50));
       writeFields(_guestObj);
+      loadAnswersFromGuest(_guestObj);
       gotoStep(_uiStep);
       markStepActive(_uiStep);
+      if (global.updateTotalPoints) global.updateTotalPoints();
+      if (global.updatePitchText) global.updatePitchText();
     }
   }
 
