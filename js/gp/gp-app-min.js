@@ -1,10 +1,5 @@
-// gp-app-min.js -- Guest Portal controller with dynamic Step 2 questions support
-// Place at ../js/gp/gp-app-min.js, loaded after gp-ui-render.js
-
+// gp-app-min.js -- Guest Portal controller, no progress bar UI or progress save (delegated to gp-ui-render.js)
 (function(global){
-  // ───────────────────────────────────────────────────────────────────────────
-  // Firebase setup
-  // ───────────────────────────────────────────────────────────────────────────
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
     authDomain: "osls-644fd.firebaseapp.com",
@@ -19,25 +14,17 @@
   const db   = firebase.database();
   const auth = firebase.auth();
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // State
-  // ───────────────────────────────────────────────────────────────────────────
   let _guestObj = null;
   let _guestKey = null;
   let _uiStep   = "step1";
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Helpers for DOM
-  // ───────────────────────────────────────────────────────────────────────────
   const el = id => document.getElementById(id);
 
-  // Read all form fields into an object
   function readFields() {
     const out = {
       custName:  el("custName")?.value.trim()  || "",
       custPhone: el("custPhone")?.value.trim() || ""
     };
-    // dynamic Step 2 questions
     (global.gpQuestions||[]).forEach(q => {
       const f = el(q.id);
       if (!f) return;
@@ -46,16 +33,13 @@
         : "";
       out[q.id] = (typeof v === "string" ? v.trim() : v) || "";
     });
-    // solution text
     out.solutionText = el("solutionText")?.value.trim() || "";
     return out;
   }
 
-  // Write values from guest object into fields
   function writeFields(g) {
     if (el("custName"))     el("custName").value     = g.custName || "";
     if (el("custPhone"))    el("custPhone").value    = g.custPhone || "";
-    // dynamic Step 2
     (global.gpQuestions||[]).forEach(q => {
       const f = el(q.id);
       if (!f) return;
@@ -66,63 +50,18 @@
     if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Progress bar (same as before)
-  // ───────────────────────────────────────────────────────────────────────────
-  function ensureProgressBar(){
-    if (el("gp-progress")) return;
-    const bar = document.createElement("div");
-    bar.id = "gp-progress"; bar.className = "gp-progress";
-    bar.innerHTML = `
-      <div class="gp-progress-label">Progress: <span id="gp-progress-pct">0%</span></div>
-      <div class="gp-progress-bar">
-        <div id="gp-progress-fill" class="gp-progress-fill" style="width:0%;"></div>
-      </div>`;
-    document.body.insertBefore(bar, document.body.firstChild);
-  }
-  function _progressColor(fillEl, p){
-    fillEl.className = "gp-progress-fill";
-    if (p >= 75)      fillEl.classList.add("gp-progress-green");
-    else if (p >= 40) fillEl.classList.add("gp-progress-yellow");
-    else              fillEl.classList.add("gp-progress-red");
-  }
-  function setProgress(p){
-    ensureProgressBar();
-    const pctEl  = el("gp-progress-pct");
-    const fillEl = el("gp-progress-fill");
-    const pct    = Math.max(0, Math.min(100, Math.round(p)));
-    if (pctEl)  pctEl.textContent = pct + "%";
-    if (fillEl) {
-      fillEl.style.width = pct + "%";
-      _progressColor(fillEl, pct);
-    }
-  }
+  // NO progress bar UI or progress save here
 
-  // Update progress from guest object via gpCore
   function updateProgressFromGuest(g) {
-    if (!global.gpCore) {
-      setProgress(0);
-      return;
-    }
-    const comp = global.gpCore.computePitchFull(g || {});
-    setProgress(comp.pctFull || 0);
-    // persist to Firebase
-    if (_guestKey) {
-      db.ref(`guestinfo/${_guestKey}/completionPct`)
-        .set(Math.round(comp.pctFull))
-        .catch(()=>{/* silent */});
-    }
+    // noop: progress handled in gp-ui-render.js
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
   // Local storage for last guest key
-  // ───────────────────────────────────────────────────────────────────────────
   function saveLocalKey(k) {
     try { localStorage.setItem("last_guestinfo_key", k || ""); }
     catch(_) {}
   }
 
-  // Determine which step to show initially
   function initialStep(g) {
     if (global.gpCore) {
       return global.gpCore.detectStatus(g) === "proposal"
@@ -134,10 +73,7 @@
     return "step1";
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Navigation UI (same as before)
-  // ───────────────────────────────────────────────────────────────────────────
-  function ensureStepNav(){
+  function ensureStepNav() {
     if (el("gp-step-nav")) return;
     const nav = document.createElement("div");
     nav.id = "gp-step-nav"; nav.className = "gp-step-nav";
@@ -171,9 +107,6 @@
     });
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Save (create or update) the guest record
-  // ───────────────────────────────────────────────────────────────────────────
   async function saveGuestNow() {
     const f = readFields();
     const uid = auth.currentUser?.uid || null;
@@ -182,14 +115,12 @@
       ? global.gpCore.detectStatus({..._guestObj, ...f, solution:{ text:f.solutionText }})
       : "new";
 
-    // bundle dynamic Step 2 answers under `evaluate`
     const evaluate = {};
     (global.gpQuestions||[]).forEach(q => {
       evaluate[q.id] = f[q.id] || "";
     });
 
     if (!_guestKey) {
-      // create new
       const payload = {
         custName:    f.custName,
         custPhone:   f.custPhone,
@@ -209,7 +140,6 @@
         return;
       }
     } else {
-      // update existing
       const updates = {};
       updates[`guestinfo/${_guestKey}/custName`]  = f.custName;
       updates[`guestinfo/${_guestKey}/custPhone`] = f.custPhone;
@@ -229,13 +159,10 @@
       }
     }
 
-    updateProgressFromGuest(_guestObj);
+    // NO progress bar update here
     alert("Saved.");
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Load context: existing guest by gid param or last key, then write fields
-  // ───────────────────────────────────────────────────────────────────────────
   async function loadContext() {
     const params = new URLSearchParams(window.location.search);
     const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
@@ -248,38 +175,26 @@
         _guestObj   = g;
         saveLocalKey(gid);
 
-        // set UI
         _uiStep = initialStep(_guestObj);
         writeFields(_guestObj);
         gotoStep(_uiStep);
         markStepActive(_uiStep);
 
-        // realtime progress updates
-        db.ref(`guestinfo/${_guestKey}/completionPct`)
-          .on("value", snap => {
-            const v = snap.val();
-            if (typeof v === "number") setProgress(v);
-          });
+        db.ref(`guestinfo/${_guestKey}/completionPct`).off(); // disable firebase progress listeners from gp-app-min.js
 
         return;
       }
     }
-    // no existing → new
     _guestObj = {};
     _guestKey = null;
     _uiStep   = "step1";
     writeFields(_guestObj);
     gotoStep(_uiStep);
     markStepActive(_uiStep);
-    updateProgressFromGuest(_guestObj);
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Auth gate + initialization
-  // ───────────────────────────────────────────────────────────────────────────
   auth.onAuthStateChanged(async user => {
     if (!user) {
-      // show overlay
       if (!el("gp-auth-overlay")) {
         const d = document.createElement("div");
         d.id = "gp-auth-overlay";
@@ -290,51 +205,14 @@
       }
       return;
     }
-    // remove overlay
     const ov = el("gp-auth-overlay"); if (ov) ov.remove();
 
-    // setup UI & load data
-    ensureProgressBar();
     ensureStepNav();
     await loadContext();
 
-    // wire input listeners: update progress on change
-    ["custName","custPhone","solutionText"]
-      .forEach(id => {
-        const f = el(id); if (!f) return;
-        const ev = f.tagName === "SELECT" ? "change" : "input";
-        f.addEventListener(ev, () => {
-          updateProgressFromGuest({ ..._guestObj, ...readFields(), solution:{ text: el("solutionText")?.value||"" } });
-        });
-      });
-    // dynamic Step 2 fields
-    (global.gpQuestions||[]).forEach(q => {
-      const f = el(q.id); if (!f) return;
-      const ev = f.tagName === "SELECT" ? "change" : "input";
-      f.addEventListener(ev, () => {
-        updateProgressFromGuest({ ..._guestObj, ...readFields(), solution:{ text: el("solutionText")?.value||"" } });
-      });
-    });
-
-    // form submissions
-    ["step1Form","step2Form","step3Form"].forEach((fid, idx) => {
-      const frm = el(fid); if (!frm) return;
-      frm.addEventListener("submit", async e => {
-        e.preventDefault();
-        await saveGuestNow();
-        // advance if not last
-        if (idx < 2) {
-          _uiStep = "step" + (idx + 2);
-          markStepActive(_uiStep);
-          gotoStep(_uiStep);
-        }
-      });
-    });
+    // Remove progress update event listeners to avoid duplication
   });
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Public API
-  // ───────────────────────────────────────────────────────────────────────────
   global.gpBasic = {
     get guestKey(){ return _guestKey; },
     get guest(){ return _guestObj; },

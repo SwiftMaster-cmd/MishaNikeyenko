@@ -1,6 +1,4 @@
-// gp-ui-render.js -- Improved 3-step layout with live progress & pitch preview
-// Load after Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
-
+// gp-ui-render.js -- Guest Portal UI with progress bar and live pitch
 (function(global){
   const staticQuestions = [
     { id: "numLines", label: "How many lines do you need on your account?", type: "number", weight: 15 },
@@ -36,7 +34,9 @@
   }
 
   const auth = firebase.auth();
+
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
+
   const answers = {};
 
   function create(tag, attrs = {}, html = "") {
@@ -52,7 +52,6 @@
 
     app.innerHTML = "";
 
-    // Header with dashboard link and progress bar
     const header = create("header", { class: "guest-header", style: "display:flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #ccc;" }, `
       <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}" style="font-weight:bold; font-size:18px; color:#333; text-decoration:none;">← Dashboard</a>
       <div style="flex-grow:1; max-width: 360px; margin-left: 20px;">
@@ -68,7 +67,6 @@
       window.location.href = DASHBOARD_URL;
     });
 
-    // Steps container: three columns layout
     const container = create("div", { class: "guest-steps-container", style: `
       display: flex; 
       gap: 24px; 
@@ -255,11 +253,10 @@
   function saveAnswer(questionId, value, points) {
     console.log(`Saved answer: ${questionId} = "${value}", points: ${points}`);
 
-    // Sync progress to Firebase if possible
     if (!global.gpApp?.guestKey || !global.firebase?.database) return;
     const db = global.firebase.database();
 
-    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7 + 25; // custName, custPhone, solutionText included
+    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7 + 25;
     const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
     const percent = Math.min(100, Math.round((total / maxPoints) * 100));
 
@@ -269,7 +266,7 @@
   }
 
   function updateTotalPoints() {
-    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7 + 25; // custName, custPhone, solutionText
+    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7 + 25;
     const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
     const percent = Math.min(100, Math.round((total / maxPoints) * 100));
     const progressLabel = document.getElementById("progressLabel");
@@ -292,7 +289,7 @@
 
     const solutionText = document.getElementById("solutionText");
     if (solutionText) {
-      // Only overwrite if solutionText is empty to avoid overwriting user edits
+      // Only overwrite solution if empty (prevents clobber while typing)
       if (!solutionText.value.trim()) {
         solutionText.value = pitch.trim();
       }
