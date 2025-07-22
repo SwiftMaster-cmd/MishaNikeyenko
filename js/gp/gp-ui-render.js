@@ -1,5 +1,5 @@
-// gp-ui-render.js -- Guest Portal UI with optional answers + live progress bar + live pitch update, no admin panel
-// Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
+// gp-ui-render.js -- Improved 3-step layout with live progress & pitch preview
+// Load after Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
 
 (function(global){
   const staticQuestions = [
@@ -30,14 +30,14 @@
     appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
     measurementId: "G-XXXXXXX"
   };
+
   if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
   }
+
   const auth = firebase.auth();
-
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
-
-  const answers = {}; // { questionId: { value, points } }
+  const answers = {};
 
   function create(tag, attrs = {}, html = "") {
     const el = document.createElement(tag);
@@ -52,76 +52,119 @@
 
     app.innerHTML = "";
 
-    // Header
-    const header = create("header", { class: "guest-header" }, `
-      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}">← Dashboard</a>
+    // Header with dashboard link and progress bar
+    const header = create("header", { class: "guest-header", style: "display:flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #ccc;" }, `
+      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}" style="font-weight:bold; font-size:18px; color:#333; text-decoration:none;">← Dashboard</a>
+      <div style="flex-grow:1; max-width: 360px; margin-left: 20px;">
+        <label for="progressBar" style="font-weight:bold; font-size:14px; color:#555;">Progress: <span id="progressLabel">0%</span></label>
+        <progress id="progressBar" value="0" max="100" style="width:100%; height: 18px; border-radius: 8px;"></progress>
+      </div>
     `);
     app.appendChild(header);
+
     header.querySelector("#backToDash").addEventListener("click", e => {
-      if (e.metaKey||e.ctrlKey||e.shiftKey||e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
       window.location.href = DASHBOARD_URL;
     });
 
-    // Progress bar container + label
-    const progressContainer = create("div", { style: "margin:12px 0;" });
-    const progressLabel = create("div", { id: "progressLabel", style:"margin-bottom:4px;font-weight:bold;" }, "Progress: 0%");
-    const progressBar = create("progress", { id: "progressBar", value: 0, max: 100, style: "width: 100%; height: 20px;" });
-    progressContainer.appendChild(progressLabel);
-    progressContainer.appendChild(progressBar);
-    app.appendChild(progressContainer);
+    // Steps container: three columns layout
+    const container = create("div", { class: "guest-steps-container", style: `
+      display: flex; 
+      gap: 24px; 
+      flex-wrap: wrap; 
+      margin-top: 20px;
+    ` });
 
-    // Main container
-    const box = create("div", { class: "guest-box" });
+    // Step 1 - Customer Info
+    const step1 = create("section", { class: "guest-step", style: `
+      flex: 1 1 300px;
+      background: #f7f7f7;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      border: 1px solid #ddd;
+    ` });
+    step1.innerHTML = `
+      <h2 style="margin-top:0; font-size: 22px; color: #222;">Step 1: Customer Info</h2>
+      <label class="glabel" style="display:block; margin-bottom:16px; font-weight: 600; color:#444;">
+        Customer Name <span class="gp-pts">(8pts)</span>
+        <input class="gfield" type="text" id="custName" placeholder="Full name" style="
+          width: 100%; 
+          padding: 10px; 
+          border-radius: 6px; 
+          border: 1px solid #ccc;
+          font-size: 16px;
+          margin-top: 6px;
+        "/>
+      </label>
+      <label class="glabel" style="display:block; margin-bottom:16px; font-weight: 600; color:#444;">
+        Customer Phone <span class="gp-pts">(7pts)</span>
+        <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" style="
+          width: 100%; 
+          padding: 10px; 
+          border-radius: 6px; 
+          border: 1px solid #ccc;
+          font-size: 16px;
+          margin-top: 6px;
+        "/>
+      </label>
+    `;
 
-    box.insertAdjacentHTML("beforeend", `
-      <form id="step1Form" autocomplete="off" data-step="1">
-        <div class="guest-title">Step 1: Customer Info</div>
-        <label class="glabel">Customer Name <span class="gp-pts">(8pts)</span>
-          <input class="gfield" type="text" id="custName" placeholder="Full name" />
-        </label>
-        <label class="glabel">Customer Phone <span class="gp-pts">(7pts)</span>
-          <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" />
-        </label>
-        <button class="guest-btn" type="submit">Continue to Step 2</button>
-      </form>
-    `);
+    // Step 2 - Evaluate
+    const step2 = create("section", { class: "guest-step", style: `
+      flex: 2 1 600px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+      border: 1px solid #ddd;
+      max-height: 90vh;
+      overflow-y: auto;
+    ` });
+    step2.innerHTML = `
+      <h2 style="margin-top:0; font-size: 22px; color: #222;">Step 2: Evaluate Needs</h2>
+      <div id="step2Fields"></div>
+    `;
 
-    box.insertAdjacentHTML("beforeend", `
-      <form id="step2Form" class="hidden" data-step="2">
-        <div class="guest-title">
-          Step 2: Evaluate
-          <span id="gp-revert-step1" class="gp-revert-link hidden">(Back to Step 1)</span>
-        </div>
-        <div id="step2Fields"></div>
-        <button class="guest-btn" type="submit">Continue to Step 3</button>
-      </form>
-    `);
+    // Step 3 - Solution
+    const step3 = create("section", { class: "guest-step", style: `
+      flex: 1 1 300px;
+      background: #f7f7f7;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      border: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+    ` });
+    step3.innerHTML = `
+      <h2 style="margin-top:0; font-size: 22px; color: #222; margin-bottom:12px;">Step 3: Proposed Solution <span class="gp-pts">(25pts)</span></h2>
+      <textarea class="gfield" id="solutionText" rows="8" placeholder="What we’ll offer…" style="
+        width: 100%; 
+        padding: 12px; 
+        border-radius: 6px; 
+        border: 1px solid #ccc; 
+        font-size: 16px;
+        resize: vertical;
+        flex-grow: 1;
+      "></textarea>
+    `;
 
-    box.insertAdjacentHTML("beforeend", `
-      <form id="step3Form" class="hidden" data-step="3">
-        <div class="guest-title">
-          Step 3: Solution
-          <span id="gp-revert-step2" class="gp-revert-link hidden">(Back to Step 2)</span>
-        </div>
-        <label class="glabel">Proposed Solution <span class="gp-pts">(25pts)</span>
-          <textarea class="gfield" id="solutionText" rows="3" placeholder="What we’ll offer…"></textarea>
-        </label>
-        <button class="guest-btn" type="submit">Finish</button>
-      </form>
-    `);
+    container.appendChild(step1);
+    container.appendChild(step2);
+    container.appendChild(step3);
 
-    app.appendChild(box);
+    app.appendChild(container);
 
     renderQuestions("step2Fields");
-    setupStepNavigation();
     setupInstantSaveForStep1();
+    setupSolutionSave();
   }
 
   function renderQuestions(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
-
     container.innerHTML = "";
 
     const questions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
@@ -129,12 +172,26 @@
     questions.forEach(q => {
       let fieldHTML = "";
       if (q.type === "text" || q.type === "number") {
-        fieldHTML = `<label class="glabel">${q.label}
-          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" value="" />
+        fieldHTML = `<label class="glabel" style="display:block; margin-bottom:14px; font-weight: 600; color:#444;">${q.label}
+          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" style="
+            width: 100%; 
+            padding: 10px; 
+            border-radius: 6px; 
+            border: 1px solid #ccc;
+            font-size: 16px;
+            margin-top: 6px;
+          " />
         </label>`;
       } else if (q.type === "select" && Array.isArray(q.options)) {
-        fieldHTML = `<label class="glabel">${q.label}
-          <select class="gfield" id="${q.id}" name="${q.id}">
+        fieldHTML = `<label class="glabel" style="display:block; margin-bottom:14px; font-weight: 600; color:#444;">${q.label}
+          <select class="gfield" id="${q.id}" name="${q.id}" style="
+            width: 100%; 
+            padding: 10px; 
+            border-radius: 6px; 
+            border: 1px solid #ccc;
+            font-size: 16px;
+            margin-top: 6px;
+          ">
             <option value="">-- Select --</option>
             ${q.options.map(opt => `<option value="${opt}">${opt}</option>`).join("")}
           </select>
@@ -145,7 +202,7 @@
 
     questions.forEach(q => {
       const input = document.getElementById(q.id);
-      if (!input) rxaeturn;
+      if (!input) return;
 
       input.addEventListener(q.type === "select" ? "change" : "input", (e) => {
         const val = e.target.value.trim();
@@ -182,6 +239,19 @@
     }
   }
 
+  function setupSolutionSave() {
+    const solutionText = document.getElementById("solutionText");
+    if (solutionText) {
+      solutionText.addEventListener("input", e => {
+        const val = e.target.value.trim();
+        answers["solutionText"] = { value: val, points: val ? 25 : 0 };
+        saveAnswer("solutionText", val, answers["solutionText"].points);
+        updateTotalPoints();
+        updatePitchText();
+      });
+    }
+  }
+
   function saveAnswer(questionId, value, points) {
     console.log(`Saved answer: ${questionId} = "${value}", points: ${points}`);
 
@@ -189,7 +259,7 @@
     if (!global.gpApp?.guestKey || !global.firebase?.database) return;
     const db = global.firebase.database();
 
-    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7; // include custName/custPhone points
+    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7 + 25; // custName, custPhone, solutionText included
     const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
     const percent = Math.min(100, Math.round((total / maxPoints) * 100));
 
@@ -199,12 +269,12 @@
   }
 
   function updateTotalPoints() {
-    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7; // include customer info points
+    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7 + 25; // custName, custPhone, solutionText
     const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
     const percent = Math.min(100, Math.round((total / maxPoints) * 100));
     const progressLabel = document.getElementById("progressLabel");
     const progressBar = document.getElementById("progressBar");
-    if (progressLabel) progressLabel.textContent = `Progress: ${percent}%`;
+    if (progressLabel) progressLabel.textContent = `${percent}%`;
     if (progressBar) progressBar.value = percent;
   }
 
@@ -222,55 +292,20 @@
 
     const solutionText = document.getElementById("solutionText");
     if (solutionText) {
-      solutionText.value = pitch.trim();
+      // Only overwrite if solutionText is empty to avoid overwriting user edits
+      if (!solutionText.value.trim()) {
+        solutionText.value = pitch.trim();
+      }
     }
   }
 
   function getQuestionLabelById(id) {
     const allQuestions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
+    if (id === "custName") return "Customer Name";
+    if (id === "custPhone") return "Customer Phone";
+    if (id === "solutionText") return "Proposed Solution";
     const q = allQuestions.find(q => q.id === id);
     return q ? q.label : id;
-  }
-
-  function setupStepNavigation() {
-    const step1Form = document.getElementById("step1Form");
-    const step2Form = document.getElementById("step2Form");
-    const step3Form = document.getElementById("step3Form");
-
-    const revertToStep1 = document.getElementById("gp-revert-step1");
-    const revertToStep2 = document.getElementById("gp-revert-step2");
-
-    step1Form.addEventListener("submit", e => {
-      e.preventDefault();
-      step1Form.classList.add("hidden");
-      step2Form.classList.remove("hidden");
-      revertToStep1.classList.remove("hidden");
-    });
-
-    revertToStep1.addEventListener("click", () => {
-      step2Form.classList.add("hidden");
-      step1Form.classList.remove("hidden");
-      revertToStep1.classList.add("hidden");
-    });
-
-    step2Form.addEventListener("submit", e => {
-      e.preventDefault();
-      step2Form.classList.add("hidden");
-      step3Form.classList.remove("hidden");
-      revertToStep2.classList.remove("hidden");
-    });
-
-    revertToStep2.addEventListener("click", () => {
-      step3Form.classList.add("hidden");
-      step2Form.classList.remove("hidden");
-      revertToStep2.classList.add("hidden");
-    });
-
-    step3Form.addEventListener("submit", e => {
-      e.preventDefault();
-      alert("Process complete. All answers saved.");
-      // TODO: add final save logic
-    });
   }
 
   auth.onAuthStateChanged(() => {
