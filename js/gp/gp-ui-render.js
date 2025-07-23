@@ -26,7 +26,7 @@
       align-items: flex-start;
       width: 100%;
       box-sizing: border-box;
-    `;
+    `; 
 
     // 2.1 Step 1: Customer Info (left card)
     const step1 = document.createElement("section");
