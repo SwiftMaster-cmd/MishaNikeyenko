@@ -1,4 +1,4 @@
-// gp-app-min.js -- Guest Portal controller with correct nested evaluate load and debug logging
+// gp-app-min.js -- Guest Portal controller saving Step 2 flat, not nested
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -46,9 +46,8 @@
       const f = el(q.id);
       if (!f) return;
       if (f.tagName === "SELECT" || f.tagName === "INPUT" || f.tagName==="TEXTAREA") {
-        // Read Step 2 from nested evaluate object if present
-        const val = (g.evaluate && typeof g.evaluate[q.id] !== "undefined") ? g.evaluate[q.id] : g[q.id] || "";
-        f.value = val;
+        // Read Step 2 fields flat from g root
+        f.value = g[q.id] || "";
       }
     });
 
@@ -68,6 +67,12 @@
         const val = g.evaluate[q.id] || "";
         if (val) answers[q.id] = { value: val, points: q.weight };
       });
+    } else {
+      // fallback: load Step 2 flat keys as answers
+      (global.gpQuestions || []).forEach(q => {
+        const val = g[q.id] || "";
+        if (val) answers[q.id] = { value: val, points: q.weight };
+      });
     }
 
     if (g.solution && g.solution.text) {
@@ -76,7 +81,7 @@
   }
 
   function updateProgressFromGuest(g) {
-    // noop; handled in gp-ui-render.js
+    // noop, handled in gp-ui-render.js
   }
 
   function saveLocalKey(k) {
@@ -137,23 +142,18 @@
       ? global.gpCore.detectStatus({..._guestObj, ...f, solution:{ text:f.solutionText }})
       : "new";
 
-    const evaluate = {};
-    (global.gpQuestions||[]).forEach(q => {
-      evaluate[q.id] = f[q.id] || "";
-    });
-
-    console.log("Saving evaluate data:", evaluate);
-
     if (!_guestKey) {
+      // Create new with Step 2 fields flat
       const payload = {
         custName:    f.custName,
         custPhone:   f.custPhone,
-        evaluate,
+        status,
         submittedAt: now,
         userUid:     uid,
-        status,
-        solution:    f.solutionText ? { text:f.solutionText, completedAt: now } : null
+        solution:    f.solutionText ? { text:f.solutionText, completedAt: now } : null,
+        ...Object.fromEntries((global.gpQuestions||[]).map(q => [q.id, f[q.id] || ""]))
       };
+
       try {
         const ref = await db.ref("guestinfo").push(payload);
         _guestKey = ref.key;
@@ -163,19 +163,24 @@
         console.error("Error saving new guest:", err);
       }
     } else {
-      const updates = {};
-      updates[`guestinfo/${_guestKey}/custName`]  = f.custName;
-      updates[`guestinfo/${_guestKey}/custPhone`] = f.custPhone;
-      updates[`guestinfo/${_guestKey}/evaluate`] = evaluate;
-      updates[`guestinfo/${_guestKey}/status`]    = status;
-      updates[`guestinfo/${_guestKey}/updatedAt`] = now;
-      updates[`guestinfo/${_guestKey}/solution`]  = f.solutionText
-        ? { text:f.solutionText, completedAt: _guestObj.solution?.completedAt || now }
-        : null;
+      // Update existing with Step 2 fields flat
+      const updates = {
+        [`guestinfo/${_guestKey}/custName`]: f.custName,
+        [`guestinfo/${_guestKey}/custPhone`]: f.custPhone,
+        [`guestinfo/${_guestKey}/status`]: status,
+        [`guestinfo/${_guestKey}/updatedAt`]: now,
+        [`guestinfo/${_guestKey}/solution`]: f.solutionText
+          ? { text: f.solutionText, completedAt: _guestObj.solution?.completedAt || now }
+          : null,
+      };
+
+      (global.gpQuestions || []).forEach(q => {
+        updates[`guestinfo/${_guestKey}/${q.id}`] = f[q.id] || "";
+      });
 
       try {
         await db.ref().update(updates);
-        Object.assign(_guestObj, { ...f, status, evaluate });
+        Object.assign(_guestObj, { ...f, status });
       } catch (err) {
         console.error("Error updating guest:", err);
       }
@@ -219,7 +224,7 @@
           if (global.updatePitchText) global.updatePitchText();
         }
 
-        db.ref(`guestinfo/${_guestKey}/completionPct`).off(); // prevent conflicts
+        db.ref(`guestinfo/${_guestKey}/completionPct`).off();
         return;
       }
     }
