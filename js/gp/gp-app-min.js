@@ -1,4 +1,4 @@
-// gp-app-min.js -- Guest Portal controller with proper Step 2 data loading and fluid save flow
+// gp-app-min.js -- save/load Step 2 answers inside nested 'evaluate' subnode
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -45,15 +45,36 @@
       const f = el(q.id);
       if (!f) return;
       if (f.tagName === "SELECT" || f.tagName === "INPUT" || f.tagName==="TEXTAREA") {
-        f.value = (g.evaluate && g.evaluate[q.id]) || g[q.id] || "";
+        const val = (g.evaluate && typeof g.evaluate[q.id] !== "undefined") ? g.evaluate[q.id] : g[q.id] || "";
+        f.value = val;
       }
     });
 
     if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
   }
 
+  function loadAnswersFromGuest(g) {
+    const answers = global.answers;
+    if (!answers) return;
+    Object.keys(answers).forEach(k => delete answers[k]);
+
+    if (g.custName) answers["custName"] = { value: g.custName, points: 8 };
+    if (g.custPhone) answers["custPhone"] = { value: g.custPhone, points: 7 };
+
+    if (g.evaluate) {
+      (global.gpQuestions || []).forEach(q => {
+        const val = g.evaluate[q.id] || "";
+        if (val) answers[q.id] = { value: val, points: q.weight };
+      });
+    }
+
+    if (g.solution && g.solution.text) {
+      answers["solutionText"] = { value: g.solution.text, points: 25 };
+    }
+  }
+
   function updateProgressFromGuest(g) {
-    // noop to avoid conflict with gp-ui-render.js
+    // noop; handled in gp-ui-render.js
   }
 
   function saveLocalKey(k) {
@@ -114,45 +135,51 @@
       ? global.gpCore.detectStatus({..._guestObj, ...f, solution:{ text:f.solutionText }})
       : "new";
 
-    const evaluate = {};
-    (global.gpQuestions||[]).forEach(q => {
-      evaluate[q.id] = f[q.id] || "";
-    });
-
     if (!_guestKey) {
       const payload = {
         custName:    f.custName,
         custPhone:   f.custPhone,
-        evaluate,
+        evaluate:    {},
+        status,
         submittedAt: now,
         userUid:     uid,
-        status,
         solution:    f.solutionText ? { text:f.solutionText, completedAt: now } : null
       };
+
+      // Copy Step 2 answers nested inside evaluate:
+      (global.gpQuestions||[]).forEach(q => {
+        payload.evaluate[q.id] = f[q.id] || "";
+      });
+
       try {
         const ref = await db.ref("guestinfo").push(payload);
         _guestKey = ref.key;
         _guestObj = { ...payload };
         saveLocalKey(_guestKey);
-      } catch {
-        // silent fail or retry logic can go here
+      } catch (err) {
+        console.error("Error saving new guest:", err);
       }
     } else {
-      const updates = {};
-      updates[`guestinfo/${_guestKey}/custName`]  = f.custName;
-      updates[`guestinfo/${_guestKey}/custPhone`] = f.custPhone;
-      updates[`guestinfo/${_guestKey}/evaluate`] = evaluate;
-      updates[`guestinfo/${_guestKey}/status`]    = status;
-      updates[`guestinfo/${_guestKey}/updatedAt`] = now;
-      updates[`guestinfo/${_guestKey}/solution`]  = f.solutionText
-        ? { text:f.solutionText, completedAt: _guestObj.solution?.completedAt || now }
-        : null;
+      const updates = {
+        [`guestinfo/${_guestKey}/custName`]: f.custName,
+        [`guestinfo/${_guestKey}/custPhone`]: f.custPhone,
+        [`guestinfo/${_guestKey}/status`]: status,
+        [`guestinfo/${_guestKey}/updatedAt`]: now,
+        [`guestinfo/${_guestKey}/solution`]: f.solutionText
+          ? { text: f.solutionText, completedAt: _guestObj.solution?.completedAt || now }
+          : null,
+      };
+
+      // Updates for nested evaluate object:
+      (global.gpQuestions||[]).forEach(q => {
+        updates[`guestinfo/${_guestKey}/evaluate/${q.id}`] = f[q.id] || "";
+      });
 
       try {
         await db.ref().update(updates);
-        Object.assign(_guestObj, { ...f, status, evaluate });
-      } catch {
-        // silent fail or retry logic can go here
+        Object.assign(_guestObj, { ...f, status });
+      } catch (err) {
+        console.error("Error updating guest:", err);
       }
     }
   }
@@ -170,24 +197,29 @@
         _guestObj = g;
         saveLocalKey(gid);
 
-        // Wait for UI ready before writing fields and setting step
         if (typeof global.onGuestUIReady === "function") {
           global.onGuestUIReady(() => {
             writeFields(_guestObj);
+            loadAnswersFromGuest(_guestObj);
             _uiStep = initialStep(_guestObj);
             gotoStep(_uiStep);
             markStepActive(_uiStep);
+
+            if (global.updateTotalPoints) global.updateTotalPoints();
+            if (global.updatePitchText) global.updatePitchText();
           });
         } else {
-          // fallback delay
           await new Promise(r => setTimeout(r, 50));
           writeFields(_guestObj);
+          loadAnswersFromGuest(_guestObj);
           _uiStep = initialStep(_guestObj);
           gotoStep(_uiStep);
           markStepActive(_uiStep);
+          if (global.updateTotalPoints) global.updateTotalPoints();
+          if (global.updatePitchText) global.updatePitchText();
         }
 
-        db.ref(`guestinfo/${_guestKey}/completionPct`).off(); // prevent conflicts
+        db.ref(`guestinfo/${_guestKey}/completionPct`).off();
         return;
       }
     }
@@ -199,14 +231,20 @@
     if (typeof global.onGuestUIReady === "function") {
       global.onGuestUIReady(() => {
         writeFields(_guestObj);
+        loadAnswersFromGuest(_guestObj);
         gotoStep(_uiStep);
         markStepActive(_uiStep);
+        if (global.updateTotalPoints) global.updateTotalPoints();
+        if (global.updatePitchText) global.updatePitchText();
       });
     } else {
       await new Promise(r => setTimeout(r, 50));
       writeFields(_guestObj);
+      loadAnswersFromGuest(_guestObj);
       gotoStep(_uiStep);
       markStepActive(_uiStep);
+      if (global.updateTotalPoints) global.updateTotalPoints();
+      if (global.updatePitchText) global.updatePitchText();
     }
   }
 
@@ -241,7 +279,7 @@
     get guest(){ return gpBasic.guest; },
     get uiStep(){ return gpBasic.uiStep; },
     saveNow: gpBasic.save,
-    gotoStep:gpBasic.goto
+    gotoStep: gpBasic.goto
   };
 
 })(window);

@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with instant save on input (debounced)
+// gp-ui-render.js -- Guest Portal UI with nested Step 2 evaluate support and live save
 (function(global){
   const staticQuestions = [
     { id: "numLines", label: "How many lines do you need on your account?", type: "number", weight: 15 },
@@ -7,14 +7,14 @@
     { id: "deviceStatus", label: "Is your phone paid off, or do you still owe on it?", type: "select", weight: 12, options: ["Paid Off","Still Owe","Lease","Mixed","Not Sure"] },
     { id: "upgradeInterest", label: "Are you looking to upgrade your phone, or keep what you have?", type: "select", weight: 11, options: ["Upgrade","Keep Current","Not Sure"] },
     { id: "otherDevices", label: "Do you have any other devices--tablets, smartwatches, or hotspots?", type: "select", weight: 10, options: ["Tablet","Smartwatch","Hotspot","Multiple","None"] },
-    { id: "coverage", label: "How’s your coverage at home and at work?", type: "select", weight: 9, options: ["Great","Good","Average","Poor","Not Sure"] },
+    { id: "coverage", label: "Howâ€™s your coverage at home and at work?", type: "select", weight: 9, options: ["Great","Good","Average","Poor","Not Sure"] },
     { id: "travel", label: "Do you travel out of state or internationally?", type: "select", weight: 8, options: ["Yes, both","Just out of state","International","Rarely","Never"] },
     { id: "hotspot", label: "Do you use your phone as a hotspot?", type: "select", weight: 7, options: ["Yes, often","Sometimes","Rarely","Never"] },
     { id: "usage", label: "How do you mainly use your phone? (Streaming, gaming, social, work, calls/texts)", type: "text", weight: 6 },
     { id: "discounts", label: "Anyone on your plan get discounts? (Military, student, senior, first responder)", type: "select", weight: 5, options: ["Military","Student","Senior","First Responder","No","Not Sure"] },
     { id: "keepNumber", label: "Do you want to keep your current number(s) if you switch?", type: "select", weight: 5, options: ["Yes","No","Not Sure"] },
     { id: "issues", label: "Have you had any issues with dropped calls or slow data?", type: "select", weight: 4, options: ["Yes","No","Sometimes"] },
-    { id: "planPriority", label: "What’s most important to you in a phone plan? (Price, coverage, upgrades, service)", type: "text", weight: 3 },
+    { id: "planPriority", label: "Whatâ€™s most important to you in a phone plan? (Price, coverage, upgrades, service)", type: "text", weight: 3 },
     { id: "promos", label: "Would you like to see your options for lower monthly cost or free device promos?", type: "select", weight: 2, options: ["Yes","No","Maybe"] }
   ];
 
@@ -28,18 +28,15 @@
     appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
     measurementId: "G-XXXXXXX"
   };
-
   if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
   }
-
   const auth = firebase.auth();
 
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
 
   const answers = {};
 
-  // Debounce helper
   function debounce(fn, delay = 300) {
     let timer = null;
     return (...args) => {
@@ -62,7 +59,7 @@
     app.innerHTML = "";
 
     const header = create("header", { class: "guest-header", style: "display:flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #ccc;" }, `
-      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}" style="font-weight:bold; font-size:18px; color:#333; text-decoration:none;">← Dashboard</a>
+      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}" style="font-weight:bold; font-size:18px; color:#333; text-decoration:none;">â† Dashboard</a>
       <div style="flex-grow:1; max-width: 360px; margin-left: 20px;">
         <label for="progressBar" style="font-weight:bold; font-size:14px; color:#555;">Progress: <span id="progressLabel">0%</span></label>
         <progress id="progressBar" value="0" max="100" style="width:100%; height: 18px; border-radius: 8px;"></progress>
@@ -83,7 +80,7 @@
       margin-top: 20px;
     ` });
 
-    // Step 1 - Customer Info
+    // Step 1
     const step1 = create("section", { class: "guest-step", style: `
       flex: 1 1 300px;
       background: #f7f7f7;
@@ -96,29 +93,15 @@
       <h2 style="margin-top:0; font-size: 22px; color: #222;">Step 1: Customer Info</h2>
       <label class="glabel" style="display:block; margin-bottom:16px; font-weight: 600; color:#444;">
         Customer Name <span class="gp-pts">(8pts)</span>
-        <input class="gfield" type="text" id="custName" placeholder="Full name" style="
-          width: 100%; 
-          padding: 10px; 
-          border-radius: 6px; 
-          border: 1px solid #ccc;
-          font-size: 16px;
-          margin-top: 6px;
-        "/>
+        <input class="gfield" type="text" id="custName" placeholder="Full name" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;"/>
       </label>
       <label class="glabel" style="display:block; margin-bottom:16px; font-weight: 600; color:#444;">
         Customer Phone <span class="gp-pts">(7pts)</span>
-        <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" style="
-          width: 100%; 
-          padding: 10px; 
-          border-radius: 6px; 
-          border: 1px solid #ccc;
-          font-size: 16px;
-          margin-top: 6px;
-        "/>
+        <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;"/>
       </label>
     `;
 
-    // Step 2 - Evaluate
+    // Step 2
     const step2 = create("section", { class: "guest-step", style: `
       flex: 2 1 600px;
       background: #fff;
@@ -134,7 +117,7 @@
       <div id="step2Fields"></div>
     `;
 
-    // Step 3 - Solution
+    // Step 3
     const step3 = create("section", { class: "guest-step", style: `
       flex: 1 1 300px;
       background: #f7f7f7;
@@ -147,15 +130,7 @@
     ` });
     step3.innerHTML = `
       <h2 style="margin-top:0; font-size: 22px; color: #222; margin-bottom:12px;">Step 3: Proposed Solution <span class="gp-pts">(25pts)</span></h2>
-      <textarea class="gfield" id="solutionText" rows="8" placeholder="What we’ll offer…" style="
-        width: 100%; 
-        padding: 12px; 
-        border-radius: 6px; 
-        border: 1px solid #ccc; 
-        font-size: 16px;
-        resize: vertical;
-        flex-grow: 1;
-      "></textarea>
+      <textarea class="gfield" id="solutionText" rows="8" placeholder="What weâ€™ll offerâ€¦" style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; resize: vertical; flex-grow: 1;"></textarea>
     `;
 
     container.appendChild(step1);
@@ -168,7 +143,6 @@
     setupInstantSaveForStep1();
     setupSolutionSave();
 
-    // Notify UI ready for external code to write saved data
     if (typeof global.onGuestUIReady === "function") {
       global.onGuestUIReady();
     }
@@ -185,25 +159,11 @@
       let fieldHTML = "";
       if (q.type === "text" || q.type === "number") {
         fieldHTML = `<label class="glabel" style="display:block; margin-bottom:14px; font-weight: 600; color:#444;">${q.label}
-          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" style="
-            width: 100%; 
-            padding: 10px; 
-            border-radius: 6px; 
-            border: 1px solid #ccc;
-            font-size: 16px;
-            margin-top: 6px;
-          " />
+          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;" />
         </label>`;
       } else if (q.type === "select" && Array.isArray(q.options)) {
         fieldHTML = `<label class="glabel" style="display:block; margin-bottom:14px; font-weight: 600; color:#444;">${q.label}
-          <select class="gfield" id="${q.id}" name="${q.id}" style="
-            width: 100%; 
-            padding: 10px; 
-            border-radius: 6px; 
-            border: 1px solid #ccc;
-            font-size: 16px;
-            margin-top: 6px;
-          ">
+          <select class="gfield" id="${q.id}" name="${q.id}" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;">
             <option value="">-- Select --</option>
             ${q.options.map(opt => `<option value="${opt}">${opt}</option>`).join("")}
           </select>
@@ -223,7 +183,10 @@
         saveAnswer(q.id, val, points);
         updateTotalPoints();
         updatePitchText();
-        global.gpApp?.saveNow();
+        // THIS IS THE KEY: trigger save after Step 2 input changes
+        if (global.gpApp && typeof global.gpApp.saveNow === "function") {
+          global.gpApp.saveNow();
+        }
       }, 300);
 
       input.addEventListener(q.type === "select" ? "change" : "input", debouncedSave);
@@ -241,7 +204,7 @@
         saveAnswer("custName", val, answers["custName"].points);
         updateTotalPoints();
         updatePitchText();
-        global.gpApp?.saveNow();
+        if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
       }, 300);
       custName.addEventListener("input", debouncedNameSave);
     }
@@ -252,7 +215,7 @@
         saveAnswer("custPhone", val, answers["custPhone"].points);
         updateTotalPoints();
         updatePitchText();
-        global.gpApp?.saveNow();
+        if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
       }, 300);
       custPhone.addEventListener("input", debouncedPhoneSave);
     }
@@ -267,15 +230,13 @@
         saveAnswer("solutionText", val, answers["solutionText"].points);
         updateTotalPoints();
         updatePitchText();
-        global.gpApp?.saveNow();
+        if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
       }, 300);
       solutionText.addEventListener("input", debouncedSolutionSave);
     }
   }
 
   function saveAnswer(questionId, value, points) {
-    console.log(`Saved answer: ${questionId} = "${value}", points: ${points}`);
-
     if (!global.gpApp?.guestKey || !global.firebase?.database) return;
     const db = global.firebase.database();
 
@@ -326,6 +287,10 @@
     const q = allQuestions.find(q => q.id === id);
     return q ? q.label : id;
   }
+
+  global.answers = answers;
+  global.updateTotalPoints = updateTotalPoints;
+  global.updatePitchText = updatePitchText;
 
   auth.onAuthStateChanged(() => {
     renderUI();
