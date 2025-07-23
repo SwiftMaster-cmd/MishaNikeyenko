@@ -34,21 +34,20 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-  <!-- App Logic -->
-<!-- Step 2 questions: data + rendering -->
+<!-- Step 2 questions data only once -->
 <script src="../js/gp/gp-questions.js"></script>
-<script src="../js/gp/gp-admin-questions-ui.js"></script>
 
-<!-- Core scoring & status logic -->
+<!-- Core logic -->
 <script src="../js/gp/gp-core.js"></script>
-<script src="../js/gp/gp-app-min.js"></script>
-<script src="../js/gp/gp-questions.js"></script>
-<script src="../js/gp/gp-ui-step2.js"></script>
-<!-- UI injection (forms, nav, progress) -->
+
+<!-- UI rendering: renders main containers incl #step2Fields -->
 <script src="../js/gp/gp-ui-render.js"></script>
 
-<!-- App controller (auth, Firebase sync, save) -->
+<!-- Step 2 UI and event handling module (depends on gpQuestions & #step2Fields) -->
+<script src="../js/gp/gp-ui-step2.js"></script>
 
+<!-- Main app logic, auth, save/load handling -->
+<script src="../js/gp/gp-app-min.js"></script>
   
 </body>
 </html>
