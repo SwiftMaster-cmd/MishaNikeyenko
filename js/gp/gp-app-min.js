@@ -1,8 +1,10 @@
-// gp-app-min.js -- Improved save/load for Step 2 (nested "evaluate"), real-time progress listener, and debug logs
+// gp-app-min.js -- Guest Portal App logic with nested "evaluate", live save/load, and DEBUG LOGS
 (function(global){
-  // ------ Firebase Init ------
+  console.debug('[gp-app-min] init', new Date());
+
+  // ─── Firebase Initialization ────────────────────────────────────────────────
   const cfg = global.GP_FIREBASE_CONFIG || {
-    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRG9dslMzE",
+    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGZ9dslMzE",
     authDomain: "osls-644fd.firebaseapp.com",
     databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
     projectId: "osls-644fd",
@@ -12,134 +14,125 @@
     measurementId: "G-XXXXXXX"
   };
   if (!firebase.apps.length) {
-    console.debug('[gp-app] initializing Firebase');
+    console.debug('[gp-app-min] initializing Firebase');
     firebase.initializeApp(cfg);
   }
   const db   = firebase.database();
   const auth = firebase.auth();
 
-  // ------ State ------
-  let _guestObj = null;
+  // ─── State ───────────────────────────────────────────────────────────────────
   let _guestKey = null;
+  let _guestObj = {};
   let _uiStep   = "step1";
+
   const el = id => document.getElementById(id);
 
-  // ------ Read all form fields (including Step 2) ------
+  // ─── Read Form Fields ────────────────────────────────────────────────────────
   function readFields() {
     const out = {
-      custName:    el("custName")?.value.trim()  || "",
-      custPhone:   el("custPhone")?.value.trim() || "",
+      custName:    el("custName")?.value.trim()    || "",
+      custPhone:   el("custPhone")?.value.trim()   || "",
       solutionText: el("solutionText")?.value.trim() || ""
     };
     (global.gpQuestions||[]).forEach(q => {
       const f = el(q.id);
-      if (!f) return;
-      out[q.id] = (f.value || "").toString().trim();
+      out[q.id] = f ? f.value.trim() : "";
     });
+    console.debug('[gp-app-min] readFields:', out);
     return out;
   }
 
-  // ------ Populate UI from guest object ------
+  // ─── Populate UI from Guest Object ───────────────────────────────────────────
   function writeFields(g) {
-    if (el("custName"))  el("custName").value  = g.custName   || "";
-    if (el("custPhone")) el("custPhone").value = g.custPhone  || "";
+    console.debug('[gp-app-min] writeFields:', g);
+    if (el("custName"))    el("custName").value    = g.custName   || "";
+    if (el("custPhone"))   el("custPhone").value   = g.custPhone  || "";
     (global.gpQuestions||[]).forEach(q => {
       const f = el(q.id);
       if (!f) return;
-      // prefer nested g.evaluate[q.id], fallback to top-level
       const val = g.evaluate?.[q.id] ?? g[q.id] ?? "";
       f.value = val;
     });
     if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
   }
 
-  // ------ Build global.answers from loaded guest for gp-ui-render ------
+  // ─── Build global.answers for gp-ui-render ──────────────────────────────────
   function loadAnswersFromGuest(g) {
-    console.debug('[gp-app] loadAnswersFromGuest', g.evaluate);
-    const ans = global.answers;
-    if (!ans) return;
-    Object.keys(ans).forEach(k => delete ans[k]);
-    if (g.custName)  ans["custName"] = { value:g.custName,  points:8 };
-    if (g.custPhone) ans["custPhone"] = { value:g.custPhone, points:7 };
+    console.debug('[gp-app-min] loadAnswersFromGuest:', g.evaluate);
+    const a = global.answers;
+    if (!a) return;
+    Object.keys(a).forEach(k => delete a[k]);
+    if (g.custName)  a["custName"]    = { value: g.custName,  points: 8 };
+    if (g.custPhone) a["custPhone"]   = { value: g.custPhone, points: 7 };
     if (g.evaluate) {
       (global.gpQuestions||[]).forEach(q => {
         const v = g.evaluate[q.id] || "";
-        if (v) ans[q.id] = { value:v, points:q.weight };
+        if (v) a[q.id] = { value: v, points: q.weight };
       });
     }
-    if (g.solution?.text) ans["solutionText"] = { value:g.solution.text, points:25 };
+    if (g.solution?.text) a["solutionText"] = { value: g.solution.text, points: 25 };
   }
 
-  // ------ Update progress bar from remote completionPct ------
-  function updateProgressFromGuest(pct) {
-    console.debug('[gp-app] remote completionPct=', pct);
-    const lbl = el("progressLabel");
-    const bar = el("progressBar");
-    if (lbl) lbl.textContent = `${pct}%`;
-    if (bar) bar.value = pct;
-  }
-
-  // ------ Attach listener for realtime progress updates ------
+  // ─── Real-time Progress Listener ────────────────────────────────────────────
   function attachCompletionListener() {
     if (!_guestKey) return;
     const ref = db.ref(`guestinfo/${_guestKey}/completionPct`);
     ref.off("value");
     ref.on("value", snap => {
-      const pct = snap.val();
-      updateProgressFromGuest(typeof pct === "number" ? pct : 0);
+      const pct = snap.val() || 0;
+      console.debug('[gp-app-min] remote completionPct=', pct);
+      const lbl = el("progressLabel"), bar = el("progressBar");
+      if (lbl) lbl.textContent = `${pct}%`;
+      if (bar) bar.value = pct;
     });
-    console.debug('[gp-app] attached completionPct listener');
+    console.debug('[gp-app-min] attached completionPct listener');
   }
 
-  // ------ Save current form to Firebase ------
+  // ─── Save or Update Guest Record ─────────────────────────────────────────────
   async function saveGuestNow() {
     const f      = readFields();
     const uid    = auth.currentUser?.uid || null;
     const now    = Date.now();
     const status = global.gpCore
-      ? global.gpCore.detectStatus({ ..._guestObj, ...f, solution:{ text:f.solutionText } })
+      ? global.gpCore.detectStatus({ ..._guestObj, ...f, solution: { text: f.solutionText } })
       : "new";
 
-    // prepare nested evaluate payload
+    // prepare nested evaluate data
     const evalData = {};
-    (global.gpQuestions||[]).forEach(q => {
-      evalData[q.id] = f[q.id] || "";
-    });
+    (global.gpQuestions||[]).forEach(q => evalData[q.id] = f[q.id] || "");
 
-    console.debug('[gp-app] saveGuestNow:', { guestKey:_guestKey, f, status });
+    console.debug('[gp-app-min] saveGuestNow:', { guestKey: _guestKey, fields: f, status });
 
     if (!_guestKey) {
-      // first-time push
+      // CREATE new
       const payload = {
         custName:    f.custName,
         custPhone:   f.custPhone,
         evaluate:    evalData,
         status,
         submittedAt: now,
-        userUid:     uid,
+        userUid:     uid
       };
-      if (f.solutionText) {
-        payload.solution = { text:f.solutionText, completedAt:now };
-      }
+      if (f.solutionText) payload.solution = { text: f.solutionText, completedAt: now };
+
       try {
-        const newRef = db.ref("guestinfo").push();
-        await newRef.set(payload);
-        _guestKey = newRef.key;
+        const ref = db.ref("guestinfo").push();
+        await ref.set(payload);
+        _guestKey = ref.key;
         _guestObj = payload;
         localStorage.setItem("last_guestinfo_key", _guestKey);
-        console.debug('[gp-app] created guest key=', _guestKey);
+        console.debug('[gp-app-min] created guestKey=', _guestKey);
         attachCompletionListener();
       } catch (err) {
-        console.error('[gp-app] error saving new guest', err);
+        console.error('[gp-app-min] error creating guest:', err);
       }
-
     } else {
-      // update existing
+      // UPDATE existing
       const updates = {
         [`guestinfo/${_guestKey}/custName`]:  f.custName,
         [`guestinfo/${_guestKey}/custPhone`]: f.custPhone,
         [`guestinfo/${_guestKey}/status`]:    status,
-        [`guestinfo/${_guestKey}/updatedAt`]: now,
+        [`guestinfo/${_guestKey}/updatedAt`]: now
       };
       if (f.solutionText) {
         updates[`guestinfo/${_guestKey}/solution`] = {
@@ -149,25 +142,25 @@
       } else {
         updates[`guestinfo/${_guestKey}/solution`] = null;
       }
-      // nested evaluate updates
-      Object.entries(evalData).forEach(([k,v]) => {
+      // nested evaluate
+      Object.entries(evalData).forEach(([k, v]) => {
         updates[`guestinfo/${_guestKey}/evaluate/${k}`] = v;
       });
 
       try {
         await db.ref().update(updates);
-        console.debug('[gp-app] updated guest', updates);
+        console.debug('[gp-app-min] updated guest:', updates);
       } catch (err) {
-        console.error('[gp-app] error updating guest', err);
+        console.error('[gp-app-min] error updating guest:', err);
       }
     }
   }
 
-  // ------ Load context (either existing guest or fresh) ------
+  // ─── Load Context (Existing or Fresh) ────────────────────────────────────────
   async function loadContext() {
     const params = new URLSearchParams(window.location.search);
     const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
-    console.debug('[gp-app] loadContext gid=', gid);
+    console.debug('[gp-app-min] loadContext gid=', gid);
 
     if (gid) {
       try {
@@ -177,59 +170,59 @@
           if (global.gpCore) g = global.gpCore.normGuest(g);
           _guestKey = gid;
           _guestObj = g;
-          localStorage.setItem("last_guestinfo_key", gid);
-          console.debug('[gp-app] loaded guest object', g);
+          console.debug('[gp-app-min] loaded guestObj:', g);
 
-          writeFields(_guestObj);
-          loadAnswersFromGuest(_guestObj);
+          writeFields(g);
+          loadAnswersFromGuest(g);
 
           // determine initial step
-          _uiStep = global.gpCore
-            ? (global.gpCore.detectStatus(g) === "proposal" ? "step3"
-              : (global.gpCore.detectStatus(g) === "working" ? "step2" : "step1"))
-            : "step1";
-          gotoStep(_uiStep);
-          markStepActive(_uiStep);
-
+          const st = global.gpCore
+            ? global.gpCore.detectStatus(g)
+            : "new";
+          _uiStep = st === "proposal" ? "step3"
+                  : st === "working"  ? "step2"
+                                      : "step1";
+          global.gpApp.gotoStep(_uiStep);
           if (global.updateTotalPoints) global.updateTotalPoints();
           if (global.updatePitchText)  global.updatePitchText();
 
           attachCompletionListener();
           return;
         }
-        console.warn('[gp-app] no data at key', gid);
+        console.warn('[gp-app-min] no data at guest key');
       } catch (err) {
-        console.error('[gp-app] error fetching guest', err);
+        console.error('[gp-app-min] error fetching guest:', err);
       }
     }
 
-    // fallback: new guest
+    // FRESH CONTEXT
+    console.debug('[gp-app-min] initializing fresh context');
     _guestObj = {};
     _guestKey = null;
     _uiStep   = "step1";
+
     writeFields(_guestObj);
     loadAnswersFromGuest(_guestObj);
-    gotoStep(_uiStep);
-    markStepActive(_uiStep);
+    global.gpApp.gotoStep(_uiStep);
     if (global.updateTotalPoints) global.updateTotalPoints();
     if (global.updatePitchText)  global.updatePitchText();
-    console.debug('[gp-app] initialized fresh context');
   }
 
-  // ------ UI Navigation Helpers (unchanged) ------
+  // ─── Step Navigation ─────────────────────────────────────────────────────────
   function ensureStepNav() {
     if (el("gp-step-nav")) return;
     const nav = document.createElement("div");
-    nav.id = "gp-step-nav"; nav.className = "gp-step-nav";
+    nav.id = "gp-step-nav";
+    nav.className = "gp-step-nav";
     nav.innerHTML = `
       <button data-step="step1">1. Customer</button>
       <button data-step="step2">2. Evaluate</button>
       <button data-step="step3">3. Solution</button>`;
-    document.body.insertBefore(nav, document.body.firstChild);
+    document.body.prepend(nav);
     nav.addEventListener("click", e => {
-      const btn = e.target.closest("button[data-step]");
-      if (!btn) return;
-      navHandler(btn.dataset.step);
+      const b = e.target.closest("button[data-step]");
+      if (!b) return;
+      gpApp.gotoStep(b.dataset.step);
     });
   }
   function navHandler(step) {
@@ -251,14 +244,14 @@
     });
   }
 
-  // ------ Auth & Bootstrap ------
+  // ─── Auth & Bootstrap ────────────────────────────────────────────────────────
   auth.onAuthStateChanged(async user => {
     if (!user) {
       if (!el("gp-auth-overlay")) {
         const d = document.createElement("div");
         d.id = "gp-auth-overlay";
         d.style = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;"
-                + "background:rgba(0,0,0,.8);color:#fff;font-size:1.1rem;text-align:center;padding:1rem;";
+                + "background:rgba(0,0,0,0.8);color:#fff;font-size:1.1rem;text-align:center;padding:1rem;";
         d.textContent = "Please sign in to continue.";
         document.body.appendChild(d);
       }
@@ -269,11 +262,11 @@
     await loadContext();
   });
 
-  // ------ Expose API ------
+  // ─── Expose API ──────────────────────────────────────────────────────────────
   global.gpBasic = {
     get guestKey(){ return _guestKey; },
     get guest()   { return _guestObj; },
-    get uiStep() { return _uiStep; },
+    get uiStep()  { return _uiStep; },
     save:    saveGuestNow,
     goto:    navHandler,
     open:    loadContext
@@ -286,4 +279,5 @@
     gotoStep: gpBasic.goto
   };
 
+  console.debug('[gp-app-min] setup complete');
 })(window);
