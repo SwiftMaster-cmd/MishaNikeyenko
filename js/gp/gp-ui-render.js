@@ -1,7 +1,5 @@
-// gp-ui-render.js -- Guest Portal UI with nested Step 2 evaluate support, live save, and DEBUG LOGS
-(function(global){
-  console.debug('[gp-ui-render] init', new Date());
-
+// gp-ui-render.js -- Guest Portal UI with nested Step 2 evaluate support and live save
+(function(global) {
   // ─── Questions ───────────────────────────────────────────────────────────────
   const staticQuestions = [
     { id: "numLines",       label: "How many lines do you need on your account?",                        type: "number", weight: 15 },
@@ -20,9 +18,6 @@
     { id: "planPriority",   label: "What’s most important to you in a phone plan? (Price, coverage…)", type: "text",   weight: 3 },
     { id: "promos",         label: "Would you like to see your options for lower cost or promos?",      type: "select", weight: 2,  options: ["Yes","No","Maybe"] }
   ];
-  console.debug('[gp-ui-render] staticQuestions loaded:', staticQuestions.map(q => q.id));
-
-  // expose to gp-app-min.js
   global.gpQuestions = staticQuestions;
 
   // ─── Firebase Init ──────────────────────────────────────────────────────────
@@ -37,7 +32,6 @@
     measurementId: "G-XXXXXXX"
   };
   if (!firebase.apps.length) {
-    console.debug('[gp-ui-render] initializing Firebase app');
     firebase.initializeApp(firebaseConfig);
   }
   const auth = firebase.auth();
@@ -45,7 +39,6 @@
   // ─── State ───────────────────────────────────────────────────────────────────
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
   const answers = {};
-  console.debug('[gp-ui-render] initial answers object', answers);
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
   function debounce(fn, delay = 300) {
@@ -64,12 +57,8 @@
 
   // ─── Render UI ───────────────────────────────────────────────────────────────
   function renderUI() {
-    console.debug('[renderUI] start');
     const app = document.getElementById("guestApp");
-    if (!app) {
-      console.warn('[renderUI] #guestApp not found, abort');
-      return;
-    }
+    if (!app) return;
     app.innerHTML = "";
 
     // Header
@@ -139,35 +128,26 @@
     container.append(step1, step2, step3);
     app.appendChild(container);
 
-    console.debug('[renderUI] UI built, now rendering Step 2 questions');
     renderQuestions("step2Fields");
-
-    console.debug('[renderUI] setting up Step 1 & Solution saves');
     setupInstantSaveForStep1();
     setupSolutionSave();
+    updateTotalPoints();
+    updatePitchText();
 
     if (typeof global.onGuestUIReady === "function") {
-      console.debug('[renderUI] calling onGuestUIReady()');
       global.onGuestUIReady();
     }
-    console.debug('[renderUI] done');
   }
 
-  // ─── Render Questions & Instant Save for Step 2 ────────────────────────────
+  // ─── Render Questions & Step 2 Save Hooks ────────────────────────────────────
   function renderQuestions(containerId) {
-    console.debug('[renderQuestions] containerId=', containerId);
     const container = document.getElementById(containerId);
-    if (!container) {
-      console.warn('[renderQuestions] container not found:', containerId);
-      return;
-    }
+    if (!container) return;
     container.innerHTML = "";
 
     const questions = global.gpQuestions || staticQuestions;
-    console.debug('[renderQuestions] questions list:', questions.map(q=>q.id));
-
     questions.forEach(q => {
-      let html = "";
+      let html;
       if (q.type === "text" || q.type === "number") {
         html = `
           <label style="display:block;margin-bottom:14px;font-weight:600;color:#444;">
@@ -185,108 +165,62 @@
           </label>`;
       }
       container.insertAdjacentHTML("beforeend", html);
-    });
 
-    questions.forEach(q => {
       const input = document.getElementById(q.id);
-      if (!input) {
-        console.warn(`[renderQuestions] input #${q.id} not found`);
-        return;
-      }
+      if (!input) return;
       const ev = q.type === "select" ? "change" : "input";
-      const debouncedSave = debounce(() => {
+      input.addEventListener(ev, debounce(() => {
         const val = input.value.trim();
         const pts = val === "" ? 0 : q.weight;
         answers[q.id] = { value: val, points: pts };
-        console.debug(`[Step 2] debouncedSave for ${q.id}: value="${val}", points=${pts}`);
         saveAnswer(q.id, val, pts);
         updateTotalPoints();
         updatePitchText();
-        if (global.gpApp?.saveNow) {
-          console.debug('[Step 2] triggering gpApp.saveNow()');
-          global.gpApp.saveNow();
-        }
-      }, 300);
-      input.addEventListener(ev, debouncedSave);
-      console.debug(`[renderQuestions] listener attached for ${q.id}`);
+        if (global.gpApp?.saveNow) global.gpApp.saveNow();
+      }, 300));
     });
-
-    console.debug('[renderQuestions] complete');
   }
 
-  // ─── Step 1 Instant Save ─────────────────────────────────────────────────────
+  // ─── Step 1 Save ──────────────────────────────────────────────────────────────
   function setupInstantSaveForStep1() {
-    console.debug('[setupInstantSaveForStep1] start');
-    [["custName",8], ["custPhone",7]].forEach(([id,pts]) => {
+    [["custName",8],["custPhone",7]].forEach(([id,pts]) => {
       const f = document.getElementById(id);
-      if (!f) {
-        console.warn(`[setupInstantSaveForStep1] #${id} not found`);
-        return;
-      }
-      const deb = debounce(() => {
+      if (!f) return;
+      f.addEventListener("input", debounce(() => {
         const v = f.value.trim();
         answers[id] = { value: v, points: v ? pts : 0 };
-        console.debug(`[Step 1] saving ${id}="${v}"`);
         saveAnswer(id, v, answers[id].points);
         updateTotalPoints();
         updatePitchText();
-        if (global.gpApp?.saveNow) {
-          console.debug(`[Step 1] triggering gpApp.saveNow() for ${id}`);
-          global.gpApp.saveNow();
-        }
-      }, 300);
-      f.addEventListener("input", deb);
+        if (global.gpApp?.saveNow) global.gpApp.saveNow();
+      }, 300));
     });
-    console.debug('[setupInstantSaveForStep1] complete');
   }
 
-  // ─── Step 3 Instant Save ─────────────────────────────────────────────────────
+  // ─── Step 3 Save ──────────────────────────────────────────────────────────────
   function setupSolutionSave() {
-    console.debug('[setupSolutionSave] start');
     const f = document.getElementById("solutionText");
-    if (!f) {
-      console.warn('[setupSolutionSave] #solutionText not found');
-      return;
-    }
-    const deb = debounce(() => {
+    if (!f) return;
+    f.addEventListener("input", debounce(() => {
       const v = f.value.trim();
       answers["solutionText"] = { value: v, points: v ? 25 : 0 };
-      console.debug(`[Step 3] saving solutionText="${v.substring(0,30)}..."`);
       saveAnswer("solutionText", v, answers["solutionText"].points);
       updateTotalPoints();
       updatePitchText();
-      if (global.gpApp?.saveNow) {
-        console.debug('[Step 3] triggering gpApp.saveNow() for solutionText');
-        global.gpApp.saveNow();
-      }
-    }, 300);
-    f.addEventListener("input", deb);
-    console.debug('[setupSolutionSave] complete');
+      if (global.gpApp?.saveNow) global.gpApp.saveNow();
+    }, 300));
   }
 
-  // ─── Persist Completion % Only ───────────────────────────────────────────────
+  // ─── Persist Completion % ─────────────────────────────────────────────────────
   function saveAnswer(questionId, value, points) {
-    console.debug(`[saveAnswer] called for ${questionId}`, { value, points });
     const guestKey = global.gpApp?.guestKey;
-    if (!guestKey) {
-      console.warn(`[saveAnswer] no guestKey, skipping save for ${questionId}`);
-      return;
-    }
-    if (!firebase.database) {
-      console.warn(`[saveAnswer] firebase.database missing, skipping save for ${questionId}`);
-      return;
-    }
-    // compute completion %
-    const maxPts = staticQuestions.reduce((s,q)=>s+q.weight,0) + 8 + 7 + 25;
-    const totPts = Object.values(answers).reduce((s,a)=>s+a.points,0);
-    const pct = Math.min(100, Math.round((totPts/maxPts)*100));
-    console.debug(`[saveAnswer] writing completionPct=${pct} (total=${totPts}, max=${maxPts})`);
-
+    if (!guestKey) return;
+    const maxPts = staticQuestions.reduce((sum,q)=>sum+q.weight,0) + 8 + 7 + 25;
+    const totPts = Object.values(answers).reduce((sum,a)=>sum+a.points,0);
+    const pct    = Math.min(100, Math.round((totPts/maxPts)*100));
     firebase.database()
       .ref(`guestinfo/${guestKey}/completionPct`)
-      .set(pct)
-      .then(()=>console.debug(`[saveAnswer] completionPct updated`))
-      .catch(e=>console.error(`[saveAnswer] failed to write completionPct`, e));
+      .set(pct);
   }
 
   // ─── UI Updates ──────────────────────────────────────────────────────────────
@@ -294,36 +228,30 @@
     const maxPts = staticQuestions.reduce((s,q)=>s+q.weight,0) + 8 + 7 + 25;
     const totPts = Object.values(answers).reduce((s,a)=>s+a.points,0);
     const pct    = Math.min(100, Math.round((totPts/maxPts)*100));
-    console.debug(`[updateTotalPoints] total=${totPts}, max=${maxPts}, pct=${pct}`);
     document.getElementById("progressLabel").textContent = `${pct}%`;
     document.getElementById("progressBar").value = pct;
   }
+
   function updatePitchText() {
-    const entries = Object.entries(answers);
-    console.debug('[updatePitchText] answers:', entries);
-    if (!entries.length) return;
     let pitch = "Customer Info Summary:\n";
-    entries.forEach(([id,{value}])=>{
+    Object.entries(answers).forEach(([id,{value}]) => {
       if (value) pitch += `${getQuestionLabelById(id)}: ${value}\n`;
     });
     const sol = document.getElementById("solutionText");
-    if (sol && !sol.value.trim()) {
-      console.debug('[updatePitchText] autofilling solutionText');
-      sol.value = pitch.trim();
-    }
+    if (sol && !sol.value.trim()) sol.value = pitch.trim();
   }
+
   function getQuestionLabelById(id) {
-    if (id==="custName") return "Customer Name";
-    if (id==="custPhone") return "Customer Phone";
-    if (id==="solutionText") return "Proposed Solution";
-    const q = staticQuestions.find(x=>x.id===id) || (global.gpQuestions||[]).find(x=>x.id===id);
+    if (id === "custName") return "Customer Name";
+    if (id === "custPhone") return "Customer Phone";
+    if (id === "solutionText") return "Proposed Solution";
+    const q = staticQuestions.concat(global.gpQuestions||[]).find(x=>x.id===id);
     return q ? q.label : id;
   }
 
-  // ─── Expose & Kickoff ───────────────────────────────────────────────────────
+  // ─── Kickoff ─────────────────────────────────────────────────────────────────
   global.answers = answers;
-  auth.onAuthStateChanged(user=>{
-    console.debug('[onAuthStateChanged] user=',user);
+  auth.onAuthStateChanged(() => {
     renderUI();
   });
 
