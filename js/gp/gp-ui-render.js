@@ -183,7 +183,10 @@
         saveAnswer(q.id, val, points);
         updateTotalPoints();
         updatePitchText();
-        global.gpApp?.saveNow();
+        // THIS IS THE KEY: trigger save after Step 2 input changes
+        if (global.gpApp && typeof global.gpApp.saveNow === "function") {
+          global.gpApp.saveNow();
+        }
       }, 300);
 
       input.addEventListener(q.type === "select" ? "change" : "input", debouncedSave);
@@ -201,7 +204,7 @@
         saveAnswer("custName", val, answers["custName"].points);
         updateTotalPoints();
         updatePitchText();
-        global.gpApp?.saveNow();
+        if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
       }, 300);
       custName.addEventListener("input", debouncedNameSave);
     }
@@ -212,7 +215,7 @@
         saveAnswer("custPhone", val, answers["custPhone"].points);
         updateTotalPoints();
         updatePitchText();
-        global.gpApp?.saveNow();
+        if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
       }, 300);
       custPhone.addEventListener("input", debouncedPhoneSave);
     }
@@ -227,7 +230,7 @@
         saveAnswer("solutionText", val, answers["solutionText"].points);
         updateTotalPoints();
         updatePitchText();
-        global.gpApp?.saveNow();
+        if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
       }, 300);
       solutionText.addEventListener("input", debouncedSolutionSave);
     }
