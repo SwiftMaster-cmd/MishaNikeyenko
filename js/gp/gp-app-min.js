@@ -1,4 +1,4 @@
-// gp-app-min.js -- save/load Step 2 answers inside nested 'evaluate' subnode
+// gp-app-min.js -- Guest Portal controller with dynamic Step 2 questions support and nested evaluate save/load
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -44,8 +44,8 @@
     (global.gpQuestions||[]).forEach(q => {
       const f = el(q.id);
       if (!f) return;
+      const val = (g.evaluate && typeof g.evaluate[q.id] !== "undefined") ? g.evaluate[q.id] : g[q.id] || "";
       if (f.tagName === "SELECT" || f.tagName === "INPUT" || f.tagName==="TEXTAREA") {
-        const val = (g.evaluate && typeof g.evaluate[q.id] !== "undefined") ? g.evaluate[q.id] : g[q.id] || "";
         f.value = val;
       }
     });
@@ -71,10 +71,6 @@
     if (g.solution && g.solution.text) {
       answers["solutionText"] = { value: g.solution.text, points: 25 };
     }
-  }
-
-  function updateProgressFromGuest(g) {
-    // noop; handled in gp-ui-render.js
   }
 
   function saveLocalKey(k) {
@@ -122,7 +118,7 @@
   }
   function gotoStep(step) {
     ["step1","step2","step3"].forEach(s => {
-      const f = el(s + "Form");
+      const f = el(s + "Form") || el(s);
       if (f) f.classList.toggle("hidden", s !== step);
     });
   }
@@ -146,7 +142,6 @@
         solution:    f.solutionText ? { text:f.solutionText, completedAt: now } : null
       };
 
-      // Copy Step 2 answers nested inside evaluate:
       (global.gpQuestions||[]).forEach(q => {
         payload.evaluate[q.id] = f[q.id] || "";
       });
@@ -170,7 +165,6 @@
           : null,
       };
 
-      // Updates for nested evaluate object:
       (global.gpQuestions||[]).forEach(q => {
         updates[`guestinfo/${_guestKey}/evaluate/${q.id}`] = f[q.id] || "";
       });
@@ -204,7 +198,6 @@
             _uiStep = initialStep(_guestObj);
             gotoStep(_uiStep);
             markStepActive(_uiStep);
-
             if (global.updateTotalPoints) global.updateTotalPoints();
             if (global.updatePitchText) global.updatePitchText();
           });
@@ -264,6 +257,29 @@
 
     ensureStepNav();
     await loadContext();
+
+    // Wire listeners for progress update live
+    ["custName","custPhone","solutionText"]
+      .forEach(id => {
+        const f = el(id); if (!f) return;
+        const ev = f.tagName === "SELECT" ? "change" : "input";
+        f.addEventListener(ev, () => {
+          if (global.gpCore) {
+            const comp = global.gpCore.computePitchFull({..._guestObj, ...readFields(), solution:{ text: el("solutionText")?.value||"" }});
+            if (global.gpApp) global.gpApp.saveNow();
+          }
+        });
+      });
+    (global.gpQuestions||[]).forEach(q => {
+      const f = el(q.id); if (!f) return;
+      const ev = f.tagName === "SELECT" ? "change" : "input";
+      f.addEventListener(ev, () => {
+        if (global.gpCore) {
+          const comp = global.gpCore.computePitchFull({..._guestObj, ...readFields(), solution:{ text: el("solutionText")?.value||"" }});
+          if (global.gpApp) global.gpApp.saveNow();
+        }
+      });
+    });
   });
 
   global.gpBasic = {

@@ -58,6 +58,7 @@
 
     app.innerHTML = "";
 
+    // Header + progress bar
     const header = create("header", { class: "guest-header", style: "display:flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #ccc;" }, `
       <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}" style="font-weight:bold; font-size:18px; color:#333; text-decoration:none;">← Dashboard</a>
       <div style="flex-grow:1; max-width: 360px; margin-left: 20px;">
@@ -73,6 +74,7 @@
       window.location.href = DASHBOARD_URL;
     });
 
+    // Container for steps
     const container = create("div", { class: "guest-steps-container", style: `
       display: flex; 
       gap: 24px; 
@@ -80,7 +82,7 @@
       margin-top: 20px;
     ` });
 
-    // Step 1
+    // Step 1 block
     const step1 = create("section", { class: "guest-step", style: `
       flex: 1 1 300px;
       background: #f7f7f7;
@@ -101,7 +103,7 @@
       </label>
     `;
 
-    // Step 2
+    // Step 2 block
     const step2 = create("section", { class: "guest-step", style: `
       flex: 2 1 600px;
       background: #fff;
@@ -117,7 +119,7 @@
       <div id="step2Fields"></div>
     `;
 
-    // Step 3
+    // Step 3 block
     const step3 = create("section", { class: "guest-step", style: `
       flex: 1 1 300px;
       background: #f7f7f7;
@@ -172,6 +174,7 @@
       container.insertAdjacentHTML("beforeend", fieldHTML);
     });
 
+    // Add event listeners to each input/select to save on change
     questions.forEach(q => {
       const input = document.getElementById(q.id);
       if (!input) return;
@@ -183,7 +186,6 @@
         saveAnswer(q.id, val, points);
         updateTotalPoints();
         updatePitchText();
-        // THIS IS THE KEY: trigger save after Step 2 input changes
         if (global.gpApp && typeof global.gpApp.saveNow === "function") {
           global.gpApp.saveNow();
         }
