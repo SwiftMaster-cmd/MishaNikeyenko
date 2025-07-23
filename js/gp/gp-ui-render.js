@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with instant save and live progress
+// gp-ui-render.js -- Guest Portal UI with nested Step 2 evaluate support and live save
 (function(global){
   const staticQuestions = [
     { id: "numLines", label: "How many lines do you need on your account?", type: "number", weight: 15 },
@@ -28,11 +28,9 @@
     appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
     measurementId: "G-XXXXXXX"
   };
-
   if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
   }
-
   const auth = firebase.auth();
 
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
