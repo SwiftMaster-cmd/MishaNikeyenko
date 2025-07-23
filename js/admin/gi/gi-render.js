@@ -181,15 +181,24 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
                                            : "role-badge role-admin";
   const nameLabel = esc(submitter.name || submitter.email || "-");
 
-  // Only outer card click, no ... or actions
-  // The card action is determined by window._guestCardMode
-  // Attach onClick to the outer container
+  // actions hidden by default
+  const sold   = detectStatus(g) === "sold";
+  const canEdit = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
+  const canSold = canEdit && !sold;
+  const actions = [
+    `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">
+       ${g.evaluate||g.solution||g.sale ? "Open" : "Continue"}
+     </button>`,
+    canEdit ? `<button class="btn btn-primary btn-sm" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
+    canSold ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
+    sold    ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
+    canEdit ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
+  ].filter(Boolean).join("");
 
   return `
     <div class="guest-card" id="guest-card-${id}"
-         style="background:${bg};border-radius:8px;padding:12px;position:relative;cursor:pointer;"
-         onclick="window.handleGuestCardClick && window.handleGuestCardClick('${id}')">
-      <!-- header: status + pitch -->
+         style="background:${bg};border-radius:8px;padding:12px;position:relative;">
+      <!-- header: status + pitch + toggle -->
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="${statusCls}"
               style="padding:2px 8px;border-radius:999px;font-size:.85em;">
@@ -199,6 +208,9 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
               style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};border:1px solid #fff;">
           ${pct}%
         </span>
+        <button class="btn-edit-actions"
+                style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
+                onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
       </div>
 
       <!-- customer name centered -->
@@ -206,7 +218,7 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         ${esc(g.custName || "-")}
       </div>
 
-      <!-- footer: submitted by, phone (masked), time -->
+      <!-- footer: submitted by, phone toggle, time -->
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <span class="${roleCls}"
               style="padding:2px 6px;border-radius:999px;font-size:.85em;background:${bg};">
@@ -216,7 +228,7 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
               data-raw="${raw}"
               data-mask="${masked}"
               style="padding:2px 6px;border-radius:999px;font-size:.85em;cursor:pointer;background:${bg};"
-              onclick="event.stopPropagation();window.guestinfo.togglePhone && window.guestinfo.togglePhone('${id}')">
+              onclick="window.guestinfo.togglePhone('${id}')">
           ${masked}
         </span>
         <span class="guest-time"
@@ -224,22 +236,23 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
           ${when}
         </span>
       </div>
-    </div>`;
-}
 
-// ── Global card click handler (attach in your main JS/init) ────────────────
-if (typeof window !== "undefined") {
-  window._guestCardMode = "open"; // options: "open", "edit", "delete", "markSold"
-  window.handleGuestCardClick = function(id) {
-    switch (window._guestCardMode) {
-      case "edit":
-        window.guestinfo && window.guestinfo.toggleEdit && window.guestinfo.toggleEdit(id); break;
-      case "delete":
-        window.guestinfo && window.guestinfo.deleteGuestInfo && window.guestinfo.deleteGuestInfo(id); break; // no confirm
-      case "markSold":
-        window.guestinfo && window.guestinfo.markSold && window.guestinfo.markSold(id); break;
-      default:
-        window.guestinfo && window.guestinfo.openGuestInfoPage && window.guestinfo.openGuestInfoPage(id); break;
-    }
-  }
+      <!-- hidden actions -->
+      <div class="guest-card-actions"
+           style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
+        ${actions}
+      </div>
+
+      <!-- hidden edit form -->
+      <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
+        <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}"/></label>
+        <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}"/></label>
+        <label>Service Type  <input type="text" name="serviceType" value="${esc(g.serviceType||"")}"/></label>
+        <label>Situation     <textarea name="situation">${esc(g.situation||"")}</textarea></label>
+        <div style="margin-top:8px;">
+          <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
+        </div>
+      </form>
+    </div>`;
 }

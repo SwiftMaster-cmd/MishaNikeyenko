@@ -1,28 +1,38 @@
+// guestinfo-actions.js
+
 import { normGuest, computeGuestPitchQuality } from './gi-render.js';
 
-// Show or hide the quick-edit form (for 'edit' mode)
+// Toggle visibility of the action buttons container
+export function toggleActionButtons(id) {
+  const card = document.getElementById(`guest-card-${id}`);
+  if (!card) return;
+  const actions = card.querySelector('.guest-card-actions');
+  if (!actions) return;
+  actions.style.display = actions.style.display === 'flex' ? 'none' : 'flex';
+}
+
+// Show or hide the quick‐edit form
 export function toggleEdit(id) {
   const card = document.getElementById(`guest-card-${id}`);
   if (!card) return;
-  const form = card.querySelector('.guest-edit-form');
-  if (!form) return;
-  // Only show the form, everything else is replaced
-  form.style.display = 'block';
+  const display = card.querySelector('.guest-display');
+  const form    = card.querySelector('.guest-edit-form');
+  if (!display || !form) return;
+  const showForm = form.style.display === 'none';
+  form.style.display    = showForm ? 'block' : 'none';
+  display.style.display = showForm ? 'none' : 'block';
 }
 
-// Close edit form
 export function cancelEdit(id) {
   const card = document.getElementById(`guest-card-${id}`);
   if (!card) return;
-  const form = card.querySelector('.guest-edit-form');
-  if (!form) return;
-  form.style.display = 'none';
+  card.querySelector('.guest-edit-form').style.display = 'none';
+  card.querySelector('.guest-display').style.display    = 'block';
 }
 
-// Save quick edit
 export async function saveEdit(id) {
   const form = document.getElementById(`guest-edit-form-${id}`);
-  if (!form) return;
+  if (!form) return alert('Edit form not found.');
   const data = {
     custName:    form.custName.value.trim(),
     custPhone:   form.custPhone.value.trim(),
@@ -36,33 +46,32 @@ export async function saveEdit(id) {
     cancelEdit(id);
     await window.renderAdminApp();
   } catch (e) {
-    // Silent fail for now (optional: alert user)
+    alert('Error saving changes: ' + e.message);
   }
 }
 
-// Immediate delete (no confirm)
 export async function deleteGuestInfo(id) {
+  if (!confirm('Delete this guest lead? This cannot be undone.')) return;
   try {
     await window.db.ref(`guestinfo/${id}`).remove();
     await window.renderAdminApp();
-  } catch (e) {}
+  } catch (e) {
+    alert('Error deleting: ' + e.message);
+  }
 }
 
-// Mark as sold (still needs minimal prompt for units/store unless you want defaults)
 export async function markSold(id) {
   try {
     const snap = await window.db.ref(`guestinfo/${id}`).get();
     const g    = snap.val();
-    if (!g) return;
+    if (!g) return alert('Guest record not found.');
 
-    let units = 1; // Default to 1
-    // If you want zero prompt: comment/remove below
-    // let units = parseInt(prompt('How many units were sold?', '1'), 10);
-    // if (isNaN(units) || units < 0) units = 0;
+    let units = parseInt(prompt('How many units were sold?', '1'), 10);
+    if (isNaN(units) || units < 0) units = 0;
 
     const users     = window._users || {};
     const submitter = users[g.userUid] || {};
-    let storeNumber = submitter.store || '';
+    let storeNumber = submitter.store || prompt('Enter store number for credit:', '') || '';
     storeNumber = storeNumber.toString().trim();
 
     const now = Date.now();
@@ -93,15 +102,17 @@ export async function markSold(id) {
 
     await recomputePitch(id);
     await window.renderAdminApp();
-  } catch (err) {}
+  } catch (err) {
+    alert('Error marking sold: ' + err.message);
+  }
 }
 
-// Delete sale (can keep a minimal confirm or skip it)
 export async function deleteSale(id) {
   try {
     const snap = await window.db.ref(`guestinfo/${id}`).get();
     const g    = snap.val();
-    if (!g?.sale?.saleId) return;
+    if (!g?.sale?.saleId) return alert('No sale recorded.');
+    if (!confirm('Delete this sale? This will remove store credit.')) return;
 
     const { saleId, storeNumber } = g.sale;
     const hasEval = !!g.evaluate;
@@ -124,7 +135,9 @@ export async function deleteSale(id) {
 
     await recomputePitch(id);
     await window.renderAdminApp();
-  } catch (err) {}
+  } catch (err) {
+    alert('Error deleting sale: ' + err.message);
+  }
 }
 
 export async function recomputePitch(id) {
@@ -153,4 +166,4 @@ export function openGuestInfoPage(guestKey) {
   const sep = base.includes('?') ? '&' : '?';
   try { localStorage.setItem('last_guestinfo_key', guestKey); } catch {}
   window.location.href = `${base}${sep}gid=${encodeURIComponent(guestKey)}&uistart=${uistart}`;
-}
+} 
