@@ -1,3 +1,6 @@
+// gp-app-min.js -- Guest Portal controller with dynamic Step 2 questions support
+// Place at ../js/gp/gp-app-min.js, loaded after gp-ui-render.js
+
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -34,9 +37,9 @@
   function writeFields(g) {
     if (el("custName"))     el("custName").value     = g.custName || "";
     if (el("custPhone"))    el("custPhone").value    = g.custPhone || "";
-    // Load evaluate data into Step 2 fields
-    if (global.setStep2Fields && g.evaluate)
-      global.setStep2Fields(g.evaluate);
+    // ADDED: Load evaluate data into Step 2 fields
+    if (global.loadStep2FieldsFromEvaluate && g.evaluate)
+      global.loadStep2FieldsFromEvaluate(g.evaluate);
     if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
   }
 
@@ -53,7 +56,7 @@
       ? global.gpCore.detectStatus({..._guestObj, ...f, solution:{ text:f.solutionText }})
       : "new";
 
-    // Always collect and overwrite all step 2 fields
+    // ADDED: Always collect all step 2 fields and write as evaluate object
     let evaluate = {};
     document.querySelectorAll("#step2Fields .gfield").forEach(field => {
       evaluate[field.id] = field.value.trim();
@@ -111,6 +114,7 @@
         saveLocalKey(gid);
 
         if (typeof global.onGuestUIReady === "function") {
+          global._guestObj = _guestObj; // <-- this line ensures access in ui-render
           global.onGuestUIReady(() => {
             writeFields(_guestObj);
           });
@@ -125,6 +129,7 @@
     _guestKey = null;
     _uiStep   = "step1";
     if (typeof global.onGuestUIReady === "function") {
+      global._guestObj = _guestObj;
       global.onGuestUIReady(() => {
         writeFields(_guestObj);
       });

@@ -1,8 +1,23 @@
+// gp-ui-render.js -- Guest Portal UI with optional answers + live progress bar + live pitch update, no admin panel
+// Load **after** Firebase SDKs, gp-questions.js, and gp-core.js; before gp-app-min.js
+
 (function(global){
   const staticQuestions = [
-    // ... (your unchanged static questions)
     { id: "numLines", label: "How many lines do you need on your account?", type: "number", weight: 15 },
-    // ... rest unchanged
+    { id: "carrier", label: "What carrier are you with right now?", type: "select", weight: 14, options: ["Verizon","AT&T","T-Mobile","US Cellular","Cricket","Metro","Boost","Straight Talk","Tracfone","Other"] },
+    { id: "monthlySpend", label: "What do you usually pay each month for phone service?", type: "number", weight: 13 },
+    { id: "deviceStatus", label: "Is your phone paid off, or do you still owe on it?", type: "select", weight: 12, options: ["Paid Off","Still Owe","Lease","Mixed","Not Sure"] },
+    { id: "upgradeInterest", label: "Are you looking to upgrade your phone, or keep what you have?", type: "select", weight: 11, options: ["Upgrade","Keep Current","Not Sure"] },
+    { id: "otherDevices", label: "Do you have any other devices--tablets, smartwatches, or hotspots?", type: "select", weight: 10, options: ["Tablet","Smartwatch","Hotspot","Multiple","None"] },
+    { id: "coverage", label: "How’s your coverage at home and at work?", type: "select", weight: 9, options: ["Great","Good","Average","Poor","Not Sure"] },
+    { id: "travel", label: "Do you travel out of state or internationally?", type: "select", weight: 8, options: ["Yes, both","Just out of state","International","Rarely","Never"] },
+    { id: "hotspot", label: "Do you use your phone as a hotspot?", type: "select", weight: 7, options: ["Yes, often","Sometimes","Rarely","Never"] },
+    { id: "usage", label: "How do you mainly use your phone? (Streaming, gaming, social, work, calls/texts)", type: "text", weight: 6 },
+    { id: "discounts", label: "Anyone on your plan get discounts? (Military, student, senior, first responder)", type: "select", weight: 5, options: ["Military","Student","Senior","First Responder","No","Not Sure"] },
+    { id: "keepNumber", label: "Do you want to keep your current number(s) if you switch?", type: "select", weight: 5, options: ["Yes","No","Not Sure"] },
+    { id: "issues", label: "Have you had any issues with dropped calls or slow data?", type: "select", weight: 4, options: ["Yes","No","Sometimes"] },
+    { id: "planPriority", label: "What’s most important to you in a phone plan? (Price, coverage, upgrades, service)", type: "text", weight: 3 },
+    { id: "promos", label: "Would you like to see your options for lower monthly cost or free device promos?", type: "select", weight: 2, options: ["Yes","No","Maybe"] }
   ];
 
   const firebaseConfig = global.GP_FIREBASE_CONFIG || {
@@ -15,11 +30,14 @@
     appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
     measurementId: "G-XXXXXXX"
   };
-  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
   const auth = firebase.auth();
 
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
-  global.answers = global.answers || {}; // support reloads
+
+  const answers = {}; // { questionId: { value, points } }
 
   function create(tag, attrs = {}, html = "") {
     const el = document.createElement(tag);
@@ -31,6 +49,7 @@
   function renderUI() {
     const app = document.getElementById("guestApp");
     if (!app) return;
+
     app.innerHTML = "";
 
     // Header
@@ -44,7 +63,7 @@
       window.location.href = DASHBOARD_URL;
     });
 
-    // Progress bar + label
+    // Progress bar container + label
     const progressContainer = create("div", { style: "margin:12px 0;" });
     const progressLabel = create("div", { id: "progressLabel", style:"margin-bottom:4px;font-weight:bold;" }, "Progress: 0%");
     const progressBar = create("progress", { id: "progressBar", value: 0, max: 100, style: "width: 100%; height: 20px;" });
@@ -52,7 +71,7 @@
     progressContainer.appendChild(progressBar);
     app.appendChild(progressContainer);
 
-    // Main box
+    // Main container
     const box = create("div", { class: "guest-box" });
 
     box.insertAdjacentHTML("beforeend", `
@@ -97,12 +116,12 @@
     renderQuestions("step2Fields");
     setupStepNavigation();
     setupInstantSaveForStep1();
-    setupStep2Autosave();
   }
 
   function renderQuestions(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
+
     container.innerHTML = "";
 
     const questions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
@@ -123,35 +142,39 @@
       }
       container.insertAdjacentHTML("beforeend", fieldHTML);
     });
-  }
 
-  // Debounced save on any Step 2 field change
-  function setupStep2Autosave() {
-    const fields = document.querySelectorAll("#step2Fields .gfield");
-    fields.forEach(f => {
-      f.addEventListener(f.tagName === "SELECT" ? "change" : "input", debounce(() => {
-        if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
-      }, 200));
-    });
-  }
-  function debounce(fn, ms) {
-    let t = 0;
-    return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms||180); };
+    // --- ADDED: Load Step 2 fields from evaluate if available ---
+    if (global._guestObj && global._guestObj.evaluate) {
+      global.loadStep2FieldsFromEvaluate(global._guestObj.evaluate);
+    }
+    // -----------------------------------------------------------
   }
 
   function setupInstantSaveForStep1() {
     const custName = document.getElementById("custName");
     const custPhone = document.getElementById("custPhone");
-    if (custName) custName.addEventListener("input", debounce(() => { if (global.gpApp) global.gpApp.saveNow(); }));
-    if (custPhone) custPhone.addEventListener("input", debounce(() => { if (global.gpApp) global.gpApp.saveNow(); }));
+
+    if (custName) {
+      custName.addEventListener("input", e => {
+        const val = e.target.value.trim();
+        answers["custName"] = { value: val, points: val ? 8 : 0 };
+        if (global.gpApp && global.gpApp.saveNow) global.gpApp.saveNow();
+      });
+    }
+    if (custPhone) {
+      custPhone.addEventListener("input", e => {
+        const val = e.target.value.trim();
+        answers["custPhone"] = { value: val, points: val ? 7 : 0 };
+        if (global.gpApp && global.gpApp.saveNow) global.gpApp.saveNow();
+      });
+    }
   }
 
-  // Step navigation logic (unchanged)
   function setupStepNavigation() {
-    // ... as in your working version ...
     const step1Form = document.getElementById("step1Form");
     const step2Form = document.getElementById("step2Form");
     const step3Form = document.getElementById("step3Form");
+
     const revertToStep1 = document.getElementById("gp-revert-step1");
     const revertToStep2 = document.getElementById("gp-revert-step2");
 
@@ -183,13 +206,12 @@
 
     step3Form.addEventListener("submit", e => {
       e.preventDefault();
-      // No alert, just save
-      if (global.gpApp) global.gpApp.saveNow();
+      if (global.gpApp && global.gpApp.saveNow) global.gpApp.saveNow();
     });
   }
 
-  // Programmatically set Step 2 fields (for loading from Firebase)
-  global.setStep2Fields = function(evaluateObj = {}) {
+  // ADDED: Utility to programmatically load Step 2 fields from evaluate
+  global.loadStep2FieldsFromEvaluate = function(evaluateObj = {}) {
     const fields = document.querySelectorAll("#step2Fields .gfield");
     fields.forEach(f => {
       if (evaluateObj && typeof evaluateObj[f.id] !== "undefined") {
@@ -198,8 +220,7 @@
     });
   };
 
-  // Progress/points/pitch logic unchanged...
-  // (keep your updateTotalPoints, updatePitchText, etc)
+  // (Leave all other original functions as-is...)
 
   auth.onAuthStateChanged(() => renderUI());
 
