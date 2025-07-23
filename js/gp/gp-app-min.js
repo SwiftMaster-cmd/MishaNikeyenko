@@ -132,6 +132,7 @@
       : "new";
 
     if (!_guestKey) {
+      // create new guest record with nested evaluate
       const payload = {
         custName:    f.custName,
         custPhone:   f.custPhone,
@@ -155,6 +156,7 @@
         console.error("Error saving new guest:", err);
       }
     } else {
+      // update existing guest record with nested evaluate fields
       const updates = {
         [`guestinfo/${_guestKey}/custName`]: f.custName,
         [`guestinfo/${_guestKey}/custPhone`]: f.custPhone,
@@ -258,14 +260,12 @@
     ensureStepNav();
     await loadContext();
 
-    // Wire listeners for progress update live
     ["custName","custPhone","solutionText"]
       .forEach(id => {
         const f = el(id); if (!f) return;
         const ev = f.tagName === "SELECT" ? "change" : "input";
         f.addEventListener(ev, () => {
           if (global.gpCore) {
-            const comp = global.gpCore.computePitchFull({..._guestObj, ...readFields(), solution:{ text: el("solutionText")?.value||"" }});
             if (global.gpApp) global.gpApp.saveNow();
           }
         });
@@ -275,7 +275,6 @@
       const ev = f.tagName === "SELECT" ? "change" : "input";
       f.addEventListener(ev, () => {
         if (global.gpCore) {
-          const comp = global.gpCore.computePitchFull({..._guestObj, ...readFields(), solution:{ text: el("solutionText")?.value||"" }});
           if (global.gpApp) global.gpApp.saveNow();
         }
       });
