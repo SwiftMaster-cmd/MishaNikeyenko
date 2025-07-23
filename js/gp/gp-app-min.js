@@ -1,4 +1,3 @@
-// gp-app-min.js -- Always saves/loads all Step 2 fields to evaluate, robust
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -54,7 +53,7 @@
       ? global.gpCore.detectStatus({..._guestObj, ...f, solution:{ text:f.solutionText }})
       : "new";
 
-    // Collect all visible Step 2 fields robustly from DOM
+    // Always collect and overwrite all step 2 fields
     let evaluate = {};
     document.querySelectorAll("#step2Fields .gfield").forEach(field => {
       evaluate[field.id] = field.value.trim();
@@ -87,7 +86,7 @@
         [`guestinfo/${_guestKey}/solution`]: f.solutionText
           ? { text: f.solutionText, completedAt: _guestObj.solution?.completedAt || now }
           : null,
-        [`guestinfo/${_guestKey}/evaluate`]: evaluate // overwrite whole evaluate node for robustness
+        [`guestinfo/${_guestKey}/evaluate`]: evaluate
       };
       try {
         await db.ref().update(updates);
@@ -150,7 +149,7 @@
     const ov = el("gp-auth-overlay"); if (ov) ov.remove();
 
     await loadContext();
-    // No need to wire field listeners: handled in render file
+    // field listeners handled in render.js (autosave etc)
   });
 
   global.gpApp = {
