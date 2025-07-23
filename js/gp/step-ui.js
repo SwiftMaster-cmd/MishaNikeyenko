@@ -1,78 +1,99 @@
 // gp-ui-steps.js
 (function(global){
-  // ───────────────────────────────────────────────────────────────────────────
-  // QUESTIONS & STATE
-  // ───────────────────────────────────────────────────────────────────────────
+  // ─── QUESTIONS & STATE ───────────────────────────────────────────────────────
   const staticQuestions = [ /* … your 15 questions … */ ];
   global.staticQuestions = staticQuestions;
   global.gpQuestions     = staticQuestions;
   const answers = {};
   global.answers = answers;
-  let currentStep = 1;
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // RENDER / WIZARD CONTROLS
-  // ───────────────────────────────────────────────────────────────────────────
+  // ─── RENDER STEP SECTIONS WITH CONTROLS ───────────────────────────────────────
   function renderStepSections(container) {
+    // inject styles once
+    if (!document.getElementById("gp-ui-steps-styles")) {
+      const s = document.createElement("style");
+      s.id = "gp-ui-steps-styles";
+      s.textContent = `
+        .gp-step2-controls { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+        #step2Fields { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .pts-badge { background:#eef; color:#225; border-radius:4px; padding:2px 6px; font-size:12px; margin-left:6px; }
+        .question-item { position:relative; }
+      `;
+      document.head.appendChild(s);
+    }
+
     container.innerHTML = `
-      <div class="wizard-step" data-step="1">
+      <section style="flex:1 1 300px;…">
         <h2>Step 1: Customer Info</h2>
+        <!-- unchanged Step 1 inputs -->
         <label>Customer Name<span>(8pts)</span><input id="custName" …></label>
         <label>Customer Phone<span>(7pts)</span><input id="custPhone" …></label>
-        <div class="wizard-nav">
-          <button id="toStep2">Next →</button>
-        </div>
-      </div>
-      <div class="wizard-step" data-step="2">
+      </section>
+
+      <section style="flex:2 1 600px;…">
         <h2>Step 2: Evaluate Needs</h2>
-        <div id="step2Fields" class="grid-2col"></div>
-        <div class="wizard-nav">
-          <button id="backTo1">← Back</button>
-          <button id="toStep3">Next →</button>
+        <div class="gp-step2-controls">
+          <label><input type="checkbox" id="filterUnanswered"> Unanswered only</label>
+          <select id="sortQuestions">
+            <option value="weight">Sort by weight</option>
+            <option value="label">Sort by label</option>
+          </select>
         </div>
-      </div>
-      <div class="wizard-step" data-step="3">
+        <div id="step2Fields"></div>
+      </section>
+
+      <section style="flex:1 1 300px;…">
         <h2>Step 3: Proposed Solution<span>(25pts)</span></h2>
         <textarea id="solutionText" …></textarea>
-        <div class="wizard-nav">
-          <button id="backTo2">← Back</button>
-        </div>
-      </div>
+      </section>
     `;
-    showStep(1);
-    container.querySelector("#toStep2").onclick = () => showStep(2);
-    container.querySelector("#backTo1").onclick = () => showStep(1);
-    container.querySelector("#toStep3").onclick = () => showStep(3);
-    container.querySelector("#backTo2").onclick = () => showStep(2);
+
+    // bind controls
+    document.getElementById("filterUnanswered")
+      .addEventListener("change", () => renderQuestions("step2Fields"));
+    document.getElementById("sortQuestions")
+      .addEventListener("change", () => renderQuestions("step2Fields"));
   }
 
-  function showStep(step) {
-    currentStep = step;
-    document.querySelectorAll(".wizard-step").forEach(el => {
-      el.style.display = el.dataset.step == step ? "block" : "none";
-    });
-    // auto-focus first input
-    const first = document.querySelector(`.wizard-step[data-step="${step}"] input, .wizard-step[data-step="${step}"] textarea`);
-    if (first) first.focus();
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // QUESTION RENDERING & SAVE
-  // ───────────────────────────────────────────────────────────────────────────
+  // ─── RENDER & BIND QUESTIONS ───────────────────────────────────────────────────
   function renderQuestions(containerId) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     container.innerHTML = "";
-    staticQuestions.forEach(q => {
-      const el = document.createElement("label");
-      el.innerHTML = q.type === "text"||q.type==="number"
-        ? `${q.label}<input id="${q.id}" type="${q.type}" …>`
-        : `${q.label}<select id="${q.id}"><option>-- Select --</option>${q.options.map(o=>`<option>${o}</option>`).join("")}</select>`;
-      container.appendChild(el);
-      const input = el.querySelector("#"+q.id);
-      const ev = q.type==="select"?"change":"input";
+    // clone & sort
+    let qs = staticQuestions.slice();
+    const sortBy = document.getElementById("sortQuestions")?.value;
+    if (sortBy === "label") {
+      qs.sort((a,b) => a.label.localeCompare(b.label));
+    } else {
+      qs.sort((a,b) => b.weight - a.weight);
+    }
+    // filter
+    const onlyUnanswered = document.getElementById("filterUnanswered")?.checked;
+    qs.forEach(q => {
+      if (onlyUnanswered && answers[q.id]?.value) return;
+      // wrap each in .question-item
+      const html = `
+        <div class="question-item">
+          <label style="display:block;margin-bottom:14px;font-weight:600;color:#444;">
+            ${q.label}<span class="pts-badge">${q.weight}pt</span>
+            ${q.type === "text"||q.type==="number"
+              ? `<input id="${q.id}" type="${q.type}" style="width:100%;…">`
+              : `<select id="${q.id}" style="width:100%;…">
+                  <option value="">-- Select --</option>
+                  ${q.options.map(o=>`<option value="${o}">${o}</option>`).join("")}
+                </select>`
+            }
+          </label>
+        </div>`;
+      container.insertAdjacentHTML("beforeend", html);
+
+      // bind save
+      const input = document.getElementById(q.id);
+      const ev = q.type==="select" ? "change" : "input";
       input.addEventListener(ev, debounce(() => {
         const v = input.value.trim();
-        answers[q.id] = { value: v, points: v? q.weight: 0 };
+        answers[q.id] = { value: v, points: v? q.weight : 0 };
         saveAnswer(q.id, v, answers[q.id].points);
         global.updateTotalPoints();
         global.updatePitchText();
@@ -81,13 +102,10 @@
     });
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // HYDRATION & INSTANT SAVE
-  // ───────────────────────────────────────────────────────────────────────────
+  // ─── HYDRATION & INSTANT SAVE ─────────────────────────────────────────────────
   function hydrateAnswers() {
     Object.entries(answers).forEach(([id,{value}]) => {
-      const f = document.getElementById(id);
-      if (f) f.value = value;
+      document.getElementById(id)?.value = value;
     });
   }
   function setupInstantSaveForStep1() {
@@ -115,27 +133,21 @@
     }, 300));
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // PERSIST & HELPERS
-  // ───────────────────────────────────────────────────────────────────────────
+  // ─── PERSISTENCE & HELPERS ────────────────────────────────────────────────────
   function saveAnswer(_, __, ___) {
     const key = global.gpApp?.guestKey;
     if (!key) return;
     const maxPts = staticQuestions.reduce((s,q)=>s+q.weight,0) + 8 + 7 + 25;
     const totPts = Object.values(answers).reduce((s,a)=>s+a.points,0);
-    firebase.database().ref(`guestinfo/${key}/completionPct`).set(
-      Math.min(100, Math.round(totPts/maxPts*100))
-    );
+    const pct    = Math.min(100, Math.round(totPts/maxPts*100));
+    firebase.database().ref(`guestinfo/${key}/completionPct`).set(pct);
   }
   function debounce(fn, d=300){ let t; return(...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),d); }; }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // EXPOSE & KICK OFF
-  // ───────────────────────────────────────────────────────────────────────────
+  // ─── EXPOSE ───────────────────────────────────────────────────────────────────
   global.renderStepSections       = renderStepSections;
   global.renderQuestions          = renderQuestions;
   global.hydrateAnswers           = hydrateAnswers;
   global.setupInstantSaveForStep1 = setupInstantSaveForStep1;
   global.setupSolutionSave        = setupSolutionSave;
-
 })(window);
