@@ -39,7 +39,6 @@
 
   const answers = {};
 
-  // Debounce helper
   function debounce(fn, delay = 300) {
     let timer = null;
     return (...args) => {
@@ -83,7 +82,7 @@
       margin-top: 20px;
     ` });
 
-    // Step 1 - Customer Info
+    // Step 1
     const step1 = create("section", { class: "guest-step", style: `
       flex: 1 1 300px;
       background: #f7f7f7;
@@ -96,29 +95,15 @@
       <h2 style="margin-top:0; font-size: 22px; color: #222;">Step 1: Customer Info</h2>
       <label class="glabel" style="display:block; margin-bottom:16px; font-weight: 600; color:#444;">
         Customer Name <span class="gp-pts">(8pts)</span>
-        <input class="gfield" type="text" id="custName" placeholder="Full name" style="
-          width: 100%; 
-          padding: 10px; 
-          border-radius: 6px; 
-          border: 1px solid #ccc;
-          font-size: 16px;
-          margin-top: 6px;
-        "/>
+        <input class="gfield" type="text" id="custName" placeholder="Full name" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;"/>
       </label>
       <label class="glabel" style="display:block; margin-bottom:16px; font-weight: 600; color:#444;">
         Customer Phone <span class="gp-pts">(7pts)</span>
-        <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" style="
-          width: 100%; 
-          padding: 10px; 
-          border-radius: 6px; 
-          border: 1px solid #ccc;
-          font-size: 16px;
-          margin-top: 6px;
-        "/>
+        <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;"/>
       </label>
     `;
 
-    // Step 2 - Evaluate
+    // Step 2
     const step2 = create("section", { class: "guest-step", style: `
       flex: 2 1 600px;
       background: #fff;
@@ -134,7 +119,7 @@
       <div id="step2Fields"></div>
     `;
 
-    // Step 3 - Solution
+    // Step 3
     const step3 = create("section", { class: "guest-step", style: `
       flex: 1 1 300px;
       background: #f7f7f7;
@@ -147,15 +132,7 @@
     ` });
     step3.innerHTML = `
       <h2 style="margin-top:0; font-size: 22px; color: #222; margin-bottom:12px;">Step 3: Proposed Solution <span class="gp-pts">(25pts)</span></h2>
-      <textarea class="gfield" id="solutionText" rows="8" placeholder="What we’ll offer…" style="
-        width: 100%; 
-        padding: 12px; 
-        border-radius: 6px; 
-        border: 1px solid #ccc; 
-        font-size: 16px;
-        resize: vertical;
-        flex-grow: 1;
-      "></textarea>
+      <textarea class="gfield" id="solutionText" rows="8" placeholder="What we’ll offer…" style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; resize: vertical; flex-grow: 1;"></textarea>
     `;
 
     container.appendChild(step1);
@@ -168,7 +145,6 @@
     setupInstantSaveForStep1();
     setupSolutionSave();
 
-    // Notify UI ready for external code to write saved data
     if (typeof global.onGuestUIReady === "function") {
       global.onGuestUIReady();
     }
@@ -185,25 +161,11 @@
       let fieldHTML = "";
       if (q.type === "text" || q.type === "number") {
         fieldHTML = `<label class="glabel" style="display:block; margin-bottom:14px; font-weight: 600; color:#444;">${q.label}
-          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" style="
-            width: 100%; 
-            padding: 10px; 
-            border-radius: 6px; 
-            border: 1px solid #ccc;
-            font-size: 16px;
-            margin-top: 6px;
-          " />
+          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;" />
         </label>`;
       } else if (q.type === "select" && Array.isArray(q.options)) {
         fieldHTML = `<label class="glabel" style="display:block; margin-bottom:14px; font-weight: 600; color:#444;">${q.label}
-          <select class="gfield" id="${q.id}" name="${q.id}" style="
-            width: 100%; 
-            padding: 10px; 
-            border-radius: 6px; 
-            border: 1px solid #ccc;
-            font-size: 16px;
-            margin-top: 6px;
-          ">
+          <select class="gfield" id="${q.id}" name="${q.id}" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;">
             <option value="">-- Select --</option>
             ${q.options.map(opt => `<option value="${opt}">${opt}</option>`).join("")}
           </select>
@@ -217,6 +179,7 @@
       if (!input) return;
 
       const debouncedSave = debounce(() => {
+        console.log(`Saving input for ${q.id}:`, input.value);  // <-- Added debug log here
         const val = input.value.trim();
         const points = val === "" ? 0 : q.weight;
         answers[q.id] = { value: val, points };
@@ -274,8 +237,6 @@
   }
 
   function saveAnswer(questionId, value, points) {
-    // console.log(`Saved answer: ${questionId} = "${value}", points: ${points}`);
-
     if (!global.gpApp?.guestKey || !global.firebase?.database) return;
     const db = global.firebase.database();
 
@@ -327,7 +288,6 @@
     return q ? q.label : id;
   }
 
-  // Expose for external use (e.g. from gp-app-min.js)
   global.answers = answers;
   global.updateTotalPoints = updateTotalPoints;
   global.updatePitchText = updatePitchText;
