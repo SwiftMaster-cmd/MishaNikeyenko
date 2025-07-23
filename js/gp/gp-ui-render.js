@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with nested Step 2 evaluate support and live save
+// gp-ui-render.js -- Robust step 2 save/load always
 (function(global){
   const staticQuestions = [
     { id: "numLines", label: "How many lines do you need on your account?", type: "number", weight: 15 },
@@ -28,16 +28,13 @@
     appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
     measurementId: "G-XXXXXXX"
   };
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
 
   const DASHBOARD_URL = global.DASHBOARD_URL || "../html/admin.html";
-
   const answers = {};
 
-  function debounce(fn, delay = 300) {
+  function debounce(fn, delay = 250) {
     let timer = null;
     return (...args) => {
       clearTimeout(timer);
@@ -55,12 +52,11 @@
   function renderUI() {
     const app = document.getElementById("guestApp");
     if (!app) return;
-
     app.innerHTML = "";
 
-    // Header + progress bar
-    const header = create("header", { class: "guest-header", style: "display:flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #ccc;" }, `
-      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}" style="font-weight:bold; font-size:18px; color:#333; text-decoration:none;">← Dashboard</a>
+    // Header + progress
+    const header = create("header", { class: "guest-header" }, `
+      <a id="backToDash" class="guest-back-btn" href="${DASHBOARD_URL}">← Dashboard</a>
       <div style="flex-grow:1; max-width: 360px; margin-left: 20px;">
         <label for="progressBar" style="font-weight:bold; font-size:14px; color:#555;">Progress: <span id="progressLabel">0%</span></label>
         <progress id="progressBar" value="0" max="100" style="width:100%; height: 18px; border-radius: 8px;"></progress>
@@ -68,80 +64,41 @@
     `);
     app.appendChild(header);
 
-    header.querySelector("#backToDash").addEventListener("click", e => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      window.location.href = DASHBOARD_URL;
-    });
+    // Steps container
+    const container = create("div", { class: "guest-steps-container", style: `display: flex; gap: 24px; flex-wrap: wrap; margin-top: 20px;` });
 
-    // Container for steps
-    const container = create("div", { class: "guest-steps-container", style: `
-      display: flex; 
-      gap: 24px; 
-      flex-wrap: wrap; 
-      margin-top: 20px;
-    ` });
-
-    // Step 1 block
-    const step1 = create("section", { class: "guest-step", style: `
-      flex: 1 1 300px;
-      background: #f7f7f7;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-      border: 1px solid #ddd;
-    ` });
-    step1.innerHTML = `
-      <h2 style="margin-top:0; font-size: 22px; color: #222;">Step 1: Customer Info</h2>
-      <label class="glabel" style="display:block; margin-bottom:16px; font-weight: 600; color:#444;">
+    // Step 1
+    const step1 = create("section", { class: "guest-step" }, `
+      <h2>Step 1: Customer Info</h2>
+      <label class="glabel">
         Customer Name <span class="gp-pts">(8pts)</span>
-        <input class="gfield" type="text" id="custName" placeholder="Full name" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;"/>
+        <input class="gfield" type="text" id="custName" placeholder="Full name" />
       </label>
-      <label class="glabel" style="display:block; margin-bottom:16px; font-weight: 600; color:#444;">
+      <label class="glabel">
         Customer Phone <span class="gp-pts">(7pts)</span>
-        <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;"/>
+        <input class="gfield" type="tel" id="custPhone" placeholder="Phone number" />
       </label>
-    `;
+    `);
 
-    // Step 2 block
-    const step2 = create("section", { class: "guest-step", style: `
-      flex: 2 1 600px;
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 1px 6px rgba(0,0,0,0.12);
-      border: 1px solid #ddd;
-      max-height: 90vh;
-      overflow-y: auto;
-    ` });
-    step2.innerHTML = `
-      <h2 style="margin-top:0; font-size: 22px; color: #222;">Step 2: Evaluate Needs</h2>
+    // Step 2
+    const step2 = create("section", { class: "guest-step" }, `
+      <h2>Step 2: Evaluate Needs</h2>
       <div id="step2Fields"></div>
-    `;
+    `);
 
-    // Step 3 block
-    const step3 = create("section", { class: "guest-step", style: `
-      flex: 1 1 300px;
-      background: #f7f7f7;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-      border: 1px solid #ddd;
-      display: flex;
-      flex-direction: column;
-    ` });
-    step3.innerHTML = `
-      <h2 style="margin-top:0; font-size: 22px; color: #222; margin-bottom:12px;">Step 3: Proposed Solution <span class="gp-pts">(25pts)</span></h2>
-      <textarea class="gfield" id="solutionText" rows="8" placeholder="What we’ll offer…" style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; resize: vertical; flex-grow: 1;"></textarea>
-    `;
+    // Step 3
+    const step3 = create("section", { class: "guest-step" }, `
+      <h2>Step 3: Proposed Solution <span class="gp-pts">(25pts)</span></h2>
+      <textarea class="gfield" id="solutionText" rows="8" placeholder="What we’ll offer…"></textarea>
+    `);
 
     container.appendChild(step1);
     container.appendChild(step2);
     container.appendChild(step3);
-
     app.appendChild(container);
 
     renderQuestions("step2Fields");
+    setupStep2Save();
     setupInstantSaveForStep1();
     setupSolutionSave();
 
@@ -154,148 +111,61 @@
     const container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = "";
-
     const questions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
-
     questions.forEach(q => {
       let fieldHTML = "";
       if (q.type === "text" || q.type === "number") {
-        fieldHTML = `<label class="glabel" style="display:block; margin-bottom:14px; font-weight: 600; color:#444;">${q.label}
-          <input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;" />
-        </label>`;
+        fieldHTML = `<label class="glabel">${q.label}<input class="gfield" type="${q.type}" id="${q.id}" name="${q.id}" /></label>`;
       } else if (q.type === "select" && Array.isArray(q.options)) {
-        fieldHTML = `<label class="glabel" style="display:block; margin-bottom:14px; font-weight: 600; color:#444;">${q.label}
-          <select class="gfield" id="${q.id}" name="${q.id}" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; margin-top: 6px;">
-            <option value="">-- Select --</option>
-            ${q.options.map(opt => `<option value="${opt}">${opt}</option>`).join("")}
-          </select>
-        </label>`;
+        fieldHTML = `<label class="glabel">${q.label}<select class="gfield" id="${q.id}" name="${q.id}"><option value="">-- Select --</option>${q.options.map(opt => `<option value="${opt}">${opt}</option>`).join("")}</select></label>`;
       }
       container.insertAdjacentHTML("beforeend", fieldHTML);
     });
+  }
 
-    // Add event listeners to each input/select to save on change
-    questions.forEach(q => {
-      const input = document.getElementById(q.id);
-      if (!input) return;
-
-      const debouncedSave = debounce(() => {
-        const val = input.value.trim();
-        const points = val === "" ? 0 : q.weight;
-        answers[q.id] = { value: val, points };
-        saveAnswer(q.id, val, points);
-        updateTotalPoints();
-        updatePitchText();
-        if (global.gpApp && typeof global.gpApp.saveNow === "function") {
-          global.gpApp.saveNow();
-        }
-      }, 300);
-
-      input.addEventListener(q.type === "select" ? "change" : "input", debouncedSave);
+  function setupStep2Save() {
+    // Triggers save on any step 2 input change (debounced)
+    const fields = document.querySelectorAll("#step2Fields .gfield");
+    fields.forEach(f => {
+      f.addEventListener(f.tagName === "SELECT" ? "change" : "input", debounce(() => {
+        if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
+      }, 250));
     });
   }
 
   function setupInstantSaveForStep1() {
     const custName = document.getElementById("custName");
     const custPhone = document.getElementById("custPhone");
-
     if (custName) {
-      const debouncedNameSave = debounce(() => {
-        const val = custName.value.trim();
-        answers["custName"] = { value: val, points: val ? 8 : 0 };
-        saveAnswer("custName", val, answers["custName"].points);
-        updateTotalPoints();
-        updatePitchText();
+      custName.addEventListener("input", debounce(() => {
         if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
-      }, 300);
-      custName.addEventListener("input", debouncedNameSave);
+      }, 250));
     }
     if (custPhone) {
-      const debouncedPhoneSave = debounce(() => {
-        const val = custPhone.value.trim();
-        answers["custPhone"] = { value: val, points: val ? 7 : 0 };
-        saveAnswer("custPhone", val, answers["custPhone"].points);
-        updateTotalPoints();
-        updatePitchText();
+      custPhone.addEventListener("input", debounce(() => {
         if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
-      }, 300);
-      custPhone.addEventListener("input", debouncedPhoneSave);
+      }, 250));
     }
   }
 
   function setupSolutionSave() {
     const solutionText = document.getElementById("solutionText");
     if (solutionText) {
-      const debouncedSolutionSave = debounce(() => {
-        const val = solutionText.value.trim();
-        answers["solutionText"] = { value: val, points: val ? 25 : 0 };
-        saveAnswer("solutionText", val, answers["solutionText"].points);
-        updateTotalPoints();
-        updatePitchText();
+      solutionText.addEventListener("input", debounce(() => {
         if (global.gpApp && typeof global.gpApp.saveNow === "function") global.gpApp.saveNow();
-      }, 300);
-      solutionText.addEventListener("input", debouncedSolutionSave);
+      }, 250));
     }
   }
 
-  function saveAnswer(questionId, value, points) {
-    if (!global.gpApp?.guestKey || !global.firebase?.database) return;
-    const db = global.firebase.database();
-
-    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7 + 25;
-    const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
-    const percent = Math.min(100, Math.round((total / maxPoints) * 100));
-
-    db.ref(`guestinfo/${global.gpApp.guestKey}/completionPct`).set(percent).catch(() => {
-      console.warn("Failed to update progress in Firebase");
-    });
-  }
-
-  function updateTotalPoints() {
-    const maxPoints = staticQuestions.reduce((acc, q) => acc + q.weight, 0) + 8 + 7 + 25;
-    const total = Object.values(answers).reduce((sum, a) => sum + a.points, 0);
-    const percent = Math.min(100, Math.round((total / maxPoints) * 100));
-    const progressLabel = document.getElementById("progressLabel");
-    const progressBar = document.getElementById("progressBar");
-    if (progressLabel) progressLabel.textContent = `${percent}%`;
-    if (progressBar) progressBar.value = percent;
-  }
-
-  function updatePitchText() {
-    const answersArr = Object.entries(answers);
-    if (!answersArr.length) return;
-
-    let pitch = "Customer Info Summary:\n";
-    answersArr.forEach(([qId, {value}]) => {
-      if (value) {
-        const label = getQuestionLabelById(qId);
-        pitch += `${label}: ${value}\n`;
+  // Allows programmatically setting Step 2 values
+  global.setStep2Fields = function(evaluateObj = {}) {
+    const fields = document.querySelectorAll("#step2Fields .gfield");
+    fields.forEach(f => {
+      if (evaluateObj && typeof evaluateObj[f.id] !== "undefined") {
+        f.value = evaluateObj[f.id];
       }
     });
+  };
 
-    const solutionText = document.getElementById("solutionText");
-    if (solutionText) {
-      if (!solutionText.value.trim()) {
-        solutionText.value = pitch.trim();
-      }
-    }
-  }
-
-  function getQuestionLabelById(id) {
-    const allQuestions = (global.gpQuestions && global.gpQuestions.length) ? global.gpQuestions : staticQuestions;
-    if (id === "custName") return "Customer Name";
-    if (id === "custPhone") return "Customer Phone";
-    if (id === "solutionText") return "Proposed Solution";
-    const q = allQuestions.find(q => q.id === id);
-    return q ? q.label : id;
-  }
-
-  global.answers = answers;
-  global.updateTotalPoints = updateTotalPoints;
-  global.updatePitchText = updatePitchText;
-
-  auth.onAuthStateChanged(() => {
-    renderUI();
-  });
-
+  auth.onAuthStateChanged(() => renderUI());
 })(window);
