@@ -1,4 +1,4 @@
-// gp-app-min.js -- save/load Step 2 answers directly inside guestinfo root (not nested under evaluate)
+// gp-app-min.js -- save/load Step 2 answers flat with detailed logging for debugging
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -18,75 +18,101 @@
   let _guestKey = null;
   let _uiStep   = "step1";
 
-  const el = id => document.getElementById(id);
+  const el = id => {
+    const elem = document.getElementById(id);
+    if (!elem) console.warn(`[gpApp] Element not found: ${id}`);
+    return elem;
+  };
 
   function readFields() {
+    console.log("[gpApp] Reading Step 1 & Step 2 fields");
     const out = {
       custName:  el("custName")?.value.trim()  || "",
       custPhone: el("custPhone")?.value.trim() || ""
     };
-    (global.gpQuestions||[]).forEach(q => {
+    const questions = global.gpQuestions || [];
+    console.log(`[gpApp] Found ${questions.length} Step 2 questions.`);
+    questions.forEach(q => {
       const f = el(q.id);
-      if (!f) return;
-      const v = f.tagName === "SELECT" || f.tagName === "INPUT" || f.tagName==="TEXTAREA"
+      if (!f) {
+        console.warn(`[gpApp] Step 2 field missing: ${q.id}`);
+        out[q.id] = "";
+        return;
+      }
+      const val = (f.tagName === "SELECT" || f.tagName === "INPUT" || f.tagName === "TEXTAREA")
         ? f.value
         : "";
-      out[q.id] = (typeof v === "string" ? v.trim() : v) || "";
+      out[q.id] = (typeof val === "string" ? val.trim() : val) || "";
+      console.log(`[gpApp] Read Step 2 field '${q.id}': '${out[q.id]}'`);
     });
     out.solutionText = el("solutionText")?.value.trim() || "";
+    console.log(`[gpApp] Read Step 3 solutionText: '${out.solutionText}'`);
     return out;
   }
 
   function writeFields(g) {
-    if (el("custName"))     el("custName").value     = g.custName || "";
-    if (el("custPhone"))    el("custPhone").value    = g.custPhone || "";
+    console.log("[gpApp] Writing fields with guest data:", g);
+    if (el("custName")) el("custName").value = g.custName || "";
+    if (el("custPhone")) el("custPhone").value = g.custPhone || "";
 
-    (global.gpQuestions||[]).forEach(q => {
+    const questions = global.gpQuestions || [];
+    console.log(`[gpApp] Writing ${questions.length} Step 2 fields`);
+    questions.forEach(q => {
       const f = el(q.id);
-      if (!f) return;
-      // Read directly from root keys, not nested evaluate
+      if (!f) {
+        console.warn(`[gpApp] Cannot write Step 2 field - not found: ${q.id}`);
+        return;
+      }
       f.value = g[q.id] || "";
+      console.log(`[gpApp] Wrote Step 2 field '${q.id}': '${f.value}'`);
     });
 
-    if (el("solutionText")) el("solutionText").value = g.solutionText || "";
+    if (el("solutionText")) {
+      el("solutionText").value = g.solutionText || "";
+      console.log(`[gpApp] Wrote solutionText: '${g.solutionText || ""}'`);
+    }
   }
 
   function loadAnswersFromGuest(g) {
+    console.log("[gpApp] Loading answers from guest object:", g);
     const answers = global.answers;
-    if (!answers) return;
+    if (!answers) {
+      console.warn("[gpApp] global.answers not found!");
+      return;
+    }
     Object.keys(answers).forEach(k => delete answers[k]);
 
     if (g.custName) answers["custName"] = { value: g.custName, points: 8 };
     if (g.custPhone) answers["custPhone"] = { value: g.custPhone, points: 7 };
 
-    if (global.gpQuestions) {
-      global.gpQuestions.forEach(q => {
-        const val = g[q.id] || "";
-        if (val) answers[q.id] = { value: val, points: q.weight };
-      });
-    }
+    const questions = global.gpQuestions || [];
+    questions.forEach(q => {
+      const val = g[q.id] || "";
+      if (val) {
+        answers[q.id] = { value: val, points: q.weight };
+        console.log(`[gpApp] Loaded Step 2 answer: ${q.id} = '${val}' (${q.weight} pts)`);
+      }
+    });
 
     if (g.solutionText) {
       answers["solutionText"] = { value: g.solutionText, points: 25 };
     }
   }
 
-  function updateProgressFromGuest(g) {
-    // noop; handled elsewhere
-  }
-
   function saveLocalKey(k) {
-    try { localStorage.setItem("last_guestinfo_key", k || ""); }
-    catch(_) {}
+    try {
+      localStorage.setItem("last_guestinfo_key", k || "");
+      console.log(`[gpApp] Saved guest key locally: ${k}`);
+    } catch(e) {
+      console.warn("[gpApp] Failed to save guest key locally:", e);
+    }
   }
 
   function initialStep(g) {
     if (global.gpCore) {
-      return global.gpCore.detectStatus(g) === "proposal"
-        ? "step3"
-        : (global.gpCore.detectStatus(g) === "working"
-            ? "step2"
-            : "step1");
+      const status = global.gpCore.detectStatus(g);
+      console.log(`[gpApp] Initial step status detected: ${status}`);
+      return status === "proposal" ? "step3" : (status === "working" ? "step2" : "step1");
     }
     return "step1";
   }
@@ -94,7 +120,8 @@
   function ensureStepNav() {
     if (el("gp-step-nav")) return;
     const nav = document.createElement("div");
-    nav.id = "gp-step-nav"; nav.className = "gp-step-nav";
+    nav.id = "gp-step-nav";
+    nav.className = "gp-step-nav";
     nav.innerHTML = `
       <button data-step="step1">1. Customer</button>
       <button data-step="step2">2. Evaluate</button>
@@ -105,12 +132,16 @@
       if (!btn) return;
       navHandler(btn.dataset.step);
     });
+    console.log("[gpApp] Navigation created.");
   }
+
   function navHandler(step) {
+    console.log(`[gpApp] Navigating to step: ${step}`);
     _uiStep = step;
     markStepActive(step);
     gotoStep(step);
   }
+
   function markStepActive(step) {
     const nav = el("gp-step-nav");
     if (!nav) return;
@@ -118,7 +149,9 @@
       b.classList.toggle("active", b.dataset.step === step)
     );
   }
+
   function gotoStep(step) {
+    console.log(`[gpApp] Showing step form: ${step}`);
     ["step1","step2","step3"].forEach(s => {
       const f = el(s + "Form");
       if (f) f.classList.toggle("hidden", s !== step);
@@ -126,12 +159,20 @@
   }
 
   async function saveGuestNow() {
+    console.log("[gpApp] saveGuestNow called");
     const f = readFields();
     const uid = auth.currentUser?.uid || null;
     const now = Date.now();
-    const status = global.gpCore
-      ? global.gpCore.detectStatus({..._guestObj, ...f, solutionText: f.solutionText})
-      : "new";
+
+    let status = "new";
+    if (global.gpCore) {
+      try {
+        status = global.gpCore.detectStatus({..._guestObj, ...f, solutionText: f.solutionText});
+      } catch(e) {
+        console.warn("[gpApp] gpCore.detectStatus error:", e);
+      }
+    }
+    console.log(`[gpApp] Computed status: ${status}`);
 
     if (!_guestKey) {
       const payload = {
@@ -148,13 +189,16 @@
         payload[q.id] = f[q.id] || "";
       });
 
+      console.log("[gpApp] Creating new guestinfo record:", payload);
+
       try {
         const ref = await db.ref("guestinfo").push(payload);
         _guestKey = ref.key;
         _guestObj = { ...payload };
         saveLocalKey(_guestKey);
+        console.log(`[gpApp] New guestinfo record saved with key: ${_guestKey}`);
       } catch (err) {
-        console.error("Error saving new guest:", err);
+        console.error("[gpApp] Error saving new guestinfo:", err);
       }
     } else {
       const updates = {
@@ -165,34 +209,50 @@
         [`guestinfo/${_guestKey}/solutionText`]: f.solutionText
       };
 
-      // Update Step 2 answers directly at root level
       (global.gpQuestions||[]).forEach(q => {
         updates[`guestinfo/${_guestKey}/${q.id}`] = f[q.id] || "";
       });
 
+      console.log("[gpApp] Updating existing guestinfo record:", updates);
+
       try {
         await db.ref().update(updates);
         Object.assign(_guestObj, { ...f, status });
+        console.log("[gpApp] Guestinfo record updated successfully.");
       } catch (err) {
-        console.error("Error updating guest:", err);
+        console.error("[gpApp] Error updating guestinfo:", err);
       }
     }
   }
 
   async function loadContext() {
+    console.log("[gpApp] loadContext called");
     const params = new URLSearchParams(window.location.search);
     const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
+    console.log(`[gpApp] Loading guestinfo for key: ${gid}`);
 
     if (gid) {
-      const snap = await db.ref("guestinfo/" + gid).get();
-      if (snap.exists()) {
-        let g = snap.val();
-        _guestKey = gid;
-        _guestObj = g;
-        saveLocalKey(gid);
+      try {
+        const snap = await db.ref("guestinfo/" + gid).get();
+        if (snap.exists()) {
+          let g = snap.val();
+          _guestKey = gid;
+          _guestObj = g;
+          saveLocalKey(gid);
+          console.log("[gpApp] Guestinfo data loaded:", g);
 
-        if (typeof global.onGuestUIReady === "function") {
-          global.onGuestUIReady(() => {
+          if (typeof global.onGuestUIReady === "function") {
+            global.onGuestUIReady(() => {
+              writeFields(_guestObj);
+              loadAnswersFromGuest(_guestObj);
+              _uiStep = initialStep(_guestObj);
+              gotoStep(_uiStep);
+              markStepActive(_uiStep);
+              if (global.updateTotalPoints) global.updateTotalPoints();
+              if (global.updatePitchText) global.updatePitchText();
+            });
+          } else {
+            await new Promise(r => setTimeout(r, 50));
             writeFields(_guestObj);
             loadAnswersFromGuest(_guestObj);
             _uiStep = initialStep(_guestObj);
@@ -200,23 +260,18 @@
             markStepActive(_uiStep);
             if (global.updateTotalPoints) global.updateTotalPoints();
             if (global.updatePitchText) global.updatePitchText();
-          });
-        } else {
-          await new Promise(r => setTimeout(r, 50));
-          writeFields(_guestObj);
-          loadAnswersFromGuest(_guestObj);
-          _uiStep = initialStep(_guestObj);
-          gotoStep(_uiStep);
-          markStepActive(_uiStep);
-          if (global.updateTotalPoints) global.updateTotalPoints();
-          if (global.updatePitchText) global.updatePitchText();
-        }
+          }
 
-        db.ref(`guestinfo/${_guestKey}/completionPct`).off();
-        return;
+          db.ref(`guestinfo/${_guestKey}/completionPct`).off();
+          return;
+        }
+        console.warn("[gpApp] Guestinfo record not found for key:", gid);
+      } catch(e) {
+        console.error("[gpApp] Error loading guestinfo:", e);
       }
     }
 
+    console.log("[gpApp] No existing guestinfo key found, initializing new record.");
     _guestObj = {};
     _guestKey = null;
     _uiStep   = "step1";
@@ -251,8 +306,10 @@
         d.textContent = "Please sign in to continue.";
         document.body.appendChild(d);
       }
+      console.log("[gpApp] User not signed in.");
       return;
     }
+    console.log("[gpApp] User signed in:", user.uid);
     const ov = el("gp-auth-overlay"); if (ov) ov.remove();
 
     ensureStepNav();
