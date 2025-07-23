@@ -1,4 +1,4 @@
-// gp-app-min.js -- Guest Portal controller with proper Step 2 data loading and fluid save flow
+// gp-app-min.js -- Guest Portal controller with correct nested evaluate load and debug logging
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -38,6 +38,7 @@
   }
 
   function writeFields(g) {
+    console.log("writeFields called with guest object:", g);
     if (el("custName"))     el("custName").value     = g.custName || "";
     if (el("custPhone"))    el("custPhone").value    = g.custPhone || "";
 
@@ -45,14 +46,15 @@
       const f = el(q.id);
       if (!f) return;
       if (f.tagName === "SELECT" || f.tagName === "INPUT" || f.tagName==="TEXTAREA") {
-        f.value = (g.evaluate && g.evaluate[q.id]) || g[q.id] || "";
+        // Read Step 2 from nested evaluate object if present
+        const val = (g.evaluate && typeof g.evaluate[q.id] !== "undefined") ? g.evaluate[q.id] : g[q.id] || "";
+        f.value = val;
       }
     });
 
     if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
   }
 
-  // rebuild answers object for progress and pitch
   function loadAnswersFromGuest(g) {
     const answers = global.answers;
     if (!answers) return;
@@ -74,7 +76,7 @@
   }
 
   function updateProgressFromGuest(g) {
-    // noop, handled by gp-ui-render.js
+    // noop; handled in gp-ui-render.js
   }
 
   function saveLocalKey(k) {
@@ -140,6 +142,8 @@
       evaluate[q.id] = f[q.id] || "";
     });
 
+    console.log("Saving evaluate data:", evaluate);
+
     if (!_guestKey) {
       const payload = {
         custName:    f.custName,
@@ -155,8 +159,8 @@
         _guestKey = ref.key;
         _guestObj = { ...payload };
         saveLocalKey(_guestKey);
-      } catch {
-        // silent fail or retry logic can go here
+      } catch (err) {
+        console.error("Error saving new guest:", err);
       }
     } else {
       const updates = {};
@@ -172,8 +176,8 @@
       try {
         await db.ref().update(updates);
         Object.assign(_guestObj, { ...f, status, evaluate });
-      } catch {
-        // silent fail or retry logic can go here
+      } catch (err) {
+        console.error("Error updating guest:", err);
       }
     }
   }
@@ -190,6 +194,8 @@
         _guestKey = gid;
         _guestObj = g;
         saveLocalKey(gid);
+
+        console.log("Loaded guest data from Firebase:", g);
 
         if (typeof global.onGuestUIReady === "function") {
           global.onGuestUIReady(() => {
