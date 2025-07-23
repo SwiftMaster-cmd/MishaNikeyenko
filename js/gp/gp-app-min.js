@@ -1,4 +1,5 @@
 // gp-app-min.js -- Guest Portal minimal logic, live save/load, progress updates
+// gp-app-min.js -- Guest Portal App logic with nested "evaluate", live save/load, and guarded progress updates
 (function(global){
   // Firebase initialization
   const cfg = global.GP_FIREBASE_CONFIG || {
@@ -22,6 +23,7 @@
   const el = id => document.getElementById(id);
 
   // Read all UI fields
+  // Read all form fields, including nested evaluate
   function readFields() {
     const out = {
       custName:    el("custName")?.value.trim()    || "",
@@ -36,6 +38,7 @@
   }
 
   // Populate UI from guest object
+  // Populate UI from loaded guest object
   function writeFields(g) {
     if (el("custName"))    el("custName").value    = g.custName   || "";
     if (el("custPhone"))   el("custPhone").value   = g.custPhone  || "";
@@ -43,11 +46,13 @@
       const f = el(q.id);
       if (!f) return;
       f.value = g[q.id] ?? "";
+      f.value = g.evaluate?.[q.id] ?? g[q.id] ?? "";
     });
     if (el("solutionText")) el("solutionText").value = g.solution?.text || g.solutionText || "";
   }
 
   // Sync "answers" object for UI
+  // Build global.answers for render logic
   function loadAnswersFromGuest(g) {
     const ans = global.answers;
     if (!ans) return;
@@ -63,6 +68,16 @@
   }
 
   // Real-time progress sync
+    if (g.evaluate) {
+      (global.gpQuestions || []).forEach(q => {
+        const v = g.evaluate[q.id] || "";
+        if (v) ans[q.id] = { value: v, points: q.weight };
+      });
+    }
+    if (g.solution?.text) ans["solutionText"] = { value: g.solution.text, points: 25 };
+  }
+
+  // Guarded real-time listener for remote progressPct
   function attachCompletionListener() {
     if (!_guestKey) return;
     const ref = db.ref(`guestinfo/${_guestKey}/completionPct`);
@@ -74,6 +89,7 @@
       const bar   = el("progressBar");
       if (label) label.textContent = `${pct}%`;
       if (bar)   bar.value = pct;
+      if (bar)    bar.value = pct;
     });
   }
 
@@ -102,6 +118,9 @@
         userUid:     auth.currentUser?.uid || null
       };
       if (f.solutionText) payload.solution = { text: f.solutionText, completedAt: now };
+      if (f.solutionText) {
+        payload.solution = { text: f.solutionText, completedAt: now };
+      }
       try {
         const ref = db.ref("guestinfo").push();
         await ref.set(payload);
@@ -112,6 +131,11 @@
       } catch (e) { console.error("Error creating guest:", e); }
     } else {
       // Update guest
+      } catch (e) {
+        console.error("Error creating guest:", e);
+      }
+    } else {
+      // Update existing guest
       const updates = {
         [`guestinfo/${_guestKey}/custName`]:    f.custName,
         [`guestinfo/${_guestKey}/custPhone`]:   f.custPhone,
@@ -139,6 +163,19 @@
   async function loadContext() {
     const params = new URLSearchParams(window.location.search);
     const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
+      try {
+        await db.ref().update(updates);
+      } catch (e) {
+        console.error("Error updating guest:", e);
+      }
+    }
+  }
+
+  // Load existing context or initialize fresh
+  async function loadContext() {
+    const params = new URLSearchParams(window.location.search);
+    const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
+
     if (gid) {
       try {
         const snap = await db.ref(`guestinfo/${gid}`).get();
@@ -149,6 +186,10 @@
           _guestObj = g;
           writeFields(g);
           loadAnswersFromGuest(g);
+
+          const st = global.gpCore ? global.gpCore.detectStatus(g) : "new";
+          const step = st === "proposal" ? "step3" : st === "working" ? "step2" : "step1";
+          global.gpApp.gotoStep(step);
           if (global.updateTotalPoints) global.updateTotalPoints();
           if (global.updatePitchText)  global.updatePitchText();
           attachCompletionListener();
@@ -159,10 +200,45 @@
     // Fresh start
     _guestObj = {};
     _guestKey = null;
+      } catch (e) {
+        console.error("Error loading guest:", e);
+      }
+    }
+
+    // Fresh context
+    _guestObj = {};
+    _guestKey = null;
+    global.gpApp.gotoStep("step1");
     writeFields({});
     loadAnswersFromGuest({});
     if (global.updateTotalPoints) global.updateTotalPoints();
     if (global.updatePitchText)  global.updatePitchText();
+  }
+
+  // Step navigation controls
+  function ensureStepNav() {
+    if (el("gp-step-nav")) return;
+    const nav = document.createElement("div");
+    nav.id = "gp-step-nav";
+    nav.className = "gp-step-nav";
+    nav.innerHTML = `
+      <button data-step="step1">1. Customer</button>
+      <button data-step="step2">2. Evaluate</button>
+      <button data-step="step3">3. Solution</button>`;
+    document.body.prepend(nav);
+    nav.addEventListener("click", e => {
+      const b = e.target.closest("button[data-step]");
+      if (b) global.gpApp.gotoStep(b.dataset.step);
+    });
+  }
+  function navHandler(step) {
+    ["step1","step2","step3"].forEach(s => {
+      const form = el(s + "Form");
+      if (form) form.classList.toggle("hidden", s !== step);
+    });
+    Array.from(document.querySelectorAll("#gp-step-nav button")).forEach(b =>
+      b.classList.toggle("active", b.dataset.step === step)
+    );
   }
 
   // Auth and initialization
@@ -187,5 +263,15 @@
     get guestKey(){ return _guestKey; },
     saveNow: saveGuestNow,
     loadContext
+  global.gpBasic = {
+    get guestKey(){ return _guestKey; },
+    save:    saveGuestNow,
+    goto:    navHandler,
+    open:    loadContext
+  };
+  global.gpApp = {
+    get guestKey(){ return gpBasic.guestKey; },
+    saveNow: gpBasic.save,
+    gotoStep: gpBasic.goto
   };
 })(window);
