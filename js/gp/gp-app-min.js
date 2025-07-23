@@ -239,4 +239,4 @@
     saveNow: gpBasic.save,
     gotoStep: gpBasic.goto
   };
-})(window); but i need full file update
+})(window);
