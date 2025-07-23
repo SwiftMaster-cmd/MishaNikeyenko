@@ -1,24 +1,6 @@
 // guestinfo-container.js
 
-import {
-  groupByStatus,
-  statusSectionHtml,
-  detectStatus
-} from './gi-render.js';
-
-import {
-  toggleEdit,
-  cancelEdit,
-  saveEdit,
-  deleteGuestInfo,
-  markSold,
-  deleteSale,
-  openGuestInfoPage,
-  recomputePitch,
-  toggleActionButtons
-} from './gi-action.js';
-
-// ── Time & filter helpers ─────────────────────────────────────────────────
+// Helpers (import/inline as needed)
 function msNDaysAgo(n) { return Date.now() - n * 864e5; }
 function latestActivityTs(g) {
   return Math.max(
@@ -33,62 +15,40 @@ function dateToISO(ts) {
   return ts ? new Date(ts).toISOString().slice(0, 10) : '';
 }
 
-// ── Role-based filtering ────────────────────────────────────────────────────
-function getUsersUnderDM(users, dmUid) {
-  const leads = Object.entries(users)
-    .filter(([,u]) => u.role === "lead" && u.assignedDM === dmUid)
-    .map(([uid]) => uid);
-  const mes = Object.entries(users)
-    .filter(([,u]) => u.role === "me" && leads.includes(u.assignedLead))
-    .map(([uid]) => uid);
-  return new Set([...leads, ...mes]);
+// Global mode state and setter
+if (!window.guestinfoMode) window.guestinfoMode = 'open';
+
+window.setGuestinfoMode = function(mode) {
+  window.guestinfoMode = mode;
+  window.renderAdminApp();
+};
+
+// Mode switcher UI
+function modeSwitcherHtml() {
+  const m = window.guestinfoMode || 'open';
+  const modes = [
+    ['open', 'Open'],
+    ['edit', 'Quick Edit'],
+    ['markSold', 'Mark Sold'],
+    ['delete', 'Delete']
+  ];
+  return `
+    <div class="guestinfo-mode-switcher" style="margin-bottom:18px;display:flex;gap:16px;align-items:center;">
+      <span style="font-weight:600;color:#444;">Action Mode:</span>
+      ${modes.map(([val, lbl]) =>
+        `<label style="margin-right:12px;cursor:pointer;">
+          <input type="radio" name="guestinfo-mode" value="${val}" ${m===val?'checked':''}
+            onchange="window.setGuestinfoMode('${val}')"
+            style="margin-right:4px;vertical-align:middle;" /> ${lbl}
+        </label>`
+      ).join('')}
+    </div>
+  `;
 }
 
-function filterByRole(guestinfo, users, uid, role) {
-  if (!guestinfo || !users || !uid || !role) return {};
-  if (role === "admin") return guestinfo;
-  if (role === "dm") {
-    const under = getUsersUnderDM(users, uid);
-    under.add(uid);
-    return Object.fromEntries(
-      Object.entries(guestinfo).filter(([,g]) => under.has(g.userUid))
-    );
-  }
-  if (role === "lead") {
-    const mes = Object.entries(users)
-      .filter(([,u]) => u.role === "me" && u.assignedLead === uid)
-      .map(([uid]) => uid);
-    const vis = new Set([...mes, uid]);
-    return Object.fromEntries(
-      Object.entries(guestinfo).filter(([,g]) => vis.has(g.userUid))
-    );
-  }
-  if (role === "me") {
-    return Object.fromEntries(
-      Object.entries(guestinfo).filter(([,g]) => g.userUid === uid)
-    );
-  }
-  return {};
-}
-
-// ── Persistent filter state ────────────────────────────────────────────────
-if (!window._guestinfo_filters) {
-  window._guestinfo_filters = {
-    name: "",
-    employee: "",
-    date: "",
-    filterMode: "week",
-    showProposals: false,
-    soldOnly: false,
-    panelOpen: false
-  };
-}
-
-// ── Controls bar + Filters panel ────────────────────────────────────────────
+// Filtering and controls bar (same as before)
 function controlsBarHtml(propCount, soldCount, role) {
   const f = window._guestinfo_filters;
-
-  // Header buttons
   const header = `
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn btn-secondary btn-sm"
@@ -100,8 +60,6 @@ function controlsBarHtml(propCount, soldCount, role) {
         + New Lead
       </button>
     </div>`;
-
-  // Panel contents
   const panelStyle = f.panelOpen
     ? 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;'
     : 'display:none;';
@@ -144,11 +102,10 @@ function controlsBarHtml(propCount, soldCount, role) {
         Clear All
       </button>
     </div>`;
-
   return `<div class="guestinfo-controls">${header}${panel}</div>`;
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────
+// Empty state UI
 function emptyHtml(msg = "No guest leads in this view.") {
   return `
     <div class="guestinfo-empty" style="text-align:center;margin-top:16px;">
@@ -160,14 +117,49 @@ function emptyHtml(msg = "No guest leads in this view.") {
     </div>`;
 }
 
-// ── Main renderer ─────────────────────────────────────────────────────────
+// Role filter logic (unchanged)
+function getUsersUnderDM(users, dmUid) {
+  const leads = Object.entries(users)
+    .filter(([,u]) => u.role === "lead" && u.assignedDM === dmUid)
+    .map(([uid]) => uid);
+  const mes = Object.entries(users)
+    .filter(([,u]) => u.role === "me" && leads.includes(u.assignedLead))
+    .map(([uid]) => uid);
+  return new Set([...leads, ...mes]);
+}
+function filterByRole(guestinfo, users, uid, role) {
+  if (!guestinfo || !users || !uid || !role) return {};
+  if (role === "admin") return guestinfo;
+  if (role === "dm") {
+    const under = getUsersUnderDM(users, uid);
+    under.add(uid);
+    return Object.fromEntries(
+      Object.entries(guestinfo).filter(([,g]) => under.has(g.userUid))
+    );
+  }
+  if (role === "lead") {
+    const mes = Object.entries(users)
+      .filter(([,u]) => u.role === "me" && u.assignedLead === uid)
+      .map(([uid]) => uid);
+    const vis = new Set([...mes, uid]);
+    return Object.fromEntries(
+      Object.entries(guestinfo).filter(([,g]) => vis.has(g.userUid))
+    );
+  }
+  if (role === "me") {
+    return Object.fromEntries(
+      Object.entries(guestinfo).filter(([,g]) => g.userUid === uid)
+    );
+  }
+  return {};
+}
+
+// Main renderer with mode-based card click
 export function renderGuestinfoSection(guestinfo, users, uid, role) {
   const f = window._guestinfo_filters;
-
-  // 1) Role filter
   let items = filterByRole(guestinfo, users, uid, role);
 
-  // 2) Name filter
+  // 1. Name filter
   if (f.name) {
     const nameLower = f.name.toLowerCase();
     items = Object.fromEntries(
@@ -177,7 +169,7 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
     );
   }
 
-  // 3) Employee filter
+  // 2. Employee filter
   if (f.employee) {
     const empLower = f.employee.toLowerCase();
     items = Object.fromEntries(
@@ -189,7 +181,7 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
     );
   }
 
-  // 4) Date filter
+  // 3. Date filter
   if (f.date) {
     items = Object.fromEntries(
       Object.entries(items).filter(([,g]) =>
@@ -198,22 +190,22 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
     );
   }
 
-  // Counts for toggles
+  // Count for toggles
   const fullGroups = groupByStatus(items);
   const propCount  = fullGroups.proposal.length;
   const soldCount  = fullGroups.sold.length;
 
-  // 5) Timeframe / proposals / sales toggles
+  // 4. Timeframe / proposals / sales toggles
   if (!f.showProposals && !f.soldOnly && f.filterMode === 'week' && role !== 'me') {
     items = Object.fromEntries(
       Object.entries(items).filter(([,g]) => inCurrentWeek(g))
     );
   }
 
-  // 6) Regroup
+  // 5. Regroup by status
   const groups = groupByStatus(items);
 
-  // 7) Build inner HTML
+  // 6. Build inner HTML for each status section
   let inner = '';
   if (f.soldOnly && role !== 'me') {
     if (groups.sold.length) {
@@ -238,8 +230,10 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
     }
   }
 
+  // ---- Render section ----
   return `
     <section class="admin-section guestinfo-section" id="guestinfo-section">
+      ${modeSwitcherHtml()}
       ${controlsBarHtml(propCount, soldCount, role)}
       <div id="guestinfo-results">
         ${inner}
@@ -248,90 +242,11 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
   `;
 }
 
-// ── Filter setters & clearers ─────────────────────────────────────────────
-export function toggleFilterPanel() {
-  window._guestinfo_filters.panelOpen = !window._guestinfo_filters.panelOpen;
-  window.renderAdminApp();
-}
-export function setSearchName(val) {
-  window._guestinfo_filters.name = val;
-  window.renderAdminApp();
-}
-export function clearSearchName() {
-  window._guestinfo_filters.name = '';
-  window.renderAdminApp();
-}
-export function setSearchEmployee(val) {
-  window._guestinfo_filters.employee = val;
-  window.renderAdminApp();
-}
-export function clearSearchEmployee() {
-  window._guestinfo_filters.employee = '';
-  window.renderAdminApp();
-}
-export function setSearchDate(val) {
-  window._guestinfo_filters.date = val;
-  window.renderAdminApp();
-}
-export function clearSearchDate() {
-  window._guestinfo_filters.date = '';
-  window.renderAdminApp();
-}
-export function toggleFilterMode() {
-  const f = window._guestinfo_filters;
-  f.filterMode = f.filterMode === 'week' ? 'all' : 'week';
-  f.showProposals = false;
-  f.soldOnly = false;
-  window.renderAdminApp();
-}
-export function toggleShowProposals() {
-  const f = window._guestinfo_filters;
-  f.showProposals = !f.showProposals;
-  f.soldOnly = false;
-  window.renderAdminApp();
-}
-export function toggleSoldOnly() {
-  const f = window._guestinfo_filters;
-  f.soldOnly = !f.soldOnly;
-  f.showProposals = false;
-  window.renderAdminApp();
-}
-export function clearAllFilters() {
-  window._guestinfo_filters = {
-    name: "", employee: "", date: "",
-    filterMode: "week",
-    showProposals: false,
-    soldOnly: false,
-    panelOpen: false
-  };
-  window.renderAdminApp();
-}
-export function createNewLead() {
-  try { localStorage.removeItem("last_guestinfo_key"); } catch (_) {}
-  window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split('?')[0];
-}
-
-// ── Initialization ───────────────────────────────────────────────────────
-export function initGuestinfo() {
-  window.guestinfo = {
-    renderGuestinfoSection,
-    toggleFilterPanel,
-    setSearchName, clearSearchName,
-    setSearchEmployee, clearSearchEmployee,
-    setSearchDate, clearSearchDate,
-    toggleFilterMode,
-    toggleShowProposals,
-    toggleSoldOnly,
-    clearAllFilters,
-    toggleActionButtons,
-    toggleEdit,
-    cancelEdit,
-    saveEdit,
-    deleteGuestInfo,
-    markSold,
-    deleteSale,
-    openGuestInfoPage,
-    createNewLead,
-    recomputePitch
-  };
-}
+// ---- Card click handler: triggers action for the current mode ----
+window.handleGuestCardClick = async function(id) {
+  const mode = window.guestinfoMode || 'open';
+  if (mode === 'open')        window.guestinfo.openGuestInfoPage(id);
+  else if (mode === 'edit')   window.guestinfo.toggleEdit(id);
+  else if (mode === 'markSold') await window.guestinfo.markSold(id);
+  else if (mode === 'delete')    await window.guestinfo.deleteGuestInfo(id);
+};
