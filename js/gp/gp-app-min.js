@@ -1,4 +1,3 @@
-// gp-app-min.js -- Guest Portal minimal logic, live save/load, progress updates
 // gp-app-min.js -- Guest Portal App logic with nested "evaluate", live save/load, and guarded progress updates
 (function(global){
   // Firebase initialization
@@ -19,10 +18,10 @@
   // State
   let _guestKey = null;
   let _guestObj = {};
+  let _uiStep   = "step1";
 
   const el = id => document.getElementById(id);
 
-  // Read all UI fields
   // Read all form fields, including nested evaluate
   function readFields() {
     const out = {
@@ -37,7 +36,6 @@
     return out;
   }
 
-  // Populate UI from guest object
   // Populate UI from loaded guest object
   function writeFields(g) {
     if (el("custName"))    el("custName").value    = g.custName   || "";
@@ -45,13 +43,11 @@
     (global.gpQuestions || []).forEach(q => {
       const f = el(q.id);
       if (!f) return;
-      f.value = g[q.id] ?? "";
       f.value = g.evaluate?.[q.id] ?? g[q.id] ?? "";
     });
-    if (el("solutionText")) el("solutionText").value = g.solution?.text || g.solutionText || "";
+    if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
   }
 
-  // Sync "answers" object for UI
   // Build global.answers for render logic
   function loadAnswersFromGuest(g) {
     const ans = global.answers;
@@ -59,15 +55,6 @@
     Object.keys(ans).forEach(k => delete ans[k]);
     if (g.custName)  ans["custName"]    = { value: g.custName,  points: 8 };
     if (g.custPhone) ans["custPhone"]   = { value: g.custPhone, points: 7 };
-    (global.gpQuestions || []).forEach(q => {
-      const v = g[q.id] || "";
-      if (v) ans[q.id] = { value: v, points: q.weight };
-    });
-    if (g.solution?.text || g.solutionText)
-      ans["solutionText"] = { value: g.solution?.text || g.solutionText, points: 25 };
-  }
-
-  // Real-time progress sync
     if (g.evaluate) {
       (global.gpQuestions || []).forEach(q => {
         const v = g.evaluate[q.id] || "";
@@ -88,7 +75,6 @@
       const label = el("progressLabel");
       const bar   = el("progressBar");
       if (label) label.textContent = `${pct}%`;
-      if (bar)   bar.value = pct;
       if (bar)    bar.value = pct;
     });
   }
@@ -117,7 +103,6 @@
         submittedAt: now,
         userUid:     auth.currentUser?.uid || null
       };
-      if (f.solutionText) payload.solution = { text: f.solutionText, completedAt: now };
       if (f.solutionText) {
         payload.solution = { text: f.solutionText, completedAt: now };
       }
@@ -128,9 +113,6 @@
         _guestObj = payload;
         localStorage.setItem("last_guestinfo_key", _guestKey);
         attachCompletionListener();
-      } catch (e) { console.error("Error creating guest:", e); }
-    } else {
-      // Update guest
       } catch (e) {
         console.error("Error creating guest:", e);
       }
@@ -154,15 +136,6 @@
       Object.entries(evalData).forEach(([k, v]) => {
         updates[`guestinfo/${_guestKey}/evaluate/${k}`] = v;
       });
-      try { await db.ref().update(updates); }
-      catch (e) { console.error("Error updating guest:", e); }
-    }
-  }
-
-  // Load guest context (by URL param, localStorage, or fresh)
-  async function loadContext() {
-    const params = new URLSearchParams(window.location.search);
-    const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
       try {
         await db.ref().update(updates);
       } catch (e) {
@@ -192,14 +165,10 @@
           global.gpApp.gotoStep(step);
           if (global.updateTotalPoints) global.updateTotalPoints();
           if (global.updatePitchText)  global.updatePitchText();
+
           attachCompletionListener();
           return;
         }
-      } catch (e) { console.error("Error loading guest:", e); }
-    }
-    // Fresh start
-    _guestObj = {};
-    _guestKey = null;
       } catch (e) {
         console.error("Error loading guest:", e);
       }
@@ -244,7 +213,6 @@
   // Auth and initialization
   auth.onAuthStateChanged(async user => {
     if (!user) {
-      // Overlay for not signed in
       if (!el("gp-auth-overlay")) {
         const o = document.createElement("div");
         o.id = "gp-auth-overlay";
@@ -255,14 +223,11 @@
       return;
     }
     el("gp-auth-overlay")?.remove();
+    ensureStepNav();
     await loadContext();
   });
 
   // Expose API
-  global.gpApp = {
-    get guestKey(){ return _guestKey; },
-    saveNow: saveGuestNow,
-    loadContext
   global.gpBasic = {
     get guestKey(){ return _guestKey; },
     save:    saveGuestNow,
@@ -274,4 +239,4 @@
     saveNow: gpBasic.save,
     gotoStep: gpBasic.goto
   };
-})(window);
+})(window); but i need full file update
