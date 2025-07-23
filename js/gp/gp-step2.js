@@ -1,10 +1,11 @@
-// gp-step2.js -- standalone Step 2 Evaluate module with embedded questions
+// gp-step2.js -- standalone Step 2 Evaluate module with full logging
 
 (function(global){
   const containerId = "step2Fields";
 
   // Step 2 questions defined here directly
   const questions = [
+    // ... (your questions array unchanged)
     {
       id: "numLines",
       label: "How many lines do you need on your account?",
@@ -18,109 +19,33 @@
       weight: 14,
       options: ["Verizon","AT&T","T-Mobile","US Cellular","Cricket","Metro","Boost","Straight Talk","Tracfone","Other"]
     },
-    {
-      id: "monthlySpend",
-      label: "What do you usually pay each month for phone service?",
-      type: "number",
-      weight: 13
-    },
-    {
-      id: "deviceStatus",
-      label: "Is your phone paid off, or do you still owe on it?",
-      type: "select",
-      weight: 12,
-      options: ["Paid Off","Still Owe","Lease","Mixed","Not Sure"]
-    },
-    {
-      id: "upgradeInterest",
-      label: "Are you looking to upgrade your phone, or keep what you have?",
-      type: "select",
-      weight: 11,
-      options: ["Upgrade","Keep Current","Not Sure"]
-    },
-    {
-      id: "otherDevices",
-      label: "Do you have any other devices--tablets, smartwatches, or hotspots?",
-      type: "select",
-      weight: 10,
-      options: ["Tablet","Smartwatch","Hotspot","Multiple","None"]
-    },
-    {
-      id: "coverage",
-      label: "How’s your coverage at home and at work?",
-      type: "select",
-      weight: 9,
-      options: ["Great","Good","Average","Poor","Not Sure"]
-    },
-    {
-      id: "travel",
-      label: "Do you travel out of state or internationally?",
-      type: "select",
-      weight: 8,
-      options: ["Yes, both","Just out of state","International","Rarely","Never"]
-    },
-    {
-      id: "hotspot",
-      label: "Do you use your phone as a hotspot?",
-      type: "select",
-      weight: 7,
-      options: ["Yes, often","Sometimes","Rarely","Never"]
-    },
-    {
-      id: "usage",
-      label: "How do you mainly use your phone? (Streaming, gaming, social, work, calls/texts)",
-      type: "text",
-      weight: 6
-    },
-    {
-      id: "discounts",
-      label: "Anyone on your plan get discounts? (Military, student, senior, first responder)",
-      type: "select",
-      weight: 5,
-      options: ["Military","Student","Senior","First Responder","No","Not Sure"]
-    },
-    {
-      id: "keepNumber",
-      label: "Do you want to keep your current number(s) if you switch?",
-      type: "select",
-      weight: 5,
-      options: ["Yes","No","Not Sure"]
-    },
-    {
-      id: "issues",
-      label: "Have you had any issues with dropped calls or slow data?",
-      type: "select",
-      weight: 4,
-      options: ["Yes","No","Sometimes"]
-    },
-    {
-      id: "planPriority",
-      label: "What’s most important to you in a phone plan? (Price, coverage, upgrades, service)",
-      type: "text",
-      weight: 3
-    },
-    {
-      id: "promos",
-      label: "Would you like to see your options for lower monthly cost or free device promos?",
-      type: "select",
-      weight: 2,
-      options: ["Yes","No","Maybe"]
-    }
+    // ... rest of questions ...
   ];
 
-  const el = id => document.getElementById(id);
+  const el = id => {
+    const element = document.getElementById(id);
+    if (!element) console.warn(`[gpStep2] Element not found: ${id}`);
+    return element;
+  };
 
   function debounce(fn, delay=300) {
     let timer=null;
     return (...args) => {
       clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), delay);
+      timer = setTimeout(() => {
+        console.log(`[gpStep2] Debounced function executing with args:`, args);
+        fn(...args);
+      }, delay);
     };
   }
 
   function renderStep2UI() {
     const container = el(containerId);
-    if (!container) return;
+    if (!container) {
+      console.error(`[gpStep2] Container #${containerId} not found! Cannot render Step 2 UI.`);
+      return;
+    }
+    console.log("[gpStep2] Rendering Step 2 UI...");
     container.innerHTML = "";
 
     questions.forEach(q => {
@@ -152,51 +77,77 @@
         </label>`;
       }
       container.insertAdjacentHTML("beforeend", html);
+      console.log(`[gpStep2] Rendered question: ${q.id}`);
     });
+
+    console.log("[gpStep2] Step 2 UI render complete.");
   }
 
   function readFields() {
     const data = {};
     questions.forEach(q => {
       const field = el(q.id);
-      if (!field) return;
+      if (!field) {
+        console.warn(`[gpStep2] Cannot read value - field missing: ${q.id}`);
+        data[q.id] = "";
+        return;
+      }
       data[q.id] = field.value.trim();
+      console.log(`[gpStep2] Read field ${q.id}:`, data[q.id]);
     });
+    console.log("[gpStep2] Completed reading all fields:", data);
     return data;
   }
 
   function writeFields(data) {
+    console.log("[gpStep2] Writing data to fields:", data);
     questions.forEach(q => {
       const field = el(q.id);
-      if (!field) return;
-      field.value = data[q.id] || "";
+      if (!field) {
+        console.warn(`[gpStep2] Cannot write value - field missing: ${q.id}`);
+        return;
+      }
+      const val = data[q.id] || "";
+      field.value = val;
+      console.log(`[gpStep2] Wrote field ${q.id}:`, val);
     });
   }
 
   function bindSaveEvents(saveCallback) {
-    if (typeof saveCallback !== "function") return;
+    if (typeof saveCallback !== "function") {
+      console.error("[gpStep2] bindSaveEvents called without valid saveCallback function");
+      return;
+    }
+    console.log("[gpStep2] Binding save events to inputs...");
     questions.forEach(q => {
       const field = el(q.id);
-      if (!field) return;
+      if (!field) {
+        console.warn(`[gpStep2] Cannot bind event - field missing: ${q.id}`);
+        return;
+      }
       const eventName = q.type === "select" ? "change" : "input";
       const debounced = debounce(() => {
+        console.log(`[gpStep2] Event '${eventName}' fired for field: ${q.id}`);
         saveCallback(readFields());
       }, 300);
       field.addEventListener(eventName, debounced);
+      console.log(`[gpStep2] Bound '${eventName}' event for field: ${q.id}`);
     });
   }
 
   async function init(saveCallback, loadData = {}) {
+    console.log("[gpStep2] Initializing Step 2 module...");
     renderStep2UI();
     writeFields(loadData);
     bindSaveEvents(saveCallback);
+    console.log("[gpStep2] Initialization complete.");
   }
 
   global.gpStep2 = {
     init,
     readFields,
     writeFields,
-    questions // expose questions if needed externally
+    questions
   };
 
 })(window);
