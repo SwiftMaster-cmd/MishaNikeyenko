@@ -1,252 +1,237 @@
-// guestinfo-container.js
+// guestinfo-render.js
 
-// Helpers (import/inline as needed)
-function msNDaysAgo(n) { return Date.now() - n * 864e5; }
-function latestActivityTs(g) {
-  return Math.max(
-    g.updatedAt || 0,
-    g.submittedAt || 0,
-    g.sale?.soldAt || 0,
-    g.solution?.completedAt || 0
-  );
-}
-function inCurrentWeek(g) { return latestActivityTs(g) >= msNDaysAgo(7); }
-function dateToISO(ts) {
-  return ts ? new Date(ts).toISOString().slice(0, 10) : '';
-}
-
-// Global mode state and setter
-if (!window.guestinfoMode) window.guestinfoMode = 'open';
-
-window.setGuestinfoMode = function(mode) {
-  window.guestinfoMode = mode;
-  window.renderAdminApp();
+// ── Constants ───────────────────────────────────────────────────────────────
+export const PITCH_WEIGHTS = {
+  custName: 8, custPhone: 7,
+  currentCarrier: 12, numLines: 8, coverageZip: 8,
+  deviceStatus: 8, finPath: 12,
+  billPain: 4, dataNeed: 4, hotspotNeed: 2, intlNeed: 2,
+  solutionText: 25
 };
 
-// Mode switcher UI
-function modeSwitcherHtml() {
-  const m = window.guestinfoMode || 'open';
-  const modes = [
-    ['open', 'Open'],
-    ['edit', 'Quick Edit'],
-    ['markSold', 'Mark Sold'],
-    ['delete', 'Delete']
-  ];
+// ── Helpers ────────────────────────────────────────────────────────────────
+export function hasVal(v) {
+  if (v == null) return false;
+  if (typeof v === "string")  return v.trim() !== "";
+  if (typeof v === "number")  return true;
+  if (typeof v === "boolean") return v;
+  if (Array.isArray(v))       return v.length > 0;
+  if (typeof v === "object")  return Object.keys(v).length > 0;
+  return false;
+}
+
+export function digitsOnly(s) {
+  return (s || "").replace(/\D+/g, "");
+}
+
+export function esc(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export function timeAgo(ts) {
+  if (!ts) return "-";
+  const diff = Date.now() - ts;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(diff / 3600000);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(diff / 86400000);
+  return `${days}d`;
+}
+
+// ── Core logic ─────────────────────────────────────────────────────────────
+export function detectStatus(g) {
+  const s = (g?.status || "").toLowerCase();
+  if (s) return s;
+  if (g?.solution && hasVal(g.solution.text)) return "proposal";
+  if (["currentCarrier","numLines","coverageZip","deviceStatus","finPath",
+       "billPain","dataNeed","hotspotNeed","intlNeed"]
+      .some(k => hasVal(g.evaluate?.[k]))
+  ) return "working";
+  return "new";
+}
+
+export function normGuest(src) {
+  src = src || {};
+  const custName  = src.custName  ?? src.guestName  ?? "";
+  const custPhone = src.custPhone ?? src.guestPhone ?? "";
+  const e = { ...(src.evaluate || {}) };
+  if (e.currentCarrier == null && src.currentCarrier != null) e.currentCarrier = src.currentCarrier;
+  if (e.numLines      == null && src.numLines      != null) e.numLines      = src.numLines;
+  if (e.coverageZip   == null && src.coverageZip   != null) e.coverageZip   = src.coverageZip;
+  if (e.deviceStatus  == null && src.deviceStatus  != null) e.deviceStatus  = src.deviceStatus;
+  if (e.finPath       == null && src.finPath       != null) e.finPath       = src.finPath;
+  const sol = { ...(src.solution || {}) };
+  if (sol.text == null && src.solutionText != null) sol.text = src.solutionText;
+
+  const out = {
+    ...src,
+    custName,
+    custPhone,
+    custPhoneDigits: digitsOnly(custPhone),
+    evaluate: e,
+    solution: sol,
+    prefilledStep1: src.prefilledStep1 || hasVal(custName) || hasVal(custPhone)
+  };
+  out.status = detectStatus(out);
+  return out;
+}
+
+export function getField(g, k) {
+  const e = g.evaluate || {}, sol = g.solution || {};
+  switch (k) {
+    case "custName":      return g?.custName;
+    case "custPhone":     return g?.custPhone;
+    case "currentCarrier":return e.currentCarrier;
+    case "numLines":      return e.numLines;
+    case "coverageZip":   return e.coverageZip;
+    case "deviceStatus":  return e.deviceStatus;
+    case "finPath":       return e.finPath;
+    case "billPain":      return e.billPain;
+    case "dataNeed":      return e.dataNeed;
+    case "hotspotNeed":   return e.hotspotNeed;
+    case "intlNeed":      return e.intlNeed;
+    case "solutionText":  return sol.text;
+    default: return undefined;
+  }
+}
+
+export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
+  let earned = 0, max = 0;
+  for (const [k, wt] of Object.entries(weights)) {
+    max += wt;
+    if (hasVal(getField(g, k))) earned += wt;
+  }
+  return { pct: max ? Math.round(earned/max*100) : 0 };
+}
+
+export function statusBadge(status) {
+  const map = {
+    new:      ["role-badge role-guest", "NEW"],
+    working:  ["role-badge role-lead",  "WORKING"],
+    proposal: ["role-badge role-dm",    "PROPOSAL"],
+    sold:     ["role-badge role-admin", "SOLD"]
+  };
+  return map[status] || map.new;
+}
+
+export function groupByStatus(guestMap) {
+  const groups = { new:[], working:[], proposal:[], sold:[] };
+  for (const [id, g] of Object.entries(guestMap)) {
+    const st = detectStatus(g);
+    (groups[st] ||= []).push([id, g]);
+  }
+  for (const arr of Object.values(groups)) {
+    arr.sort((a, b) => {
+      const ta = Math.max(a[1].updatedAt||0, a[1].submittedAt||0, a[1].sale?.soldAt||0);
+      const tb = Math.max(b[1].updatedAt||0, b[1].submittedAt||0, b[1].sale?.soldAt||0);
+      return tb - ta;
+    });
+  }
+  return groups;
+}
+
+// ── Section renderer ───────────────────────────────────────────────────────
+export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight = false) {
+  if (!rows?.length) {
+    return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
+  }
+  return rows.map(([id, g]) =>
+    guestCardHtml(id, g, users, currentUid, currentRole)
+  ).join("");
+}
+
+// ── Card renderer ──────────────────────────────────────────────────────────
+export function guestCardHtml(id, g, users, currentUid, currentRole) {
+  const submitter = users[g.userUid] || {};
+  const [statusCls, statusLbl] = statusBadge(detectStatus(g));
+
+  // determine pitch %
+  const savedPct = typeof g.completionPct === "number"
+    ? g.completionPct
+    : (g.completion?.pct ?? null);
+  const pct = savedPct != null
+    ? savedPct
+    : computeGuestPitchQuality(normGuest(g)).pct;
+
+  // choose a dark muted background tinted by quality
+  let bg;
+  if (pct >= 75)      bg = "rgba(0, 80, 0, 0.4)";
+  else if (pct >= 40) bg = "rgba(80, 80, 0, 0.4)";
+  else                bg = "rgba(80, 0, 0, 0.4)";
+
+  // mask phone
+  const raw    = esc(g.custPhone || "");
+  const num    = digitsOnly(g.custPhone || "");
+  const last4  = num.slice(-4).padStart(4, "0");
+  const masked = `XXX-${last4}`;
+
+  // time ago
+  const when = timeAgo(g.submittedAt);
+
+  // submitted by bubble
+  const roleCls = currentRole === "me"    ? "role-badge role-me"
+                 : currentRole === "lead" ? "role-badge role-lead"
+                 : currentRole === "dm"   ? "role-badge role-dm"
+                                           : "role-badge role-admin";
+  const nameLabel = esc(submitter.name || submitter.email || "-");
+
+  // Card main body
   return `
-    <div class="guestinfo-mode-switcher" style="margin-bottom:18px;display:flex;gap:16px;align-items:center;">
-      <span style="font-weight:600;color:#444;">Action Mode:</span>
-      ${modes.map(([val, lbl]) =>
-        `<label style="margin-right:12px;cursor:pointer;">
-          <input type="radio" name="guestinfo-mode" value="${val}" ${m===val?'checked':''}
-            onchange="window.setGuestinfoMode('${val}')"
-            style="margin-right:4px;vertical-align:middle;" /> ${lbl}
-        </label>`
-      ).join('')}
-    </div>
-  `;
-}
+    <div class="guest-card" id="guest-card-${id}"
+         onclick="handleGuestCardClick('${id}')"
+         style="background:${bg};border-radius:8px;padding:12px;position:relative;cursor:pointer;">
+      <!-- header: status + pitch -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="${statusCls}"
+              style="padding:2px 8px;border-radius:999px;font-size:.85em;">
+          ${statusLbl}
+        </span>
+        <span class="guest-pitch-pill"
+              style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};border:1px solid #fff;">
+          ${pct}%
+        </span>
+      </div>
 
-// Filtering and controls bar (same as before)
-function controlsBarHtml(propCount, soldCount, role) {
-  const f = window._guestinfo_filters;
-  const header = `
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="btn btn-secondary btn-sm"
-              onclick="window.guestinfo.toggleFilterPanel()">
-        ${f.panelOpen ? 'Filters ▴' : 'Filters ▾'}
-      </button>
-      <button class="btn btn-success btn-sm"
-              onclick="window.guestinfo.createNewLead()">
-        + New Lead
-      </button>
-    </div>`;
-  const panelStyle = f.panelOpen
-    ? 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;'
-    : 'display:none;';
-  const panel = `
-    <div id="filter-panel" style="${panelStyle}">
-      <div class="search-wrapper">
-        <input id="filter-name" type="text" placeholder="🔍 Customer name…" 
-               value="${f.name}" 
-               oninput="window.guestinfo.setSearchName(this.value)" />
-        <button class="clear-btn" onclick="window.guestinfo.clearSearchName()">×</button>
+      <!-- customer name centered -->
+      <div style="text-align:center;font-weight:600;font-size:1.1em;margin:8px 0;">
+        ${esc(g.custName || "-")}
       </div>
-      <div class="search-wrapper">
-        <input id="filter-emp" type="text" placeholder="🔍 Employee…" 
-               value="${f.employee}" 
-               oninput="window.guestinfo.setSearchEmployee(this.value)" />
-        <button class="clear-btn" onclick="window.guestinfo.clearSearchEmployee()">×</button>
-      </div>
-      <div class="search-wrapper">
-        <input id="filter-date" type="date" 
-               value="${f.date}" 
-               onchange="window.guestinfo.setSearchDate(this.value)" />
-        <button class="clear-btn" onclick="window.guestinfo.clearSearchDate()">×</button>
-      </div>
-      <button class="btn btn-secondary btn-sm"
-              onclick="window.guestinfo.toggleFilterMode()">
-        ${f.filterMode === 'week' ? 'Show All' : 'This Week'}
-      </button>
-      <button class="btn btn-warning btn-sm"
-              onclick="window.guestinfo.toggleShowProposals()">
-        ${f.showProposals ? 'Back to Leads' : `⚠ Follow-Ups (${propCount})`}
-      </button>
-      ${role !== 'me'
-        ? `<button class="btn btn-secondary btn-sm"
-                   onclick="window.guestinfo.toggleSoldOnly()">
-             ${f.soldOnly ? 'Back to Leads' : `Sales (${soldCount})`}
-           </button>`
-        : ''}
-      <button class="btn-clear-filters btn-sm" 
-              onclick="window.guestinfo.clearAllFilters()">
-        Clear All
-      </button>
-    </div>`;
-  return `<div class="guestinfo-controls">${header}${panel}</div>`;
-}
 
-// Empty state UI
-function emptyHtml(msg = "No guest leads in this view.") {
-  return `
-    <div class="guestinfo-empty" style="text-align:center;margin-top:16px;">
-      <p><b>${msg}</b></p>
-      <button class="btn btn-success btn-sm"
-              onclick="window.guestinfo.createNewLead()">
-        + New Lead
-      </button>
+      <!-- footer: submitted by, phone toggle, time -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span class="${roleCls}"
+              style="padding:2px 6px;border-radius:999px;font-size:.85em;background:${bg};">
+          ${nameLabel}
+        </span>
+        <span class="guest-phone"
+              data-raw="${raw}"
+              data-mask="${masked}"
+              style="padding:2px 6px;border-radius:999px;font-size:.85em;cursor:pointer;background:${bg};"
+              onclick="window.guestinfo.togglePhone && window.guestinfo.togglePhone('${id}')">
+          ${masked}
+        </span>
+        <span class="guest-time"
+              style="padding:2px 6px;border-radius:999px;font-size:.75em;background:${bg};">
+          ${when}
+        </span>
+      </div>
+
+      <!-- hidden edit form (still used in Quick Edit mode) -->
+      <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
+        <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}"/></label>
+        <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}"/></label>
+        <label>Service Type  <input type="text" name="serviceType" value="${esc(g.serviceType||"")}"/></label>
+        <label>Situation     <textarea name="situation">${esc(g.situation||"")}</textarea></label>
+        <div style="margin-top:8px;">
+          <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
+        </div>
+      </form>
     </div>`;
 }
-
-// Role filter logic (unchanged)
-function getUsersUnderDM(users, dmUid) {
-  const leads = Object.entries(users)
-    .filter(([,u]) => u.role === "lead" && u.assignedDM === dmUid)
-    .map(([uid]) => uid);
-  const mes = Object.entries(users)
-    .filter(([,u]) => u.role === "me" && leads.includes(u.assignedLead))
-    .map(([uid]) => uid);
-  return new Set([...leads, ...mes]);
-}
-function filterByRole(guestinfo, users, uid, role) {
-  if (!guestinfo || !users || !uid || !role) return {};
-  if (role === "admin") return guestinfo;
-  if (role === "dm") {
-    const under = getUsersUnderDM(users, uid);
-    under.add(uid);
-    return Object.fromEntries(
-      Object.entries(guestinfo).filter(([,g]) => under.has(g.userUid))
-    );
-  }
-  if (role === "lead") {
-    const mes = Object.entries(users)
-      .filter(([,u]) => u.role === "me" && u.assignedLead === uid)
-      .map(([uid]) => uid);
-    const vis = new Set([...mes, uid]);
-    return Object.fromEntries(
-      Object.entries(guestinfo).filter(([,g]) => vis.has(g.userUid))
-    );
-  }
-  if (role === "me") {
-    return Object.fromEntries(
-      Object.entries(guestinfo).filter(([,g]) => g.userUid === uid)
-    );
-  }
-  return {};
-}
-
-// Main renderer with mode-based card click
-export function renderGuestinfoSection(guestinfo, users, uid, role) {
-  const f = window._guestinfo_filters;
-  let items = filterByRole(guestinfo, users, uid, role);
-
-  // 1. Name filter
-  if (f.name) {
-    const nameLower = f.name.toLowerCase();
-    items = Object.fromEntries(
-      Object.entries(items).filter(([,g]) =>
-        g.custName?.toLowerCase().includes(nameLower)
-      )
-    );
-  }
-
-  // 2. Employee filter
-  if (f.employee) {
-    const empLower = f.employee.toLowerCase();
-    items = Object.fromEntries(
-      Object.entries(items).filter(([,g]) => {
-        const sub = users[g.userUid] || {};
-        const n = (sub.name || sub.email || "").toLowerCase();
-        return n.includes(empLower);
-      })
-    );
-  }
-
-  // 3. Date filter
-  if (f.date) {
-    items = Object.fromEntries(
-      Object.entries(items).filter(([,g]) =>
-        dateToISO(g.submittedAt) === f.date
-      )
-    );
-  }
-
-  // Count for toggles
-  const fullGroups = groupByStatus(items);
-  const propCount  = fullGroups.proposal.length;
-  const soldCount  = fullGroups.sold.length;
-
-  // 4. Timeframe / proposals / sales toggles
-  if (!f.showProposals && !f.soldOnly && f.filterMode === 'week' && role !== 'me') {
-    items = Object.fromEntries(
-      Object.entries(items).filter(([,g]) => inCurrentWeek(g))
-    );
-  }
-
-  // 5. Regroup by status
-  const groups = groupByStatus(items);
-
-  // 6. Build inner HTML for each status section
-  let inner = '';
-  if (f.soldOnly && role !== 'me') {
-    if (groups.sold.length) {
-      inner = statusSectionHtml('Sales', groups.sold, users, uid, role);
-    } else {
-      inner = emptyHtml('No sales in this view.');
-    }
-  } else if (f.showProposals) {
-    if (groups.proposal.length) {
-      inner = statusSectionHtml('Follow-Ups', groups.proposal, users, uid, role, true);
-    } else {
-      inner = emptyHtml('No follow-ups in this view.');
-    }
-  } else {
-    const hasAny = groups.new.length || groups.working.length || groups.proposal.length;
-    if (!hasAny) {
-      inner = emptyHtml("You're all caught up!");
-    } else {
-      if (groups.new.length)     inner += statusSectionHtml('New',      groups.new,     users, uid, role);
-      if (groups.working.length) inner += statusSectionHtml('Working',  groups.working, users, uid, role);
-      if (groups.proposal.length)inner += statusSectionHtml('Proposal', groups.proposal,users, uid, role, true);
-    }
-  }
-
-  // ---- Render section ----
-  return `
-    <section class="admin-section guestinfo-section" id="guestinfo-section">
-      ${modeSwitcherHtml()}
-      ${controlsBarHtml(propCount, soldCount, role)}
-      <div id="guestinfo-results">
-        ${inner}
-      </div>
-    </section>
-  `;
-}
-
-// ---- Card click handler: triggers action for the current mode ----
-window.handleGuestCardClick = async function(id) {
-  const mode = window.guestinfoMode || 'open';
-  if (mode === 'open')        window.guestinfo.openGuestInfoPage(id);
-  else if (mode === 'edit')   window.guestinfo.toggleEdit(id);
-  else if (mode === 'markSold') await window.guestinfo.markSold(id);
-  else if (mode === 'delete')    await window.guestinfo.deleteGuestInfo(id);
-};
