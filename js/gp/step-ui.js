@@ -1,4 +1,4 @@
-// step-ui.js
+// step-ui.js -- Modern, class-based Step 2 rendering, no inline styles
 (function(global){
   // Unified static questions for Step 2 (15 total, standardized order)
   const staticQuestions = [
@@ -28,7 +28,7 @@
     let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), delay); };
   }
 
-  // Render all Step 2 questions
+  // Render all Step 2 questions (now uses CSS classes only)
   function renderQuestions(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -37,23 +37,18 @@
       let html;
       if (q.type === "text" || q.type === "number") {
         html = `
-          <label style="display:block;margin-bottom:14px;font-weight:600;color:#444;">
-            ${q.label} <span style="color:#aaa;font-weight:400;">(${q.weight}pts)</span>
+          <label class="glabel" for="${q.id}">
+            ${q.label} <span class="gp-pts">(${q.weight}pts)</span>
             <input
-              id="${q.id}" type="${q.type}"
-              style="width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;margin-top:6px;font-size:16px;"
-              autocomplete="off"
+              id="${q.id}" type="${q.type}" autocomplete="off"
             >
           </label>
         `;
       } else {
         html = `
-          <label style="display:block;margin-bottom:14px;font-weight:600;color:#444;">
-            ${q.label} <span style="color:#aaa;font-weight:400;">(${q.weight}pts)</span>
-            <select
-              id="${q.id}"
-              style="width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;margin-top:6px;font-size:16px;"
-            >
+          <label class="glabel" for="${q.id}">
+            ${q.label} <span class="gp-pts">(${q.weight}pts)</span>
+            <select id="${q.id}">
               <option value="">-- Select --</option>
               ${q.options.map(o => `<option value="${o}">${o}</option>`).join("")}
             </select>
