@@ -1,4 +1,4 @@
-// gp-app-min.js -- save/load Step 2 answers inside nested 'evaluate' subnode
+// gp-app-min.js -- save/load Step 2 answers directly inside guestinfo root (not nested under evaluate)
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -44,13 +44,11 @@
     (global.gpQuestions||[]).forEach(q => {
       const f = el(q.id);
       if (!f) return;
-      if (f.tagName === "SELECT" || f.tagName === "INPUT" || f.tagName==="TEXTAREA") {
-        const val = (g.evaluate && typeof g.evaluate[q.id] !== "undefined") ? g.evaluate[q.id] : g[q.id] || "";
-        f.value = val;
-      }
+      // Read directly from root keys, not nested evaluate
+      f.value = g[q.id] || "";
     });
 
-    if (el("solutionText")) el("solutionText").value = g.solution?.text || "";
+    if (el("solutionText")) el("solutionText").value = g.solutionText || "";
   }
 
   function loadAnswersFromGuest(g) {
@@ -61,20 +59,20 @@
     if (g.custName) answers["custName"] = { value: g.custName, points: 8 };
     if (g.custPhone) answers["custPhone"] = { value: g.custPhone, points: 7 };
 
-    if (g.evaluate) {
-      (global.gpQuestions || []).forEach(q => {
-        const val = g.evaluate[q.id] || "";
+    if (global.gpQuestions) {
+      global.gpQuestions.forEach(q => {
+        const val = g[q.id] || "";
         if (val) answers[q.id] = { value: val, points: q.weight };
       });
     }
 
-    if (g.solution && g.solution.text) {
-      answers["solutionText"] = { value: g.solution.text, points: 25 };
+    if (g.solutionText) {
+      answers["solutionText"] = { value: g.solutionText, points: 25 };
     }
   }
 
   function updateProgressFromGuest(g) {
-    // noop; handled in gp-ui-render.js
+    // noop; handled elsewhere
   }
 
   function saveLocalKey(k) {
@@ -132,23 +130,22 @@
     const uid = auth.currentUser?.uid || null;
     const now = Date.now();
     const status = global.gpCore
-      ? global.gpCore.detectStatus({..._guestObj, ...f, solution:{ text:f.solutionText }})
+      ? global.gpCore.detectStatus({..._guestObj, ...f, solutionText: f.solutionText})
       : "new";
 
     if (!_guestKey) {
       const payload = {
         custName:    f.custName,
         custPhone:   f.custPhone,
-        evaluate:    {},
         status,
         submittedAt: now,
         userUid:     uid,
-        solution:    f.solutionText ? { text:f.solutionText, completedAt: now } : null
+        solutionText: f.solutionText || ""
       };
 
-      // Copy Step 2 answers nested inside evaluate:
+      // Flatten Step 2 answers at root level
       (global.gpQuestions||[]).forEach(q => {
-        payload.evaluate[q.id] = f[q.id] || "";
+        payload[q.id] = f[q.id] || "";
       });
 
       try {
@@ -165,14 +162,12 @@
         [`guestinfo/${_guestKey}/custPhone`]: f.custPhone,
         [`guestinfo/${_guestKey}/status`]: status,
         [`guestinfo/${_guestKey}/updatedAt`]: now,
-        [`guestinfo/${_guestKey}/solution`]: f.solutionText
-          ? { text: f.solutionText, completedAt: _guestObj.solution?.completedAt || now }
-          : null,
+        [`guestinfo/${_guestKey}/solutionText`]: f.solutionText
       };
 
-      // Updates for nested evaluate object:
+      // Update Step 2 answers directly at root level
       (global.gpQuestions||[]).forEach(q => {
-        updates[`guestinfo/${_guestKey}/evaluate/${q.id}`] = f[q.id] || "";
+        updates[`guestinfo/${_guestKey}/${q.id}`] = f[q.id] || "";
       });
 
       try {
@@ -192,7 +187,6 @@
       const snap = await db.ref("guestinfo/" + gid).get();
       if (snap.exists()) {
         let g = snap.val();
-        if (global.gpCore) g = global.gpCore.normGuest(g);
         _guestKey = gid;
         _guestObj = g;
         saveLocalKey(gid);
@@ -204,7 +198,6 @@
             _uiStep = initialStep(_guestObj);
             gotoStep(_uiStep);
             markStepActive(_uiStep);
-
             if (global.updateTotalPoints) global.updateTotalPoints();
             if (global.updatePitchText) global.updatePitchText();
           });
