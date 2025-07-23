@@ -1,6 +1,5 @@
-// steps-ui.js
-(function(global) {
-  // replicate your staticQuestions here and expose
+// gp-ui-steps.js
+(function(global){
   const staticQuestions = [
     { id: "numLines",       label: "How many lines do you need on your account?",                        type: "number", weight: 15 },
     { id: "carrier",        label: "What carrier are you with right now?",                              type: "select", weight: 14, options: ["Verizon","AT&T","T-Mobile","US Cellular","Cricket","Metro","Boost","Straight Talk","Tracfone","Other"] },
@@ -16,90 +15,142 @@
     { id: "keepNumber",     label: "Do you want to keep your current number(s) if you switch?",          type: "select", weight: 5,  options: ["Yes","No","Not Sure"] },
     { id: "issues",         label: "Have you had any issues with dropped calls or slow data?",          type: "select", weight: 4,  options: ["Yes","No","Sometimes"] },
     { id: "planPriority",   label: "What’s most important to you in a phone plan? (Price, coverage…)", type: "text",   weight: 3 },
-    { id: "promos",         label: "Would you like to see options for lower cost or promos?",           type: "select", weight: 2,  options: ["Yes","No","Maybe"] }
+    { id: "promos",         label: "Would you like to see your options for lower cost or promos?",      type: "select", weight: 2,  options: ["Yes","No","Maybe"] }
   ];
-  global.gpQuestions = staticQuestions;
+  global.staticQuestions = staticQuestions;
+  global.gpQuestions     = staticQuestions;
+  const answers = {};
+  global.answers = answers;
 
-  function renderSteps(parentEl) {
-    parentEl.innerHTML = '';
-    // Step 1
-    parentEl.insertAdjacentHTML('beforeend', `
-      <section id="step1Form" class="guest-step" style="flex:1 1 300px;background:#f7f7f7;padding:20px;border:1px solid #ddd;border-radius:10px;">
-        <h2>Step 1 – Customer Info</h2>
-        <label>Customer Name (8pts)<input id="custName" type="text" placeholder="Full name"></label>
-        <label>Customer Phone (7pts)<input id="custPhone" type="tel" placeholder="Phone number"></label>
+  function renderStepSections(container) {
+    container.insertAdjacentHTML("beforeend", `
+      <section style="flex:1 1 300px;background:#f7f7f7;padding:20px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.1);border:1px solid #ddd;">
+        <h2 style="margin-top:0;font-size:22px;color:#222;">Step 1: Customer Info</h2>
+        <label style="display:block;margin-bottom:16px;font-weight:600;color:#444;">
+          Customer Name <span>(8pts)</span>
+          <input id="custName" type="text" placeholder="Full name" style="width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;margin-top:6px;font-size:16px;">
+        </label>
+        <label style="display:block;margin-bottom:16px;font-weight:600;color:#444;">
+          Customer Phone <span>(7pts)</span>
+          <input id="custPhone" type="tel" placeholder="Phone number" style="width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;margin-top:6px;font-size:16px;">
+        </label>
       </section>
-    `);
-
-    // Step 2
-    parentEl.insertAdjacentHTML('beforeend', `
-      <section id="step2Form" class="guest-step" style="flex:2 1 600px;background:#fff;padding:20px;border:1px solid #ddd;border-radius:10px;overflow-y:auto;max-height:90vh;">
-        <h2>Step 2 – Evaluate Needs</h2>
+      <section style="flex:2 1 600px;background:#fff;padding:20px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.12);border:1px solid #ddd;max-height:90vh;overflow-y:auto;">
+        <h2 style="margin-top:0;font-size:22px;color:#222;">Step 2: Evaluate Needs</h2>
         <div id="step2Fields"></div>
       </section>
-    `);
-
-    // Step 3
-    parentEl.insertAdjacentHTML('beforeend', `
-      <section id="step3Form" class="guest-step" style="flex:1 1 300px;background:#f7f7f7;padding:20px;border:1px solid #ddd;border-radius:10px;display:flex;flex-direction:column;">
-        <h2>Step 3 – Proposed Solution (25pts)</h2>
-        <textarea id="solutionText" placeholder="What we’ll offer…" rows="6" style="flex:1;"></textarea>
+      <section style="flex:1 1 300px;background:#f7f7f7;padding:20px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.1);border:1px solid #ddd;display:flex;flex-direction:column;">
+        <h2 style="margin-top:0;font-size:22px;color:#222;margin-bottom:12px;">
+          Step 3: Proposed Solution <span>(25pts)</span>
+        </h2>
+        <textarea id="solutionText" rows="8" placeholder="What we’ll offer…" style="width:100%;padding:12px;border-radius:6px;border:1px solid #ccc;font-size:16px;resize:vertical;flex-grow:1;"></textarea>
       </section>
     `);
   }
 
-  function renderStep2Fields(containerId, onChange) {
-    const c = document.getElementById(containerId);
-    if (!c) return;
-    c.innerHTML = '';
-    global.gpQuestions.forEach(q => {
+  function renderQuestions(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = "";
+    (global.gpQuestions||staticQuestions).forEach(q => {
       let html;
-      if (q.type === 'text' || q.type === 'number') {
-        html = `<label>${q.label}<input id="${q.id}" type="${q.type}"></label>`;
+      if (q.type==="text"||q.type==="number") {
+        html = `
+          <label style="display:block;margin-bottom:14px;font-weight:600;color:#444;">
+            ${q.label}
+            <input id="${q.id}" type="${q.type}" style="width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;margin-top:6px;font-size:16px;">
+          </label>`;
       } else {
         html = `
-          <label>${q.label}
-            <select id="${q.id}">
+          <label style="display:block;margin-bottom:14px;font-weight:600;color:#444;">
+            ${q.label}
+            <select id="${q.id}" style="width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;margin-top:6px;font-size:16px;">
               <option value="">-- Select --</option>
-              ${q.options.map(o=>`<option value="${o}">${o}</option>`).join('')}
+              ${q.options.map(o=>`<option value="${o}">${o}</option>`).join("")}
             </select>
           </label>`;
       }
-      c.insertAdjacentHTML('beforeend', html);
-      const el = document.getElementById(q.id);
-      if (!el) return;
-      const ev = q.type==='select'?'change':'input';
-      el.addEventListener(ev, () => {
-        const v = el.value.trim();
-        onChange(q.id, v, v? q.weight : 0);
-      });
+      container.insertAdjacentHTML("beforeend", html);
+      const input = document.getElementById(q.id);
+      if (!input) return;
+      const ev = q.type==="select" ? "change" : "input";
+      input.addEventListener(ev, debounce(() => {
+        const v = input.value.trim();
+        const pts = v==="" ? 0 : q.weight;
+        answers[q.id] = { value: v, points: pts };
+        saveAnswer(q.id, v, pts);
+        global.updateTotalPoints();
+        global.updatePitchText();
+        if (global.gpApp?.saveNow) global.gpApp.saveNow();
+      }, 300));
     });
   }
 
-  function setupStep1(onChange) {
-    [['custName',8],['custPhone',7]].forEach(([id,pts]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('input', () => {
-        const v = el.value.trim();
-        onChange(id, v, v? pts : 0);
-      });
+  function hydrateAnswers() {
+    Object.entries(answers).forEach(([id,{value}]) => {
+      const f = document.getElementById(id);
+      if (f) f.value = value;
     });
   }
 
-  function setupSolution(onChange) {
-    const el = document.getElementById('solutionText');
-    if (!el) return;
-    el.addEventListener('input', () => {
-      const v = el.value.trim();
-      onChange('solutionText', v, v? 25 : 0);
+  function setupInstantSaveForStep1() {
+    [["custName",8],["custPhone",7]].forEach(([id,pts]) => {
+      const f = document.getElementById(id);
+      if (!f) return;
+      f.addEventListener("input", debounce(() => {
+        const v = f.value.trim();
+        answers[id] = { value: v, points: v?pts:0 };
+        saveAnswer(id, v, answers[id].points);
+        global.updateTotalPoints();
+        global.updatePitchText();
+        if (global.gpApp?.saveNow) global.gpApp.saveNow();
+      }, 300));
     });
   }
 
-  global.StepsUI = {
-    renderSteps,
-    renderStep2Fields,
-    setupStep1,
-    setupSolution
-  };
+  function setupSolutionSave() {
+    const f = document.getElementById("solutionText");
+    if (!f) return;
+    f.addEventListener("input", debounce(() => {
+      const v = f.value.trim();
+      answers.solutionText = { value: v, points: v?25:0 };
+      saveAnswer("solutionText", v, answers.solutionText.points);
+      global.updateTotalPoints();
+      global.updatePitchText();
+      if (global.gpApp?.saveNow) global.gpApp.saveNow();
+    }, 300));
+  }
+
+  function saveAnswer(_, __, ___) {
+    const key = global.gpApp?.guestKey;
+    if (!key) return;
+    const maxPts = staticQuestions.reduce((s,q)=>s+q.weight,0) + 8 + 7 + 25;
+    const totPts = Object.values(answers).reduce((s,a)=>s+a.points,0);
+    const pct    = Math.min(100, Math.round(totPts/maxPts*100));
+    firebase.database().ref(`guestinfo/${key}/completionPct`).set(pct);
+  }
+
+  function debounce(fn, delay=300) {
+    let timer=null;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    };
+  }
+
+  function getLabel(id) {
+    if (id==="custName") return "Customer Name";
+    if (id==="custPhone") return "Customer Phone";
+    if (id==="solutionText") return "Proposed Solution";
+    const q = staticQuestions.concat(global.gpQuestions).find(x=>x.id===id);
+    return q ? q.label : id;
+  }
+
+  global.renderStepSections      = renderStepSections;
+  global.renderQuestions         = renderQuestions;
+  global.hydrateAnswers          = hydrateAnswers;
+  global.setupInstantSaveForStep1 = setupInstantSaveForStep1;
+  global.setupSolutionSave       = setupSolutionSave;
+  global.saveAnswer              = saveAnswer;
+  global.getLabel                = getLabel;
 })(window);
