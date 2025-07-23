@@ -1,4 +1,4 @@
-// gp-ui-render.js -- Guest Portal UI with instant save on input (debounced)
+// gp-ui-render.js -- Guest Portal UI with instant save and live progress
 (function(global){
   const staticQuestions = [
     { id: "numLines", label: "How many lines do you need on your account?", type: "number", weight: 15 },
@@ -179,7 +179,6 @@
       if (!input) return;
 
       const debouncedSave = debounce(() => {
-        console.log(`Saving input for ${q.id}:`, input.value);  // <-- Added debug log here
         const val = input.value.trim();
         const points = val === "" ? 0 : q.weight;
         answers[q.id] = { value: val, points };

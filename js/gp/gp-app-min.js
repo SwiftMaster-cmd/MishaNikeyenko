@@ -1,4 +1,4 @@
-// gp-app-min.js -- Guest Portal controller saving Step 2 flat, not nested
+// gp-app-min.js -- Guest Portal controller saving and loading flat Step 2 keys
 (function(global){
   const cfg = global.GP_FIREBASE_CONFIG || {
     apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
@@ -38,7 +38,6 @@
   }
 
   function writeFields(g) {
-    console.log("writeFields called with guest object:", g);
     if (el("custName"))     el("custName").value     = g.custName || "";
     if (el("custPhone"))    el("custPhone").value    = g.custPhone || "";
 
@@ -46,7 +45,6 @@
       const f = el(q.id);
       if (!f) return;
       if (f.tagName === "SELECT" || f.tagName === "INPUT" || f.tagName==="TEXTAREA") {
-        // Read Step 2 fields flat from g root
         f.value = g[q.id] || "";
       }
     });
@@ -62,18 +60,10 @@
     if (g.custName) answers["custName"] = { value: g.custName, points: 8 };
     if (g.custPhone) answers["custPhone"] = { value: g.custPhone, points: 7 };
 
-    if (g.evaluate) {
-      (global.gpQuestions || []).forEach(q => {
-        const val = g.evaluate[q.id] || "";
-        if (val) answers[q.id] = { value: val, points: q.weight };
-      });
-    } else {
-      // fallback: load Step 2 flat keys as answers
-      (global.gpQuestions || []).forEach(q => {
-        const val = g[q.id] || "";
-        if (val) answers[q.id] = { value: val, points: q.weight };
-      });
-    }
+    (global.gpQuestions || []).forEach(q => {
+      const val = g[q.id] || "";
+      if (val) answers[q.id] = { value: val, points: q.weight };
+    });
 
     if (g.solution && g.solution.text) {
       answers["solutionText"] = { value: g.solution.text, points: 25 };
@@ -81,7 +71,7 @@
   }
 
   function updateProgressFromGuest(g) {
-    // noop, handled in gp-ui-render.js
+    // noop handled in gp-ui-render.js
   }
 
   function saveLocalKey(k) {
@@ -143,7 +133,6 @@
       : "new";
 
     if (!_guestKey) {
-      // Create new with Step 2 fields flat
       const payload = {
         custName:    f.custName,
         custPhone:   f.custPhone,
@@ -163,7 +152,6 @@
         console.error("Error saving new guest:", err);
       }
     } else {
-      // Update existing with Step 2 fields flat
       const updates = {
         [`guestinfo/${_guestKey}/custName`]: f.custName,
         [`guestinfo/${_guestKey}/custPhone`]: f.custPhone,
@@ -200,12 +188,23 @@
         _guestObj = g;
         saveLocalKey(gid);
 
-        console.log("Loaded guest data from Firebase:", g);
+        // Rebuild answers for points from loaded data
+        if (global.loadAnswersFromGuest) global.loadAnswersFromGuest(_guestObj);
+        else {
+          const ans = global.answers || {};
+          Object.keys(ans).forEach(k => delete ans[k]);
+          if (g.custName) ans["custName"] = { value: g.custName, points: 8 };
+          if (g.custPhone) ans["custPhone"] = { value: g.custPhone, points: 7 };
+          (global.gpQuestions||[]).forEach(q => {
+            const val = g[q.id] || "";
+            if (val) ans[q.id] = { value: val, points: q.weight };
+          });
+          if (g.solution && g.solution.text) ans["solutionText"] = { value: g.solution.text, points: 25 };
+        }
 
         if (typeof global.onGuestUIReady === "function") {
           global.onGuestUIReady(() => {
             writeFields(_guestObj);
-            loadAnswersFromGuest(_guestObj);
             _uiStep = initialStep(_guestObj);
             gotoStep(_uiStep);
             markStepActive(_uiStep);
@@ -216,7 +215,6 @@
         } else {
           await new Promise(r => setTimeout(r, 50));
           writeFields(_guestObj);
-          loadAnswersFromGuest(_guestObj);
           _uiStep = initialStep(_guestObj);
           gotoStep(_uiStep);
           markStepActive(_uiStep);
@@ -284,7 +282,7 @@
     get guest(){ return gpBasic.guest; },
     get uiStep(){ return gpBasic.uiStep; },
     saveNow: gpBasic.save,
-    gotoStep:gpBasic.goto
+    gotoStep: gpBasic.goto
   };
 
 })(window);
