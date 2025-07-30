@@ -26,7 +26,14 @@
   </style>
 </head>
 <body>
-
+<div id="gpProgressHeader">
+  <a id="backToDash" href="/dashboard">← Dashboard</a>
+  <div class="gp-progress-main">
+    <label for="progressBar">Progress: <span id="progressLabel">0%</span></label>
+    <progress id="progressBar" value="0" max="100"></progress>
+  </div>
+  <div class="gp-progress-filler"></div>
+</div>
 
   </header>
   <div id="guestApp"></div> <!-- container JS will fill -->
