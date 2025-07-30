@@ -1,8 +1,8 @@
-// gp-app-min.js -- Guest Portal App logic with nested "evaluate", live save/load, and guarded progress updates
+// gp-app-min.js -- Guest Portal App logic with persistent guest key
 (function(global){
   // Firebase initialization
   const cfg = global.GP_FIREBASE_CONFIG || {
-    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGZ9dslMzE",
+    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRG9dslMzE",
     authDomain: "osls-644fd.firebaseapp.com",
     databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
     projectId: "osls-644fd",
@@ -14,22 +14,6 @@
   if (!firebase.apps.length) firebase.initializeApp(cfg);
   const db   = firebase.database();
   const auth = firebase.auth();
-
-  // Firebase guest key context helpers
-  async function getLastGuestKey() {
-    const user = auth.currentUser;
-    if (!user) return null;
-    const snap = await db.ref(`users/${user.uid}/lastGuestKey`).get();
-    return snap.exists() ? snap.val() : null;
-  }
-  function setLastGuestKey(gid) {
-    const user = auth.currentUser;
-    if (user && gid) db.ref(`users/${user.uid}/lastGuestKey`).set(gid);
-  }
-  function clearLastGuestKey() {
-    const user = auth.currentUser;
-    if (user) db.ref(`users/${user.uid}/lastGuestKey`).remove();
-  }
 
   // State
   let _guestKey = null;
@@ -110,7 +94,7 @@
     });
 
     if (!_guestKey) {
-      // Create new guest
+      // Create new guest ONLY if truly new
       const payload = {
         custName:    f.custName,
         custPhone:   f.custPhone,
@@ -127,7 +111,7 @@
         await ref.set(payload);
         _guestKey = ref.key;
         _guestObj = payload;
-        setLastGuestKey(_guestKey); // --- Firebase-based context
+        localStorage.setItem("last_guestinfo_key", _guestKey);
         attachCompletionListener();
       } catch (e) {
         console.error("Error creating guest:", e);
@@ -154,7 +138,6 @@
       });
       try {
         await db.ref().update(updates);
-        setLastGuestKey(_guestKey); // --- keep context updated
       } catch (e) {
         console.error("Error updating guest:", e);
       }
@@ -164,9 +147,9 @@
   // Load existing context or initialize fresh
   async function loadContext() {
     const params = new URLSearchParams(window.location.search);
-    let gid = params.get("gid");
-    if (!gid) gid = await getLastGuestKey();
+    let gid = params.get("gid") || localStorage.getItem("last_guestinfo_key");
 
+    // Always try to reuse existing guest key if present
     if (gid) {
       try {
         const snap = await db.ref(`guestinfo/${gid}`).get();
@@ -175,6 +158,7 @@
           if (global.gpCore) g = global.gpCore.normGuest(g);
           _guestKey = gid;
           _guestObj = g;
+          localStorage.setItem("last_guestinfo_key", gid);
           writeFields(g);
           loadAnswersFromGuest(g);
 
@@ -192,7 +176,7 @@
       }
     }
 
-    // Fresh context
+    // If no guest found, initialize fresh ONLY then
     _guestObj = {};
     _guestKey = null;
     global.gpApp.gotoStep("step1");
