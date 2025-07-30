@@ -1,66 +1,77 @@
-/* login.css */
-
-/* -------------------------------------------------------------------------- 
-   Container & Layout 
-   -------------------------------------------------------------------------- */
-
-/* Centers the login card on the page */
-.login-section {
-  max-width: 400px;
-  width: 100%;
-  margin: 10vh auto 0;
-  padding: var(--space-lg);
-  background: var(--bg-card-solid);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+body {
+  background: linear-gradient(120deg, #eef2fb 0%, #d1d9e6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  font-family: 'SF Pro', 'Segoe UI', 'Roboto', Arial, sans-serif;
+}
+.login-box {
+  background: rgba(255,255,255,0.9);
+  padding: 44px 36px 36px 36px;
+  border-radius: 22px;
+  box-shadow: 0 10px 38px #a0b2d8b7;
   text-align: center;
-}
-
-/* Space out title & description */
-.login-section .section-title {
-  margin-bottom: var(--space-sm);
-}
-.login-section .desc {
-  margin-bottom: var(--space-md);
-}
-
-/* -------------------------------------------------------------------------- 
-   Form 
-   -------------------------------------------------------------------------- */
-
-.login-form {
+  max-width: 340px;
+  width: 94vw;
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: 24px;
 }
-.login-form input {
+.login-title {
+  font-size: 1.6em;
+  font-weight: bold;
+  color: #225;
+  margin-bottom: 6px;
+}
+.login-field {
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 1.08em;
+  margin-bottom: 8px;
+  background: #f4f8ff;
   width: 100%;
+  box-sizing: border-box;
 }
-
-/* Make all buttons full-width by default */
-.login-form .btn {
-  width: 100%;
+.login-btn {
+  background: linear-gradient(90deg, #388fff 30%, #8eafff 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: bold;
+  font-size: 1.11em;
+  padding: 15px;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: background .14s;
+  box-shadow: 0 2px 7px rgba(30,44,70,0.09);
 }
-
-/* -------------------------------------------------------------------------- 
-   Footer Links 
-   -------------------------------------------------------------------------- */
-
-.login-footer {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-sm);
-  margin-top: var(--space-md);
+.login-btn:active {
+  background: linear-gradient(90deg, #2770d2 40%, #7396e8 100%);
 }
-.login-footer .btn {
-  flex: 1 1 auto;
-  min-width: 120px;
+.desc {
+  font-size: 1.04em;
+  color: #486;
+  margin-bottom: 2px;
+  margin-top: 0;
+  opacity: 0.74;
 }
-
-/* Stack footer links vertically on narrow screens */
-@media (max-width: 480px) {
-  .login-footer {
-    flex-direction: column;
-  }
+.link {
+  color: #388fff;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.98em;
+  margin-top: 6px;
+  display: inline-block;
+}
+#loginStatus {
+  color: #a00;
+  font-size: 1em;
+  min-height: 22px;
+  margin-top: 2px;
+}
+@media (max-width: 500px) {
+  .login-box { padding: 24px 4vw; }
 }
