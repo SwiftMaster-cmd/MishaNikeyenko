@@ -20,6 +20,10 @@
   let _guestObj = {};
   let _uiStep   = "step1";
 
+  // User mode (Newbie/Easy or Experienced)
+  global.userType = localStorage.getItem("userType") || "Experienced";
+
+  // Utility
   const el = id => document.getElementById(id);
 
   // Read all form fields, including nested evaluate
@@ -81,8 +85,7 @@
 
   // Save or update the guest record
   async function saveGuestNow() {
-    // If not editing an existing lead, don't save
-    if (!_guestKey) return; // <--- CRITICAL GUARD
+    if (!_guestKey) return; // Critical guard
 
     const f   = readFields();
     const now = Date.now();
@@ -111,7 +114,6 @@
     } else {
       updates[`guestinfo/${_guestKey}/solution`] = null;
     }
-    // Nested evaluate updates
     Object.entries(evalData).forEach(([k, v]) => {
       updates[`guestinfo/${_guestKey}/evaluate/${k}`] = v;
     });
@@ -152,7 +154,6 @@
       }
     }
 
-    // If guest doesn't exist, just reset UI, but DON'T create or autosave a blank guest.
     _guestObj = {};
     _guestKey = null;
     global.gpApp.gotoStep("step1");
@@ -160,7 +161,6 @@
     loadAnswersFromGuest({});
     if (global.updateTotalPoints) global.updateTotalPoints();
     if (global.updatePitchText)  global.updatePitchText();
-    // Do NOT trigger save here! No blank guests will be created.
   }
 
   // Step navigation controls
@@ -189,6 +189,103 @@
     );
   }
 
+  // --- NEW: Mode toggle button creation ---
+  function createModeToggleButton() {
+    const btn = document.createElement("button");
+    btn.id = "modeToggleBtn";
+    btn.textContent = global.userType === "Newbie" ? "Switch to Experienced" : "Switch to Easy";
+    btn.style.cursor = "pointer";
+    btn.style.marginLeft = "auto";
+    btn.style.padding = "6px 12px";
+    btn.style.fontSize = "0.9rem";
+    btn.style.background = "transparent";
+    btn.style.border = "1px solid var(--blue)";
+    btn.style.borderRadius = "10px";
+    btn.style.color = "var(--blue)";
+    btn.style.transition = "background-color 0.25s ease";
+    btn.onmouseenter = () => btn.style.backgroundColor = "var(--blue)";
+    btn.onmouseleave = () => btn.style.backgroundColor = "transparent";
+    btn.onclick = () => {
+      global.userType = global.userType === "Newbie" ? "Experienced" : "Newbie";
+      localStorage.setItem("userType", global.userType);
+      btn.textContent = global.userType === "Newbie" ? "Switch to Experienced" : "Switch to Easy";
+      renderStep2UI();
+    };
+    return btn;
+  }
+
+  // --- NEW: Conditional Step 2 render ---
+  function renderStep2UI() {
+    if(global.userType === "Newbie" && typeof global.renderGuidedQuestions === "function") {
+      global.renderGuidedQuestions("step2Fields");
+    } else if (typeof global.renderFastQuestions === "function") {
+      global.renderFastQuestions("step2Fields");
+    } else {
+      if(typeof global.renderQuestions === "function") global.renderQuestions("step2Fields");
+    }
+  }
+
+  // Main UI render function (replace your existing renderUI or integrate)
+  function renderUI() {
+    const app = el("guestApp");
+    if (!app) return;
+    app.innerHTML = "";
+
+    // Create sticky header (assumes createProgressHeader available)
+    global.createProgressHeader(app, global.DASHBOARD_URL);
+
+    // Append toggle button inside header after creation
+    setTimeout(() => {
+      const header = el("gpProgressHeader");
+      if (!header) return;
+      if (!el("modeToggleBtn")) {
+        const btn = createModeToggleButton();
+        header.appendChild(btn);
+      }
+    }, 100);
+
+    // Main container for steps
+    const container = document.createElement("div");
+    container.style = `
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+      margin-top: 32px;
+      align-items: flex-start;
+      width: 100%;
+      box-sizing: border-box;
+      justify-content: center;
+    `;
+
+    // Step 1 container
+    const step1 = document.createElement("section");
+    step1.id = "step1Fields";
+    step1.style.flex = "1 1 300px";
+    // Call existing Step 1 render if exists
+    if(typeof global.renderStep1 === "function") global.renderStep1("step1Fields");
+
+    // Step 2 container
+    const step2 = document.createElement("div");
+    step2.id = "step2Fields";
+    step2.style.flex = "2 1 650px";
+
+    // Step 3 container
+    const step3 = document.createElement("section");
+    step3.id = "step3Fields";
+    step3.style.flex = "1 1 300px";
+    // Call existing Step 3 render if exists
+    if(typeof global.renderStep3 === "function") global.renderStep3("step3Fields");
+
+    container.appendChild(step1);
+    container.appendChild(step2);
+    container.appendChild(step3);
+
+    app.appendChild(container);
+
+    // Render Step 2 UI based on userType mode
+    renderStep2UI();
+  }
+
   // Auth and initialization
   auth.onAuthStateChanged(async user => {
     if (!user) {
@@ -204,6 +301,7 @@
     el("gp-auth-overlay")?.remove();
     ensureStepNav();
     await loadContext();
+    renderUI();
   });
 
   // Expose API

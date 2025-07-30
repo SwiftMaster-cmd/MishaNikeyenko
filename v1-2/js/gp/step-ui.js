@@ -1,4 +1,4 @@
-// step-ui.js -- Modern, class-based Step 2 rendering, no inline styles, always key-safe!
+// step-ui.js -- 2-path Step 2 rendering: guided wizard + fast form
 (function(global){
   // Unified static questions for Step 2 (standardized order)
   const staticQuestions = [
@@ -20,6 +20,7 @@
   ];
   global.staticQuestions = staticQuestions;
   global.gpQuestions     = staticQuestions;
+
   const answers = {};
   global.answers = answers;
 
@@ -28,11 +29,28 @@
     let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), delay); };
   }
 
-  // Render all Step 2 questions (uses CSS classes only)
-  function renderQuestions(containerId) {
+  // Save a single field to Firebase (and recalc completion)
+  function saveFieldToFirebase(id, value, pts) {
+    const key = global.gpApp?.guestKey;
+    if (!key) return;
+    // Update only the single field in nested evaluate
+    const update = {};
+    update[`guestinfo/${key}/evaluate/${id}`] = value;
+    firebase.database().ref().update(update);
+
+    // Also update completionPct
+    const maxPts = staticQuestions.reduce((s,q)=>s+q.weight,0) + 8 + 7 + 25;
+    const totPts = Object.values(answers).reduce((s,a)=>s+a.points,0);
+    const pct    = Math.min(100, Math.round(totPts/maxPts*100));
+    firebase.database().ref(`guestinfo/${key}/completionPct`).set(pct);
+  }
+
+  // ==== Fast form rendering (Experienced reps) ====
+  function renderFastQuestions(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = "";
+
     staticQuestions.forEach(q => {
       let html;
       if (q.type === "text" || q.type === "number") {
@@ -61,75 +79,93 @@
         const v = input.value.trim();
         const pts = v === "" ? 0 : q.weight;
         answers[q.id] = { value: v, points: pts };
-        // Always save to Firebase via gpApp, never create new!
         saveFieldToFirebase(q.id, v, pts);
       }, 300));
     });
   }
-  global.renderQuestions = renderQuestions;
 
-  // Hydrate answers from state to UI
-  function hydrateAnswers(obj) {
-    // Use the guest object from app (passed in)
-    staticQuestions.forEach(q => {
-      const v = (obj && obj.evaluate && obj.evaluate[q.id]) || "";
-      answers[q.id] = { value: v, points: v ? q.weight : 0 };
-      const f = document.getElementById(q.id);
-      if (f) f.value = v;
-    });
+  // ==== Guided wizard rendering (Newbies) ====
+  function renderGuidedQuestions(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = "";
+
+    let currentStep = 0;
+
+    // Create elements
+    const label = document.createElement("label");
+    label.className = "glabel";
+    const ptsSpan = document.createElement("span");
+    ptsSpan.className = "gp-pts";
+
+    const inputText = document.createElement("input");
+    inputText.className = "ginput";
+    inputText.style.width = "100%";
+
+    const selectInput = document.createElement("select");
+    selectInput.className = "ginput";
+    selectInput.style.width = "100%";
+
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "Next";
+    nextBtn.className = "btn";
+    nextBtn.style.marginTop = "16px";
+
+    container.appendChild(label);
+    container.appendChild(inputText);
+    container.appendChild(selectInput);
+    container.appendChild(nextBtn);
+
+    // Hide select initially
+    selectInput.style.display = "none";
+
+    function showStep(index) {
+      if (index >= staticQuestions.length) {
+        container.innerHTML = "<p>All done! Thank you.</p>";
+        return;
+      }
+      const q = staticQuestions[index];
+      label.textContent = q.label + " ";
+      ptsSpan.textContent = `(${q.weight}pts)`;
+      label.appendChild(ptsSpan);
+
+      if (q.type === "select") {
+        inputText.style.display = "none";
+        selectInput.style.display = "block";
+        selectInput.innerHTML = `<option value="">-- Select --</option>` + q.options.map(o => `<option value="${o}">${o}</option>`).join("");
+        selectInput.value = answers[q.id]?.value || "";
+      } else {
+        selectInput.style.display = "none";
+        inputText.style.display = "block";
+        inputText.type = q.type;
+        inputText.value = answers[q.id]?.value || "";
+      }
+    }
+
+    function saveAnswer() {
+      const q = staticQuestions[currentStep];
+      const val = q.type === "select" ? selectInput.value.trim() : inputText.value.trim();
+      answers[q.id] = { value: val, points: val ? q.weight : 0 };
+      saveFieldToFirebase(q.id, val, answers[q.id].points);
+    }
+
+    // Debounced save on input/select change
+    const debouncedSave = debounce(() => saveAnswer(), 300);
+
+    inputText.oninput = debouncedSave;
+    selectInput.onchange = debouncedSave;
+
+    nextBtn.onclick = () => {
+      saveAnswer();
+      currentStep++;
+      showStep(currentStep);
+    };
+
+    // Start wizard
+    showStep(currentStep);
   }
-  global.hydrateAnswers = hydrateAnswers;
 
-  // Save a single field to Firebase (and recalc completion)
-  function saveFieldToFirebase(id, value, pts) {
-    const key = global.gpApp?.guestKey;
-    if (!key) return;
-    // Update only the single field in nested evaluate
-    const update = {};
-    update[`guestinfo/${key}/evaluate/${id}`] = value;
-    firebase.database().ref().update(update);
-
-    // Also update completionPct
-    const maxPts = staticQuestions.reduce((s,q)=>s+q.weight,0) + 8 + 7 + 25;
-    const totPts = Object.values(answers).reduce((s,a)=>s+a.points,0);
-    const pct    = Math.min(100, Math.round(totPts/maxPts*100));
-    firebase.database().ref(`guestinfo/${key}/completionPct`).set(pct);
-  }
-
-  // Step 1 instant save (name/phone)
-  function setupInstantSaveForStep1() {
-    [["custName",8],["custPhone",7]].forEach(([id,pts]) => {
-      const f = document.getElementById(id);
-      if (!f) return;
-      f.addEventListener("input", debounce(() => {
-        const v = f.value.trim();
-        answers[id] = { value: v, points: v ? pts : 0 };
-        saveFieldToFirebase(id, v, answers[id].points);
-      }, 300));
-    });
-  }
-  global.setupInstantSaveForStep1 = setupInstantSaveForStep1;
-
-  // Step 3 instant save (solution)
-  function setupSolutionSave() {
-    const f = document.getElementById("solutionText");
-    if (!f) return;
-    f.addEventListener("input", debounce(() => {
-      const v = f.value.trim();
-      answers.solutionText = { value: v, points: v ? 25 : 0 };
-      saveFieldToFirebase("solutionText", v, answers.solutionText.points);
-    }, 300));
-  }
-  global.setupSolutionSave = setupSolutionSave;
-
-  // Utility: Get label by field id
-  function getLabel(id) {
-    if (id==="custName") return "Customer Name";
-    if (id==="custPhone") return "Customer Phone";
-    if (id==="solutionText") return "Proposed Solution";
-    const q = staticQuestions.find(x=>x.id===id);
-    return q ? q.label : id;
-  }
-  global.getLabel = getLabel;
+  global.renderFastQuestions = renderFastQuestions;
+  global.renderGuidedQuestions = renderGuidedQuestions;
 
 })(window);
