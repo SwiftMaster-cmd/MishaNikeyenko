@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<div id="gpProgressHeader">
+  <a id="backToDash" href="/dashboard">← Dashboard</a>
+  <div class="gp-progress-main">
+    <label for="progressBar">Progress: <span id="progressLabel">0%</span></label>
+    <progress id="progressBar" value="0" max="100"></progress>
+  </div>
+  <div class="gp-progress-filler"></div>
+</div>
   <meta charset="UTF-8" />
   <title>Customer Info – OSL Guest Portal</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -26,14 +34,7 @@
   </style>
 </head>
 <body>
-<div id="gpProgressHeader">
-  <a id="backToDash" href="/dashboard">← Dashboard</a>
-  <div class="gp-progress-main">
-    <label for="progressBar">Progress: <span id="progressLabel">0%</span></label>
-    <progress id="progressBar" value="0" max="100"></progress>
-  </div>
-  <div class="gp-progress-filler"></div>
-</div>
+
 
   </header>
   <div id="guestApp"></div> <!-- container JS will fill -->
