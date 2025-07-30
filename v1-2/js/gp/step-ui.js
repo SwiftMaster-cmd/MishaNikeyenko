@@ -1,6 +1,5 @@
-// step-ui.js -- 2-path Step 2 rendering: guided wizard + fast form
+// step-ui.js -- Full integrated Step UI with 2-path Step 2, plus Step 1 & 3 save logic
 (function(global){
-  // Unified static questions for Step 2 (standardized order)
   const staticQuestions = [
     { id: "numLines",       label: "How many lines do you need on your account?",                        type: "number", weight: 15 },
     { id: "carrier",        label: "What carrier are you with right now?",                              type: "select", weight: 14, options: ["Verizon","AT&T","T-Mobile","US Cellular","Cricket","Metro","Boost","Straight Talk","Tracfone","Other"] },
@@ -33,17 +32,56 @@
   function saveFieldToFirebase(id, value, pts) {
     const key = global.gpApp?.guestKey;
     if (!key) return;
-    // Update only the single field in nested evaluate
     const update = {};
     update[`guestinfo/${key}/evaluate/${id}`] = value;
     firebase.database().ref().update(update);
 
-    // Also update completionPct
+    // Update completion percentage
     const maxPts = staticQuestions.reduce((s,q)=>s+q.weight,0) + 8 + 7 + 25;
     const totPts = Object.values(answers).reduce((s,a)=>s+a.points,0);
     const pct    = Math.min(100, Math.round(totPts/maxPts*100));
     firebase.database().ref(`guestinfo/${key}/completionPct`).set(pct);
   }
+
+  // ==== Step 1 instant save (name/phone) ====
+  function setupInstantSaveForStep1() {
+    [["custName",8],["custPhone",7]].forEach(([id,pts]) => {
+      const f = document.getElementById(id);
+      if (!f) return;
+      f.addEventListener("input", debounce(() => {
+        const v = f.value.trim();
+        answers[id] = { value: v, points: v ? pts : 0 };
+        // Save differently for Step1 fields: top-level, not evaluate
+        const key = global.gpApp?.guestKey;
+        if (!key) return;
+        const update = {};
+        update[`guestinfo/${key}/${id}`] = v;
+        firebase.database().ref().update(update);
+      }, 300));
+    });
+  }
+  global.setupInstantSaveForStep1 = setupInstantSaveForStep1;
+
+  // ==== Step 3 instant save (solution) ====
+  function setupSolutionSave() {
+    const f = document.getElementById("solutionText");
+    if (!f) return;
+    f.addEventListener("input", debounce(() => {
+      const v = f.value.trim();
+      answers.solutionText = { value: v, points: v ? 25 : 0 };
+      // Save solution differently - nested object
+      const key = global.gpApp?.guestKey;
+      if (!key) return;
+      const update = {};
+      if (v) {
+        update[`guestinfo/${key}/solution`] = { text: v, completedAt: Date.now() };
+      } else {
+        update[`guestinfo/${key}/solution`] = null;
+      }
+      firebase.database().ref().update(update);
+    }, 300));
+  }
+  global.setupSolutionSave = setupSolutionSave;
 
   // ==== Fast form rendering (Experienced reps) ====
   function renderFastQuestions(containerId) {
@@ -149,7 +187,6 @@
       saveFieldToFirebase(q.id, val, answers[q.id].points);
     }
 
-    // Debounced save on input/select change
     const debouncedSave = debounce(() => saveAnswer(), 300);
 
     inputText.oninput = debouncedSave;
@@ -161,10 +198,20 @@
       showStep(currentStep);
     };
 
-    // Start wizard
     showStep(currentStep);
   }
 
+  // Utility: Get label by field id
+  function getLabel(id) {
+    if (id==="custName") return "Customer Name";
+    if (id==="custPhone") return "Customer Phone";
+    if (id==="solutionText") return "Proposed Solution";
+    const q = staticQuestions.find(x=>x.id===id);
+    return q ? q.label : id;
+  }
+  global.getLabel = getLabel;
+
+  // Export render functions for Step 2
   global.renderFastQuestions = renderFastQuestions;
   global.renderGuidedQuestions = renderGuidedQuestions;
 
