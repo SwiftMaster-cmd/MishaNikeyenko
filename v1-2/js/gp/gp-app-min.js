@@ -81,6 +81,9 @@
 
   // Save or update the guest record
   async function saveGuestNow() {
+    // If not editing an existing lead, don't save
+    if (!_guestKey) return; // <--- CRITICAL GUARD
+
     const f   = readFields();
     const now = Date.now();
     const status = global.gpCore
@@ -93,64 +96,29 @@
       evalData[q.id] = f[q.id] || "";
     });
 
-    // ===== SIMPLE FIX: Prevent blank guest creation =====
-    if (!_guestKey) {
-      // Block blank guest
-      if (
-        !f.custName &&
-        !f.custPhone &&
-        Object.values(evalData).every(v => !v) &&
-        !f.solutionText
-      ) {
-        return; // Do not save a new guest with no info!
-      }
-      // Create new guest
-      const payload = {
-        custName:    f.custName,
-        custPhone:   f.custPhone,
-        evaluate:    evalData,
-        status,
-        submittedAt: now,
-        userUid:     auth.currentUser?.uid || null
+    // Update existing guest only
+    const updates = {
+      [`guestinfo/${_guestKey}/custName`]:    f.custName,
+      [`guestinfo/${_guestKey}/custPhone`]:   f.custPhone,
+      [`guestinfo/${_guestKey}/status`]:      status,
+      [`guestinfo/${_guestKey}/updatedAt`]:   now
+    };
+    if (f.solutionText) {
+      updates[`guestinfo/${_guestKey}/solution`] = {
+        text:           f.solutionText,
+        completedAt:    _guestObj.solution?.completedAt || now
       };
-      if (f.solutionText) {
-        payload.solution = { text: f.solutionText, completedAt: now };
-      }
-      try {
-        const ref = db.ref("guestinfo").push();
-        await ref.set(payload);
-        _guestKey = ref.key;
-        _guestObj = payload;
-        localStorage.setItem("last_guestinfo_key", _guestKey);
-        attachCompletionListener();
-      } catch (e) {
-        console.error("Error creating guest:", e);
-      }
     } else {
-      // Update existing guest
-      const updates = {
-        [`guestinfo/${_guestKey}/custName`]:    f.custName,
-        [`guestinfo/${_guestKey}/custPhone`]:   f.custPhone,
-        [`guestinfo/${_guestKey}/status`]:      status,
-        [`guestinfo/${_guestKey}/updatedAt`]:   now
-      };
-      if (f.solutionText) {
-        updates[`guestinfo/${_guestKey}/solution`] = {
-          text:           f.solutionText,
-          completedAt:    _guestObj.solution?.completedAt || now
-        };
-      } else {
-        updates[`guestinfo/${_guestKey}/solution`] = null;
-      }
-      // Nested evaluate updates
-      Object.entries(evalData).forEach(([k, v]) => {
-        updates[`guestinfo/${_guestKey}/evaluate/${k}`] = v;
-      });
-      try {
-        await db.ref().update(updates);
-      } catch (e) {
-        console.error("Error updating guest:", e);
-      }
+      updates[`guestinfo/${_guestKey}/solution`] = null;
+    }
+    // Nested evaluate updates
+    Object.entries(evalData).forEach(([k, v]) => {
+      updates[`guestinfo/${_guestKey}/evaluate/${k}`] = v;
+    });
+    try {
+      await db.ref().update(updates);
+    } catch (e) {
+      console.error("Error updating guest:", e);
     }
   }
 
@@ -184,7 +152,7 @@
       }
     }
 
-    // Fresh context
+    // If guest doesn't exist, just reset UI, but DON'T create or autosave a blank guest.
     _guestObj = {};
     _guestKey = null;
     global.gpApp.gotoStep("step1");
@@ -192,6 +160,7 @@
     loadAnswersFromGuest({});
     if (global.updateTotalPoints) global.updateTotalPoints();
     if (global.updatePitchText)  global.updatePitchText();
+    // Do NOT trigger save here! No blank guests will be created.
   }
 
   // Step navigation controls
