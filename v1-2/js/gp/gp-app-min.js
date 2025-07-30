@@ -1,4 +1,4 @@
-// gp-app-min.js -- Guest Portal App logic with nested "evaluate", live save/load, and guarded progress updates
+// gp-app-min.js -- Guest Portal App logic with nested "evaluate", live save/load, guarded progress updates, and Step 2 mode toggle
 (function(global){
   // Firebase initialization
   const cfg = global.GP_FIREBASE_CONFIG || {
@@ -23,7 +23,6 @@
   // User mode (Newbie/Easy or Experienced)
   global.userType = localStorage.getItem("userType") || "Experienced";
 
-  // Utility
   const el = id => document.getElementById(id);
 
   // Read all form fields, including nested evaluate
@@ -93,13 +92,11 @@
       ? global.gpCore.detectStatus({ ..._guestObj, ...f, solution: { text: f.solutionText } })
       : "new";
 
-    // Prepare nested evaluate data
     const evalData = {};
     (global.gpQuestions || []).forEach(q => {
       evalData[q.id] = f[q.id] || "";
     });
 
-    // Update existing guest only
     const updates = {
       [`guestinfo/${_guestKey}/custName`]:    f.custName,
       [`guestinfo/${_guestKey}/custPhone`]:   f.custPhone,
@@ -122,45 +119,6 @@
     } catch (e) {
       console.error("Error updating guest:", e);
     }
-  }
-
-  // Load existing context or initialize fresh
-  async function loadContext() {
-    const params = new URLSearchParams(window.location.search);
-    const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
-
-    if (gid) {
-      try {
-        const snap = await db.ref(`guestinfo/${gid}`).get();
-        if (snap.exists()) {
-          let g = snap.val();
-          if (global.gpCore) g = global.gpCore.normGuest(g);
-          _guestKey = gid;
-          _guestObj = g;
-          writeFields(g);
-          loadAnswersFromGuest(g);
-
-          const st = global.gpCore ? global.gpCore.detectStatus(g) : "new";
-          const step = st === "proposal" ? "step3" : st === "working" ? "step2" : "step1";
-          global.gpApp.gotoStep(step);
-          if (global.updateTotalPoints) global.updateTotalPoints();
-          if (global.updatePitchText)  global.updatePitchText();
-
-          attachCompletionListener();
-          return;
-        }
-      } catch (e) {
-        console.error("Error loading guest:", e);
-      }
-    }
-
-    _guestObj = {};
-    _guestKey = null;
-    global.gpApp.gotoStep("step1");
-    writeFields({});
-    loadAnswersFromGuest({});
-    if (global.updateTotalPoints) global.updateTotalPoints();
-    if (global.updatePitchText)  global.updatePitchText();
   }
 
   // Step navigation controls
@@ -189,7 +147,7 @@
     );
   }
 
-  // --- NEW: Mode toggle button creation ---
+  // --- Mode toggle button creation ---
   function createModeToggleButton() {
     const btn = document.createElement("button");
     btn.id = "modeToggleBtn";
@@ -214,7 +172,7 @@
     return btn;
   }
 
-  // --- NEW: Conditional Step 2 render ---
+  // Conditional Step 2 render
   function renderStep2UI() {
     if(global.userType === "Newbie" && typeof global.renderGuidedQuestions === "function") {
       global.renderGuidedQuestions("step2Fields");
@@ -225,7 +183,7 @@
     }
   }
 
-  // Main UI render function (replace your existing renderUI or integrate)
+  // Main UI render function
   function renderUI() {
     const app = el("guestApp");
     if (!app) return;
@@ -261,7 +219,6 @@
     const step1 = document.createElement("section");
     step1.id = "step1Fields";
     step1.style.flex = "1 1 300px";
-    // Call existing Step 1 render if exists
     if(typeof global.renderStep1 === "function") global.renderStep1("step1Fields");
 
     // Step 2 container
@@ -273,7 +230,6 @@
     const step3 = document.createElement("section");
     step3.id = "step3Fields";
     step3.style.flex = "1 1 300px";
-    // Call existing Step 3 render if exists
     if(typeof global.renderStep3 === "function") global.renderStep3("step3Fields");
 
     container.appendChild(step1);
