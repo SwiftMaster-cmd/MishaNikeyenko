@@ -1,134 +1,381 @@
 /* ==========================================================================
-   Glassy, Mobile-First Progress Header for Guest Portal UI
+   Guest Portal UI – GLASS THEME v3.3 (2025) -- Polished, Spacious, Premium
    ========================================================================== */
 
-#gpProgressHeader {
-  position: sticky;
-  top: 10px;
-  z-index: 101;
-  width: 99vw;
-  max-width: 700px;
-  min-width: 0;
-  margin: 0 auto 20px auto;
-  background: rgba(255,255,255,0.90);
-  border-radius: 16px;
-  box-shadow: 0 6px 24px rgba(40,70,180,0.11), 0 1.5px 0 #e3e8f3;
-  border: 1.5px solid #e3e8f3;
+:root {
+  --brand: #1e90ff;
+  --brand-2: #82caff;
+  --brand-focus: rgba(30,144,255,.25);
+
+  --bg-dark: #12141c;
+  --bg-mid:  #181a23;
+  --glass-bg: rgba(28,30,44,0.86);
+
+  --card-bg: rgba(36,39,55,0.96);
+  --card-glass: rgba(50,53,70,0.96);
+
+  --input-bg: rgba(255,255,255,0.10);
+  --input-border: rgba(255,255,255,0.18);
+  --input-focus: #1e90ff;
+
+  --text-hi: #e7f0fc;
+  --text:    #c1d0ee;
+  --text-mid:#b1bad1;
+  --text-low:#8ca0ba;
+
+  --radius-outer: 26px;
+  --radius: 18px;
+  --radius-inner: 12px;
+
+  --shadow: 0 10px 44px rgba(30,144,255,0.13), 0 1.5px 0 rgba(255,255,255,0.11);
+
+  --focus-glow: 0 0 0 3px var(--brand-focus);
+
+  --transition: .18s cubic-bezier(.47,1.64,.41,.8);
+
+  --max-width: 560px;
+  --max-card: 480px;
+
+  --header-pad-v: 36px;
+  --header-pad-h: 0px;
+  --step-gap: 44px;
+
+  --input-pad-v: 18px;
+  --input-pad-h: 15px;
+
+  --card-pad-v: 38px;
+  --card-pad-h: 36px;
+}
+
+/* Base / App Layout */
+html, body {
+  min-height: 100%;
+  background: linear-gradient(135deg, #14151b 0%, #191b25 100%) no-repeat fixed;
+  color: var(--text-hi);
+  font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
+  font-size: 17px;
+  -webkit-font-smoothing: antialiased;
+  font-smooth: always;
+  margin: 0; padding: 0;
+}
+body {
+  width: 100vw;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 18px 5vw 14px 5vw;
-  transition: background 0.18s;
-  backdrop-filter: blur(14px) saturate(135%);
-  gap: 8px;
+  padding: 0;
+}
+
+/* App Container */
+#guestApp {
+  width: 100vw;
+  min-height: 100vh;
+  background: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 58px;
+  position: relative;
+}
+
+/* ==========================================================================
+   GLASSY HEADER + BEAUTIFUL PROGRESS BAR
+   ========================================================================== */
+#gpProgressHeader {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  max-width: var(--max-width);
+  min-width: 0;
+  margin: 0 auto;
+  z-index: 120;
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px) saturate(170%);
+  border-bottom: 2px solid rgba(255,255,255,.08);
+  box-shadow: 0 8px 40px 0 rgba(30,144,255,.13);
+  border-radius: var(--radius-outer);
+  padding: var(--header-pad-v) var(--header-pad-h) 20px var(--header-pad-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-height: 88px;
+  transition: background .18s, box-shadow .18s;
 }
 
 #gpProgressHeader > a#backToDash {
   position: absolute;
-  left: 18px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-weight: 600;
-  font-size: 1.05em;
-  color: #2479e7;
-  background: none;
-  border-radius: 8px;
-  padding: 3px 10px;
-  opacity: 0.91;
-  transition: background .18s, color .18s;
+  left: 20px;
+  top: 32px;
+  font-weight: 700;
+  font-size: 1.08em;
+  color: var(--brand);
+  background: rgba(28,35,52,0.35);
+  border-radius: 10px;
+  padding: 9px 14px;
+  opacity: 0.92;
+  transition: background .14s, color .14s;
   text-decoration: none;
+  border: none;
+  z-index: 130;
 }
 #gpProgressHeader > a#backToDash:hover {
-  background: rgba(36,121,231,0.08);
-  color: #155cb0;
+  background: rgba(30,144,255,.11);
+  color: var(--brand-2);
 }
 
+/* Progress label/heading */
 #gpProgressHeader label {
-  color: #242a3b;
-  font-weight: 700;
-  font-size: 1.11rem;
-  margin-bottom: 1px;
-  letter-spacing: .01em;
+  width: 100%;
+  text-align: center;
+  color: var(--text-hi);
+  font-weight: 800;
+  font-size: 1.08rem;
+  letter-spacing: .02em;
+  margin-bottom: 6px;
+}
+#gpProgressHeader #progressLabel {
+  color: var(--brand-2);
+  font-weight: 900;
+  font-size: 1.13rem;
+  letter-spacing: .04em;
+  margin: 2px 0 0 0;
   width: 100%;
   text-align: center;
 }
 
-#gpProgressHeader #progressLabel {
-  font-variant-numeric: tabular-nums;
-  color: #1761dc;
-  font-weight: 700;
-  font-size: 1.04em;
-  letter-spacing: .02em;
-  margin: 0 auto 3px auto;
-}
-
+/* Progress bar – premium effect */
 #gpProgressHeader #progressBar {
   width: 100%;
-  max-width: 350px;
-  height: 20px;
-  border-radius: 12px;
-  background: linear-gradient(90deg, #eaf1fb 0%, #f1f8ff 100%);
-  box-shadow: 0 2px 16px #b3c3ee20;
+  max-width: 420px;
+  height: 22px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 1px 10px #1e90ff20;
+  margin: 10px auto 0 auto;
+  border: 1.3px solid rgba(130,202,255,0.09);
+  accent-color: var(--brand);
   appearance: none;
-  margin-top: 3px;
   overflow: hidden;
   position: relative;
-  outline: none;
-  border: none;
-  /* Hide ugly system styles */
 }
-
 #gpProgressHeader #progressBar::-webkit-progress-bar {
   background: transparent;
-  border-radius: 12px;
+  border-radius: 14px;
 }
-
 #gpProgressHeader #progressBar::-webkit-progress-value {
-  border-radius: 12px;
-  background: linear-gradient(90deg, #45a2ff 0%, #33e6a0 70%, #fbb357 100%);
-  transition: width .3s cubic-bezier(.47,1.64,.41,.8);
-  box-shadow: 0 2px 16px #40c5ee60;
+  background: linear-gradient(90deg, #44aaff, #2fd6ad 60%, #42b9ff 100%);
+  box-shadow: 0 2px 16px #209cf350;
+  border-radius: 14px;
+  transition: width var(--transition);
 }
 #gpProgressHeader #progressBar::-moz-progress-bar {
-  border-radius: 12px;
-  background: linear-gradient(90deg, #45a2ff 0%, #33e6a0 70%, #fbb357 100%);
-  transition: width .3s cubic-bezier(.47,1.64,.41,.8);
-  box-shadow: 0 2px 16px #40c5ee60;
+  background: linear-gradient(90deg, #44aaff, #2fd6ad 60%, #42b9ff 100%);
+  border-radius: 14px;
+  transition: width var(--transition);
 }
 #gpProgressHeader #progressBar::-ms-fill {
-  border-radius: 12px;
-  background: linear-gradient(90deg, #45a2ff 0%, #33e6a0 70%, #fbb357 100%);
-  transition: width .3s cubic-bezier(.47,1.64,.41,.8);
-  box-shadow: 0 2px 16px #40c5ee60;
+  background: linear-gradient(90deg, #44aaff, #2fd6ad 60%, #42b9ff 100%);
+  border-radius: 14px;
+  transition: width var(--transition);
 }
-
-/* Fallback for browsers that don't support progress gradients */
 #gpProgressHeader #progressBar[value] {
-  background: linear-gradient(90deg, #eaf1fb 0%, #f1f8ff 100%);
+  background: rgba(255,255,255,0.08);
 }
 
+/* Mobile header tweaks */
 @media (max-width: 600px) {
   #gpProgressHeader {
-    max-width: 99vw;
-    width: 99vw;
-    padding-left: 2vw;
-    padding-right: 2vw;
-    border-radius: 9px;
-    min-width: unset;
-    box-shadow: 0 2px 8px rgba(40,70,180,0.08);
-  }
-  #gpProgressHeader #progressBar {
-    max-width: 98vw;
-    height: 16px;
+    border-radius: var(--radius);
+    padding: 17px 0 8px 0;
+    min-height: 55px;
+    max-width: 100vw;
   }
   #gpProgressHeader > a#backToDash {
-    font-size: 0.98em;
-    left: 8px;
+    font-size: 0.96em;
+    left: 12px;
+    top: 16px;
+    padding: 7px 12px;
+  }
+  #gpProgressHeader #progressBar { height: 17px; }
+}
+
+/* ==========================================================================
+   Step Containers – Glass, Centered, Comfortable
+   ========================================================================== */
+.step-container {
+  width: 100vw;
+  max-width: var(--max-width);
+  margin: var(--step-gap) auto 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--card-bg);
+  border-radius: var(--radius-outer);
+  box-shadow: var(--shadow);
+  padding: 0;
+  min-height: 110px;
+  position: relative;
+  margin-bottom: var(--step-gap);
+  transition: box-shadow .22s, background .16s;
+}
+
+/* Always full-width on big displays */
+@media (min-width: 1000px) {
+  .step-container { max-width: 660px; }
+}
+
+@media (max-width: 700px) {
+  .step-container { max-width: 99vw; }
+}
+
+/* ==========================================================================
+   Step Card – For All Steps
+   ========================================================================== */
+.step-card {
+  background: var(--card-glass);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 24px rgba(30,144,255,0.10), 0 1px 0 #1e2537;
+  border: 1.4px solid rgba(255,255,255,0.13);
+  padding: var(--card-pad-v) var(--card-pad-h) 22px var(--card-pad-h);
+  min-width: 220px;
+  max-width: var(--max-card);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 27px;
+  align-items: center;
+  text-align: center;
+  margin: 0 auto;
+  position: relative;
+  backdrop-filter: blur(24px) saturate(210%);
+}
+
+@media (max-width: 700px) {
+  .step-card {
+    max-width: 98vw;
+    border-radius: 13px;
+    padding: 18px 2vw 11px 2vw;
+    gap: 18px;
   }
 }
 
-/* Optional: add breathing room below header */
-#gpProgressHeader + * {
-  margin-top: 16px !important;
+.card-title {
+  margin: 0 0 20px 0;
+  font-size: 1.21rem;
+  color: var(--brand-2);
+  font-weight: 900;
+  letter-spacing: .03em;
+  text-align: center;
 }
+
+.glabel {
+  display: block;
+  margin-bottom: 19px;
+  font-weight: 700;
+  color: var(--text-hi);
+  font-size: 1.06rem;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.gp-pts {
+  color: var(--brand-2);
+  font-weight: 600;
+  margin-left: 8px;
+  font-size: 1.04em;
+}
+
+/* Inputs, selects, textarea – Touch Large, Glassy */
+input[type="text"],
+input[type="tel"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  border-radius: var(--radius-inner);
+  border: 2px solid var(--input-border);
+  padding: var(--input-pad-v) var(--input-pad-h);
+  font-size: 1.14rem;
+  background: var(--input-bg);
+  color: var(--text-hi);
+  font-family: inherit;
+  font-weight: 500;
+  box-shadow: 0 2px 10px rgba(30,144,255,0.07);
+  text-align: center;
+  transition: border-color .16s, background .13s;
+  margin-top: 11px;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--input-focus);
+  background: rgba(30,144,255,0.08);
+  outline: none;
+  box-shadow: var(--focus-glow);
+}
+textarea {
+  resize: vertical;
+  min-height: 106px;
+  font-size: 1.10rem;
+  text-align: center;
+}
+
+button, .btn {
+  background: var(--brand);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  border-radius: 16px;
+  padding: 20px 0;
+  margin-top: 29px;
+  font-size: 1.16rem;
+  cursor: pointer;
+  transition: background .13s, box-shadow .13s;
+  box-shadow: 0 6px 16px rgba(30,144,255,0.15);
+  width: 100%;
+  max-width: 340px;
+  letter-spacing: .01em;
+}
+button:hover, .btn:hover {
+  background: var(--brand-2);
+  color: #fff;
+}
+
+/* Card step accents */
+.step-card-1 { border-left: 7px solid #00c853; }
+.step-card-2 { border-left: 7px solid #1e90ff; }
+.step-card-3 { border-left: 7px solid #ffb300; }
+
+/* Mobile Touch Comfort */
+@media (max-width: 600px) {
+  .step-card, .step-container {
+    border-radius: 11px;
+    gap: 14px;
+  }
+  .card-title { font-size: 1.09rem; }
+  input, select, textarea { font-size: 1.07rem; }
+  button, .btn { padding: 16px 0; font-size: 1.08rem; }
+}
+
+/* Optional: Focus + hover highlights */
+.step-container:hover, .step-container:focus-within {
+  box-shadow: 0 18px 48px rgba(30,144,255,0.21);
+  background: rgba(22,28,44,0.99);
+}
+
+input[type="text"]:disabled,
+input[type="tel"]:disabled,
+input[type="number"]:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.55;
+  background: rgba(200,210,230,0.07);
+  cursor: not-allowed;
+}
+
+/* Optional: Scrollbar touch-up for iOS/Android */
+::-webkit-scrollbar{width:11px;height:10px;}
+::-webkit-scrollbar-track{background:rgba(255,255,255,.03);}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:5px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.33);}
