@@ -1,8 +1,8 @@
-// gp-app-min.js -- Guest Portal App logic with persistent guest key
+// gp-app-min.js -- Guest Portal App logic with nested "evaluate", live save/load, and guarded progress updates
 (function(global){
   // Firebase initialization
   const cfg = global.GP_FIREBASE_CONFIG || {
-    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRG9dslMzE",
+    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGZ9dslMzE",
     authDomain: "osls-644fd.firebaseapp.com",
     databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
     projectId: "osls-644fd",
@@ -94,7 +94,7 @@
     });
 
     if (!_guestKey) {
-      // Create new guest ONLY if truly new
+      // Create new guest
       const payload = {
         custName:    f.custName,
         custPhone:   f.custPhone,
@@ -147,9 +147,8 @@
   // Load existing context or initialize fresh
   async function loadContext() {
     const params = new URLSearchParams(window.location.search);
-    let gid = params.get("gid") || localStorage.getItem("last_guestinfo_key");
+    const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
 
-    // Always try to reuse existing guest key if present
     if (gid) {
       try {
         const snap = await db.ref(`guestinfo/${gid}`).get();
@@ -158,7 +157,6 @@
           if (global.gpCore) g = global.gpCore.normGuest(g);
           _guestKey = gid;
           _guestObj = g;
-          localStorage.setItem("last_guestinfo_key", gid);
           writeFields(g);
           loadAnswersFromGuest(g);
 
@@ -170,13 +168,20 @@
 
           attachCompletionListener();
           return;
+        } else {
+          // Guest record not found: clear ref and show error overlay
+          localStorage.removeItem("last_guestinfo_key");
+          showGuestNotFoundError();
+          return;
         }
       } catch (e) {
         console.error("Error loading guest:", e);
+        showGuestNotFoundError();
+        return;
       }
     }
 
-    // If no guest found, initialize fresh ONLY then
+    // Fresh context: ONLY if no gid
     _guestObj = {};
     _guestKey = null;
     global.gpApp.gotoStep("step1");
@@ -184,6 +189,21 @@
     loadAnswersFromGuest({});
     if (global.updateTotalPoints) global.updateTotalPoints();
     if (global.updatePitchText)  global.updatePitchText();
+  }
+
+  function showGuestNotFoundError() {
+    if (document.getElementById("gp-guest-notfound")) return;
+    const overlay = document.createElement("div");
+    overlay.id = "gp-guest-notfound";
+    overlay.style = "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;";
+    overlay.innerHTML = `
+      <div style="background:#222;padding:32px 24px;border-radius:16px;text-align:center;">
+        <b>Guest form not found.</b>
+        <br><br>
+        <button onclick="window.location.href='/index.html'" style="margin-top:16px;" class="btn btn-primary">Back to Dashboard</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
   }
 
   // Step navigation controls
