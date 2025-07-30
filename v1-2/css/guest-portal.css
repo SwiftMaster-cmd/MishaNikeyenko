@@ -1,15 +1,14 @@
 /* ==========================================================================
-   Guest Portal UI – GLASS THEME v3.3 (2025) -- Polished, Spacious, Premium
+   Guest Portal Glass UI v3.4 – Full Fix for Sticky Header, Width, Padding, No Overlap, 2025
    ========================================================================== */
-
 :root {
   --brand: #1e90ff;
   --brand-2: #82caff;
-  --brand-focus: rgba(30,144,255,.25);
+  --brand-focus: rgba(30,144,255,.19);
 
-  --bg-dark: #12141c;
+  --bg-dark: #10121a;
   --bg-mid:  #181a23;
-  --glass-bg: rgba(28,30,44,0.86);
+  --glass-bg: rgba(28,30,44,0.94);
 
   --card-bg: rgba(36,39,55,0.96);
   --card-glass: rgba(50,53,70,0.96);
@@ -23,39 +22,37 @@
   --text-mid:#b1bad1;
   --text-low:#8ca0ba;
 
-  --radius-outer: 26px;
-  --radius: 18px;
-  --radius-inner: 12px;
+  --radius-outer: 22px;
+  --radius: 14px;
+  --radius-inner: 11px;
 
-  --shadow: 0 10px 44px rgba(30,144,255,0.13), 0 1.5px 0 rgba(255,255,255,0.11);
+  --shadow: 0 10px 44px rgba(30,144,255,0.14), 0 1.5px 0 rgba(255,255,255,0.10);
 
-  --focus-glow: 0 0 0 3px var(--brand-focus);
+  --focus-glow: 0 0 0 2.5px var(--brand-focus);
 
-  --transition: .18s cubic-bezier(.47,1.64,.41,.8);
+  --max-width: 620px;
+  --max-card: 490px;
 
-  --max-width: 560px;
-  --max-card: 480px;
-
-  --header-pad-v: 36px;
-  --header-pad-h: 0px;
-  --step-gap: 44px;
+  --header-height: 92px;
+  --header-pad-v: 34px;
+  --step-gap: 36px;
 
   --input-pad-v: 18px;
   --input-pad-h: 15px;
 
-  --card-pad-v: 38px;
-  --card-pad-h: 36px;
+  --card-pad-v: 36px;
+  --card-pad-h: 32px;
 }
 
-/* Base / App Layout */
+/* Body & App Base */
 html, body {
   min-height: 100%;
-  background: linear-gradient(135deg, #14151b 0%, #191b25 100%) no-repeat fixed;
+  width: 100vw;
+  overflow-x: hidden;
+  background: linear-gradient(135deg, #12151b 0%, #181a23 100%) no-repeat fixed;
   color: var(--text-hi);
   font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
   font-size: 17px;
-  -webkit-font-smoothing: antialiased;
-  font-smooth: always;
   margin: 0; padding: 0;
 }
 body {
@@ -67,55 +64,62 @@ body {
   padding: 0;
 }
 
-/* App Container */
+/* App Container always has bottom pad for scrolling */
 #guestApp {
   width: 100vw;
   min-height: 100vh;
-  background: none;
+  padding-bottom: 54px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-bottom: 58px;
+  background: none;
   position: relative;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
-   GLASSY HEADER + BEAUTIFUL PROGRESS BAR
+   Sticky Glass Header – always top, 100vw, no overlap, shadow, proper mobile/desktop
    ========================================================================== */
 #gpProgressHeader {
   position: sticky;
   top: 0;
   left: 0;
   width: 100vw;
-  max-width: var(--max-width);
-  min-width: 0;
-  margin: 0 auto;
+  min-width: 320px;
   z-index: 120;
   background: var(--glass-bg);
-  backdrop-filter: blur(18px) saturate(170%);
-  border-bottom: 2px solid rgba(255,255,255,.08);
-  box-shadow: 0 8px 40px 0 rgba(30,144,255,.13);
-  border-radius: var(--radius-outer);
-  padding: var(--header-pad-v) var(--header-pad-h) 20px var(--header-pad-h);
+  backdrop-filter: blur(18px) saturate(180%);
+  border-bottom: 2px solid rgba(255,255,255,.07);
+  box-shadow: 0 8px 42px 0 rgba(30,144,255,.12);
+  border-radius: 0 0 var(--radius-outer) var(--radius-outer);
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  min-height: 88px;
-  transition: background .18s, box-shadow .18s;
+  min-height: var(--header-height);
+  max-height: 120px;
+  transition: background .18s, box-shadow .16s;
+  margin: 0;
+  /* ensures always covers width, even in browser resize */
 }
 
+@media (max-width: 650px) {
+  #gpProgressHeader { min-height: 68px; max-height: 80px; border-radius: 0 0 14px 14px; }
+}
+
+/* Dashboard/back button: always visible, never overlaps bar */
 #gpProgressHeader > a#backToDash {
   position: absolute;
-  left: 20px;
-  top: 32px;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
   font-weight: 700;
-  font-size: 1.08em;
+  font-size: 1.05em;
   color: var(--brand);
-  background: rgba(28,35,52,0.35);
+  background: rgba(28,35,52,0.29);
   border-radius: 10px;
-  padding: 9px 14px;
-  opacity: 0.92;
+  padding: 7px 14px;
+  opacity: 0.91;
   transition: background .14s, color .14s;
   text-decoration: none;
   border: none;
@@ -126,35 +130,36 @@ body {
   color: var(--brand-2);
 }
 
-/* Progress label/heading */
 #gpProgressHeader label {
   width: 100%;
   text-align: center;
   color: var(--text-hi);
-  font-weight: 800;
-  font-size: 1.08rem;
-  letter-spacing: .02em;
-  margin-bottom: 6px;
+  font-weight: 900;
+  font-size: 1.07rem;
+  letter-spacing: .03em;
+  margin-bottom: 2px;
+  margin-top: 17px;
 }
 #gpProgressHeader #progressLabel {
   color: var(--brand-2);
   font-weight: 900;
-  font-size: 1.13rem;
-  letter-spacing: .04em;
-  margin: 2px 0 0 0;
+  font-size: 1.12rem;
+  margin: 4px 0 0 0;
+  letter-spacing: .03em;
   width: 100%;
   text-align: center;
 }
 
-/* Progress bar – premium effect */
+/* Progress bar -- full-width, beautiful, large, never overlapped */
 #gpProgressHeader #progressBar {
-  width: 100%;
-  max-width: 420px;
+  display: block;
+  width: 94vw;
+  max-width: 390px;
   height: 22px;
   border-radius: 14px;
   background: rgba(255,255,255,0.08);
-  box-shadow: 0 1px 10px #1e90ff20;
-  margin: 10px auto 0 auto;
+  box-shadow: 0 2px 16px #1e90ff14;
+  margin: 12px auto 0 auto;
   border: 1.3px solid rgba(130,202,255,0.09);
   accent-color: var(--brand);
   appearance: none;
@@ -166,44 +171,33 @@ body {
   border-radius: 14px;
 }
 #gpProgressHeader #progressBar::-webkit-progress-value {
-  background: linear-gradient(90deg, #44aaff, #2fd6ad 60%, #42b9ff 100%);
-  box-shadow: 0 2px 16px #209cf350;
+  background: linear-gradient(90deg, #1e90ff 5%, #82caff 65%, #1e90ff 100%);
+  box-shadow: 0 2px 10px #209cf335;
   border-radius: 14px;
-  transition: width var(--transition);
+  transition: width .32s cubic-bezier(.5,1.7,.55,.7);
 }
 #gpProgressHeader #progressBar::-moz-progress-bar {
-  background: linear-gradient(90deg, #44aaff, #2fd6ad 60%, #42b9ff 100%);
+  background: linear-gradient(90deg, #1e90ff 5%, #82caff 65%, #1e90ff 100%);
   border-radius: 14px;
-  transition: width var(--transition);
+  transition: width .32s cubic-bezier(.5,1.7,.55,.7);
 }
 #gpProgressHeader #progressBar::-ms-fill {
-  background: linear-gradient(90deg, #44aaff, #2fd6ad 60%, #42b9ff 100%);
+  background: linear-gradient(90deg, #1e90ff 5%, #82caff 65%, #1e90ff 100%);
   border-radius: 14px;
-  transition: width var(--transition);
+  transition: width .32s cubic-bezier(.5,1.7,.55,.7);
 }
 #gpProgressHeader #progressBar[value] {
   background: rgba(255,255,255,0.08);
 }
 
-/* Mobile header tweaks */
-@media (max-width: 600px) {
-  #gpProgressHeader {
-    border-radius: var(--radius);
-    padding: 17px 0 8px 0;
-    min-height: 55px;
-    max-width: 100vw;
-  }
-  #gpProgressHeader > a#backToDash {
-    font-size: 0.96em;
-    left: 12px;
-    top: 16px;
-    padding: 7px 12px;
-  }
-  #gpProgressHeader #progressBar { height: 17px; }
+/* Fix body padding so content never goes under sticky header */
+body, #guestApp {
+  padding-top: calc(var(--header-height) + 14px);
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
-   Step Containers – Glass, Centered, Comfortable
+   Step Containers & Cards -- Fluid, Touch-Friendly, No Overlap
    ========================================================================== */
 .step-container {
   width: 100vw;
@@ -222,30 +216,25 @@ body {
   transition: box-shadow .22s, background .16s;
 }
 
-/* Always full-width on big displays */
-@media (min-width: 1000px) {
-  .step-container { max-width: 660px; }
+@media (min-width: 1200px) {
+  .step-container { max-width: 700px; }
 }
-
-@media (max-width: 700px) {
+@media (max-width: 900px) {
   .step-container { max-width: 99vw; }
 }
 
-/* ==========================================================================
-   Step Card – For All Steps
-   ========================================================================== */
 .step-card {
   background: var(--card-glass);
   border-radius: var(--radius);
   box-shadow: 0 4px 24px rgba(30,144,255,0.10), 0 1px 0 #1e2537;
   border: 1.4px solid rgba(255,255,255,0.13);
-  padding: var(--card-pad-v) var(--card-pad-h) 22px var(--card-pad-h);
+  padding: var(--card-pad-v) var(--card-pad-h) 20px var(--card-pad-h);
   min-width: 220px;
   max-width: var(--max-card);
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 27px;
+  gap: 26px;
   align-items: center;
   text-align: center;
   margin: 0 auto;
@@ -256,39 +245,38 @@ body {
 @media (max-width: 700px) {
   .step-card {
     max-width: 98vw;
-    border-radius: 13px;
-    padding: 18px 2vw 11px 2vw;
-    gap: 18px;
+    border-radius: 11px;
+    padding: 13px 2vw 9px 2vw;
+    gap: 15px;
   }
 }
 
+/* Step Card titles/labels/inputs */
 .card-title {
-  margin: 0 0 20px 0;
-  font-size: 1.21rem;
+  margin: 0 0 18px 0;
+  font-size: 1.18rem;
   color: var(--brand-2);
   font-weight: 900;
   letter-spacing: .03em;
   text-align: center;
 }
-
 .glabel {
   display: block;
-  margin-bottom: 19px;
+  margin-bottom: 15px;
   font-weight: 700;
   color: var(--text-hi);
-  font-size: 1.06rem;
+  font-size: 1.05rem;
   letter-spacing: 0.01em;
   text-align: center;
 }
-
 .gp-pts {
   color: var(--brand-2);
   font-weight: 600;
-  margin-left: 8px;
-  font-size: 1.04em;
+  margin-left: 6px;
+  font-size: 1.01em;
 }
 
-/* Inputs, selects, textarea – Touch Large, Glassy */
+/* Inputs, selects, textarea -- All Touch, All Centered */
 input[type="text"],
 input[type="tel"],
 input[type="number"],
@@ -298,38 +286,37 @@ textarea {
   border-radius: var(--radius-inner);
   border: 2px solid var(--input-border);
   padding: var(--input-pad-v) var(--input-pad-h);
-  font-size: 1.14rem;
+  font-size: 1.13rem;
   background: var(--input-bg);
   color: var(--text-hi);
   font-family: inherit;
   font-weight: 500;
   box-shadow: 0 2px 10px rgba(30,144,255,0.07);
   text-align: center;
-  transition: border-color .16s, background .13s;
-  margin-top: 11px;
+  transition: border-color .14s, background .12s;
+  margin-top: 9px;
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--input-focus);
-  background: rgba(30,144,255,0.08);
+  background: rgba(30,144,255,0.11);
   outline: none;
   box-shadow: var(--focus-glow);
 }
 textarea {
   resize: vertical;
-  min-height: 106px;
-  font-size: 1.10rem;
+  min-height: 96px;
+  font-size: 1.07rem;
   text-align: center;
 }
-
 button, .btn {
   background: var(--brand);
   color: #fff;
   font-weight: 700;
   border: none;
   border-radius: 16px;
-  padding: 20px 0;
-  margin-top: 29px;
-  font-size: 1.16rem;
+  padding: 18px 0;
+  margin-top: 23px;
+  font-size: 1.15rem;
   cursor: pointer;
   transition: background .13s, box-shadow .13s;
   box-shadow: 0 6px 16px rgba(30,144,255,0.15);
@@ -342,40 +329,41 @@ button:hover, .btn:hover {
   color: #fff;
 }
 
-/* Card step accents */
-.step-card-1 { border-left: 7px solid #00c853; }
-.step-card-2 { border-left: 7px solid #1e90ff; }
-.step-card-3 { border-left: 7px solid #ffb300; }
+/* Card step accent bars */
+.step-card-1 { border-left: 6px solid #00c853; }
+.step-card-2 { border-left: 6px solid #1e90ff; }
+.step-card-3 { border-left: 6px solid #ffb300; }
 
-/* Mobile Touch Comfort */
+/* Mobile Touch/Comfort Tweaks */
 @media (max-width: 600px) {
   .step-card, .step-container {
     border-radius: 11px;
-    gap: 14px;
+    gap: 11px;
   }
-  .card-title { font-size: 1.09rem; }
-  input, select, textarea { font-size: 1.07rem; }
-  button, .btn { padding: 16px 0; font-size: 1.08rem; }
+  .card-title { font-size: 1.06rem; }
+  input, select, textarea { font-size: 1.04rem; }
+  button, .btn { padding: 13px 0; font-size: 1.05rem; }
 }
 
-/* Optional: Focus + hover highlights */
+/* Focus + hover highlights */
 .step-container:hover, .step-container:focus-within {
-  box-shadow: 0 18px 48px rgba(30,144,255,0.21);
+  box-shadow: 0 16px 40px rgba(30,144,255,0.18);
   background: rgba(22,28,44,0.99);
 }
 
+/* Disabled state */
 input[type="text"]:disabled,
 input[type="tel"]:disabled,
 input[type="number"]:disabled,
 select:disabled,
 textarea:disabled {
-  opacity: 0.55;
-  background: rgba(200,210,230,0.07);
+  opacity: 0.54;
+  background: rgba(200,210,230,0.06);
   cursor: not-allowed;
 }
 
-/* Optional: Scrollbar touch-up for iOS/Android */
+/* Scrollbar touch-up for iOS/Android */
 ::-webkit-scrollbar{width:11px;height:10px;}
 ::-webkit-scrollbar-track{background:rgba(255,255,255,.03);}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:5px;}
-::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.33);}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:5px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.29);}
