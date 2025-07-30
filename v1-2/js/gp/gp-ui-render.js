@@ -15,24 +15,16 @@
     // Create sticky/glassy header wrapper
     const header = document.createElement("header");
     header.id = "gpProgressHeader";
-    header.style = `
-      position: sticky;
-      top: 0;
-      z-index: 101;
-      width: 100vw;
-      min-width: 320px;
-      background: rgba(26,28,36,0.90);
-      box-shadow: 0 2px 18px 0 rgba(30,144,255,.07);
-      backdrop-filter: blur(12px) saturate(150%);
-      border-bottom: 1.5px solid rgba(255,255,255,.08);
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: center;
-      padding: 22px 0 16px 0;
-      margin-bottom: 0;
-      transition: background 0.2s;
-    `;
+
+    // Minimal inline styles to avoid conflicts; main styles handled in CSS
+    header.style.position = "sticky";
+    header.style.top = "0";
+    header.style.zIndex = "101";
+    header.style.width = "100%";
+    header.style.display = "flex";
+    header.style.alignItems = "center";
+    header.style.justifyContent = "space-between";
+    header.style.padding = "0 20px";
 
     // Dashboard button (left)
     const dashBtn = document.createElement("a");
@@ -40,162 +32,148 @@
     dashBtn.id = "backToDash";
     dashBtn.textContent = "← Dashboard";
     dashBtn.setAttribute("tabindex", "0");
-    dashBtn.style = `
-      position: absolute;
-      left: 26px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-weight: 700;
-      font-size: 1.18em;
-      color: #1e90ff;
-      background: none;
-      border-radius: 12px;
-      padding: 8px 18px;
-      opacity: 0.97;
-      transition: background .16s, color .16s;
-      text-decoration: none;
-    `;
+
+    // Remove absolute positioning, use flex natural layout
+    dashBtn.style.position = "static";
+    dashBtn.style.fontWeight = "700";
+    dashBtn.style.fontSize = "1.1em";
+    dashBtn.style.color = "#1e90ff";
+    dashBtn.style.background = "none";
+    dashBtn.style.borderRadius = "12px";
+    dashBtn.style.padding = "8px 18px";
+    dashBtn.style.opacity = "0.97";
+    dashBtn.style.textDecoration = "none";
+    dashBtn.style.transition = "background .16s, color .16s";
+    dashBtn.style.cursor = "pointer";
+
     dashBtn.onmouseenter = () => { dashBtn.style.background = "rgba(30,144,255,.09)"; dashBtn.style.color = "#4aa8ff"; };
     dashBtn.onmouseleave = () => { dashBtn.style.background = "none"; dashBtn.style.color = "#1e90ff"; };
 
     // Center column (label + progress)
     const center = document.createElement("div");
-    center.style = `
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      flex: 1 1 0%;
-      min-width: 0;
-      position: relative;
-    `;
+    center.style.flex = "1";
+    center.style.display = "flex";
+    center.style.flexDirection = "column";
+    center.style.alignItems = "center";
+    center.style.justifyContent = "center";
+    center.style.minWidth = "0";
 
     // Progress Label
     const label = document.createElement("label");
     label.htmlFor = "progressBar";
-    label.style = `
-      color: #e2e8f0;
-      font-weight: 700;
-      font-size: 1.09rem;
-      margin-bottom: 6px;
-      letter-spacing: .02em;
-      text-align: center;
-      width: 100%;
-    `;
     label.textContent = "Completion:";
+    label.style.color = "#e2e8f0";
+    label.style.fontWeight = "700";
+    label.style.fontSize = "1.1rem";
+    label.style.marginBottom = "6px";
+    label.style.letterSpacing = ".02em";
+    label.style.textAlign = "center";
+    label.style.width = "100%";
 
     // Numeric %
     const pctLabel = document.createElement("span");
     pctLabel.id = "progressLabel";
-    pctLabel.style = `
-      font-variant-numeric: tabular-nums;
-      color: #82caff;
-      font-weight: 800;
-      margin-left: 5px;
-      font-size: 1.11rem;
-    `;
+    pctLabel.style.fontVariantNumeric = "tabular-nums";
+    pctLabel.style.color = "#82caff";
+    pctLabel.style.fontWeight = "800";
+    pctLabel.style.marginLeft = "5px";
+    pctLabel.style.fontSize = "1.12rem";
     pctLabel.textContent = "0%";
     label.appendChild(pctLabel);
 
-    // Beautiful progress bar
+    // Progress bar container
     const barWrap = document.createElement("div");
-    barWrap.style = `
-      width: 100%;
-      max-width: 440px;
-      margin: 8px auto 0 auto;
-      position: relative;
-      background: rgba(255,255,255,.07);
-      border-radius: 16px;
-      height: 28px;
-      overflow: hidden;
-      box-shadow: 0 2px 20px rgba(30,144,255,0.13);
-      display: flex;
-      align-items: center;
-    `;
+    barWrap.style.width = "100%";
+    barWrap.style.maxWidth = "440px";
+    barWrap.style.margin = "8px auto 0";
+    barWrap.style.position = "relative";
+    barWrap.style.background = "rgba(255,255,255,.07)";
+    barWrap.style.borderRadius = "16px";
+    barWrap.style.height = "28px";
+    barWrap.style.overflow = "hidden";
+    barWrap.style.boxShadow = "0 2px 20px rgba(30,144,255,0.13)";
+    barWrap.style.display = "flex";
+    barWrap.style.alignItems = "center";
 
-    // Actual progress bar input (for accessibility, but hidden)
+    // Actual progress element (hidden for accessibility)
     const bar = document.createElement("progress");
     bar.id = "progressBar";
     bar.max = 100;
     bar.value = 0;
-    bar.style = `
-      width: 100%;
-      height: 100%;
-      opacity: 0; /* visually hidden */
-      position: absolute;
-      left: 0; top: 0; pointer-events:none;
-    `;
+    bar.style.width = "100%";
+    bar.style.height = "100%";
+    bar.style.opacity = "0";
+    bar.style.position = "absolute";
+    bar.style.left = "0";
+    bar.style.top = "0";
+    bar.style.pointerEvents = "none";
 
-    // Pretty visual bar (glass, animated)
+    // Visual progress bar
     const visBar = document.createElement("div");
     visBar.id = "prettyBar";
-    visBar.style = `
-      position: absolute;
-      left: 0; top: 0; height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #1e90ff 0%, #4aa8ff 100%);
-      box-shadow: 0 2px 10px #1e90ff40;
-      border-radius: 16px;
-      transition: width .38s cubic-bezier(.62,.1,.32,1), background .23s;
-    `;
+    visBar.style.position = "absolute";
+    visBar.style.left = "0";
+    visBar.style.top = "0";
+    visBar.style.height = "100%";
+    visBar.style.width = "0%";
+    visBar.style.background = "linear-gradient(90deg, #1e90ff 0%, #4aa8ff 100%)";
+    visBar.style.boxShadow = "0 2px 10px #1e90ff40";
+    visBar.style.borderRadius = "16px";
+    visBar.style.transition = "width .38s cubic-bezier(.62,.1,.32,1), background .23s";
 
-    // Progress percent text (floating)
+    // Floating percent text
     const percentText = document.createElement("div");
     percentText.id = "progressText";
-    percentText.style = `
-      position: absolute;
-      right: 22px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #fff;
-      font-weight: 800;
-      font-size: 1.01rem;
-      letter-spacing: .01em;
-      text-shadow: 0 2px 6px #1e90ff44;
-      pointer-events: none;
-    `;
+    percentText.style.position = "absolute";
+    percentText.style.right = "22px";
+    percentText.style.top = "50%";
+    percentText.style.transform = "translateY(-50%)";
+    percentText.style.color = "#fff";
+    percentText.style.fontWeight = "800";
+    percentText.style.fontSize = "1.01rem";
+    percentText.style.letterSpacing = ".01em";
+    percentText.style.textShadow = "0 2px 6px #1e90ff44";
+    percentText.style.pointerEvents = "none";
     percentText.textContent = "0%";
 
-    // Compose bar
+    // Compose progress bar
     barWrap.appendChild(bar);
     barWrap.appendChild(visBar);
     barWrap.appendChild(percentText);
 
-    // Center col: label + bar
     center.appendChild(label);
     center.appendChild(barWrap);
 
-    // Flex row for full-width centering
     header.appendChild(dashBtn);
     header.appendChild(center);
 
-    // Ensure header fits at the very top, not inside the main form container
+    // Insert header at top of body (outside main app container)
     document.body.prepend(header);
 
-    // For mobile: pad left if button visible, pad right always
+    // Adjust header paddings based on viewport width (optional)
     function adjustHeaderForMobile() {
       const vw = Math.max(window.innerWidth, document.documentElement.clientWidth);
-      header.style.paddingLeft = vw < 700 ? "54px" : "0";
-      header.style.paddingRight = vw < 480 ? "18px" : "0";
+      header.style.paddingLeft = vw < 700 ? "54px" : "20px";
+      header.style.paddingRight = vw < 480 ? "18px" : "20px";
       center.style.maxWidth = vw < 600 ? "96vw" : "calc(100vw - 110px)";
       barWrap.style.maxWidth = vw < 480 ? "94vw" : "440px";
     }
     window.addEventListener("resize", adjustHeaderForMobile);
     adjustHeaderForMobile();
 
-    // Sync progress on change
+    // Update progress display helper
     global.updateProgressHeader = (pct) => {
-      pct = Math.max(0, Math.min(100, Math.round(pct || 0)));
+      pct = Math.min(100, Math.max(0, Math.round(pct || 0)));
       bar.value = pct;
       visBar.style.width = `${pct}%`;
       percentText.textContent = pct + "%";
       pctLabel.textContent = pct + "%";
     };
 
-    // Hook up to global progress changes if needed
-    setTimeout(()=>{
-      // Set the initial value
-      let current = Number(document.getElementById("progressBar")?.value || 0);
-      global.updateProgressHeader(current);
+    // Initial progress update
+    setTimeout(() => {
+      const initialVal = Number(document.getElementById("progressBar")?.value || 0);
+      global.updateProgressHeader(initialVal);
     }, 200);
   };
 
@@ -342,4 +320,5 @@
 
   // Re-render on auth
   auth.onAuthStateChanged(() => renderUI());
+
 })(window);
