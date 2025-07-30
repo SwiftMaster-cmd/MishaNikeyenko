@@ -15,6 +15,22 @@
   const db   = firebase.database();
   const auth = firebase.auth();
 
+  // Firebase guest key context helpers
+  async function getLastGuestKey() {
+    const user = auth.currentUser;
+    if (!user) return null;
+    const snap = await db.ref(`users/${user.uid}/lastGuestKey`).get();
+    return snap.exists() ? snap.val() : null;
+  }
+  function setLastGuestKey(gid) {
+    const user = auth.currentUser;
+    if (user && gid) db.ref(`users/${user.uid}/lastGuestKey`).set(gid);
+  }
+  function clearLastGuestKey() {
+    const user = auth.currentUser;
+    if (user) db.ref(`users/${user.uid}/lastGuestKey`).remove();
+  }
+
   // State
   let _guestKey = null;
   let _guestObj = {};
@@ -111,7 +127,7 @@
         await ref.set(payload);
         _guestKey = ref.key;
         _guestObj = payload;
-        localStorage.setItem("last_guestinfo_key", _guestKey);
+        setLastGuestKey(_guestKey); // --- Firebase-based context
         attachCompletionListener();
       } catch (e) {
         console.error("Error creating guest:", e);
@@ -138,6 +154,7 @@
       });
       try {
         await db.ref().update(updates);
+        setLastGuestKey(_guestKey); // --- keep context updated
       } catch (e) {
         console.error("Error updating guest:", e);
       }
@@ -147,7 +164,8 @@
   // Load existing context or initialize fresh
   async function loadContext() {
     const params = new URLSearchParams(window.location.search);
-    const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
+    let gid = params.get("gid");
+    if (!gid) gid = await getLastGuestKey();
 
     if (gid) {
       try {
