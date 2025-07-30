@@ -1,5 +1,6 @@
-// step-ui.js -- Full Step 2 rendering with 2-mode support, save logic, and debug logs
+// step-ui.js -- Modern, class-based Step 2 rendering, no inline styles, always key-safe!
 (function(global){
+  // Unified static questions for Step 2 (standardized order)
   const staticQuestions = [
     { id: "numLines",       label: "How many lines do you need on your account?",                        type: "number", weight: 15 },
     { id: "carrier",        label: "What carrier are you with right now?",                              type: "select", weight: 14, options: ["Verizon","AT&T","T-Mobile","US Cellular","Cricket","Metro","Boost","Straight Talk","Tracfone","Other"] },
@@ -19,7 +20,6 @@
   ];
   global.staticQuestions = staticQuestions;
   global.gpQuestions     = staticQuestions;
-
   const answers = {};
   global.answers = answers;
 
@@ -28,198 +28,99 @@
     let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), delay); };
   }
 
-  // Save a single field to Firebase (and update completion)
+  // Render all Step 2 questions (uses CSS classes only)
+  function renderQuestions(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = "";
+    staticQuestions.forEach(q => {
+      let html;
+      if (q.type === "text" || q.type === "number") {
+        html = `
+          <label class="glabel" for="${q.id}">
+            ${q.label} <span class="gp-pts">(${q.weight}pts)</span>
+            <input id="${q.id}" type="${q.type}" autocomplete="off" class="ginput">
+          </label>
+        `;
+      } else {
+        html = `
+          <label class="glabel" for="${q.id}">
+            ${q.label} <span class="gp-pts">(${q.weight}pts)</span>
+            <select id="${q.id}" class="ginput">
+              <option value="">-- Select --</option>
+              ${q.options.map(o => `<option value="${o}">${o}</option>`).join("")}
+            </select>
+          </label>
+        `;
+      }
+      container.insertAdjacentHTML("beforeend", html);
+      const input = document.getElementById(q.id);
+      if (!input) return;
+      const ev = q.type === "select" ? "change" : "input";
+      input.addEventListener(ev, debounce(() => {
+        const v = input.value.trim();
+        const pts = v === "" ? 0 : q.weight;
+        answers[q.id] = { value: v, points: pts };
+        // Always save to Firebase via gpApp, never create new!
+        saveFieldToFirebase(q.id, v, pts);
+      }, 300));
+    });
+  }
+  global.renderQuestions = renderQuestions;
+
+  // Hydrate answers from state to UI
+  function hydrateAnswers(obj) {
+    // Use the guest object from app (passed in)
+    staticQuestions.forEach(q => {
+      const v = (obj && obj.evaluate && obj.evaluate[q.id]) || "";
+      answers[q.id] = { value: v, points: v ? q.weight : 0 };
+      const f = document.getElementById(q.id);
+      if (f) f.value = v;
+    });
+  }
+  global.hydrateAnswers = hydrateAnswers;
+
+  // Save a single field to Firebase (and recalc completion)
   function saveFieldToFirebase(id, value, pts) {
     const key = global.gpApp?.guestKey;
-    if (!key) {
-      console.warn("No guestKey found, skipping save");
-      return;
-    }
+    if (!key) return;
+    // Update only the single field in nested evaluate
     const update = {};
     update[`guestinfo/${key}/evaluate/${id}`] = value;
     firebase.database().ref().update(update);
 
+    // Also update completionPct
     const maxPts = staticQuestions.reduce((s,q)=>s+q.weight,0) + 8 + 7 + 25;
     const totPts = Object.values(answers).reduce((s,a)=>s+a.points,0);
     const pct    = Math.min(100, Math.round(totPts/maxPts*100));
     firebase.database().ref(`guestinfo/${key}/completionPct`).set(pct);
   }
 
-  // ==== Render Fast Questions (Experienced) ====
-  function renderFastQuestions(containerId) {
-    console.log("[Step2] renderFastQuestions triggered");
-    const container = document.getElementById(containerId);
-    if (!container) {
-      console.error(`[Step2] Container '${containerId}' not found`);
-      return;
-    }
-    container.innerHTML = "";
-    staticQuestions.forEach(q => {
-      let html;
-      if (q.type === "text" || q.type === "number") {
-        html = `
-          <label class="glabel" for="${q.id}">
-            ${q.label} <span class="gp-pts">(${q.weight}pts)</span>
-            <input id="${q.id}" type="${q.type}" autocomplete="off" class="ginput">
-          </label>
-        `;
-      } else {
-        html = `
-          <label class="glabel" for="${q.id}">
-            ${q.label} <span class="gp-pts">(${q.weight}pts)</span>
-            <select id="${q.id}" class="ginput">
-              <option value="">-- Select --</option>
-              ${q.options.map(o => `<option value="${o}">${o}</option>`).join("")}
-            </select>
-          </label>
-        `;
-      }
-      container.insertAdjacentHTML("beforeend", html);
-      const input = document.getElementById(q.id);
-      if (!input) {
-        console.warn(`[Step2] Input ${q.id} not found after insert`);
-        return;
-      }
-      const ev = q.type === "select" ? "change" : "input";
-      input.addEventListener(ev, debounce(() => {
-        const v = input.value.trim();
-        const pts = v === "" ? 0 : q.weight;
-        answers[q.id] = { value: v, points: pts };
-        saveFieldToFirebase(q.id, v, pts);
+  // Step 1 instant save (name/phone)
+  function setupInstantSaveForStep1() {
+    [["custName",8],["custPhone",7]].forEach(([id,pts]) => {
+      const f = document.getElementById(id);
+      if (!f) return;
+      f.addEventListener("input", debounce(() => {
+        const v = f.value.trim();
+        answers[id] = { value: v, points: v ? pts : 0 };
+        saveFieldToFirebase(id, v, answers[id].points);
       }, 300));
     });
   }
-  global.renderFastQuestions = renderFastQuestions;
+  global.setupInstantSaveForStep1 = setupInstantSaveForStep1;
 
-  // ==== Render Guided Questions (Newbies) ====
-  function renderGuidedQuestions(containerId) {
-    console.log("[Step2] renderGuidedQuestions triggered");
-    const container = document.getElementById(containerId);
-    if (!container) {
-      console.error(`[Step2] Container '${containerId}' not found`);
-      return;
-    }
-    container.innerHTML = "";
-
-    let currentStep = 0;
-
-    // Create UI elements
-    const label = document.createElement("label");
-    label.className = "glabel";
-    const ptsSpan = document.createElement("span");
-    ptsSpan.className = "gp-pts";
-
-    const inputText = document.createElement("input");
-    inputText.className = "ginput";
-    inputText.style.width = "100%";
-
-    const selectInput = document.createElement("select");
-    selectInput.className = "ginput";
-    selectInput.style.width = "100%";
-
-    const nextBtn = document.createElement("button");
-    nextBtn.textContent = "Next";
-    nextBtn.className = "btn";
-    nextBtn.style.marginTop = "16px";
-
-    container.appendChild(label);
-    container.appendChild(inputText);
-    container.appendChild(selectInput);
-    container.appendChild(nextBtn);
-
-    // Hide select initially
-    selectInput.style.display = "none";
-
-    function showStep(index) {
-      if (index >= staticQuestions.length) {
-        container.innerHTML = "<p>All done! Thank you.</p>";
-        return;
-      }
-      const q = staticQuestions[index];
-      label.textContent = q.label + " ";
-      ptsSpan.textContent = `(${q.weight}pts)`;
-      label.appendChild(ptsSpan);
-
-      if (q.type === "select") {
-        inputText.style.display = "none";
-        selectInput.style.display = "block";
-        selectInput.innerHTML = `<option value="">-- Select --</option>` + q.options.map(o => `<option value="${o}">${o}</option>`).join("");
-        selectInput.value = answers[q.id]?.value || "";
-      } else {
-        selectInput.style.display = "none";
-        inputText.style.display = "block";
-        inputText.type = q.type;
-        inputText.value = answers[q.id]?.value || "";
-      }
-    }
-
-    function saveAnswer() {
-      const q = staticQuestions[currentStep];
-      const val = q.type === "select" ? selectInput.value.trim() : inputText.value.trim();
-      answers[q.id] = { value: val, points: val ? q.weight : 0 };
-      saveFieldToFirebase(q.id, val, answers[q.id].points);
-    }
-
-    const debouncedSave = debounce(() => saveAnswer(), 300);
-
-    inputText.oninput = debouncedSave;
-    selectInput.onchange = debouncedSave;
-
-    nextBtn.onclick = () => {
-      saveAnswer();
-      currentStep++;
-      showStep(currentStep);
-    };
-
-    showStep(currentStep);
+  // Step 3 instant save (solution)
+  function setupSolutionSave() {
+    const f = document.getElementById("solutionText");
+    if (!f) return;
+    f.addEventListener("input", debounce(() => {
+      const v = f.value.trim();
+      answers.solutionText = { value: v, points: v ? 25 : 0 };
+      saveFieldToFirebase("solutionText", v, answers.solutionText.points);
+    }, 300));
   }
-  global.renderGuidedQuestions = renderGuidedQuestions;
-
-  // ==== Fallback render (classic) ====
-  function renderQuestions(containerId) {
-    console.log("[Step2] fallback renderQuestions triggered");
-    const container = document.getElementById(containerId);
-    if (!container) {
-      console.error(`[Step2] Container '${containerId}' not found`);
-      return;
-    }
-    container.innerHTML = "";
-    staticQuestions.forEach(q => {
-      let html;
-      if (q.type === "text" || q.type === "number") {
-        html = `
-          <label class="glabel" for="${q.id}">
-            ${q.label} <span class="gp-pts">(${q.weight}pts)</span>
-            <input id="${q.id}" type="${q.type}" autocomplete="off" class="ginput">
-          </label>
-        `;
-      } else {
-        html = `
-          <label class="glabel" for="${q.id}">
-            ${q.label} <span class="gp-pts">(${q.weight}pts)</span>
-            <select id="${q.id}" class="ginput">
-              <option value="">-- Select --</option>
-              ${q.options.map(o => `<option value="${o}">${o}</option>`).join("")}
-            </select>
-          </label>
-        `;
-      }
-      container.insertAdjacentHTML("beforeend", html);
-      const input = document.getElementById(q.id);
-      if (!input) {
-        console.warn(`[Step2] Input ${q.id} not found after insert`);
-        return;
-      }
-      const ev = q.type === "select" ? "change" : "input";
-      input.addEventListener(ev, debounce(() => {
-        const v = input.value.trim();
-        const pts = v === "" ? 0 : q.weight;
-        answers[q.id] = { value: v, points: pts };
-        saveFieldToFirebase(q.id, v, pts);
-      }, 300));
-    });
-  }
-  global.renderQuestions = renderQuestions;
+  global.setupSolutionSave = setupSolutionSave;
 
   // Utility: Get label by field id
   function getLabel(id) {
