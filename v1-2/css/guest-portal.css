@@ -1,140 +1,134 @@
-#guestApp {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #0f1117 0%, #1a1c24 100%) no-repeat fixed;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-bottom: 48px;
-}
+/* ==========================================================================
+   Glassy, Mobile-First Progress Header for Guest Portal UI
+   ========================================================================== */
 
-/* FLOATING, CENTERED HEADER (Progress Bar Card) */
 #gpProgressHeader {
   position: sticky;
-  top: 18px;
+  top: 10px;
   z-index: 101;
-  width: auto;
-  min-width: 0;
+  width: 99vw;
   max-width: 700px;
-  margin: 0 auto 0 auto;
-  left: 0; right: 0;
-  background: rgba(26, 28, 36, 0.92);
-  border-radius: 20px;
-  box-shadow: 0 6px 28px rgba(30,144,255,.10);
-  border: 1.5px solid rgba(255,255,255,.10);
+  min-width: 0;
+  margin: 0 auto 20px auto;
+  background: rgba(255,255,255,0.90);
+  border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(40,70,180,0.11), 0 1.5px 0 #e3e8f3;
+  border: 1.5px solid #e3e8f3;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 18px 4vw 14px 4vw;
+  padding: 18px 5vw 14px 5vw;
   transition: background 0.18s;
+  backdrop-filter: blur(14px) saturate(135%);
+  gap: 8px;
 }
 
-/* Remove forced full-width, just center */
-@media (max-width: 750px) {
-  #gpProgressHeader { max-width: 98vw; padding-left: 2vw; padding-right: 2vw; }
-}
-
-/* Remove unnecessary back button style */
 #gpProgressHeader > a#backToDash {
   position: absolute;
-  left: 22px;
+  left: 18px;
   top: 50%;
   transform: translateY(-50%);
-  font-weight: 700;
+  font-weight: 600;
   font-size: 1.05em;
-  color: #1e90ff;
+  color: #2479e7;
   background: none;
-  border-radius: 10px;
-  padding: 6px 15px;
-  opacity: 0.95;
-  transition: background .13s, color .13s;
+  border-radius: 8px;
+  padding: 3px 10px;
+  opacity: 0.91;
+  transition: background .18s, color .18s;
   text-decoration: none;
 }
 #gpProgressHeader > a#backToDash:hover {
-  background: rgba(30,144,255,.09);
-  color: #4aa8ff;
-}
-
-#gpProgressHeader label,
-#gpProgressHeader #progressLabel {
-  text-align: center;
-  width: 100%;
+  background: rgba(36,121,231,0.08);
+  color: #155cb0;
 }
 
 #gpProgressHeader label {
-  color: #e2e8f0;
+  color: #242a3b;
   font-weight: 700;
-  font-size: 1.09rem;
-  margin-bottom: 3px;
-  letter-spacing: .02em;
+  font-size: 1.11rem;
+  margin-bottom: 1px;
+  letter-spacing: .01em;
+  width: 100%;
+  text-align: center;
 }
+
 #gpProgressHeader #progressLabel {
   font-variant-numeric: tabular-nums;
-  color: #82caff;
-  font-weight: 800;
-  margin-left: 5px;
-  font-size: 1.11rem;
+  color: #1761dc;
+  font-weight: 700;
+  font-size: 1.04em;
+  letter-spacing: .02em;
+  margin: 0 auto 3px auto;
 }
 
 #gpProgressHeader #progressBar {
   width: 100%;
-  max-width: 390px;
-  height: 22px;
-  border-radius: 14px;
-  background: rgba(255,255,255,.09);
-  box-shadow: 0 1px 8px #2196f325;
-  margin: 5px auto 0 auto;
-  accent-color: #1e90ff;
+  max-width: 350px;
+  height: 20px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #eaf1fb 0%, #f1f8ff 100%);
+  box-shadow: 0 2px 16px #b3c3ee20;
+  appearance: none;
+  margin-top: 3px;
+  overflow: hidden;
+  position: relative;
+  outline: none;
+  border: none;
+  /* Hide ugly system styles */
 }
 
-/* Step Containers - FLUID WIDTH by % */
-.step-container {
-  width: 92vw;
-  max-width: 880px;
-  min-width: 260px;
-  margin: 42px auto 0 auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(26,28,36,0.96);
-  border-radius: 22px;
-  box-shadow: 0 10px 38px rgba(30,144,255,0.13), 0 1px 0 rgba(255,255,255,.09);
-  padding: 44px 6vw 38px 6vw;
-  position: relative;
-  margin-bottom: 38px;
-  transition: box-shadow .22s, background .19s;
+#gpProgressHeader #progressBar::-webkit-progress-bar {
+  background: transparent;
+  border-radius: 12px;
 }
-.step-container:not(:last-child) {
-  border-bottom: 2px solid rgba(255,255,255,.09);
+
+#gpProgressHeader #progressBar::-webkit-progress-value {
+  border-radius: 12px;
+  background: linear-gradient(90deg, #45a2ff 0%, #33e6a0 70%, #fbb357 100%);
+  transition: width .3s cubic-bezier(.47,1.64,.41,.8);
+  box-shadow: 0 2px 16px #40c5ee60;
 }
-@media (max-width: 700px) {
-  .step-container {
+#gpProgressHeader #progressBar::-moz-progress-bar {
+  border-radius: 12px;
+  background: linear-gradient(90deg, #45a2ff 0%, #33e6a0 70%, #fbb357 100%);
+  transition: width .3s cubic-bezier(.47,1.64,.41,.8);
+  box-shadow: 0 2px 16px #40c5ee60;
+}
+#gpProgressHeader #progressBar::-ms-fill {
+  border-radius: 12px;
+  background: linear-gradient(90deg, #45a2ff 0%, #33e6a0 70%, #fbb357 100%);
+  transition: width .3s cubic-bezier(.47,1.64,.41,.8);
+  box-shadow: 0 2px 16px #40c5ee60;
+}
+
+/* Fallback for browsers that don't support progress gradients */
+#gpProgressHeader #progressBar[value] {
+  background: linear-gradient(90deg, #eaf1fb 0%, #f1f8ff 100%);
+}
+
+@media (max-width: 600px) {
+  #gpProgressHeader {
+    max-width: 99vw;
     width: 99vw;
     padding-left: 2vw;
     padding-right: 2vw;
+    border-radius: 9px;
+    min-width: unset;
+    box-shadow: 0 2px 8px rgba(40,70,180,0.08);
+  }
+  #gpProgressHeader #progressBar {
+    max-width: 98vw;
+    height: 16px;
+  }
+  #gpProgressHeader > a#backToDash {
+    font-size: 0.98em;
+    left: 8px;
   }
 }
 
-/* Card inside container - FLUID as well */
-.step-card {
-  background: rgba(38,42,54,0.97);
-  border-radius: 20px;
-  box-shadow: 0 4px 22px rgba(30,144,255,0.11), 0 1px 0 #1e2537;
-  border: 1.6px solid rgba(255,255,255,0.13);
-  padding: 38px 8vw 28px 8vw;
-  min-width: 220px;
-  max-width: 760px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 32px; /* more room between questions */
-  align-items: center;
-  text-align: center;
-  backdrop-filter: blur(18px) saturate(170%);
-  position: relative;
+/* Optional: add breathing room below header */
+#gpProgressHeader + * {
+  margin-top: 16px !important;
 }
-@media (max-width: 700px) {
-  .step-card { padding-left: 2vw; padding-right: 2vw; }
-}
-
-/* All other styles remain same as last update */
