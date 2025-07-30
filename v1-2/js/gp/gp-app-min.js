@@ -147,7 +147,7 @@
     );
   }
 
-  // --- Mode toggle button creation ---
+  // Mode toggle button creation
   function createModeToggleButton() {
     const btn = document.createElement("button");
     btn.id = "modeToggleBtn";
