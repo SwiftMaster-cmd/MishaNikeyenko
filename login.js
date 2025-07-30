@@ -58,8 +58,8 @@ loginForm.addEventListener('submit', async e => {
     const snap  = await db.ref(`users/${user.uid}`).get();
     const role  = (snap.val() || {}).role;
     const dest  = (role === 'dm' || role === 'lead')
-      ? '../../../v1/html/admin.html'
-      : '../../../v1/html/guestinfo.html';
+      ? 'v1/html/admin.html'
+      : 'v1/html/guestinfo.html';
     window.location.href = dest;
   }, 800);
 });
@@ -95,7 +95,7 @@ auth.onAuthStateChanged(async user => {
   const snap  = await db.ref(`users/${user.uid}`).get();
   const role  = (snap.val() || {}).role;
   const dest  = (role === 'dm' || role === 'lead')
-    ? '../../../v1/html/admin.html'
-    : '../../../v1/html/guestinfo.html';
+    ? 'v1/html/admin.html'
+    : 'v1/html/guestinfo.html';
   window.location.href = dest;
 });
