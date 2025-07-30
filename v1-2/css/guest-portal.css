@@ -1,25 +1,25 @@
 /* ==========================================================================
-   Guest Portal UI – Step Containers, Sticky Progress Bar, Modern Card Design
+   Guest Portal UI – GLASS THEME v3.2 Consistent with Dashboard
    ========================================================================== */
 
-/* Overall app wrapper (optional) */
+/* App wrapper: glassy dark fade */
 #guestApp {
-  background: linear-gradient(120deg, #eef2fb 0%, #f5f7fa 100%);
   min-height: 100vh;
+  background: linear-gradient(135deg, #0f1117 0%, #1a1c24 100%) no-repeat fixed;
   padding-bottom: 48px;
 }
 
-/* Sticky/glassy progress bar header */
+/* Sticky glassy progress bar header */
 #gpProgressHeader {
   position: sticky;
   top: 0;
   z-index: 101;
   width: 100vw;
   min-width: 320px;
-  background: rgba(245, 248, 255, 0.86);
-  box-shadow: 0 2px 18px 0 rgba(120,120,140,0.09);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid #e3e8f3;
+  background: rgba(26, 28, 36, 0.88);
+  box-shadow: 0 2px 18px 0 rgba(30,144,255,.07);
+  backdrop-filter: blur(12px) saturate(150%);
+  border-bottom: 1.5px solid rgba(255,255,255,.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -30,113 +30,118 @@
 
 #gpProgressHeader > a#backToDash {
   position: absolute;
-  left: 40px;
+  left: 36px;
   top: 50%;
   transform: translateY(-50%);
-  font-weight: 600;
-  font-size: 18px;
-  color: #2479e7;
+  font-weight: 700;
+  font-size: 1.13em;
+  color: #1e90ff;
   background: none;
-  border-radius: 8px;
-  padding: 4px 12px;
-  opacity: 0.93;
-  transition: background .18s, color .18s;
+  border-radius: 9px;
+  padding: 6px 14px;
+  opacity: 0.96;
+  transition: background .16s, color .16s;
   text-decoration: none;
 }
 #gpProgressHeader > a#backToDash:hover {
-  background: rgba(36,121,231,0.08);
-  color: #155cb0;
+  background: rgba(30,144,255,.08);
+  color: #4aa8ff;
 }
 
 #gpProgressHeader label {
-  color: #2c3547;
+  color: #e2e8f0;
   font-weight: 700;
-  font-size: 1.07rem;
+  font-size: 1.04rem;
   margin-bottom: 5px;
 }
 #gpProgressHeader #progressLabel {
   font-variant-numeric: tabular-nums;
-  color: #1a2435;
-  font-weight: 600;
-  margin-left: 4px;
+  color: #82caff;
+  font-weight: 700;
+  margin-left: 5px;
 }
 #gpProgressHeader #progressBar {
   width: 100%;
-  max-width: 350px;
+  max-width: 340px;
   height: 18px;
-  border-radius: 9px;
-  background: #e7ebf3;
-  box-shadow: 0 1px 8px #b3c3ee25;
+  border-radius: 12px;
+  background: rgba(255,255,255,.09);
+  box-shadow: 0 1px 8px #2196f325;
   margin-top: 3px;
+  accent-color: #1e90ff;
 }
 
-/* Step Containers */
 .step-container {
   width: 100%;
-  max-width: 740px;
-  margin: 32px auto 0 auto;
+  max-width: 700px;
+  margin: 38px auto 0 auto;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  /* add a soft fade for each section */
-  background: rgba(250,252,255,0.90);
-  border-radius: 18px;
-  box-shadow: 0 4px 32px rgba(90,120,180,0.06), 0 1px 0 #e5eaf2;
+  background: rgba(26,28,36,0.90);
+  border-radius: 20px;
+  box-shadow: 0 6px 32px rgba(30,144,255,0.10), 0 1px 0 rgba(255,255,255,.07);
   padding: 34px 0 24px 0;
   position: relative;
-  /* visually separate with vertical margin */
-  margin-bottom: 26px;
-  transition: box-shadow .2s;
+  margin-bottom: 28px;
+  transition: box-shadow .18s, background .16s;
 }
+
 .step-container:not(:last-child) {
-  border-bottom: 1px solid #e9ecf3;
+  border-bottom: 1.5px solid rgba(255,255,255,.08);
 }
 
 .step-card {
-  background: white;
-  border-radius: 14px;
-  box-shadow: 0 2px 10px rgba(150,170,200,0.10);
-  border: 1px solid #e4e8f4;
-  padding: 32px 28px 20px 28px;
-  min-width: 260px;
-  max-width: 650px;
+  background: rgba(38,42,54,0.94);
+  border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(30,144,255,0.07), 0 1px 0 #1e2537;
+  border: 1.2px solid rgba(255,255,255,0.11);
+  padding: 30px 24px 18px 24px;
+  min-width: 240px;
+  max-width: 600px;
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  backdrop-filter: blur(16px) saturate(150%);
+  position: relative;
 }
 
+/* Accent border for each step */
+.step-card-1 { border-left: 5px solid #00c853; }
+.step-card-2 { border-left: 5px solid #1e90ff; }
+.step-card-3 { border-left: 5px solid #ffb300; }
+
+/* Card titles */
 .card-title {
   margin-top: 0;
-  font-size: 1.32rem;
-  color: #273052;
+  font-size: 1.18rem;
+  color: #e2e8f0;
   font-weight: 700;
-  margin-bottom: 14px;
+  margin-bottom: 13px;
   letter-spacing: .01em;
+  text-shadow: 0 2px 8px rgba(30,144,255,.07);
 }
 
-/* Step-specific tweaks */
-.step1-container   { background: rgba(245,255,253,0.96); }
-.step2-container   { background: rgba(245,248,255,0.97); }
-.step3-container   { background: rgba(255,247,243,0.96); }
-.step-card-1 { border-left: 4px solid #60dabf; }
-.step-card-2 { border-left: 4px solid #4ea5fa; }
-.step-card-3 { border-left: 4px solid #ffb482; }
+/* Step-specific fade (glass overlays, optional) */
+.step1-container   { background: rgba(22,32,29,0.96); }
+.step2-container   { background: rgba(26,28,36,0.94); }
+.step3-container   { background: rgba(36,28,22,0.94); }
 
 /* Labels and Inputs */
 .glabel {
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 13px;
   font-weight: 600;
-  color: #30404f;
+  color: #e2e8f0;
   font-size: 1.01rem;
   letter-spacing: 0.01em;
 }
 .gp-pts {
-  color: #b9bfd6;
+  color: #82caff;
   font-weight: 500;
-  margin-left: 6px;
-  font-size: .96em;
+  margin-left: 8px;
+  font-size: .98em;
 }
 
 input[type="text"],
@@ -145,54 +150,71 @@ input[type="number"],
 select,
 textarea {
   width: 100%;
-  border-radius: 7px;
-  border: 1px solid #c8d1e4;
-  padding: 11px 13px;
-  font-size: 1.08rem;
-  background: #f9fbfd;
-  color: #263140;
-  transition: border-color 0.17s, background 0.2s;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255,255,255,0.16);
+  padding: 13px 13px 12px 14px;
+  font-size: 1.07rem;
+  background: rgba(255,255,255,.08);
+  color: #e2e8f0;
+  transition: border-color 0.17s, background 0.18s;
   margin-top: 7px;
-  box-sizing: border-box;
-  outline: none;
-  box-shadow: none;
   font-family: inherit;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(30,144,255,0.08);
 }
 input:focus, select:focus, textarea:focus {
-  border-color: #4ea5fa;
-  background: #eef5fe;
+  border-color: #1e90ff;
+  background: rgba(255,255,255,.13);
+  outline: none;
 }
 
 textarea {
   resize: vertical;
-  min-height: 90px;
+  min-height: 88px;
   font-family: inherit;
-  font-size: 1.07rem;
+  font-size: 1.06rem;
+}
+
+/* Buttons (form or nav) */
+button, .btn {
+  background: #1e90ff;
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 0;
+  margin-top: 21px;
+  font-size: 1.09rem;
+  cursor: pointer;
+  transition: background 0.14s, box-shadow 0.14s;
+  box-shadow: 0 4px 14px rgba(30,144,255,0.13);
+}
+button:hover, .btn:hover {
+  background: #4aa8ff;
+  color: #fff;
 }
 
 /* Responsive Tweaks */
 @media (max-width: 900px) {
-  .step-container, .step-card {
-    max-width: 99vw;
-  }
-  .step-card { padding: 18px 9px 18px 9px; }
+  .step-container, .step-card { max-width: 99vw; }
+  .step-card { padding: 16px 5vw 13px 5vw; }
 }
 @media (max-width: 600px) {
   #gpProgressHeader {
     padding: 10px 0 9px 0;
-    font-size: 1rem;
+    font-size: .97rem;
   }
-  #gpProgressHeader > a#backToDash { font-size: 1rem; left: 12px; }
+  #gpProgressHeader > a#backToDash { font-size: .98rem; left: 10px; }
   .step-container, .step-card {
-    padding: 9px 0 11px 0;
-    margin: 14px 0 8px 0;
-    border-radius: 8px;
+    padding: 6px 0 9px 0;
+    margin: 12px 0 6px 0;
+    border-radius: 10px;
   }
-  .step-card { padding: 14px 7px 12px 7px; }
+  .step-card { padding: 9px 3vw 10px 3vw; }
 }
 
-/* Optional: Nice transition for section hover/focus */
+/* Subtle highlight on focus/hover */
 .step-container:hover, .step-container:focus-within {
-  box-shadow: 0 6px 28px rgba(60,80,170,0.11);
-  background: rgba(240,245,255,0.97);
+  box-shadow: 0 10px 32px rgba(30,144,255,0.13);
+  background: rgba(30,38,60,0.92);
 }
