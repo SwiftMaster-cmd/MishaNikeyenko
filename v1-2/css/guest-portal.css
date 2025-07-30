@@ -1,18 +1,17 @@
 /* ==========================================================================
-   Guest Portal UI – GLASS THEME v3.3 PRO, Centered, Responsive, Beautiful
+   Guest Portal UI – GLASS THEME v3.4 CLEAN, FIXED, RESPONSIVE
    ========================================================================== */
 
 :root {
   --blue: #1e90ff;
   --blue-light: #4aa8ff;
-  --blue-shadow: 0 8px 38px 0 rgba(30,144,255,.13);
   --bg-dark: #0f1117;
   --bg-mid: #1a1c24;
   --glass: rgba(26, 28, 36, 0.96);
   --glass-strong: rgba(26, 28, 36, 0.99);
   --card-glass: rgba(38, 42, 54, 0.97);
   --border: rgba(255,255,255,.12);
-  --border-strong: rgba(255,255,255,.20);
+  --border-strong: rgba(255,255,255,.2);
   --brand: #1e90ff;
   --brand-alt: #00c853;
   --warning: #ffb300;
@@ -26,307 +25,239 @@
   --shadow-glow: 0 18px 48px rgba(30,144,255,0.19);
 }
 
-/* ==== App wrapper ==== */
+/* ==== Reset ==== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 body, html {
-  height: 100%;
   margin: 0;
   padding: 0;
-  background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-mid) 100%) no-repeat fixed;
+  width: 100%;
+  min-height: 100%;
   font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
+  background: linear-gradient(135deg, var(--bg-dark), var(--bg-mid)) fixed;
   color: var(--text-hi);
-  box-sizing: border-box;
-  width: 100vw;
-  min-height: 100vh;
-  overflow-x: hidden;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: auto;
 }
 
+/* ==== App Wrapper ==== */
 #guestApp {
-  min-height: 100vh;
-  width: 100vw;
-  background: transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding-bottom: 48px;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
-/* ==== Glassy Sticky Progress Header ==== */
+/* ==== Sticky Progress Header ==== */
 #gpProgressHeader {
   position: sticky;
   top: 0;
-  left: 0;
-  width: 100vw;
-  z-index: 201;
+  z-index: 999;
+  width: 100%;
   background: var(--glass-strong);
   backdrop-filter: blur(16px) saturate(180%);
-  border-bottom: 2px solid var(--border);
-  box-shadow: var(--blue-shadow);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  gap: 12px;
   min-height: 72px;
-  max-height: 160px;
-  padding: 0;
-  margin: 0;
-  gap: 0;
 }
 
-/* Header layout: left (button), center (progress), right (filler) */
-#gpProgressHeader {
-  flex-direction: row;
-}
-#gpProgressHeader > #backToDash {
-  flex: 0 0 auto;
-  margin-left: 16px;
-  margin-right: 12px;
-  font-size: 1.09em;
-  font-weight: 700;
+/* Back Button */
+#backToDash {
+  background: rgba(30, 144, 255, 0.1);
   color: var(--blue);
-  background: rgba(28,35,52,0.17);
-  border-radius: var(--radius-md);
-  padding: 8px 18px;
-  opacity: 0.94;
-  transition: background .16s, color .16s;
-  text-decoration: none;
   border: none;
-  z-index: 2;
-  align-self: center;
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
 }
-#gpProgressHeader > #backToDash:hover {
-  background: rgba(30,144,255,.10);
+#backToDash:hover {
+  background: rgba(74, 168, 255, 0.12);
   color: var(--blue-light);
 }
 
+/* Progress Center */
 .gp-progress-main {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  flex: 1 1 auto;
   text-align: center;
 }
 .gp-progress-main label {
-  color: var(--text-hi);
+  font-size: 1.05rem;
   font-weight: 700;
-  font-size: 1.09rem;
-  margin-bottom: 2px;
-  letter-spacing: .01em;
-  text-shadow: 0 1px 3px rgba(16,18,23,.09);
+  color: var(--text-hi);
+  display: block;
 }
-.gp-progress-main #progressLabel {
+#progressLabel {
   color: var(--blue-light);
   font-weight: 800;
-  font-size: 1.11rem;
+  font-size: 1.12rem;
 }
 
-.gp-progress-main progress#progressBar {
-  width: 90vw;
-  max-width: 430px;
-  min-width: 180px;
-  height: 24px;
-  border-radius: 15px;
-  background: rgba(255,255,255,.13);
-  box-shadow: 0 1px 8px #2196f325;
-  margin: 8px auto 0 auto;
-  accent-color: var(--blue);
+/* Progress Bar */
+progress#progressBar {
   appearance: none;
-  border: none;
-  outline: none;
-  overflow: hidden;
-  transition: box-shadow 0.16s;
-}
-
-/* Remove browser default progress style */
-progress#progressBar::-webkit-progress-bar {
+  width: 100%;
+  max-width: 430px;
+  height: 20px;
+  border-radius: 12px;
   background: rgba(255,255,255,.13);
-  border-radius: 15px;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.2);
+  margin-top: 6px;
 }
-progress#progressBar::-webkit-progress-value {
+progress::-webkit-progress-bar {
+  background: rgba(255,255,255,.13);
+  border-radius: 12px;
+}
+progress::-webkit-progress-value {
   background: linear-gradient(90deg, var(--blue), var(--blue-light) 80%);
-  border-radius: 15px;
-  box-shadow: 0 3px 13px #1e90ff88;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px #1e90ff88;
 }
-progress#progressBar::-moz-progress-bar {
-  background: linear-gradient(90deg, var(--blue), var(--blue-light) 80%);
-  border-radius: 15px;
-}
-progress#progressBar::-ms-fill {
-  background: linear-gradient(90deg, var(--blue), var(--blue-light) 80%);
-  border-radius: 15px;
-}
-progress#progressBar[value] {
-  color-scheme: light dark;
+progress::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--blue), var(--blue-light));
 }
 
-/* Filler keeps bar centered even with button */
-.gp-progress-filler {
-  flex: 0 0 54px;
-}
-
-@media (max-width: 700px) {
-  #gpProgressHeader { min-height: 54px; }
-  .gp-progress-main progress#progressBar { height: 14px; }
-  #gpProgressHeader > #backToDash { font-size: .97em; padding: 7px 12px; }
-  .gp-progress-filler { flex-basis: 24px; }
-}
-
-/* ==== Centered, Spacious Form Containers ==== */
+/* ==== Step Containers ==== */
 .step-container {
   width: 94vw;
-  max-width: 680px;
-  margin: 44px auto 0 auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  max-width: 720px;
+  margin: 48px auto;
   background: var(--glass);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  padding: 44px 0 38px 0;
-  position: relative;
-  margin-bottom: 38px;
-  transition: box-shadow .22s, background .19s;
+  padding: 40px 28px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.3s ease;
 }
-.step-container:not(:last-child) {
-  border-bottom: 2px solid var(--border);
+.step-container:hover {
+  background: rgba(30, 38, 60, 0.97);
+  box-shadow: var(--shadow-glow);
 }
 
+/* ==== Step Card ==== */
 .step-card {
-  background: var(--card-glass);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 22px rgba(30,144,255,0.11), 0 1px 0 #1e2537;
-  border: 1.6px solid var(--border-strong);
-  padding: 38px 36px 28px 36px;
-  min-width: 260px;
-  max-width: 500px;
   width: 100%;
+  max-width: 580px;
+  background: var(--card-glass);
+  border: 1px solid var(--border-strong);
+  border-left: 6px solid var(--blue);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(30,144,255,0.11);
+  padding: 32px 26px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 26px;
   align-items: center;
   text-align: center;
   backdrop-filter: blur(18px) saturate(170%);
-  position: relative;
 }
 
-.step-card-1 { border-left: 6px solid var(--brand-alt); }
-.step-card-2 { border-left: 6px solid var(--blue); }
-.step-card-3 { border-left: 6px solid var(--warning); }
+/* Colored Step Borders */
+.step-card-1 { border-left-color: var(--brand-alt); }
+.step-card-2 { border-left-color: var(--blue); }
+.step-card-3 { border-left-color: var(--warning); }
 
 .card-title {
-  margin-top: 0;
   font-size: 1.32rem;
-  color: var(--text-hi);
   font-weight: 800;
-  margin-bottom: 22px;
-  letter-spacing: .03em;
-  text-align: center;
+  color: var(--text-hi);
+  margin: 0 0 18px 0;
 }
 
-/* ==== Form Inputs ==== */
+/* ==== Inputs ==== */
 .glabel {
-  display: block;
-  margin-bottom: 21px;
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-hi);
-  font-size: 1.09rem;
-  letter-spacing: 0.01em;
+  margin-bottom: 8px;
   text-align: center;
-}
-.gp-pts {
-  color: var(--blue-light);
-  font-weight: 600;
-  margin-left: 8px;
-  font-size: 1.08em;
 }
 
 input[type="text"],
-input[type="tel"],
 input[type="number"],
+input[type="tel"],
 select,
 textarea {
   width: 100%;
-  border-radius: 13px;
+  font-size: 1.1rem;
+  padding: 16px;
+  border-radius: 12px;
   border: 2px solid var(--border);
-  padding: 19px 16px 18px 16px;
-  font-size: 1.14rem;
-  background: rgba(255,255,255,.13);
+  background: rgba(255,255,255,.1);
   color: var(--text-hi);
-  transition: border-color 0.15s, background 0.16s;
-  margin-top: 13px;
+  transition: background 0.2s, border-color 0.2s;
+  text-align: center;
   font-family: inherit;
   font-weight: 500;
-  box-shadow: 0 3px 12px rgba(30,144,255,0.10);
-  text-align: center;
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--blue);
-  background: rgba(255,255,255,.18);
+  background: rgba(255,255,255,.2);
   outline: none;
 }
 
 textarea {
   resize: vertical;
   min-height: 110px;
-  font-family: inherit;
-  font-size: 1.10rem;
-  text-align: center;
 }
 
+/* ==== Button ==== */
 button, .btn {
   background: var(--blue);
-  color: #fff;
+  color: white;
+  font-size: 1.1rem;
   font-weight: 700;
   border: none;
-  border-radius: 15px;
-  padding: 19px 0;
-  margin-top: 29px;
-  font-size: 1.16rem;
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 24px;
   cursor: pointer;
-  transition: background 0.14s, box-shadow 0.14s;
-  box-shadow: 0 6px 16px rgba(30,144,255,0.18);
-  width: 100%;
+  box-shadow: 0 6px 18px rgba(30,144,255,0.18);
   max-width: 360px;
+  width: 100%;
+  transition: background 0.2s ease;
 }
 button:hover, .btn:hover {
   background: var(--blue-light);
-  color: #fff;
 }
 
-::-webkit-input-placeholder { color: var(--text-med); opacity: 0.9; }
-::-moz-placeholder { color: var(--text-med); opacity: 0.9; }
-:-ms-input-placeholder { color: var(--text-med); opacity: 0.9; }
-::placeholder { color: var(--text-med); opacity: 0.9; }
-
-/* ==== Responsive Tweaks ==== */
-@media (max-width: 900px) {
-  .step-container, .step-card { max-width: 99vw; }
-  .step-card { padding: 18px 3vw 14px 3vw; }
+/* ==== Placeholder Color ==== */
+::placeholder {
+  color: var(--text-med);
+  opacity: 0.85;
 }
-@media (max-width: 600px) {
-  #gpProgressHeader { padding: 4px 0 7px 0; min-height: 45px; font-size: .97rem; }
-  #gpProgressHeader > #backToDash { font-size: .97em; left: 2px; }
-  .step-container, .step-card {
-    padding: 9px 0 11px 0;
-    margin: 22px 0 12px 0;
-    border-radius: 12px;
+
+/* ==== Responsive ==== */
+@media (max-width: 700px) {
+  #gpProgressHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 14px;
+    min-height: 64px;
   }
-  .step-card { padding: 11px 2vw 9px 2vw; }
-  .gp-progress-main progress#progressBar { height: 11px; }
+  progress#progressBar {
+    height: 12px;
+  }
+  .step-container {
+    margin: 30px 0;
+    padding: 24px 18px;
+  }
+  .step-card {
+    padding: 18px 14px;
+  }
+  #backToDash {
+    align-self: flex-start;
+  }
 }
-
-/* Subtle highlight on focus/hover */
-.step-container:hover, .step-container:focus-within {
-  box-shadow: var(--shadow-glow);
-  background: rgba(30,38,60,0.96);
-}
-
-/* ==== Make Scrolling Always Possible ==== */
-html, body {
-  scroll-behavior: smooth;
-  overscroll-behavior-y: auto;
-}
-#guestApp { min-height: 100vh; }
-
-/* Always allow scrolling to bottom */
-body { min-height: 100vh; height: auto; }
