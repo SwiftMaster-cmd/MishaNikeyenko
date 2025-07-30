@@ -11,7 +11,7 @@ export function toggleActionButtons(id) {
   actions.style.display = actions.style.display === 'flex' ? 'none' : 'flex';
 }
 
-// Show or hide the quickâ€edit form
+// Show or hide the quick‐edit form
 export function toggleEdit(id) {
   const card = document.getElementById(`guest-card-${id}`);
   if (!card) return;

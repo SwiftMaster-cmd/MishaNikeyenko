@@ -1,6 +1,6 @@
 // guestinfo-render.js
 
-// â"€â"€ Constants â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Constants ───────────────────────────────────────────────────────────────
 export const PITCH_WEIGHTS = {
   custName: 8, custPhone: 7,
   currentCarrier: 12, numLines: 8, coverageZip: 8,
@@ -9,7 +9,7 @@ export const PITCH_WEIGHTS = {
   solutionText: 25
 };
 
-// â"€â"€ Helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Helpers ────────────────────────────────────────────────────────────────
 export function hasVal(v) {
   if (v == null) return false;
   if (typeof v === "string")  return v.trim() !== "";
@@ -44,7 +44,7 @@ export function timeAgo(ts) {
   return `${days}d`;
 }
 
-// â"€â"€ Core logic â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Core logic ─────────────────────────────────────────────────────────────
 export function detectStatus(g) {
   const s = (g?.status || "").toLowerCase();
   if (s) return s;
@@ -136,7 +136,7 @@ export function groupByStatus(guestMap) {
   return groups;
 }
 
-// â"€â"€ Section renderer â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Section renderer ───────────────────────────────────────────────────────
 export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight = false) {
   if (!rows?.length) {
     return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
@@ -146,7 +146,7 @@ export function statusSectionHtml(title, rows, users, currentUid, currentRole, h
   ).join("");
 }
 
-// â"€â"€ Card renderer â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Card renderer ──────────────────────────────────────────────────────────
 export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
@@ -210,7 +210,7 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         </span>
         <button class="btn-edit-actions"
                 style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
-                onclick="window.guestinfo.toggleActionButtons('${id}')">â‹®</button>
+                onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
       </div>
 
       <!-- customer name centered -->

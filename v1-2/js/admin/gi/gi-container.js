@@ -18,7 +18,7 @@ import {
   toggleActionButtons
 } from './gi-action.js';
 
-// â"€â"€ Time & filter helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Time & filter helpers ─────────────────────────────────────────────────
 function msNDaysAgo(n) { return Date.now() - n * 864e5; }
 function latestActivityTs(g) {
   return Math.max(
@@ -33,7 +33,7 @@ function dateToISO(ts) {
   return ts ? new Date(ts).toISOString().slice(0, 10) : '';
 }
 
-// â"€â"€ Role-based filtering â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Role-based filtering ────────────────────────────────────────────────────
 function getUsersUnderDM(users, dmUid) {
   const leads = Object.entries(users)
     .filter(([,u]) => u.role === "lead" && u.assignedDM === dmUid)
@@ -71,7 +71,7 @@ function filterByRole(guestinfo, users, uid, role) {
   return {};
 }
 
-// â"€â"€ Persistent filter state â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Persistent filter state ────────────────────────────────────────────────
 if (!window._guestinfo_filters) {
   window._guestinfo_filters = {
     name: "",
@@ -84,7 +84,7 @@ if (!window._guestinfo_filters) {
   };
 }
 
-// â"€â"€ Controls bar + Filters panel â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Controls bar + Filters panel ────────────────────────────────────────────
 function controlsBarHtml(propCount, soldCount, role) {
   const f = window._guestinfo_filters;
 
@@ -93,7 +93,7 @@ function controlsBarHtml(propCount, soldCount, role) {
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn btn-secondary btn-sm"
               onclick="window.guestinfo.toggleFilterPanel()">
-        ${f.panelOpen ? 'Filters â–'' : 'Filters â–¾'}
+        ${f.panelOpen ? 'Filters ▴' : 'Filters ▾'}
       </button>
       <button class="btn btn-success btn-sm"
               onclick="window.guestinfo.createNewLead()">
@@ -108,22 +108,22 @@ function controlsBarHtml(propCount, soldCount, role) {
   const panel = `
     <div id="filter-panel" style="${panelStyle}">
       <div class="search-wrapper">
-        <input id="filter-name" type="text" placeholder="ðŸ" Customer nameâ€¦" 
+        <input id="filter-name" type="text" placeholder="🔍 Customer name…" 
                value="${f.name}" 
                oninput="window.guestinfo.setSearchName(this.value)" />
-        <button class="clear-btn" onclick="window.guestinfo.clearSearchName()">Ã--</button>
+        <button class="clear-btn" onclick="window.guestinfo.clearSearchName()">×</button>
       </div>
       <div class="search-wrapper">
-        <input id="filter-emp" type="text" placeholder="ðŸ" Employeeâ€¦" 
+        <input id="filter-emp" type="text" placeholder="🔍 Employee…" 
                value="${f.employee}" 
                oninput="window.guestinfo.setSearchEmployee(this.value)" />
-        <button class="clear-btn" onclick="window.guestinfo.clearSearchEmployee()">Ã--</button>
+        <button class="clear-btn" onclick="window.guestinfo.clearSearchEmployee()">×</button>
       </div>
       <div class="search-wrapper">
         <input id="filter-date" type="date" 
                value="${f.date}" 
                onchange="window.guestinfo.setSearchDate(this.value)" />
-        <button class="clear-btn" onclick="window.guestinfo.clearSearchDate()">Ã--</button>
+        <button class="clear-btn" onclick="window.guestinfo.clearSearchDate()">×</button>
       </div>
       <button class="btn btn-secondary btn-sm"
               onclick="window.guestinfo.toggleFilterMode()">
@@ -131,7 +131,7 @@ function controlsBarHtml(propCount, soldCount, role) {
       </button>
       <button class="btn btn-warning btn-sm"
               onclick="window.guestinfo.toggleShowProposals()">
-        ${f.showProposals ? 'Back to Leads' : `âš  Follow-Ups (${propCount})`}
+        ${f.showProposals ? 'Back to Leads' : `⚠ Follow-Ups (${propCount})`}
       </button>
       ${role !== 'me'
         ? `<button class="btn btn-secondary btn-sm"
@@ -148,7 +148,7 @@ function controlsBarHtml(propCount, soldCount, role) {
   return `<div class="guestinfo-controls">${header}${panel}</div>`;
 }
 
-// â"€â"€ Empty state â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Empty state ───────────────────────────────────────────────────────────
 function emptyHtml(msg = "No guest leads in this view.") {
   return `
     <div class="guestinfo-empty" style="text-align:center;margin-top:16px;">
@@ -160,7 +160,7 @@ function emptyHtml(msg = "No guest leads in this view.") {
     </div>`;
 }
 
-// â"€â"€ Main renderer â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Main renderer ─────────────────────────────────────────────────────────
 export function renderGuestinfoSection(guestinfo, users, uid, role) {
   const f = window._guestinfo_filters;
 
@@ -248,7 +248,7 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
   `;
 }
 
-// â"€â"€ Filter setters & clearers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Filter setters & clearers ─────────────────────────────────────────────
 export function toggleFilterPanel() {
   window._guestinfo_filters.panelOpen = !window._guestinfo_filters.panelOpen;
   window.renderAdminApp();
@@ -311,7 +311,7 @@ export function createNewLead() {
   window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split('?')[0];
 }
 
-// â"€â"€ Initialization â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Initialization ───────────────────────────────────────────────────────
 export function initGuestinfo() {
   window.guestinfo = {
     renderGuestinfoSection,
