@@ -1,15 +1,16 @@
 /* ==========================================================================
-   Guest Portal UI – GLASS THEME v3.2 Consistent with Dashboard
+   Guest Portal UI – GLASS THEME v3.2, Centered & Spacious for Newbies
    ========================================================================== */
 
-/* App wrapper: glassy dark fade */
 #guestApp {
   min-height: 100vh;
   background: linear-gradient(135deg, #0f1117 0%, #1a1c24 100%) no-repeat fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding-bottom: 48px;
 }
 
-/* Sticky glassy progress bar header */
 #gpProgressHeader {
   position: sticky;
   top: 0;
@@ -21,127 +22,133 @@
   backdrop-filter: blur(12px) saturate(150%);
   border-bottom: 1.5px solid rgba(255,255,255,.08);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 18px 0 14px 0;
+  padding: 32px 0 26px 0;  /* More vertical space */
   margin-bottom: 0;
   transition: background 0.2s;
 }
 
 #gpProgressHeader > a#backToDash {
   position: absolute;
-  left: 36px;
+  left: 26px;
   top: 50%;
   transform: translateY(-50%);
   font-weight: 700;
-  font-size: 1.13em;
+  font-size: 1.18em;
   color: #1e90ff;
   background: none;
-  border-radius: 9px;
-  padding: 6px 14px;
-  opacity: 0.96;
+  border-radius: 12px;
+  padding: 8px 18px;
+  opacity: 0.97;
   transition: background .16s, color .16s;
   text-decoration: none;
 }
 #gpProgressHeader > a#backToDash:hover {
-  background: rgba(30,144,255,.08);
+  background: rgba(30,144,255,.09);
   color: #4aa8ff;
+}
+
+#gpProgressHeader label,
+#gpProgressHeader #progressLabel {
+  text-align: center;
+  width: 100%;
 }
 
 #gpProgressHeader label {
   color: #e2e8f0;
   font-weight: 700;
-  font-size: 1.04rem;
-  margin-bottom: 5px;
+  font-size: 1.09rem;
+  margin-bottom: 6px;
+  letter-spacing: .02em;
 }
 #gpProgressHeader #progressLabel {
   font-variant-numeric: tabular-nums;
   color: #82caff;
-  font-weight: 700;
+  font-weight: 800;
   margin-left: 5px;
+  font-size: 1.11rem;
 }
+
 #gpProgressHeader #progressBar {
   width: 100%;
-  max-width: 340px;
-  height: 18px;
-  border-radius: 12px;
+  max-width: 420px;
+  height: 24px;
+  border-radius: 15px;
   background: rgba(255,255,255,.09);
   box-shadow: 0 1px 8px #2196f325;
-  margin-top: 3px;
+  margin: 8px auto 0 auto;
   accent-color: #1e90ff;
 }
 
 .step-container {
   width: 100%;
-  max-width: 700px;
-  margin: 38px auto 0 auto;
+  max-width: 600px;
+  margin: 44px auto 0 auto;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  background: rgba(26,28,36,0.90);
-  border-radius: 20px;
-  box-shadow: 0 6px 32px rgba(30,144,255,0.10), 0 1px 0 rgba(255,255,255,.07);
-  padding: 34px 0 24px 0;
+  align-items: center;  /* Center vertically */
+  background: rgba(26,28,36,0.96);
+  border-radius: 22px;
+  box-shadow: 0 10px 38px rgba(30,144,255,0.13), 0 1px 0 rgba(255,255,255,.09);
+  padding: 44px 0 38px 0;
   position: relative;
-  margin-bottom: 28px;
-  transition: box-shadow .18s, background .16s;
+  margin-bottom: 38px;
+  transition: box-shadow .22s, background .19s;
 }
 
 .step-container:not(:last-child) {
-  border-bottom: 1.5px solid rgba(255,255,255,.08);
+  border-bottom: 2px solid rgba(255,255,255,.09);
 }
 
 .step-card {
-  background: rgba(38,42,54,0.94);
-  border-radius: 16px;
-  box-shadow: 0 2px 16px rgba(30,144,255,0.07), 0 1px 0 #1e2537;
-  border: 1.2px solid rgba(255,255,255,0.11);
-  padding: 30px 24px 18px 24px;
-  min-width: 240px;
-  max-width: 600px;
+  background: rgba(38,42,54,0.97);
+  border-radius: 20px;
+  box-shadow: 0 4px 22px rgba(30,144,255,0.11), 0 1px 0 #1e2537;
+  border: 1.6px solid rgba(255,255,255,0.13);
+  padding: 38px 36px 28px 36px;
+  min-width: 260px;
+  max-width: 440px;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  backdrop-filter: blur(16px) saturate(150%);
+  gap: 28px; /* more room between questions */
+  align-items: center; /* center contents */
+  text-align: center;  /* all child text centered */
+  backdrop-filter: blur(18px) saturate(170%);
   position: relative;
 }
 
 /* Accent border for each step */
-.step-card-1 { border-left: 5px solid #00c853; }
-.step-card-2 { border-left: 5px solid #1e90ff; }
-.step-card-3 { border-left: 5px solid #ffb300; }
+.step-card-1 { border-left: 6px solid #00c853; }
+.step-card-2 { border-left: 6px solid #1e90ff; }
+.step-card-3 { border-left: 6px solid #ffb300; }
 
-/* Card titles */
 .card-title {
   margin-top: 0;
-  font-size: 1.18rem;
+  font-size: 1.22rem;
   color: #e2e8f0;
-  font-weight: 700;
-  margin-bottom: 13px;
-  letter-spacing: .01em;
-  text-shadow: 0 2px 8px rgba(30,144,255,.07);
+  font-weight: 800;
+  margin-bottom: 20px;
+  letter-spacing: .03em;
+  text-align: center;
 }
 
-/* Step-specific fade (glass overlays, optional) */
-.step1-container   { background: rgba(22,32,29,0.96); }
-.step2-container   { background: rgba(26,28,36,0.94); }
-.step3-container   { background: rgba(36,28,22,0.94); }
-
-/* Labels and Inputs */
 .glabel {
   display: block;
-  margin-bottom: 13px;
-  font-weight: 600;
+  margin-bottom: 21px;
+  font-weight: 700;
   color: #e2e8f0;
-  font-size: 1.01rem;
+  font-size: 1.09rem;
   letter-spacing: 0.01em;
+  text-align: center;
 }
 .gp-pts {
   color: #82caff;
-  font-weight: 500;
+  font-weight: 600;
   margin-left: 8px;
-  font-size: .98em;
+  font-size: 1.08em;
 }
 
 input[type="text"],
@@ -150,44 +157,47 @@ input[type="number"],
 select,
 textarea {
   width: 100%;
-  border-radius: 9px;
-  border: 1.5px solid rgba(255,255,255,0.16);
-  padding: 13px 13px 12px 14px;
-  font-size: 1.07rem;
-  background: rgba(255,255,255,.08);
+  border-radius: 13px;
+  border: 2px solid rgba(255,255,255,0.16);
+  padding: 19px 16px 18px 16px;
+  font-size: 1.14rem;
+  background: rgba(255,255,255,.13);
   color: #e2e8f0;
-  transition: border-color 0.17s, background 0.18s;
-  margin-top: 7px;
+  transition: border-color 0.15s, background 0.16s;
+  margin-top: 13px;
   font-family: inherit;
   font-weight: 500;
-  box-shadow: 0 2px 6px rgba(30,144,255,0.08);
+  box-shadow: 0 3px 12px rgba(30,144,255,0.10);
+  text-align: center;
 }
 input:focus, select:focus, textarea:focus {
   border-color: #1e90ff;
-  background: rgba(255,255,255,.13);
+  background: rgba(255,255,255,.18);
   outline: none;
 }
 
 textarea {
   resize: vertical;
-  min-height: 88px;
+  min-height: 110px;
   font-family: inherit;
-  font-size: 1.06rem;
+  font-size: 1.10rem;
+  text-align: center;
 }
 
-/* Buttons (form or nav) */
 button, .btn {
   background: #1e90ff;
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   border: none;
-  border-radius: 12px;
-  padding: 14px 0;
-  margin-top: 21px;
-  font-size: 1.09rem;
+  border-radius: 15px;
+  padding: 19px 0;
+  margin-top: 29px;
+  font-size: 1.16rem;
   cursor: pointer;
   transition: background 0.14s, box-shadow 0.14s;
-  box-shadow: 0 4px 14px rgba(30,144,255,0.13);
+  box-shadow: 0 6px 16px rgba(30,144,255,0.18);
+  width: 100%;
+  max-width: 360px;
 }
 button:hover, .btn:hover {
   background: #4aa8ff;
@@ -197,24 +207,21 @@ button:hover, .btn:hover {
 /* Responsive Tweaks */
 @media (max-width: 900px) {
   .step-container, .step-card { max-width: 99vw; }
-  .step-card { padding: 16px 5vw 13px 5vw; }
+  .step-card { padding: 18px 3vw 14px 3vw; }
 }
 @media (max-width: 600px) {
-  #gpProgressHeader {
-    padding: 10px 0 9px 0;
-    font-size: .97rem;
-  }
-  #gpProgressHeader > a#backToDash { font-size: .98rem; left: 10px; }
+  #gpProgressHeader { padding: 16px 0 12px 0; font-size: 1rem; }
+  #gpProgressHeader > a#backToDash { font-size: 1rem; left: 10px; }
   .step-container, .step-card {
-    padding: 6px 0 9px 0;
-    margin: 12px 0 6px 0;
-    border-radius: 10px;
+    padding: 9px 0 11px 0;
+    margin: 22px 0 12px 0;
+    border-radius: 12px;
   }
-  .step-card { padding: 9px 3vw 10px 3vw; }
+  .step-card { padding: 12px 2vw 11px 2vw; }
 }
 
-/* Subtle highlight on focus/hover */
+/* Optional: Subtle highlight on focus/hover */
 .step-container:hover, .step-container:focus-within {
-  box-shadow: 0 10px 32px rgba(30,144,255,0.13);
-  background: rgba(30,38,60,0.92);
+  box-shadow: 0 18px 48px rgba(30,144,255,0.19);
+  background: rgba(30,38,60,0.96);
 }
