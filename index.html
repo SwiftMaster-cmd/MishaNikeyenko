@@ -152,11 +152,11 @@
         const snap = await db.ref('users/' + user.uid).get();
         const profile = snap.val();
         if (profile && profile.role === 'dm') {
-          window.location.href = "admin/admin.html";
+          window.location.href = "v1/admin/admin.html";
         } else if (profile && profile.role === 'lead') {
-          window.location.href = "admin/admin.html";
+          window.location.href = "v1/admin/admin.html";
         } else {
-          window.location.href = "admin/admin.html";
+          window.location.href = "v1/admin/admin.html";
         }
       }, 800);
     };
@@ -190,11 +190,11 @@
         const snap = await db.ref('users/' + user.uid).get();
         const profile = snap.val();
         if (profile && profile.role === 'dm') {
-          window.location.href = "html/admin.html";
+          window.location.href = "v1/html/admin.html";
         } else if (profile && profile.role === 'lead') {
-          window.location.href = "html/admin.html";
+          window.location.href = "v1/html/admin.html";
         } else {
-          window.location.href = "html/guestinfo.html";
+          window.location.href = "v1/html/guestinfo.html";
         }
       }
     });
