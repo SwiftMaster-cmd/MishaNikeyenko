@@ -1,7 +1,8 @@
 /* ==========================================================================
-   Guest Portal UI – GLASS THEME v3.4 CLEAN, FIXED, RESPONSIVE
+   Guest Portal UI – GLASS THEME v3.4 PRO – FULL UPGRADE
    ========================================================================== */
 
+/* === Variables === */
 :root {
   --blue: #1e90ff;
   --blue-light: #4aa8ff;
@@ -10,8 +11,8 @@
   --glass: rgba(26, 28, 36, 0.96);
   --glass-strong: rgba(26, 28, 36, 0.99);
   --card-glass: rgba(38, 42, 54, 0.97);
-  --border: rgba(255,255,255,.12);
-  --border-strong: rgba(255,255,255,.2);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.2);
   --brand: #1e90ff;
   --brand-alt: #00c853;
   --warning: #ffb300;
@@ -21,27 +22,40 @@
   --radius-lg: 22px;
   --radius-md: 14px;
   --radius: 10px;
-  --shadow-card: 0 10px 38px rgba(30,144,255,0.13), 0 1px 0 rgba(255,255,255,.09);
-  --shadow-glow: 0 18px 48px rgba(30,144,255,0.19);
+  --shadow-card: 0 10px 38px rgba(30, 144, 255, 0.13), 0 1px 0 rgba(255, 255, 255, 0.09);
+  --shadow-glow: 0 18px 48px rgba(30, 144, 255, 0.19);
+
+  /* Spacing */
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+
+  /* Typography */
+  --font-base: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
 }
 
-/* ==== Reset ==== */
+/* === Reset & base styles === */
 *, *::before, *::after {
   box-sizing: border-box;
-}
-body, html {
   margin: 0;
   padding: 0;
+}
+
+html, body {
   width: 100%;
   min-height: 100%;
-  font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
-  background: linear-gradient(135deg, var(--bg-dark), var(--bg-mid)) fixed;
+  font-family: var(--font-base);
+  font-size: 16px;
+  line-height: 1.5;
+  background: linear-gradient(135deg, var(--bg-dark), var(--bg-mid)) fixed no-repeat;
   color: var(--text-hi);
   scroll-behavior: smooth;
   overscroll-behavior-y: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ==== App Wrapper ==== */
+/* === App Wrapper === */
 #guestApp {
   display: flex;
   flex-direction: column;
@@ -52,11 +66,12 @@ body, html {
   overflow-x: hidden;
 }
 
-/* ==== Sticky Progress Header ==== */
+/* === Sticky Progress Header === */
 #gpProgressHeader {
   position: sticky;
   top: 0;
-  z-index: 999;
+  left: 0;
+  z-index: 9999;
   width: 100%;
   background: var(--glass-strong);
   backdrop-filter: blur(16px) saturate(180%);
@@ -65,9 +80,14 @@ body, html {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  gap: 12px;
+  padding: var(--spacing-md);
+  gap: var(--spacing-md);
   min-height: 72px;
+  transition: background-color 0.3s ease, padding 0.3s ease;
+}
+
+#gpProgressHeader:hover {
+  background-color: rgba(30, 144, 255, 0.08);
 }
 
 /* Back Button */
@@ -80,28 +100,39 @@ body, html {
   font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
+  user-select: none;
+  flex-shrink: 0;
 }
-#backToDash:hover {
+
+#backToDash:hover,
+#backToDash:focus {
   background: rgba(74, 168, 255, 0.12);
   color: var(--blue-light);
+  outline: none;
+  box-shadow: 0 0 8px var(--blue-light);
 }
 
 /* Progress Center */
 .gp-progress-main {
   flex: 1 1 auto;
   text-align: center;
+  min-width: 180px;
 }
+
 .gp-progress-main label {
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-hi);
   display: block;
+  letter-spacing: 0.01em;
 }
+
 #progressLabel {
   color: var(--blue-light);
   font-weight: 800;
   font-size: 1.12rem;
+  letter-spacing: 0.015em;
 }
 
 /* Progress Bar */
@@ -111,41 +142,61 @@ progress#progressBar {
   max-width: 430px;
   height: 20px;
   border-radius: 12px;
-  background: rgba(255,255,255,.13);
-  box-shadow: inset 0 1px 4px rgba(0,0,0,0.2);
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.2);
   margin-top: 6px;
+  border: none;
+  overflow: hidden;
+  transition: width 0.3s ease;
 }
-progress::-webkit-progress-bar {
-  background: rgba(255,255,255,.13);
+
+progress#progressBar::-webkit-progress-bar {
+  background: rgba(255, 255, 255, 0.13);
   border-radius: 12px;
 }
-progress::-webkit-progress-value {
+
+progress#progressBar::-webkit-progress-value {
   background: linear-gradient(90deg, var(--blue), var(--blue-light) 80%);
   border-radius: 12px;
   box-shadow: 0 2px 10px #1e90ff88;
-}
-progress::-moz-progress-bar {
-  background: linear-gradient(90deg, var(--blue), var(--blue-light));
+  animation: progressGlow 2s ease infinite alternate;
 }
 
-/* ==== Step Containers ==== */
+progress#progressBar::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--blue), var(--blue-light));
+  border-radius: 12px;
+}
+
+@keyframes progressGlow {
+  from {
+    box-shadow: 0 0 5px var(--blue-light);
+  }
+  to {
+    box-shadow: 0 0 15px var(--blue);
+  }
+}
+
+/* === Step Containers === */
 .step-container {
   width: 94vw;
   max-width: 720px;
-  margin: 48px auto;
+  margin: var(--spacing-lg) auto;
   background: var(--glass);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   padding: 40px 28px;
   border-bottom: 1px solid var(--border);
-  transition: background 0.3s ease;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+  cursor: default;
 }
-.step-container:hover {
+
+.step-container:hover,
+.step-container:focus-within {
   background: rgba(30, 38, 60, 0.97);
   box-shadow: var(--shadow-glow);
 }
 
-/* ==== Step Card ==== */
+/* === Step Card === */
 .step-card {
   width: 100%;
   max-width: 580px;
@@ -153,37 +204,57 @@ progress::-moz-progress-bar {
   border: 1px solid var(--border-strong);
   border-left: 6px solid var(--blue);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 20px rgba(30,144,255,0.11);
+  box-shadow: 0 4px 20px rgba(30, 144, 255, 0.11);
   padding: 32px 26px;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: var(--spacing-lg);
   align-items: center;
   text-align: center;
   backdrop-filter: blur(18px) saturate(170%);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.step-card:hover,
+.step-card:focus-within {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-glow);
+  outline: none;
 }
 
 /* Colored Step Borders */
-.step-card-1 { border-left-color: var(--brand-alt); }
-.step-card-2 { border-left-color: var(--blue); }
-.step-card-3 { border-left-color: var(--warning); }
-
-.card-title {
-  font-size: 1.32rem;
-  font-weight: 800;
-  color: var(--text-hi);
-  margin: 0 0 18px 0;
+.step-card-1 {
+  border-left-color: var(--brand-alt);
 }
 
-/* ==== Inputs ==== */
+.step-card-2 {
+  border-left-color: var(--blue);
+}
+
+.step-card-3 {
+  border-left-color: var(--warning);
+}
+
+/* Card Titles */
+.card-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-hi);
+  margin: 0 0 var(--spacing-md) 0;
+  letter-spacing: 0.02em;
+}
+
+/* === Form Labels === */
 .glabel {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--text-hi);
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-sm);
+  letter-spacing: 0.01em;
   text-align: center;
 }
 
+/* === Form Inputs === */
 input[type="text"],
 input[type="number"],
 input[type="tel"],
@@ -191,72 +262,99 @@ select,
 textarea {
   width: 100%;
   font-size: 1.1rem;
-  padding: 16px;
+  padding: var(--spacing-md);
   border-radius: 12px;
   border: 2px solid var(--border);
-  background: rgba(255,255,255,.1);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--text-hi);
   transition: background 0.2s, border-color 0.2s;
   text-align: center;
-  font-family: inherit;
+  font-family: var(--font-base);
   font-weight: 500;
-}
-input:focus, select:focus, textarea:focus {
-  border-color: var(--blue);
-  background: rgba(255,255,255,.2);
-  outline: none;
+  user-select: text;
 }
 
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--blue);
+  background: rgba(255, 255, 255, 0.2);
+  outline: 2px solid var(--blue-light);
+  outline-offset: 2px;
+}
+
+/* Textarea Specific */
 textarea {
   resize: vertical;
   min-height: 110px;
 }
 
-/* ==== Button ==== */
-button, .btn {
+/* Placeholder */
+::placeholder {
+  color: var(--text-med);
+  opacity: 1;
+}
+
+/* === Buttons === */
+button,
+.btn {
   background: var(--blue);
   color: white;
   font-size: 1.1rem;
   font-weight: 700;
   border: none;
   border-radius: 14px;
-  padding: 16px;
-  margin-top: 24px;
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-lg);
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(30,144,255,0.18);
+  box-shadow: 0 6px 18px rgba(30, 144, 255, 0.18);
   max-width: 360px;
   width: 100%;
-  transition: background 0.2s ease;
+  user-select: none;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  text-align: center;
 }
-button:hover, .btn:hover {
+
+button:hover,
+.btn:hover,
+button:focus,
+.btn:focus {
   background: var(--blue-light);
+  outline: none;
+  box-shadow: 0 0 12px var(--blue-light);
 }
 
-/* ==== Placeholder Color ==== */
-::placeholder {
-  color: var(--text-med);
-  opacity: 0.85;
+button:active,
+.btn:active {
+  transform: scale(0.97);
 }
 
-/* ==== Responsive ==== */
-@media (max-width: 700px) {
+/* === Responsive === */
+@media (max-width: 800px) {
+  .step-container,
+  .step-card {
+    padding: var(--spacing-md);
+    width: 95%;
+  }
+
+  button,
+  .btn {
+    padding: var(--spacing-md);
+  }
+}
+
+@media (max-width: 500px) {
+  body {
+    font-size: 14px;
+  }
+
   #gpProgressHeader {
     flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    padding: 10px 14px;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
     min-height: 64px;
   }
-  progress#progressBar {
-    height: 12px;
-  }
-  .step-container {
-    margin: 30px 0;
-    padding: 24px 18px;
-  }
-  .step-card {
-    padding: 18px 14px;
-  }
+
   #backToDash {
     align-self: flex-start;
   }
