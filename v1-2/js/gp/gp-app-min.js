@@ -93,7 +93,17 @@
       evalData[q.id] = f[q.id] || "";
     });
 
+    // ===== SIMPLE FIX: Prevent blank guest creation =====
     if (!_guestKey) {
+      // Block blank guest
+      if (
+        !f.custName &&
+        !f.custPhone &&
+        Object.values(evalData).every(v => !v) &&
+        !f.solutionText
+      ) {
+        return; // Do not save a new guest with no info!
+      }
       // Create new guest
       const payload = {
         custName:    f.custName,
@@ -168,20 +178,13 @@
 
           attachCompletionListener();
           return;
-        } else {
-          // Guest record not found: clear ref and show error overlay
-          localStorage.removeItem("last_guestinfo_key");
-          showGuestNotFoundError();
-          return;
         }
       } catch (e) {
         console.error("Error loading guest:", e);
-        showGuestNotFoundError();
-        return;
       }
     }
 
-    // Fresh context: ONLY if no gid
+    // Fresh context
     _guestObj = {};
     _guestKey = null;
     global.gpApp.gotoStep("step1");
@@ -189,21 +192,6 @@
     loadAnswersFromGuest({});
     if (global.updateTotalPoints) global.updateTotalPoints();
     if (global.updatePitchText)  global.updatePitchText();
-  }
-
-  function showGuestNotFoundError() {
-    if (document.getElementById("gp-guest-notfound")) return;
-    const overlay = document.createElement("div");
-    overlay.id = "gp-guest-notfound";
-    overlay.style = "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;";
-    overlay.innerHTML = `
-      <div style="background:#222;padding:32px 24px;border-radius:16px;text-align:center;">
-        <b>Guest form not found.</b>
-        <br><br>
-        <button onclick="window.location.href='/index.html'" style="margin-top:16px;" class="btn btn-primary">Back to Dashboard</button>
-      </div>
-    `;
-    document.body.appendChild(overlay);
   }
 
   // Step navigation controls
