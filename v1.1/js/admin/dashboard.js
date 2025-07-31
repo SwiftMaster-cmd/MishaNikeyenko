@@ -58,7 +58,6 @@
   window._users      = window._users      || {};
   window._reviews    = window._reviews    || {};
   window._guestinfo  = window._guestinfo  || {};
-  window._guestForms = window._guestForms || {};
   window._sales      = window._sales      || {};
 
   /* --------------------------------------------------------------------
@@ -115,9 +114,9 @@
     /* attach global realtime listeners */
     ensureRealtime();
 
-    /* guestforms module may have its own realtime */
-    if (window.guestforms?.ensureRealtime) {
-      window.guestforms.ensureRealtime();
+    /* guestinfo module may have its own realtime */
+    if (window.guestinfo?.ensureRealtime) {
+      window.guestinfo.ensureRealtime();
     }
 
     /* final: init messages after data (so _users ready for recipient list) */
@@ -158,14 +157,12 @@
       usersSnap,
       reviewsSnap,
       guestSnap,
-      guestFormsSnap,
       salesSnap
     ] = await Promise.all([
       db.ref("stores").get(),
       db.ref("users").get(),
       db.ref("reviews").get(),
       db.ref("guestinfo").get(),
-      db.ref("guestEntries").get(),
       db.ref("sales").get()
     ]);
 
@@ -173,7 +170,6 @@
     window._users      = usersSnap.val()      || {};
     window._reviews    = reviewsSnap.val()    || {};
     window._guestinfo  = guestSnap.val()      || {};
-    window._guestForms = guestFormsSnap.val() || {};
     window._sales      = salesSnap.val()      || {};
 
     _initialLoaded = true;
@@ -181,18 +177,12 @@
   }
 
   /* ====================================================================
-   * CAUGHT-UP HELPERS (Guest Forms + Guest Info)
+   * CAUGHT-UP HELPERS (Guest Info)
    * ================================================================== */
   const _isAdmin = r => r === ROLES.ADMIN;
   const _isDM    = r => r === ROLES.DM;
   const _isLead  = r => r === ROLES.LEAD;
   const _isMe    = r => r === ROLES.ME;
-
-  /* guestforms advanced status (hide proposal/sold) */
-  function _gfAdvancedStatus(g){
-    const s = (g?.status || "").toLowerCase();
-    return s === "proposal" || s === "sold";
-  }
 
   function _startOfTodayMs(){ const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); }
   function _endOfTodayMs(){ const d=new Date(); d.setHours(23,59,59,999); return d.getTime(); }
@@ -221,31 +211,6 @@
       .filter(([,u])=>u.role===ROLES.ME && leads.includes(u.assignedLead))
       .map(([id])=>id);
     return new Set([...leads,...mes]);
-  }
-
-  /* Visible guestforms count */
-  function _guestFormsVisibleCount(guestForms, guestinfo, role, uid){
-    if (!guestForms) return 0;
-    const showAll = !!window._guestforms_showAll;
-    const startToday = _startOfTodayMs();
-    const endToday   = _endOfTodayMs();
-    let count = 0;
-    for (const [,f] of Object.entries(guestForms)){
-      if (f.guestinfoKey){
-        const g = guestinfo?.[f.guestinfoKey];
-        if (_gfAdvancedStatus(g)) continue;
-      }
-      if (!_isAdmin(role) && !_isDM(role)){
-        const claimedBy = f.consumedBy || f.claimedBy;
-        if (claimedBy && claimedBy !== uid) continue;
-      }
-      if (!showAll){
-        const ts = f.timestamp || 0;
-        if (ts < startToday || ts > endToday) continue;
-      }
-      count++;
-    }
-    return count;
   }
 
   /* Visible actionable guestinfo count (new+working+proposal) respecting filters */
@@ -288,8 +253,8 @@
         <h2>Guest Queue</h2>
         <div class="guestinfo-empty-all text-center" style="margin-top:16px;">
           <p><b>${msg}</b></p>
-          <p style="opacity:.8;">No open guest forms or leads right now.</p>
-          <button class="btn btn-success btn-lg" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
+          <p style="opacity:.8;">No open leads right now.</p>
+          <button class="button button--success button--large" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
         </div>
       </section>`;
   }
@@ -490,13 +455,11 @@
     const users      = window._users;
     const reviews    = window._reviews;
     const guestinfo  = window._guestinfo;
-    const guestForms = window._guestForms;
     const sales      = window._sales;
 
     /* ----- Caught-up checks (Guest Queue) ----- */
-    const gfVisibleCount   = _guestFormsVisibleCount(guestForms, guestinfo, currentRole, currentUid);
     const giActionableCount= _guestInfoActionableCount(guestinfo, users, currentRole, currentUid);
-    const guestsCaught     = (gfVisibleCount === 0) && (giActionableCount === 0);
+    const guestsCaught     = (giActionableCount === 0);
 
     /* ----- Performance metrics ----- */
     const perf = _performanceStatus(reviews, stores, users, currentRole, currentUid);
@@ -506,19 +469,13 @@
     /* -------------------------------------------------------------
        Build top-of-page guest queue portion
        ----------------------------------------------------------- */
-    let guestFormsHtml = "";
     let guestinfoHtml  = "";
     let perfHighlightsHtml = "";
 
     if (guestsCaught) {
       // unified guest caught-up card
-      guestFormsHtml = _caughtUpUnifiedHtml();
+      guestinfoHtml = _caughtUpUnifiedHtml();
     } else {
-      // guestforms section
-      guestFormsHtml = window.guestforms?.renderGuestFormsSection
-        ? window.guestforms.renderGuestFormsSection(guestForms, currentRole, currentUid)
-        : `<section id="guest-forms-section" class="admin-section guest-forms-section"><h2>Guest Form Submissions</h2><p class="text-center">Module not loaded.</p></section>`;
-
       // guestinfo section
       guestinfoHtml = window.guestinfo?.renderGuestinfoSection
         ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
@@ -578,7 +535,6 @@
        ----------------------------------------------------------- */
     if (adminAppDiv) {
       adminAppDiv.innerHTML = `
-        ${guestFormsHtml}
         ${guestinfoHtml}
         ${perfHighlightsHtml}
         ${storesHtml}
@@ -667,12 +623,6 @@
     giRef.on("child_changed", snap => { window._guestinfo[snap.key] = snap.val(); scheduleRealtimeRender(); });
     giRef.on("child_removed", snap => { delete window._guestinfo[snap.key]; scheduleRealtimeRender(); });
 
-    /* GUEST ENTRIES */
-    const gfRef = db.ref("guestEntries");
-    gfRef.on("child_added", snap => { window._guestForms[snap.key] = snap.val(); scheduleRealtimeRender(); });
-    gfRef.on("child_changed", snap => { window._guestForms[snap.key] = snap.val(); scheduleRealtimeRender(); });
-    gfRef.on("child_removed", snap => { delete window._guestForms[snap.key]; scheduleRealtimeRender(); });
-
     /* SALES */
     const salesRef = db.ref("sales");
     salesRef.on("child_added", snap => { window._sales[snap.key] = snap.val(); scheduleRealtimeRender(); });
@@ -716,9 +666,9 @@
     if (el) el.innerHTML = window.reviews.reviewsToHtml(window._filteredReviews);
   };
 
-  // Guest Form submissions actions
-  window.deleteGuestFormEntry     = (id) => window.guestforms.deleteGuestFormEntry(id);
-  window.continueGuestFormToGuest = (id) => window.guestforms.continueToGuestInfo(id);
+  // Guest Info actions
+  window.deleteGuestInfoEntry = (id) => window.guestinfo.deleteGuestInfoEntry(id);
+  window.continueGuestInfo = (id) => window.guestinfo.continueGuestInfo(id);
 
   /* --------------------------------------------------------------------
    * Expose render for modules
