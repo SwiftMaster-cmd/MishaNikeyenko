@@ -10,15 +10,16 @@ import {
   onValue,
 } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
 
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGZ9dslMzE",
+  apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
   databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
   projectId: "osls-644fd",
-  storageBucket: "osls-644fd.appspot.com",
+  storageBucket: "osls-644fd.firebasestorage.app",
   messagingSenderId: "798578046321",
-  appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
-  measurementId: "G-XXXXXXX"
+  appId: "1:798578046321:web:8758776701786a2fccf2d0",
+  measurementId: "G-9HWXNSBE1T"
 };
 
 const app = initializeApp(firebaseConfig);
