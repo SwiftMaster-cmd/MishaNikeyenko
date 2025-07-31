@@ -1,53 +1,66 @@
-import { onAuthStateChanged, getGuest, createNewLead, updateGuest, attachCompletionListener, getCurrentUserUid } from './gp-firebase.js';
-import { normGuest, detectStatus, computeGuestPitchQuality } from './gp-core.js';
-import { createProgressHeader, renderProgressBar, renderStepContainers, updateProgressBar } from './gp-ui-render.js';
-import { initUIApp } from './ui-app.js';
+import {
+  onAuthStateChanged,
+  getGuest,
+  createNewLead,
+  attachCompletionListener,
+  getCurrentUserUid,
+} from './gp-firebase.js';
 
-const appState = {
-  guestKey: null,
-  guestObj: {},
-  questions: []  // your questions list, import or pass here
-};
+import {
+  createProgressHeader,
+  renderProgressBar,
+  renderStepContainers,
+  updateProgressBar,
+} from './gp-ui-render.js';
+
+import { initUIApp } from './ui-app.js';
+import { normGuest, detectStatus, computeGuestPitchQuality } from './gp-core.js';
+
+let currentGuestKey = null;
 
 function showStep(stepId) {
-  ["step1Form", "step2Form", "step3Form"].forEach(id => {
-    document.getElementById(id)?.classList.toggle("hidden", id !== stepId);
+  ['step1Form', 'step2Form', 'step3Form'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', id !== stepId);
   });
 }
 
-async function loadGuestFromKey(gid) {
+function updateLeadIdInHeader(gid) {
+  const leadIdDisplay = document.getElementById('leadIdDisplay');
+  if (leadIdDisplay) leadIdDisplay.textContent = `Lead ID: ${gid}`;
+}
+
+function populateUIFields(g) {
+  if (!g) return;
+  document.getElementById('custName').value = g.custName || '';
+  document.getElementById('custPhone').value = g.custPhone || '';
+  // Similarly populate Step 2 and Step 3 fields...
+}
+
+async function loadGuestFromKey(gid, questions) {
   try {
     let g = await getGuest(gid);
-    if (!g) throw new Error("Guest not found");
+    if (!g) throw new Error('Guest not found');
     g = normGuest(g);
-    appState.guestKey = gid;
-    appState.guestObj = g;
+    currentGuestKey = gid;
 
-    // Write UI fields
-    // You should create a helper to populate UI fields from g (not shown here)
+    updateLeadIdInHeader(gid);
     populateUIFields(g);
 
-    // Set step based on status
     const status = detectStatus(g);
-    let step = "step1Form";
-    if (status === "working") step = "step2Form";
-    else if (status === "proposal") step = "step3Form";
+    let step = 'step1Form';
+    if (status === 'working') step = 'step2Form';
+    else if (status === 'proposal') step = 'step3Form';
     showStep(step);
 
-    // Update header with guest key
-    updateLeadIdInHeader(gid);
-
-    // Setup progress bar listener
     attachCompletionListener(gid, pct => {
       updateProgressBar(pct);
     });
 
-    // Compute initial progress bar
     const comp = computeGuestPitchQuality(g);
     updateProgressBar(comp.pct);
-
-  } catch (e) {
-    console.error(e);
+  } catch (err) {
+    console.error(err);
   }
 }
 
@@ -55,58 +68,40 @@ async function onNewLeadClicked() {
   try {
     const uid = getCurrentUserUid();
     const newKey = await createNewLead(uid);
-    localStorage.setItem("last_guestinfo_key", newKey);
-    // Reload with new gid param
+    localStorage.setItem('last_guestinfo_key', newKey);
     const baseUrl = window.location.pathname;
     window.location.href = `${baseUrl}?gid=${encodeURIComponent(newKey)}&uistart=step1`;
-  } catch (e) {
-    alert("Error creating new lead: " + e.message);
+  } catch (err) {
+    alert('Error creating new lead: ' + err.message);
   }
 }
 
-function updateLeadIdInHeader(gid) {
-  const leadIdDisplay = document.getElementById("leadIdDisplay");
-  if (leadIdDisplay) leadIdDisplay.textContent = `Lead ID: ${gid}`;
-}
-
-function populateUIFields(g) {
-  // Implement: populate your form fields from guest object g
-  // Example:
-  document.getElementById("custName").value = g.custName || "";
-  document.getElementById("custPhone").value = g.custPhone || "";
-  // Similarly for Step 2 fields and solution text
-}
-
-function getUrlParam(name) {
-  return new URLSearchParams(window.location.search).get(name);
-}
-
-async function initApp(questions) {
-  appState.questions = questions;
-
+export async function initApp(questions) {
   // Render UI skeleton
-  const headerElems = createProgressHeader(null, onNewLeadClicked);
+  createProgressHeader(null, onNewLeadClicked);
   const progressBar = renderProgressBar();
   const steps = renderStepContainers();
 
-  const app = document.getElementById("guestApp");
+  const app = document.getElementById('guestApp');
   app.appendChild(progressBar);
   app.appendChild(steps);
 
   // Setup event handlers
   initUIApp(questions);
 
-  // On auth
   onAuthStateChanged(async user => {
     if (!user) {
-      alert("Please sign in to continue.");
+      alert('Please sign in to continue.');
       return;
     }
-    const gid = getUrlParam("gid") || localStorage.getItem("last_guestinfo_key");
+    const params = new URLSearchParams(window.location.search);
+    const gid = params.get('gid') || localStorage.getItem('last_guestinfo_key');
     if (gid) {
-      await loadGuestFromKey(gid);
+      await loadGuestFromKey(gid, questions);
     }
   });
 }
 
-export { initApp };
+export function getGuestKey() {
+  return currentGuestKey;
+}
