@@ -9,7 +9,6 @@ import {
   attachCompletionListener
 } from "./gp-firebase.js";
 
-// Sample questions for Step 2
 const gpQuestions = [
   { id: "numLines", label: "How many lines do you need?", type: "number", weight: 15 },
   { id: "carrier", label: "Current Carrier", type: "text", weight: 14 },
@@ -23,7 +22,6 @@ export class GuestFormApp {
     this.onLeadChange = onLeadChange;
     this.onProgressUpdate = onProgressUpdate;
 
-    // DOM elements
     this.leadIdDisplay = document.getElementById("leadIdDisplay");
     this.progressBar = document.getElementById("progressBar");
     this.progressLabel = document.getElementById("progressLabel");
@@ -43,13 +41,7 @@ export class GuestFormApp {
   }
 
   initInputs() {
-    const inputs = [
-      this.custNameInput,
-      this.custPhoneInput,
-      this.solutionText
-    ];
-
-    inputs.forEach(input => {
+    [this.custNameInput, this.custPhoneInput, this.solutionText].forEach(input => {
       input.addEventListener("input", () => this.saveGuestDebounced());
     });
   }
@@ -60,14 +52,8 @@ export class GuestFormApp {
       const label = document.createElement("label");
       label.textContent = q.label + ` (${q.weight} pts)`;
 
-      let input;
-      if (q.type === "number") {
-        input = document.createElement("input");
-        input.type = "number";
-      } else {
-        input = document.createElement("input");
-        input.type = "text";
-      }
+      const input = document.createElement("input");
+      input.type = q.type === "number" ? "number" : "text";
       input.id = q.id;
       input.value = "";
       input.addEventListener("input", () => this.saveGuestDebounced());
@@ -77,7 +63,7 @@ export class GuestFormApp {
     });
   }
 
-  async saveGuestDebounced() {
+  saveGuestDebounced() {
     clearTimeout(this.debounceTimeout);
     this.debounceTimeout = setTimeout(() => this.saveGuestNow(), 500);
   }
@@ -117,11 +103,11 @@ export class GuestFormApp {
 
       this.custNameInput.value = guest.custName || "";
       this.custPhoneInput.value = guest.custPhone || "";
-
       this.solutionText.value = guest.solution?.text || "";
 
       gpQuestions.forEach(q => {
-        document.getElementById(q.id).value = guest.evaluate?.[q.id] || "";
+        const el = document.getElementById(q.id);
+        if (el) el.value = guest.evaluate?.[q.id] || "";
       });
 
       if (this.onLeadChange) this.onLeadChange(this.guestKey);
@@ -129,7 +115,6 @@ export class GuestFormApp {
       attachCompletionListener(this.guestKey, (pct) => {
         if (this.onProgressUpdate) this.onProgressUpdate(pct);
       });
-
     } catch (e) {
       console.error("Error loading guest:", e);
     }
@@ -147,7 +132,29 @@ export class GuestFormApp {
   }
 }
 
-// Initialization & auth logic (optional: move to another module)
+// ----------- AUTH AND UI LOGIC -------------
+
+const emailInput = document.getElementById("emailInput");
+const passwordInput = document.getElementById("passwordInput");
+const signInBtn = document.getElementById("signInBtn");
+const errorMsg = document.getElementById("errorMsg");
+
+signInBtn.addEventListener("click", async () => {
+  errorMsg.textContent = "";
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+  if (!email || !password) {
+    errorMsg.textContent = "Please enter email and password.";
+    return;
+  }
+  try {
+    await signIn(email, password);
+    // onAuthStateChanged will handle UI switch
+  } catch (error) {
+    errorMsg.textContent = "Sign in failed: " + error.message;
+  }
+});
+
 firebaseOnAuthStateChanged(async (user) => {
   if (user) {
     document.getElementById("authContainer").style.display = "none";
