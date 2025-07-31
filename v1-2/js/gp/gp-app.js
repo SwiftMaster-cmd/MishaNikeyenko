@@ -9,11 +9,11 @@ import {
 } from "./gp-firebase.js";
 
 const gpQuestions = [
-  { id: "numLines", label: "How many lines do you need?", type: "number", weight: 15 },
-  { id: "carrier", label: "Current Carrier", type: "text", weight: 14 },
-  { id: "deviceStatus", label: "Device Status", type: "text", weight: 12 },
-  { id: "usage", label: "Phone Usage", type: "text", weight: 6 },
-  { id: "promos", label: "Interested in promos?", type: "text", weight: 2 }
+  { id: "carrier", label: "What carrier are you with right now?", type: "text", weight: 15 },
+  { id: "tenure", label: "How long have you been with them?", type: "text", weight: 14 },
+  { id: "satisfaction", label: "What do you like most about your current service?", type: "text", weight: 12 },
+  { id: "issues", label: "Any issues with coverage, billing, or support?", type: "text", weight: 10 },
+  { id: "contract", label: "Are you in a contract or month-to-month?", type: "text", weight: 8 }
 ];
 
 export class GuestFormApp {
