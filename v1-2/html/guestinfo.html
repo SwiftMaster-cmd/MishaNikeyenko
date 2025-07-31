@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>OSL Guest Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="../css/guest-portal.css" />
+  <link rel="stylesheet" href="guest-portal.css" />
 </head>
 <body>
 
@@ -18,73 +18,49 @@
 
   <div id="guestApp">
     <header id="stickyHeader">
-      <div id="headerContent">
-        <div id="headerTitleRow">
-          <h1>OSL Guest Portal</h1>
-          <button id="menuToggle" aria-label="Toggle Menu">&#9776;</button>
-        </div>
-        <div id="headerButtonRow" class="collapsed">
+      <div id="headerInner">
+        <h1 id="portalTitle">OSL Guest Portal</h1>
+        <button id="menuToggle" aria-label="Toggle menu">&#9776;</button>
+
+        <nav id="headerNav" class="hidden">
           <button id="newLeadBtn">+ New Lead</button>
-          <button id="dashboardBtn" onclick="window.location.href='./admin.html'">Dashboard</button>
-          <div id="leadIdContainer">
-            <button id="toggleLeadIdBtn">See Lead ID</button>
-            <span id="leadIdText">--</span>
-          </div>
-          <progress id="progressBar" max="100" value="0"></progress>
+          <button id="dashboardBtn" type="button">Dashboard</button>
+          <button id="toggleLeadIdBtn" type="button">See Lead ID</button>
+          <span id="leadIdText" class="hidden">--</span>
+          <progress id="progressBar" max="100" value="0" aria-label="Progress"></progress>
           <span id="progressLabel">0%</span>
-        </div>
+        </nav>
       </div>
     </header>
 
-    <section id="step1Form">
-      <h3>Step 1: Customer Info</h3>
-      <label>
-        Customer Name
-        <input id="custName" type="text" autocomplete="off" />
-      </label>
-      <label>
-        Customer Phone
-        <input id="custPhone" type="tel" autocomplete="off" />
-      </label>
-    </section>
+    <main id="mainContent">
+      <section id="step1Form" class="step-section">
+        <h2>Step 1: Customer Info</h2>
+        <label>
+          Customer Name
+          <input id="custName" type="text" autocomplete="off" />
+        </label>
+        <label>
+          Customer Phone
+          <input id="custPhone" type="tel" autocomplete="off" />
+        </label>
+      </section>
 
-    <section id="step2Form">
-      <h3>Step 2: Evaluate Needs</h3>
-      <div id="step2Fields"><!-- Questions rendered dynamically --></div>
-    </section>
+      <section id="step2Form" class="step-section">
+        <h2>Step 2: Evaluate Needs</h2>
+        <div id="step2Fields"><!-- Dynamic questions here --></div>
+      </section>
 
-    <section id="step3Form">
-      <h3>Step 3: Proposed Solution</h3>
-      <textarea id="solutionText" rows="6" placeholder="Enter proposed solution…"></textarea>
-    </section>
+      <section id="step3Form" class="step-section">
+        <h2>Step 3: Proposed Solution</h2>
+        <textarea id="solutionText" rows="6" placeholder="Enter proposed solution…"></textarea>
+      </section>
+    </main>
   </div>
 
   <script type="module" src="../js/gp/gp-firebase.js"></script>
   <script type="module" src="../js/gp/gp-app.js"></script>
+    <script type="module" src="../js/gp/gp.js"></script>
 
-  <script>
-    // Toggle lead ID visibility
-    const toggleLeadIdBtn = document.getElementById('toggleLeadIdBtn');
-    const leadIdText = document.getElementById('leadIdText');
-
-    toggleLeadIdBtn.addEventListener('click', () => {
-      if (leadIdText.style.display === 'inline-block') {
-        leadIdText.style.display = 'none';
-        toggleLeadIdBtn.textContent = 'See Lead ID';
-      } else {
-        leadIdText.style.display = 'inline-block';
-        toggleLeadIdBtn.textContent = 'Hide Lead ID';
-      }
-    });
-
-    // Mobile menu toggle
-    const menuToggle = document.getElementById('menuToggle');
-    const headerButtonRow = document.getElementById('headerButtonRow');
-
-    menuToggle.addEventListener('click', () => {
-      headerButtonRow.classList.toggle('expanded');
-      headerButtonRow.classList.toggle('collapsed');
-    });
-  </script>
 </body>
 </html>

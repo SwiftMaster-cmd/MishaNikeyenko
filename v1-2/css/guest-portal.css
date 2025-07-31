@@ -1,5 +1,7 @@
-/* === Reset & base styles === */
-*, *::before, *::after {
+/* Reset */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -7,27 +9,17 @@
 
 html, body {
   width: 100%;
-  min-height: 100%;
+  height: 100%;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-size: 16px;
-  line-height: 1.5;
   background: #121212;
   color: #e2e8f0;
-  scroll-behavior: smooth;
-  overscroll-behavior-y: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 1rem 0;
 }
 
-/* === Containers === */
-#authContainer, #guestApp {
-  width: 100%;
+/* Auth & App containers */
+#authContainer,
+#guestApp {
   max-width: 480px;
   margin: 1rem auto;
   background: rgba(26,28,36,0.95);
@@ -40,31 +32,29 @@ html, body {
   display: none;
 }
 
-/* === Inputs and buttons === */
+/* Inputs & Buttons */
 input, button, textarea {
   width: 100%;
-  margin: 0.5rem 0;
   padding: 0.75rem;
   border-radius: 8px;
   border: none;
-  font-size: 1rem;
   background: rgba(255,255,255,0.05);
   color: #e2e8f0;
+  font-size: 1rem;
   font-family: inherit;
+  margin-top: 0.5rem;
   resize: vertical;
-  user-select: text;
 }
 
 button {
   background: #1e90ff;
-  color: white;
   font-weight: 700;
   cursor: pointer;
   user-select: none;
   transition: background-color 0.2s ease;
 }
 
-button:hover {
+button:hover:not(:disabled) {
   background: #4aa8ff;
 }
 
@@ -76,122 +66,103 @@ button:disabled {
 #errorMsg {
   color: #ff5252;
   min-height: 1.2rem;
+  margin-top: 0.5rem;
 }
 
-/* === Sticky Header === */
-header#stickyHeader {
+/* Sticky header */
+#stickyHeader {
   position: sticky;
   top: 0; left: 0; right: 0;
   background: rgba(26, 28, 36, 0.95);
   backdrop-filter: saturate(180%) blur(16px);
   border-bottom: 1px solid #444;
-  color: #82caff;
-  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(30,144,255,0.15);
   z-index: 10000;
-  box-shadow: 0 2px 10px rgba(30, 144, 255, 0.1);
 }
 
-/* Container for header content */
-#headerContent {
+#headerInner {
   max-width: 480px;
   margin: 0 auto;
-  padding: 12px 16px 4px;
+  padding: 12px 16px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Title bar */
-#headerTitleRow {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-}
-
-#headerTitleRow h1 {
-  font-size: 1.5rem;
-  margin: 0;
-  user-select: none;
-}
-
-/* Menu toggle button for mobile */
-#menuToggle {
-  display: none;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  user-select: none;
-  color: #82caff;
-  font-size: 1.5rem;
-}
-
-/* Buttons container below the title */
-#headerButtonRow {
-  display: flex;
   justify-content: space-between;
-  gap: 12px;
-}
-
-/* Hide buttons container initially on mobile */
-#headerButtonRow.collapsed {
-  display: none;
-}
-
-/* Expanded buttons container for mobile */
-#headerButtonRow.expanded {
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-/* Each button */
-#headerButtonRow button {
-  flex: 1;
-  background-color: #1e90ff;
-  border: none;
-  color: white;
-  padding: 10px 0;
+#portalTitle {
+  font-size: 1.5rem;
   font-weight: 700;
-  border-radius: 8px;
-  cursor: pointer;
   user-select: none;
-  transition: background-color 0.2s ease;
-  font-size: 1rem;
+  flex: 1 1 auto;
+  white-space: nowrap;
+  color: #82caff;
 }
 
-#headerButtonRow button:hover {
+/* Menu toggle (hamburger) */
+#menuToggle {
+  background: transparent;
+  border: none;
+  color: #82caff;
+  font-size: 1.75rem;
+  cursor: pointer;
+  user-select: none;
+  display: none;
+  flex-shrink: 0;
+}
+
+/* Navigation buttons container */
+#headerNav {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+#headerNav button {
+  flex: 1 1 auto;
+  min-width: 80px;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 700;
+  color: white;
+  border: none;
+  background-color: #1e90ff;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+#headerNav button:hover:not(:disabled) {
   background-color: #4aa8ff;
 }
 
-/* Lead ID container */
-#leadIdContainer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.9rem;
-  color: #1e90ff;
-  user-select: none;
-}
-
-/* Lead ID text style */
+/* Lead ID text */
 #leadIdText {
+  font-family: monospace;
   background: #222;
   padding: 4px 10px;
   border-radius: 8px;
-  font-family: monospace;
-  display: none;
-  max-width: 200px;
+  color: #1e90ff;
+  user-select: all;
+  max-width: 180px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
 }
 
-/* Progress bar next to lead ID */
+/* Hidden utility */
+.hidden {
+  display: none !important;
+}
+
+/* Progress bar */
 progress#progressBar {
   width: 100px;
-  height: 16px;
+  height: 18px;
   border-radius: 12px;
   appearance: none;
   background: rgba(255, 255, 255, 0.1);
@@ -216,32 +187,35 @@ progress#progressBar::-moz-progress-bar {
   border-radius: 12px;
 }
 
-/* Label percentage */
+/* Progress label */
 #progressLabel {
   font-weight: 700;
   color: #4aa8ff;
   font-size: 1rem;
-  margin-left: 6px;
+  margin-left: 8px;
   user-select: none;
 }
 
-/* === Section styling === */
-section {
-  margin: 2rem auto;
+/* Main content and form sections */
+#mainContent {
   max-width: 480px;
   width: 94vw;
+  margin: 2rem auto;
 }
 
-section h3 {
-  margin-bottom: 1rem;
+.step-section {
+  margin-bottom: 2rem;
+}
+
+.step-section h2 {
   font-weight: 700;
-  font-size: 1.2rem;
-  color: #e2e8f0;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 label {
-  font-weight: 600;
   display: block;
+  font-weight: 600;
   margin-top: 1rem;
 }
 
@@ -278,18 +252,29 @@ textarea {
   min-height: 110px;
 }
 
-/* === Responsive === */
+/* Responsive */
 @media (max-width: 600px) {
-  #headerContent {
-    padding: 8px 16px 8px;
-  }
-
-  #headerButtonRow {
-    flex-direction: column;
-    gap: 10px;
-  }
-
   #menuToggle {
     display: block;
+  }
+
+  #headerNav {
+    position: absolute;
+    top: 64px;
+    right: 0;
+    background: rgba(26, 28, 36, 0.95);
+    backdrop-filter: saturate(180%) blur(16px);
+    padding: 12px 16px;
+    border-radius: 0 0 0 12px;
+    box-shadow: 0 2px 10px rgba(30,144,255,0.3);
+    flex-direction: column;
+    width: 240px;
+    gap: 12px;
+    z-index: 20000;
+    display: none;
+  }
+
+  #headerNav.expanded {
+    display: flex;
   }
 }
