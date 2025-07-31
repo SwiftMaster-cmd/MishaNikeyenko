@@ -68,6 +68,35 @@ export class GuestFormApp {
     this.debounceTimeout = setTimeout(() => this.saveGuestNow(), 500);
   }
 
+  calculateProgress(data) {
+    const weights = {
+      custName: 8,
+      custPhone: 7,
+      solution: 25
+    };
+
+    let earned = 0;
+    let total = 0;
+
+    if (data.custName && data.custName.trim()) earned += weights.custName;
+    total += weights.custName;
+
+    if (data.custPhone && data.custPhone.trim()) earned += weights.custPhone;
+    total += weights.custPhone;
+
+    if (data.solution?.text && data.solution.text.trim()) earned += weights.solution;
+    total += weights.solution;
+
+    gpQuestions.forEach(q => {
+      total += q.weight;
+      if (data.evaluate && data.evaluate[q.id] && data.evaluate[q.id].trim()) {
+        earned += q.weight;
+      }
+    });
+
+    return Math.round((earned / total) * 100);
+  }
+
   async saveGuestNow() {
     if (!this.guestKey) return;
 
@@ -84,6 +113,10 @@ export class GuestFormApp {
       evaluate: evaluateData,
       updatedAt: Date.now()
     };
+
+    dataToSave.completionPct = this.calculateProgress(dataToSave);
+
+    if (this.onProgressUpdate) this.onProgressUpdate(dataToSave.completionPct);
 
     try {
       await updateGuest(this.guestKey, dataToSave);
@@ -111,6 +144,10 @@ export class GuestFormApp {
       });
 
       if (this.onLeadChange) this.onLeadChange(this.guestKey);
+
+      // Set progress on load
+      const progress = guest.completionPct ?? this.calculateProgress(guest);
+      if (this.onProgressUpdate) this.onProgressUpdate(progress);
 
       attachCompletionListener(this.guestKey, (pct) => {
         if (this.onProgressUpdate) this.onProgressUpdate(pct);
@@ -149,7 +186,6 @@ signInBtn.addEventListener("click", async () => {
   }
   try {
     await signIn(email, password);
-    // onAuthStateChanged will handle UI switch
   } catch (error) {
     errorMsg.textContent = "Sign in failed: " + error.message;
   }
