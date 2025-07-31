@@ -9,239 +9,221 @@
 
   // --- PROGRESS HEADER (all logic in this file) ---
   global.createProgressHeader = function(app, dashUrl) {
-    // Remove old header if exists
+    // Remove any old header
     document.getElementById('gpProgressHeader')?.remove();
 
+    // Create sticky/glassy header wrapper
     const header = document.createElement("header");
     header.id = "gpProgressHeader";
-    header.style.cssText = `
-      position: sticky;
-      top: 0;
-      z-index: 101;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
-      padding: 12px 24px;
-      background: rgba(25,30,40,0.85);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid #2a2f3e;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      user-select: none;
-    `;
 
-    // Left container for dash link + new lead button
-    const leftContainer = document.createElement("div");
-    leftContainer.style.display = "flex";
-    leftContainer.style.alignItems = "center";
-    leftContainer.style.gap = "12px";
+    // Minimal inline styles to avoid conflicts; main styles handled in CSS
+    header.style.position = "sticky";
+    header.style.top = "0";
+    header.style.zIndex = "101";
+    header.style.width = "100%";
+    header.style.display = "flex";
+    header.style.alignItems = "center";
+    header.style.justifyContent = "space-between";
+    header.style.padding = "0 20px";
 
-    // Dashboard button
+    // Dashboard button (left)
     const dashBtn = document.createElement("a");
     dashBtn.href = dashUrl;
     dashBtn.id = "backToDash";
     dashBtn.textContent = "← Dashboard";
     dashBtn.setAttribute("tabindex", "0");
-    dashBtn.style.cssText = `
-      font-weight: 600;
-      font-size: 1.1rem;
-      color: #5aa8ff;
-      text-decoration: none;
-      padding: 6px 14px;
-      border-radius: 12px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background-color 0.2s ease, color 0.2s ease;
-    `;
-    dashBtn.addEventListener("mouseenter", () => {
-      dashBtn.style.backgroundColor = "rgba(90,168,255,0.15)";
-      dashBtn.style.color = "#9ccaff";
-    });
-    dashBtn.addEventListener("mouseleave", () => {
-      dashBtn.style.backgroundColor = "transparent";
-      dashBtn.style.color = "#5aa8ff";
-    });
 
-    // New Lead button
+    // Remove absolute positioning, use flex natural layout
+    dashBtn.style.position = "static";
+    dashBtn.style.fontWeight = "700";
+    dashBtn.style.fontSize = "1.1em";
+    dashBtn.style.color = "#1e90ff";
+    dashBtn.style.background = "none";
+    dashBtn.style.borderRadius = "12px";
+    dashBtn.style.padding = "8px 18px";
+    dashBtn.style.opacity = "0.97";
+    dashBtn.style.textDecoration = "none";
+    dashBtn.style.transition = "background .16s, color .16s";
+    dashBtn.style.cursor = "pointer";
+
+    dashBtn.onmouseenter = () => { dashBtn.style.background = "rgba(30,144,255,.09)"; dashBtn.style.color = "#4aa8ff"; };
+    dashBtn.onmouseleave = () => { dashBtn.style.background = "none"; dashBtn.style.color = "#1e90ff"; };
+
+    // New Lead Button (right)
     const newLeadBtn = document.createElement("button");
-    newLeadBtn.id = "btnNewLead";
-    newLeadBtn.textContent = "New Lead";
+    newLeadBtn.id = "newLeadBtn";
+    newLeadBtn.textContent = "+ New Lead";
     newLeadBtn.style.cssText = `
+      background: var(--brand, #1e90ff);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 8px 16px;
       font-weight: 700;
       font-size: 1rem;
-      padding: 6px 14px;
-      border-radius: 12px;
-      border: none;
-      background-color: #1e90ff;
-      color: white;
       cursor: pointer;
-      white-space: nowrap;
-      box-shadow: 0 4px 12px rgba(30, 144, 255, 0.5);
-      transition: background-color 0.2s ease;
+      margin-left: 12px;
       user-select: none;
+      transition: background-color 0.2s ease;
     `;
-    newLeadBtn.addEventListener("mouseenter", () => newLeadBtn.style.backgroundColor = "#4aa8ff");
-    newLeadBtn.addEventListener("mouseleave", () => newLeadBtn.style.backgroundColor = "#1e90ff");
-
-    newLeadBtn.addEventListener("click", () => {
-      if (global.gpApp && typeof global.gpApp.open === "function") {
-        global.gpApp.open(); // loadContext without gid, fresh new lead
+    newLeadBtn.onmouseenter = () => newLeadBtn.style.background = "var(--blue-light, #4aa8ff)";
+    newLeadBtn.onmouseleave = () => newLeadBtn.style.background = "var(--brand, #1e90ff)";
+    newLeadBtn.onclick = async () => {
+      try {
+        const userUid = firebase.auth().currentUser?.uid || null;
+        const ref = await firebase.database().ref("guestinfo").push({
+          createdAt: Date.now(),
+          status: "new",
+          userUid
+        });
+        const newKey = ref.key;
+        localStorage.setItem("last_guestinfo_key", newKey);
+        const baseUrl = window.GUESTINFO_PAGE ? window.GUESTINFO_PAGE.split("?")[0] : "../html/guestinfo.html";
+        window.location.href = `${baseUrl}?gid=${encodeURIComponent(newKey)}&uistart=step1`;
+      } catch (err) {
+        alert("Error creating new lead: " + err.message);
       }
-    });
+    };
 
-    leftContainer.appendChild(dashBtn);
-    leftContainer.appendChild(newLeadBtn);
-
-    // Center container (progress + current step display)
+    // Center column (label + progress)
     const center = document.createElement("div");
-    center.style.cssText = `
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-width: 0;
-      max-width: 440px;
-      margin: 0 auto;
-    `;
-
-    // Current step display below progress label
-    const currentStepText = document.createElement("div");
-    currentStepText.id = "currentStepId";
-    currentStepText.style.cssText = `
-      margin-top: 4px;
-      font-weight: 600;
-      font-size: 0.95rem;
-      color: #a3bffa;
-      letter-spacing: 0.03em;
-      font-family: monospace, monospace;
-      user-select: text;
-    `;
-    currentStepText.textContent = "Step: Unknown";
+    center.style.flex = "1";
+    center.style.display = "flex";
+    center.style.flexDirection = "column";
+    center.style.alignItems = "center";
+    center.style.justifyContent = "center";
+    center.style.minWidth = "0";
 
     // Progress Label
     const label = document.createElement("label");
     label.htmlFor = "progressBar";
     label.textContent = "Completion:";
-    label.style.cssText = `
-      color: #cfd8ff;
-      font-weight: 700;
-      font-size: 1rem;
-      letter-spacing: 0.03em;
-      text-align: center;
-      width: 100%;
-    `;
+    label.style.color = "#e2e8f0";
+    label.style.fontWeight = "700";
+    label.style.fontSize = "1.1rem";
+    label.style.marginBottom = "6px";
+    label.style.letterSpacing = ".02em";
+    label.style.textAlign = "center";
+    label.style.width = "100%";
 
-    // Numeric % inside label
+    // Numeric %
     const pctLabel = document.createElement("span");
     pctLabel.id = "progressLabel";
-    pctLabel.style.cssText = `
-      font-variant-numeric: tabular-nums;
-      color: #7db4ff;
-      font-weight: 800;
-      margin-left: 8px;
-      font-size: 1.05rem;
-    `;
+    pctLabel.style.fontVariantNumeric = "tabular-nums";
+    pctLabel.style.color = "#82caff";
+    pctLabel.style.fontWeight = "800";
+    pctLabel.style.marginLeft = "5px";
+    pctLabel.style.fontSize = "1.12rem";
     pctLabel.textContent = "0%";
     label.appendChild(pctLabel);
 
     // Progress bar container
     const barWrap = document.createElement("div");
-    barWrap.style.cssText = `
-      width: 100%;
-      height: 20px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.08);
-      box-shadow: inset 0 1px 5px rgba(30,144,255,0.25);
-      overflow: hidden;
-      position: relative;
-    `;
+    barWrap.style.width = "100%";
+    barWrap.style.maxWidth = "440px";
+    barWrap.style.margin = "8px auto 0";
+    barWrap.style.position = "relative";
+    barWrap.style.background = "rgba(255,255,255,.07)";
+    barWrap.style.borderRadius = "16px";
+    barWrap.style.height = "28px";
+    barWrap.style.overflow = "hidden";
+    barWrap.style.boxShadow = "0 2px 20px rgba(30,144,255,0.13)";
+    barWrap.style.display = "flex";
+    barWrap.style.alignItems = "center";
 
     // Actual progress element (hidden for accessibility)
     const bar = document.createElement("progress");
     bar.id = "progressBar";
     bar.max = 100;
     bar.value = 0;
-    bar.style.cssText = `
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      opacity: 0;
-      pointer-events: none;
-    `;
+    bar.style.width = "100%";
+    bar.style.height = "100%";
+    bar.style.opacity = "0";
+    bar.style.position = "absolute";
+    bar.style.left = "0";
+    bar.style.top = "0";
+    bar.style.pointerEvents = "none";
 
     // Visual progress bar
     const visBar = document.createElement("div");
     visBar.id = "prettyBar";
-    visBar.style.cssText = `
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #3a94ff 0%, #72b7ff 100%);
-      box-shadow: 0 0 12px #3a94ffaa;
-      border-radius: 12px 0 0 12px;
-      transition: width 0.35s ease;
-    `;
+    visBar.style.position = "absolute";
+    visBar.style.left = "0";
+    visBar.style.top = "0";
+    visBar.style.height = "100%";
+    visBar.style.width = "0%";
+    visBar.style.background = "linear-gradient(90deg, #1e90ff 0%, #4aa8ff 100%)";
+    visBar.style.boxShadow = "0 2px 10px #1e90ff40";
+    visBar.style.borderRadius = "16px";
+    visBar.style.transition = "width .38s cubic-bezier(.62,.1,.32,1), background .23s";
 
-    // Floating percent text on the right
+    // Floating percent text
     const percentText = document.createElement("div");
     percentText.id = "progressText";
-    percentText.style.cssText = `
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #e0ebff;
-      font-weight: 700;
-      font-size: 0.95rem;
-      text-shadow: 0 0 8px #3a94ff99;
-      pointer-events: none;
-      user-select: none;
-    `;
+    percentText.style.position = "absolute";
+    percentText.style.right = "22px";
+    percentText.style.top = "50%";
+    percentText.style.transform = "translateY(-50%)";
+    percentText.style.color = "#fff";
+    percentText.style.fontWeight = "800";
+    percentText.style.fontSize = "1.01rem";
+    percentText.style.letterSpacing = ".01em";
+    percentText.style.textShadow = "0 2px 6px #1e90ff44";
+    percentText.style.pointerEvents = "none";
     percentText.textContent = "0%";
 
-    // Assemble progress bar
+    // Current Step display
+    const stepDisplay = document.createElement("div");
+    stepDisplay.id = "currentStepId";
+    stepDisplay.style.color = "#82caff";
+    stepDisplay.style.fontWeight = "700";
+    stepDisplay.style.fontSize = "1rem";
+    stepDisplay.style.marginLeft = "20px";
+    stepDisplay.style.userSelect = "none";
+    stepDisplay.textContent = "Step: Unknown";
+
+    // Compose progress bar
     barWrap.appendChild(bar);
     barWrap.appendChild(visBar);
     barWrap.appendChild(percentText);
 
     center.appendChild(label);
     center.appendChild(barWrap);
-    center.appendChild(currentStepText);
 
-    header.appendChild(leftContainer);
+    header.appendChild(dashBtn);
     header.appendChild(center);
+    header.appendChild(stepDisplay);
+    header.appendChild(newLeadBtn);
 
     // Insert header at top of body (outside main app container)
     document.body.prepend(header);
 
-    // Responsive padding adjustment
+    // Adjust header paddings based on viewport width (optional)
     function adjustHeaderForMobile() {
       const vw = Math.max(window.innerWidth, document.documentElement.clientWidth);
-      header.style.paddingLeft = vw < 700 ? "54px" : "24px";
-      header.style.paddingRight = vw < 480 ? "18px" : "24px";
-      center.style.maxWidth = vw < 600 ? "96vw" : "440px";
-      barWrap.style.maxWidth = "100%";
+      header.style.paddingLeft = vw < 700 ? "54px" : "20px";
+      header.style.paddingRight = vw < 480 ? "18px" : "20px";
+      center.style.maxWidth = vw < 600 ? "96vw" : "calc(100vw - 170px)"; // account for two buttons
+      barWrap.style.maxWidth = vw < 480 ? "94vw" : "440px";
     }
     window.addEventListener("resize", adjustHeaderForMobile);
     adjustHeaderForMobile();
 
-    // Progress update helper
+    // Update progress display helper
     global.updateProgressHeader = (pct) => {
       pct = Math.min(100, Math.max(0, Math.round(pct || 0)));
       bar.value = pct;
-      visBar.style.width = pct + "%";
+      visBar.style.width = `${pct}%`;
       percentText.textContent = pct + "%";
       pctLabel.textContent = pct + "%";
     };
 
-    // Current step text updater
+    // Update current step text helper
     global.updateCurrentStep = (stepId) => {
-      currentStepText.textContent = `Step: ${stepId || "Unknown"}`;
+      stepDisplay.textContent = `Step: ${stepId || "Unknown"}`;
     };
 
-    // Initial progress and step update after small delay
+    // Initial progress update
     setTimeout(() => {
       const initialVal = Number(document.getElementById("progressBar")?.value || 0);
       global.updateProgressHeader(initialVal);
@@ -260,7 +242,7 @@
 
     // 2. Unified 3-section row (Step 1, Step 2, Step 3)
     const container = document.createElement("div");
-    container.style.cssText = `
+    container.style = `
       display: flex;
       gap: 28px;
       flex-wrap: wrap;
@@ -273,7 +255,7 @@
 
     // Step 1: Customer Info
     const step1 = document.createElement("section");
-    step1.style.cssText = `
+    step1.style = `
       flex: 1 1 300px;
       background: #252733;
       padding: 30px 24px 22px 24px;
@@ -301,7 +283,7 @@
 
     // Step 2: Evaluate Needs (center card)
     const step2 = document.createElement("section");
-    step2.style.cssText = `
+    step2.style = `
       flex: 2 1 650px;
       background: #22273c;
       padding: 34px 28px 24px 28px;
@@ -323,7 +305,7 @@
 
     // Step 3: Proposed Solution (right card)
     const step3 = document.createElement("section");
-    step3.style.cssText = `
+    step3.style = `
       flex: 1 1 300px;
       background: #252733;
       padding: 30px 24px 22px 24px;
