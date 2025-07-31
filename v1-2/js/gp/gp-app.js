@@ -163,8 +163,10 @@ export class GuestFormApp {
       const newKey = await createNewLead(uid);
       await this.loadGuest(newKey);
       if (this.onLeadChange) this.onLeadChange(newKey);
+      return newKey;
     } catch (e) {
       console.error("Error creating new lead:", e);
+      return null;
     }
   }
 }
@@ -207,8 +209,11 @@ firebaseOnAuthStateChanged(async (user) => {
       }
     });
 
-    const lastLead = localStorage.getItem("last_guestinfo_key");
-    if (lastLead) await app.loadGuest(lastLead);
+    let lastLead = localStorage.getItem("last_guestinfo_key");
+    if (!lastLead) {
+      lastLead = await app.createNewLead();
+    }
+    await app.loadGuest(lastLead);
 
     document.getElementById("newLeadBtn").onclick = async () => {
       await app.createNewLead();
