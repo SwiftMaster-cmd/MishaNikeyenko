@@ -144,7 +144,6 @@ export class GuestFormApp {
 
       if (this.onLeadChange) this.onLeadChange(this.guestKey);
 
-      // Set progress on load
       const progress = guest.completionPct ?? this.calculateProgress(guest);
       if (this.onProgressUpdate) this.onProgressUpdate(progress);
 
@@ -170,8 +169,7 @@ export class GuestFormApp {
   }
 }
 
-// ----------- AUTH AND UI LOGIC -------------
-
+// AUTH AND UI LOGIC
 const emailInput = document.getElementById("emailInput");
 const passwordInput = document.getElementById("passwordInput");
 const signInBtn = document.getElementById("signInBtn");
@@ -199,7 +197,7 @@ firebaseOnAuthStateChanged(async (user) => {
 
     const app = new GuestFormApp({
       onLeadChange: (id) => {
-        document.getElementById("leadIdDisplay").textContent = `Lead ID: ${id}`;
+        document.getElementById("leadIdText").textContent = id || '--';
         localStorage.setItem("last_guestinfo_key", id);
       },
       onProgressUpdate: (pct) => {
@@ -207,6 +205,8 @@ firebaseOnAuthStateChanged(async (user) => {
         document.getElementById("progressLabel").textContent = pct + "%";
       }
     });
+
+    window.gpApp = app; // expose globally so gp.js can access
 
     let lastLead = localStorage.getItem("last_guestinfo_key");
     if (!lastLead) {
