@@ -1,116 +1,79 @@
-// gp-core.js -- scoring engine, status detection, normalization & Firebase init
-// Place this at ../js/gp/gp-core.js, loaded **after** Firebase SDKs & gp-questions.js
+// gp-core.js - pure functions, constants, no UI or Firebase
 
-(function(global){
-  // ───────────────────────────────────────────────────────────────────────────
-  // Firebase initialization (only once)
-  // ───────────────────────────────────────────────────────────────────────────
-  const firebaseConfig = global.GP_FIREBASE_CONFIG || {
-    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
-    authDomain: "osls-644fd.firebaseapp.com",
-    databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
-    projectId: "osls-644fd",
-    storageBucket: "osls-644fd.appspot.com",
-    messagingSenderId: "798578046321",
-    appId: "1:798578046321:web:1a2bcd3ef4567gh8i9jkl",
-    measurementId: "G-XXXXXXX"
+export const PITCH_WEIGHTS = {
+  custName:8, custPhone:7,
+  currentCarrier:12, numLines:8, coverageZip:8,
+  deviceStatus:8, finPath:12,
+  billPain:4, dataNeed:4, hotspotNeed:2, intlNeed:2,
+  solutionText:25
+};
+
+export const FIELD_STEP = {
+  custName:"step1", custPhone:"step1",
+  currentCarrier:"step2", numLines:"step2", coverageZip:"step2",
+  deviceStatus:"step2", finPath:"step2",
+  billPain:"step2", dataNeed:"step2", hotspotNeed:"step2", intlNeed:"step2",
+  solutionText:"step3"
+};
+
+export function hasVal(v) {
+  if (v == null) return false;
+  if (typeof v === "string")  return v.trim() !== "";
+  if (typeof v === "number")  return true;
+  if (typeof v === "boolean") return v;
+  if (Array.isArray(v))       return v.length>0;
+  if (typeof v === "object")  return Object.keys(v).length>0;
+  return false;
+}
+
+export function digitsOnly(s){
+  return (s||"").replace(/\D+/g,"");
+}
+
+export function detectStatus(g){
+  const s=(g?.status||"").toLowerCase();
+  if (s) return s;
+  if (g?.solution && hasVal(g.solution.text)) return "proposal";
+  if (g.evaluate && Object.values(g.evaluate).some(hasVal)) return "working";
+  return "new";
+}
+
+export function normGuest(src = {}) {
+  const custName  = src.custName  ?? src.guestName  ?? "";
+  const custPhone = src.custPhone ?? src.guestPhone ?? "";
+  const e = {...src.evaluate || {}};
+  if (e.currentCarrier==null && src.currentCarrier!=null) e.currentCarrier=src.currentCarrier;
+  if (e.numLines==null && src.numLines!=null) e.numLines=src.numLines;
+  if (e.coverageZip==null && src.coverageZip!=null) e.coverageZip=src.coverageZip;
+  if (e.deviceStatus==null && src.deviceStatus!=null) e.deviceStatus=src.deviceStatus;
+  if (e.finPath==null && src.finPath!=null) e.finPath=src.finPath;
+  const sol = {...src.solution||{}};
+  if (sol.text==null && src.solutionText!=null) sol.text=src.solutionText;
+  const out = {
+    ...src,
+    custName,
+    custPhone,
+    custPhoneDigits: digitsOnly(custPhone),
+    evaluate: e,
+    solution: sol,
+    prefilledStep1: src.prefilledStep1 || hasVal(custName) || hasVal(custPhone)
   };
-  if (global.firebase && !firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  // ───────────────────────────────────────────────────────────────────────────
+  out.status = detectStatus(out);
+  return out;
+}
 
-  // Build the point weights, combining static Step1 & Step3 with dynamic Step2
-  function buildWeights() {
-    const w = {
-      // Step 1
-      custName:  8,
-      custPhone: 7
-    };
-    // Step 2: dynamic questions from gpQuestions[]
-    (global.gpQuestions || []).forEach(q => {
-      w[q.id] = q.weight;
-    });
-    // Step 3: solution text
-    w.solutionText = 25;
-    return w;
-  }
-
-  // Re-compute weights whenever gpQuestions updates
-  let PITCH_WEIGHTS = buildWeights();
-  if (global.onQuestionsUpdated) {
-    global.onQuestionsUpdated(() => {
-      PITCH_WEIGHTS = buildWeights();
-    });
-  }
-
-  // computePitchFull
-  function computePitchFull(g) {
-    const fields = {};
-    let total = 0, earned = 0;
-
-    for (const [field, wt] of Object.entries(PITCH_WEIGHTS)) {
-      total += wt;
-      let ok = false;
-      const val = (field === 'solutionText')
-        ? (g.solution && g.solution.text)
-        : g[field];
-
-      if (typeof val === 'string') {
-        ok = val.trim() !== '';
-      } else if (typeof val === 'number') {
-        ok = !isNaN(val);
-      } else {
-        ok = Boolean(val);
-      }
-
-      if (ok) earned += wt;
-      fields[field] = { wt, ok };
+export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
+  const steps = { step1: {earned:0,max:0}, step2: {earned:0,max:0}, step3: {earned:0,max:0} };
+  let earned = 0, max = 0;
+  for (const [k, wt] of Object.entries(weights)) {
+    const st = FIELD_STEP[k] || "step1";
+    steps[st].max += wt; max += wt;
+    const ok = hasVal(g[k]) || hasVal(g.evaluate?.[k]);
+    if (ok) {
+      steps[st].earned += wt;
+      earned += wt;
     }
-
-    const pctFull = total > 0 ? (earned / total) * 100 : 0;
-    return { pctFull, fields };
   }
-
-  // detectStatus
-  function detectStatus(g) {
-    if (g.solution && g.solution.text && g.solution.text.trim() !== '') {
-      return 'proposal';
-    }
-
-    const answeredStep1 = 
-      (typeof g.custName === 'string' && g.custName.trim() !== '') ||
-      (typeof g.custPhone === 'string' && g.custPhone.trim() !== '');
-
-    const answeredStep2 = (global.gpQuestions || []).some(q => {
-      const v = g[q.id];
-      if (typeof v === 'string') return v.trim() !== '';
-      if (typeof v === 'number') return !isNaN(v);
-      return Boolean(v);
-    });
-
-    if (answeredStep1 || answeredStep2) {
-      return 'working';
-    }
-
-    return 'new';
-  }
-
-  // normGuest
-  function normGuest(g) {
-    if (g.evaluate && typeof g.evaluate === 'object') {
-      Object.assign(g, g.evaluate);
-      delete g.evaluate;
-    }
-    return g;
-  }
-
-  // Expose API
-  global.gpCore = {
-    PITCH_WEIGHTS,
-    computePitchFull,
-    detectStatus,
-    normGuest
-  };
-
-})(window);
+  const pct = max ? Math.round((earned / max) * 100) : 0;
+  return { pct, steps };
+}
