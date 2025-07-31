@@ -1,5 +1,14 @@
-import { firebaseOnAuthStateChanged, signIn, getCurrentUserUid, createNewLead } from '../js/gp/gp-firebase.js';
-import { gpApp } from '../js/gp/gp-app.js';
+import {
+  firebaseOnAuthStateChanged,
+  signIn,
+  getCurrentUserUid,
+  createNewLead,
+  getGuest,
+  updateGuest,
+  attachCompletionListener
+} from "./gp-firebase.js";
+
+import { GuestFormApp } from "./gp-app.js";
 
 // DOM Elements
 const authContainer = document.getElementById('authContainer');
@@ -21,8 +30,13 @@ const headerNav = document.getElementById('headerNav');
 
 // Show/hide lead ID
 toggleLeadIdBtn.addEventListener('click', () => {
-  const isHidden = leadIdText.classList.toggle('hidden');
-  toggleLeadIdBtn.textContent = isHidden ? 'See Lead ID' : 'Hide Lead ID';
+  if (leadIdText.classList.contains('hidden')) {
+    leadIdText.classList.remove('hidden');
+    toggleLeadIdBtn.textContent = 'Hide Lead ID';
+  } else {
+    leadIdText.classList.add('hidden');
+    toggleLeadIdBtn.textContent = 'See Lead ID';
+  }
 });
 
 // Toggle mobile menu
@@ -46,14 +60,21 @@ firebaseOnAuthStateChanged(async (user) => {
     authContainer.style.display = 'none';
     guestApp.style.display = 'block';
 
-    if (!gpApp.guestKey) {
+    if (!window.gpApp) {
+      window.gpApp = new GuestFormApp({
+        onLeadChange: updateLeadDisplay,
+        onProgressUpdate: updateProgress
+      });
+    }
+
+    if (!window.gpApp.guestKey) {
       const newKey = await createNewLead(getCurrentUserUid());
-      gpApp.setGuestKey(newKey);
+      window.gpApp.setGuestKey(newKey);
     }
 
     updateLeadDisplay();
-    await gpApp.loadContext();
-    gpApp.attachCompletionListener(updateProgress);
+    await window.gpApp.loadContext();
+    window.gpApp.attachCompletionListener(updateProgress);
   } else {
     authContainer.style.display = 'block';
     guestApp.style.display = 'none';
@@ -62,15 +83,15 @@ firebaseOnAuthStateChanged(async (user) => {
 
 // New lead button
 newLeadBtn.addEventListener('click', async () => {
-  if (!gpApp) return alert('App not ready');
+  if (!window.gpApp) return alert('App not ready');
   const newKey = await createNewLead(getCurrentUserUid());
-  gpApp.setGuestKey(newKey);
+  window.gpApp.setGuestKey(newKey);
   updateLeadDisplay();
-  await gpApp.loadContext();
+  await window.gpApp.loadContext();
   updateProgress(0);
 });
 
-// Dashboard button
+// Dashboard button (optional additional logic can go here)
 dashboardBtn.addEventListener('click', () => {
   window.location.href = './admin.html';
 });
@@ -82,6 +103,6 @@ function updateProgress(pct) {
 }
 
 // Update lead ID display
-function updateLeadDisplay() {
-  leadIdText.textContent = gpApp.guestKey || '--';
+function updateLeadDisplay(id) {
+  leadIdText.textContent = window.gpApp.guestKey || '--';
 }

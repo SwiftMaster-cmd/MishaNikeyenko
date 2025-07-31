@@ -1,4 +1,4 @@
-/* Reset and base */
+/* Reset */
 *,
 *::before,
 *::after {
@@ -6,19 +6,70 @@
   margin: 0;
   padding: 0;
 }
+
 html, body {
   width: 100%;
   height: 100%;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #121212, #1e90ff 90%);
+  background: #121212;
   color: #e2e8f0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-  scroll-behavior: smooth;
 }
 
-/* Header */
+/* Auth & App containers */
+#authContainer,
+#guestApp {
+  max-width: 480px;
+  margin: 1rem auto;
+  background: rgba(26,28,36,0.95);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(30,144,255,0.2);
+}
+
+#guestApp {
+  display: none;
+}
+
+/* Inputs & Buttons */
+input, button, textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255,255,255,0.05);
+  color: #e2e8f0;
+  font-size: 1rem;
+  font-family: inherit;
+  margin-top: 0.5rem;
+  resize: vertical;
+}
+
+button {
+  background: #1e90ff;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  background: #4aa8ff;
+}
+
+button:disabled {
+  background: #555;
+  cursor: not-allowed;
+}
+
+#errorMsg {
+  color: #ff5252;
+  min-height: 1.2rem;
+  margin-top: 0.5rem;
+}
+
+/* Sticky header */
 #stickyHeader {
   position: sticky;
   top: 0; left: 0; right: 0;
@@ -44,7 +95,6 @@ html, body {
   gap: 1rem;
 }
 
-/* Title */
 #portalTitle {
   font-size: 1.8rem;
   font-weight: 800;
@@ -54,7 +104,6 @@ html, body {
   white-space: nowrap;
 }
 
-/* Nav */
 #headerNav {
   display: flex;
   gap: 1rem;
@@ -83,7 +132,6 @@ html, body {
   background-color: #4aa8ff;
 }
 
-/* Lead ID text */
 #leadIdText {
   font-family: monospace;
   background: rgba(0,0,0,0.4);
@@ -95,139 +143,6 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Hide utility */
-.hidden {
-  display: none !important;
-}
-
-/* Progress bar */
-progress#progressBar {
-  width: 120px;
-  height: 22px;
-  border-radius: 14px;
-  appearance: none;
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
-  overflow: hidden;
-  box-shadow: inset 0 1px 6px rgba(0,0,0,0.25);
-}
-
-progress#progressBar::-webkit-progress-bar {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 14px;
-}
-
-progress#progressBar::-webkit-progress-value {
-  background: linear-gradient(90deg, #1e90ff, #4aa8ff);
-  border-radius: 14px;
-  box-shadow: 0 0 12px #1e90ff88;
-  transition: width 0.3s ease;
-}
-
-progress#progressBar::-moz-progress-bar {
-  background: linear-gradient(90deg, #1e90ff, #4aa8ff);
-  border-radius: 14px;
-}
-
-/* Progress label */
-#progressLabel {
-  font-weight: 700;
-  color: #4aa8ff;
-  font-size: 1.1rem;
-  margin-left: 12px;
-  user-select: none;
-}
-
-/* Main content and form */
-#mainContent {
-  width: 90vw;
-  max-width: 900px;
-  margin: 2rem auto 4rem;
-  background: rgba(26,28,36,0.7);
-  border-radius: 18px;
-  padding: 2rem 3rem;
-  box-shadow: 0 12px 40px rgba(30,144,255,0.6);
-  backdrop-filter: saturate(180%) blur(24px);
-  -webkit-backdrop-filter: saturate(180%) blur(24px);
-  user-select: text;
-}
-
-/* Steps */
-.step-section {
-  margin-bottom: 2.5rem;
-}
-
-.step-section h2 {
-  font-weight: 700;
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #b9cfff;
-}
-
-/* Labels */
-label {
-  display: block;
-  font-weight: 600;
-  margin-top: 1rem;
-  color: #d5dcff;
-}
-
-/* Inputs */
-input[type="text"],
-input[type="number"],
-input[type="tel"],
-select,
-textarea {
-  width: 100%;
-  font-size: 1.25rem;
-  padding: 0.85rem 1rem;
-  border-radius: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
-  color: #d8e2ff;
-  transition: background 0.2s, border-color 0.2s;
-  text-align: center;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-weight: 500;
-  user-select: text;
-  box-shadow: inset 0 0 6px rgba(0,0,0,0.8);
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: #1e90ff;
-  background: rgba(255, 255, 255, 0.15);
-  outline: 2px solid #4aa8ff;
-  outline-offset: 2px;
-}
-
-/* Textarea */
-textarea {
-  resize: vertical;
-  min-height: 120px;
-}
-
-/* Responsive header */
-@media (max-width: 768px) {
-  #headerInner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  #headerNav {
-    width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
-
-  #headerNav button {
-    flex: 1 1 45%;
-    min-width: auto;
-  }
 }
 
 /* Mobile hamburger */
@@ -272,4 +187,60 @@ textarea {
     flex: none;
     width: 100%;
   }
+}
+
+/* Main content and form sections */
+#mainContent {
+  max-width: 480px;
+  width: 94vw;
+  margin: 2rem auto;
+}
+
+.step-section {
+  margin-bottom: 2rem;
+}
+
+.step-section h2 {
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-top: 1rem;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="tel"],
+select,
+textarea {
+  width: 100%;
+  font-size: 1.1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  transition: background 0.2s, border-color 0.2s;
+  text-align: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-weight: 500;
+  user-select: text;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #1e90ff;
+  background: rgba(255, 255, 255, 0.2);
+  outline: 2px solid #4aa8ff;
+  outline-offset: 2px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 110px;
 }
