@@ -1,16 +1,7 @@
-import {
-  firebaseOnAuthStateChanged,
-  signIn,
-  getCurrentUserUid,
-  createNewLead,
-  getGuest,
-  updateGuest,
-  attachCompletionListener
-} from "./gp-firebase.js";
+import { firebaseOnAuthStateChanged, signIn, getCurrentUserUid, createNewLead } from '../js/gp/gp-firebase.js';
+import { gpApp } from '/gp-app.js';
 
-import { GuestFormApp } from "./gp-app.js";
-
-// DOM Elements
+// Elements
 const authContainer = document.getElementById('authContainer');
 const guestApp = document.getElementById('guestApp');
 const errorMsg = document.getElementById('errorMsg');
@@ -28,15 +19,10 @@ const toggleLeadIdBtn = document.getElementById('toggleLeadIdBtn');
 const menuToggle = document.getElementById('menuToggle');
 const headerNav = document.getElementById('headerNav');
 
-// Show/hide lead ID
+// Toggle lead ID visibility
 toggleLeadIdBtn.addEventListener('click', () => {
-  if (leadIdText.classList.contains('hidden')) {
-    leadIdText.classList.remove('hidden');
-    toggleLeadIdBtn.textContent = 'Hide Lead ID';
-  } else {
-    leadIdText.classList.add('hidden');
-    toggleLeadIdBtn.textContent = 'See Lead ID';
-  }
+  const hidden = leadIdText.classList.toggle('hidden');
+  toggleLeadIdBtn.textContent = hidden ? 'See Lead ID' : 'Hide Lead ID';
 });
 
 // Toggle mobile menu
@@ -44,7 +30,7 @@ menuToggle.addEventListener('click', () => {
   headerNav.classList.toggle('expanded');
 });
 
-// Sign-in button logic
+// Sign in button
 signInBtn.addEventListener('click', async () => {
   errorMsg.textContent = '';
   try {
@@ -57,41 +43,34 @@ signInBtn.addEventListener('click', async () => {
 // Auth state listener
 firebaseOnAuthStateChanged(async (user) => {
   if (user) {
-    authContainer.style.display = 'none';
-    guestApp.style.display = 'block';
+    authContainer.hidden = true;
+    guestApp.hidden = false;
 
-    if (!window.gpApp) {
-      window.gpApp = new GuestFormApp({
-        onLeadChange: updateLeadDisplay,
-        onProgressUpdate: updateProgress
-      });
-    }
-
-    if (!window.gpApp.guestKey) {
+    if (!gpApp.guestKey) {
       const newKey = await createNewLead(getCurrentUserUid());
-      window.gpApp.setGuestKey(newKey);
+      gpApp.setGuestKey(newKey);
     }
 
     updateLeadDisplay();
-    await window.gpApp.loadContext();
-    window.gpApp.attachCompletionListener(updateProgress);
+    await gpApp.loadContext();
+    gpApp.attachCompletionListener(updateProgress);
   } else {
-    authContainer.style.display = 'block';
-    guestApp.style.display = 'none';
+    authContainer.hidden = false;
+    guestApp.hidden = true;
   }
 });
 
-// New lead button
+// New Lead button
 newLeadBtn.addEventListener('click', async () => {
-  if (!window.gpApp) return alert('App not ready');
+  if (!gpApp) return alert('App not ready');
   const newKey = await createNewLead(getCurrentUserUid());
-  window.gpApp.setGuestKey(newKey);
+  gpApp.setGuestKey(newKey);
   updateLeadDisplay();
-  await window.gpApp.loadContext();
+  await gpApp.loadContext();
   updateProgress(0);
 });
 
-// Dashboard button (optional additional logic can go here)
+// Dashboard button
 dashboardBtn.addEventListener('click', () => {
   window.location.href = './admin.html';
 });
@@ -103,6 +82,6 @@ function updateProgress(pct) {
 }
 
 // Update lead ID display
-function updateLeadDisplay(id) {
-  leadIdText.textContent = window.gpApp.guestKey || '--';
+function updateLeadDisplay() {
+  leadIdText.textContent = gpApp.guestKey || '--';
 }
