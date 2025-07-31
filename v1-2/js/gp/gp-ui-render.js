@@ -9,10 +9,9 @@
 
   // --- PROGRESS HEADER (all logic in this file) ---
   global.createProgressHeader = function(app, dashUrl) {
-    // Remove any old header
+    // Remove old header if exists
     document.getElementById('gpProgressHeader')?.remove();
 
-    // Create sticky/glassy header wrapper
     const header = document.createElement("header");
     header.id = "gpProgressHeader";
     header.style.cssText = `
@@ -28,11 +27,16 @@
       backdrop-filter: blur(10px);
       border-bottom: 1px solid #2a2f3e;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-        Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      user-select: none;
     `;
 
-    // Dashboard button (left)
+    // Left container for dash link + new lead button
+    const leftContainer = document.createElement("div");
+    leftContainer.style.display = "flex";
+    leftContainer.style.alignItems = "center";
+    leftContainer.style.gap = "12px";
+
+    // Dashboard button
     const dashBtn = document.createElement("a");
     dashBtn.href = dashUrl;
     dashBtn.id = "backToDash";
@@ -45,10 +49,9 @@
       text-decoration: none;
       padding: 6px 14px;
       border-radius: 12px;
-      transition: background-color 0.2s ease, color 0.2s ease;
-      user-select: none;
       cursor: pointer;
       white-space: nowrap;
+      transition: background-color 0.2s ease, color 0.2s ease;
     `;
     dashBtn.addEventListener("mouseenter", () => {
       dashBtn.style.backgroundColor = "rgba(90,168,255,0.15)";
@@ -59,7 +62,37 @@
       dashBtn.style.color = "#5aa8ff";
     });
 
-    // Center container (label + progress bar)
+    // New Lead button
+    const newLeadBtn = document.createElement("button");
+    newLeadBtn.id = "btnNewLead";
+    newLeadBtn.textContent = "New Lead";
+    newLeadBtn.style.cssText = `
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 6px 14px;
+      border-radius: 12px;
+      border: none;
+      background-color: #1e90ff;
+      color: white;
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(30, 144, 255, 0.5);
+      transition: background-color 0.2s ease;
+      user-select: none;
+    `;
+    newLeadBtn.addEventListener("mouseenter", () => newLeadBtn.style.backgroundColor = "#4aa8ff");
+    newLeadBtn.addEventListener("mouseleave", () => newLeadBtn.style.backgroundColor = "#1e90ff");
+
+    newLeadBtn.addEventListener("click", () => {
+      if (global.gpApp && typeof global.gpApp.open === "function") {
+        global.gpApp.open(); // loadContext without gid, fresh new lead
+      }
+    });
+
+    leftContainer.appendChild(dashBtn);
+    leftContainer.appendChild(newLeadBtn);
+
+    // Center container (progress + current step display)
     const center = document.createElement("div");
     center.style.cssText = `
       flex: 1;
@@ -70,8 +103,21 @@
       min-width: 0;
       max-width: 440px;
       margin: 0 auto;
-      user-select: none;
     `;
+
+    // Current step display below progress label
+    const currentStepText = document.createElement("div");
+    currentStepText.id = "currentStepId";
+    currentStepText.style.cssText = `
+      margin-top: 4px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #a3bffa;
+      letter-spacing: 0.03em;
+      font-family: monospace, monospace;
+      user-select: text;
+    `;
+    currentStepText.textContent = "Step: Unknown";
 
     // Progress Label
     const label = document.createElement("label");
@@ -81,7 +127,6 @@
       color: #cfd8ff;
       font-weight: 700;
       font-size: 1rem;
-      margin-bottom: 6px;
       letter-spacing: 0.03em;
       text-align: center;
       width: 100%;
@@ -163,8 +208,9 @@
 
     center.appendChild(label);
     center.appendChild(barWrap);
+    center.appendChild(currentStepText);
 
-    header.appendChild(dashBtn);
+    header.appendChild(leftContainer);
     header.appendChild(center);
 
     // Insert header at top of body (outside main app container)
@@ -190,10 +236,16 @@
       pctLabel.textContent = pct + "%";
     };
 
-    // Initial progress update after small delay
+    // Current step text updater
+    global.updateCurrentStep = (stepId) => {
+      currentStepText.textContent = `Step: ${stepId || "Unknown"}`;
+    };
+
+    // Initial progress and step update after small delay
     setTimeout(() => {
       const initialVal = Number(document.getElementById("progressBar")?.value || 0);
       global.updateProgressHeader(initialVal);
+      global.updateCurrentStep("step1");
     }, 200);
   };
 
