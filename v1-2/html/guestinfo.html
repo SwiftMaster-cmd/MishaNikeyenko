@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
   <link rel="stylesheet" href="../css/dashboard.css" />
-    <link rel="stylesheet" href="../css/guest-portal.css" />
+  <link rel="stylesheet" href="../css/guest-portal.css" />
   <style>
     /* lightweight fallback styles for injected elements (in case CSS file lacks) */
     .hidden{display:none!important;}
@@ -28,8 +28,6 @@
 </head>
 <body>
 
-
-  </header>
   <div id="guestApp"></div> <!-- container JS will fill -->
 
   <!-- Firebase SDKs -->
@@ -37,25 +35,26 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-<!-- Step 2 questions data -->
-<script src="../js/gp/gp-questions.js"></script>
+  <!-- Step 2 questions data -->
+  <script src="../js/gp/gp-questions.js"></script>
 
-<!-- Core logic -->
-<script src="../js/gp/gp-core.js"></script>
+  <!-- Core logic -->
+  <script src="../js/gp/gp-core.js"></script>
 
-<!-- Main app logic, auth, save/load handling -->
-<script src="../js/gp/gp-app-min.js"></script>
+  <!-- Main app logic, auth, save/load handling -->
+  <script src="../js/gp/gp-app-min.js"></script>
 
-<!-- UI rendering: renders main containers incl #step2Fields -->
-<script src="../js/gp/gp-ui-render.js"></script>
+  <!-- UI rendering: renders main containers incl #step2Fields -->
+  <script src="../js/gp/gp-ui-render.js"></script>
 
-<!-- Progress bar UI helper -->
-<script src="../js/gp/progress-bar.js"></script>
+  <!-- Progress bar UI helper -->
+  <script src="../js/gp/progress-bar.js"></script>
 
-<!-- Step 2 UI and event handling module (depends on gpQuestions & #step2Fields) -->
-<script src="../js/gp/step-ui.js"></script>
+  <!-- Step 2 UI and event handling module (depends on gpQuestions & #step2Fields) -->
+  <script src="../js/gp/step-ui.js"></script>
 
-<!-- UI app: hooks input events and calls gpApp.saveNow -->
-<script src="../js/gp/ui-app.js"></script>
+  <!-- UI app: hooks input events and calls gpApp.saveNow -->
+  <script src="../js/gp/ui-app.js"></script>
+
 </body>
 </html>
