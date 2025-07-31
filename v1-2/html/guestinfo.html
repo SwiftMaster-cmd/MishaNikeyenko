@@ -8,59 +8,56 @@
 </head>
 <body>
 
-  <div id="authContainer">
-    <h2>Sign In</h2>
-    <div id="errorMsg"></div>
-    <input type="email" id="emailInput" placeholder="Email" autocomplete="username" />
-    <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password" />
-    <button id="signInBtn">Sign In</button>
-  </div>
+  <header id="stickyHeader">
+    <div id="headerInner">
+      <h1 id="portalTitle">OSL Guest Portal</h1>
+      <button id="menuToggle" aria-label="Toggle menu">&#9776;</button>
+      <nav id="headerNav" class="hidden" aria-label="Main Navigation">
+        <button id="newLeadBtn">+ New Lead</button>
+        <button id="dashboardBtn" type="button">Dashboard</button>
+        <button id="toggleLeadIdBtn" type="button">See Lead ID</button>
+        <span id="leadIdText" class="hidden" aria-live="polite" aria-atomic="true">--</span>
+        <progress id="progressBar" max="100" value="0" aria-label="Progress"></progress>
+        <span id="progressLabel" aria-live="polite" aria-atomic="true">0%</span>
+      </nav>
+    </div>
+  </header>
 
-  <div id="guestApp">
-    <header id="stickyHeader">
-      <div id="headerInner">
-        <h1 id="portalTitle">OSL Guest Portal</h1>
-        <button id="menuToggle" aria-label="Toggle menu">&#9776;</button>
+  <main id="mainContent">
+    <section id="authContainer" aria-label="Sign In Form">
+      <h2>Sign In</h2>
+      <div id="errorMsg" role="alert" aria-live="assertive"></div>
+      <input type="email" id="emailInput" placeholder="Email" autocomplete="username" aria-required="true" />
+      <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password" aria-required="true" />
+      <button id="signInBtn">Sign In</button>
+    </section>
 
-        <nav id="headerNav" aria-label="Main Navigation" class="hidden">
-          <button id="newLeadBtn">+ New Lead</button>
-          <button id="dashboardBtn" type="button">Dashboard</button>
-          <button id="toggleLeadIdBtn" type="button">See Lead ID</button>
-          <span id="leadIdText" class="hidden" aria-live="polite" aria-atomic="true">--</span>
-          <progress id="progressBar" max="100" value="0" aria-label="Progress"></progress>
-          <span id="progressLabel" aria-live="polite" aria-atomic="true">0%</span>
-        </nav>
-      </div>
-    </header>
-
-    <main id="mainContent">
-      <section id="step1Form" class="step-section">
-        <h2>Step 1: Customer Info</h2>
-        <label>
-          Customer Name
+    <section id="guestApp" aria-label="Guest Lead Form" hidden>
+      <form>
+        <section id="step1Form" class="step-section" aria-labelledby="step1Title">
+          <h2 id="step1Title">Step 1: Customer Info</h2>
+          <label for="custName">Customer Name</label>
           <input id="custName" type="text" autocomplete="off" />
-        </label>
-        <label>
-          Customer Phone
+          <label for="custPhone">Customer Phone</label>
           <input id="custPhone" type="tel" autocomplete="off" />
-        </label>
-      </section>
+        </section>
 
-      <section id="step2Form" class="step-section">
-        <h2>Step 2: Evaluate Needs</h2>
-        <div id="step2Fields"><!-- Dynamic questions here --></div>
-      </section>
+        <section id="step2Form" class="step-section" aria-labelledby="step2Title">
+          <h2 id="step2Title">Step 2: Evaluate Needs</h2>
+          <div id="step2Fields"><!-- Dynamic questions injected here --></div>
+        </section>
 
-      <section id="step3Form" class="step-section">
-        <h2>Step 3: Proposed Solution</h2>
-        <textarea id="solutionText" rows="6" placeholder="Enter proposed solution…"></textarea>
-      </section>
-    </main>
-  </div>
+        <section id="step3Form" class="step-section" aria-labelledby="step3Title">
+          <h2 id="step3Title">Step 3: Proposed Solution</h2>
+          <textarea id="solutionText" rows="6" placeholder="Enter proposed solution…"></textarea>
+        </section>
+      </form>
+    </section>
+  </main>
 
-  <script type="module" src="../js/gp/firebase.js"></script>
-    <script type="module" src="../js/gp/gp-app.js"></script>
-      <script type="module" src="../js/gp/gp.js"></script>
+  <script type="module" src="../js/gp/gp-firebase.js"></script>
+  <script type="module" src="../js/gp/gp-app.js"></script>
+  <script type="module" src="../js/gp/gp.js"></script>
 
 </body>
 </html>
