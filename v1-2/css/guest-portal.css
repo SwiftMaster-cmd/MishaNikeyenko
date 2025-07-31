@@ -273,3 +273,28 @@ textarea {
     width: 100%;
   }
 }
+@media (min-width: 768px) {
+  #headerNav {
+    display: flex !important;
+  }
+
+  #menuToggle {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  #headerNav.hidden {
+    display: none;
+  }
+
+  #headerNav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  #menuToggle {
+    display: inline-block;
+  }
+}
