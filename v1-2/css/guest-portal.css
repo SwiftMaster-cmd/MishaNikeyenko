@@ -301,3 +301,24 @@ textarea {
     display: inline-block;
   }
 }
+#progressWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 100%;
+  max-width: 300px;
+}
+
+#headerButtons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: nowrap;
+  flex: 1 1 auto;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+#headerButtons button {
+  min-width: 110px;
+  flex: 1 1 auto;
+}
