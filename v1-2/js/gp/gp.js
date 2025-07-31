@@ -1,5 +1,5 @@
 import { firebaseOnAuthStateChanged, signIn, getCurrentUserUid, createNewLead } from '../js/gp/gp-firebase.js';
-import { gpApp } from '/gp-app.js';
+import { gpApp } from './gp-app.js';
 
 // Elements
 const authContainer = document.getElementById('authContainer');
