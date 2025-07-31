@@ -10,22 +10,17 @@
 
   <header id="stickyHeader">
 
-  <h1 id="portalTitle">OSL Guest Portal</h1>
+ <div id="headerInner">
+      <h1 id="portalTitle">OSL Guest Portal</h1>
+      <progress id="progressBar" max="100" value="0" aria-label="Progress"></progress>
+        <span id="progressLabel" aria-live="polite" aria-atomic="true">0%</span>
+        <div>
+        <button id="newLeadBtn">+ New Lead</button>
+        <button id="dashboardBtn" type="button">Dashboard</button>
+        <button id="toggleLeadIdBtn" type="button">See Lead ID</button>
 
-  <div id="progressWrap">
-    <progress id="progressBar" max="100" value="0" aria-label="Progress"></progress>
-    <span id="progressLabel" aria-live="polite" aria-atomic="true">0%</span>
-  </div>
-
-  <div id="headerButtons">
-    <button id="newLeadBtn">+ New Lead</button>
-    <button id="dashboardBtn" type="button">Dashboard</button>
-    <button id="toggleLeadIdBtn" type="button">See Lead ID</button>
-  </div>
-
-  <span id="leadIdText" class="hidden" aria-live="polite" aria-atomic="true">--</span>
-
-        
+        <span id="leadIdText" class="hidden" aria-live="polite" aria-atomic="true">--</span>
+                </div>
       
   </header>
 
