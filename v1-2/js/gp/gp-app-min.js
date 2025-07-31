@@ -1,3 +1,4 @@
+// gp-app-min.js -- Guest Portal App logic with nested "evaluate", live save/load, and guarded progress updates
 (function(global){
   // Firebase initialization
   const cfg = global.GP_FIREBASE_CONFIG || {
@@ -18,7 +19,6 @@
   let _guestKey = null;
   let _guestObj = {};
   let _uiStep   = "step1";
-  let _currentUserUid = null;
 
   const el = id => document.getElementById(id);
 
@@ -81,7 +81,8 @@
 
   // Save or update the guest record
   async function saveGuestNow() {
-    if (!_guestKey) return; // must have a guest key
+    // If not editing an existing lead, don't save
+    if (!_guestKey) return; // <--- CRITICAL GUARD
 
     const f   = readFields();
     const now = Date.now();
@@ -89,11 +90,13 @@
       ? global.gpCore.detectStatus({ ..._guestObj, ...f, solution: { text: f.solutionText } })
       : "new";
 
+    // Prepare nested evaluate data
     const evalData = {};
     (global.gpQuestions || []).forEach(q => {
       evalData[q.id] = f[q.id] || "";
     });
 
+    // Update existing guest only
     const updates = {
       [`guestinfo/${_guestKey}/custName`]:    f.custName,
       [`guestinfo/${_guestKey}/custPhone`]:   f.custPhone,
@@ -108,6 +111,7 @@
     } else {
       updates[`guestinfo/${_guestKey}/solution`] = null;
     }
+    // Nested evaluate updates
     Object.entries(evalData).forEach(([k, v]) => {
       updates[`guestinfo/${_guestKey}/evaluate/${k}`] = v;
     });
@@ -118,52 +122,10 @@
     }
   }
 
-  // Find existing "new" lead for user or create a fresh one
-  async function findOrCreateNewLead(uid) {
-    if (!uid) return null;
-    const qSnap = await db.ref("guestinfo")
-      .orderByChild("userUid")
-      .equalTo(uid)
-      .get();
-
-    if (qSnap.exists()) {
-      const guests = qSnap.val();
-      for (const [key, guest] of Object.entries(guests)) {
-        // Only consider guests with status 'new' and no custName and custPhone (blank lead)
-        if (
-          guest.status === "new" &&
-          (!guest.custName || guest.custName.trim() === "") &&
-          (!guest.custPhone || guest.custPhone.trim() === "")
-        ) {
-          return { key, guest };
-        }
-      }
-    }
-
-    // No existing new blank lead found, create one
-    const newRef = db.ref("guestinfo").push();
-    const now = Date.now();
-    const newGuest = {
-      userUid: uid,
-      status: "new",
-      createdAt: now,
-      updatedAt: now,
-      custName: "",
-      custPhone: ""
-    };
-    await newRef.set(newGuest);
-    return { key: newRef.key, guest: newGuest };
-  }
-
-  // Load existing context or initialize fresh with new lead logic
+  // Load existing context or initialize fresh
   async function loadContext() {
     const params = new URLSearchParams(window.location.search);
-    let gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
-
-    if (!_currentUserUid) {
-      const user = auth.currentUser;
-      _currentUserUid = user ? user.uid : null;
-    }
+    const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
 
     if (gid) {
       try {
@@ -190,28 +152,7 @@
       }
     }
 
-    // No gid or not found, try find or create new lead for current user
-    if (_currentUserUid) {
-      try {
-        const result = await findOrCreateNewLead(_currentUserUid);
-        if (result) {
-          _guestKey = result.key;
-          _guestObj = result.guest;
-          localStorage.setItem("last_guestinfo_key", _guestKey);
-          writeFields(_guestObj);
-          loadAnswersFromGuest(_guestObj);
-          global.gpApp.gotoStep("step1");
-          if (global.updateTotalPoints) global.updateTotalPoints();
-          if (global.updatePitchText)  global.updatePitchText();
-          attachCompletionListener();
-          return;
-        }
-      } catch (e) {
-        console.error("Error finding or creating new lead:", e);
-      }
-    }
-
-    // Otherwise, fallback: clear and reset UI, no key
+    // If guest doesn't exist, just reset UI, but DON'T create or autosave a blank guest.
     _guestObj = {};
     _guestKey = null;
     global.gpApp.gotoStep("step1");
@@ -219,6 +160,7 @@
     loadAnswersFromGuest({});
     if (global.updateTotalPoints) global.updateTotalPoints();
     if (global.updatePitchText)  global.updatePitchText();
+    // Do NOT trigger save here! No blank guests will be created.
   }
 
   // Step navigation controls
@@ -259,7 +201,6 @@
       }
       return;
     }
-    _currentUserUid = user.uid;
     el("gp-auth-overlay")?.remove();
     ensureStepNav();
     await loadContext();
