@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>OSL Guest Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="../css/guest-portal.css" />
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -12,56 +11,47 @@
       color: #e2e8f0;
       margin: 0; padding: 0;
       display: flex; flex-direction: column; min-height: 100vh;
+      align-items: center;
+      justify-content: center;
     }
     #authContainer, #guestApp {
-      width: 100%; max-width: 480px; margin: 3rem auto;
+      width: 100%; max-width: 480px; margin: 1rem;
       background: rgba(26,28,36,0.95);
       border-radius: 12px; padding: 2rem;
       box-shadow: 0 4px 20px rgba(30,144,255,0.2);
     }
-    #guestApp {
-      display: none;
-    }
-    input {
-      width: 100%; padding: 0.75rem; margin: 0.5rem 0 1rem;
-      border-radius: 8px; border: none; font-size: 1rem;
-      background: #22273c; color: #fff;
+    #guestApp { display: none; }
+    input, button {
+      width: 100%; margin: 0.5rem 0;
+      padding: 0.75rem; border-radius: 8px;
+      border: none; font-size: 1rem;
     }
     button {
-      width: 100%; padding: 0.75rem;
-      border: none; border-radius: 8px;
-      background-color: #1e90ff;
-      color: white; font-weight: 700;
-      cursor: pointer;
-      font-size: 1rem;
+      background: #1e90ff; color: white;
+      font-weight: 700; cursor: pointer;
     }
     button:disabled {
-      background: #555;
-      cursor: not-allowed;
+      background: #555; cursor: not-allowed;
     }
     #errorMsg {
-      color: #ff5252; font-weight: 600; margin-bottom: 1rem;
-      min-height: 1.2rem;
+      color: #ff5252; min-height: 1.2rem;
     }
     header {
       display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 1rem;
-    }
-    #leadIdDisplay {
-      font-weight: 600;
       color: #82caff;
+      font-weight: 600;
     }
-    #progressBar {
+    progress {
       width: 100%; height: 20px; border-radius: 12px; margin-top: 0.5rem;
-      appearance: none;
+      appearance: none; overflow: hidden;
       background: rgba(255,255,255,0.1);
-      overflow: hidden;
     }
-    #progressBar::-webkit-progress-bar {
+    progress::-webkit-progress-bar {
       background: rgba(255,255,255,0.1);
       border-radius: 12px;
     }
-    #progressBar::-webkit-progress-value {
+    progress::-webkit-progress-value {
       background: linear-gradient(90deg, #1e90ff, #4aa8ff);
       border-radius: 12px;
     }
@@ -70,7 +60,7 @@
 <body>
 
   <div id="authContainer">
-    <h2>Please Sign In</h2>
+    <h2>Sign In</h2>
     <div id="errorMsg"></div>
     <input type="email" id="emailInput" placeholder="Email" autocomplete="username" />
     <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password" />
@@ -82,6 +72,7 @@
       <button id="newLeadBtn">+ New Lead</button>
       <span id="leadIdDisplay">Lead ID: --</span>
     </header>
+
     <progress id="progressBar" max="100" value="0"></progress>
     <span id="progressLabel">0%</span>
 
@@ -110,87 +101,8 @@
     </section>
   </div>
 
-  <script type="module">
-    import { GuestFormApp } from '../js/gp/gp-app.js';
-    import {
-      firebaseOnAuthStateChanged,
-      getCurrentUserUid,
-      createNewLead,
-      getCurrentUser
-    } from '../js/gp/gp-firebase.js';
-    import { renderQuestions } from '../js/gp/step-ui.js'; // your Step 2 questions rendering module
-
-    const authContainer = document.getElementById('authContainer');
-    const guestApp = document.getElementById('guestApp');
-    const errorMsg = document.getElementById('errorMsg');
-
-    const emailInput = document.getElementById('emailInput');
-    const passwordInput = document.getElementById('passwordInput');
-    const signInBtn = document.getElementById('signInBtn');
-
-    const newLeadBtn = document.getElementById('newLeadBtn');
-    const leadIdDisplay = document.getElementById('leadIdDisplay');
-    const progressBar = document.getElementById('progressBar');
-    const progressLabel = document.getElementById('progressLabel');
-
-    let app;
-
-    // Simple email/password sign-in using Firebase Auth
-    signInBtn.addEventListener('click', async () => {
-      errorMsg.textContent = '';
-      signInBtn.disabled = true;
-      try {
-        await firebase.auth().signInWithEmailAndPassword(emailInput.value, passwordInput.value);
-      } catch (e) {
-        errorMsg.textContent = e.message || 'Sign-in failed';
-      } finally {
-        signInBtn.disabled = false;
-      }
-    });
-
-    firebaseOnAuthStateChanged(async (user) => {
-      if (!user) {
-        authContainer.style.display = 'block';
-        guestApp.style.display = 'none';
-        return;
-      }
-
-      authContainer.style.display = 'none';
-      guestApp.style.display = 'block';
-
-      if (!app) {
-        app = new GuestFormApp({
-          onLeadChange: (id) => {
-            leadIdDisplay.textContent = id ? `Lead ID: ${id}` : 'Lead ID: --';
-            localStorage.setItem('last_guestinfo_key', id || '');
-          },
-          onProgressUpdate: (pct) => {
-            progressBar.value = pct;
-            progressLabel.textContent = pct + '%';
-          }
-        });
-
-        renderQuestions('step2Fields');
-      }
-
-      // Load last lead if available
-      const lastKey = localStorage.getItem('last_guestinfo_key');
-      if (lastKey) {
-        await app.loadGuest(lastKey);
-      }
-    });
-
-    newLeadBtn.addEventListener('click', async () => {
-      const uid = getCurrentUserUid();
-      const newKey = await createNewLead(uid);
-      localStorage.setItem('last_guestinfo_key', newKey);
-      await app.loadGuest(newKey);
-    });
-  </script>
-
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script type="module" src="./js/gp/gp-firebase.js"></script>
+<script type="module" src="./js/gp/gp-app.js"></script>
 
 </body>
 </html>

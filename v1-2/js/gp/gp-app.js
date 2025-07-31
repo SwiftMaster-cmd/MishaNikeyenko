@@ -1,152 +1,177 @@
 // gp-app.js
 import {
   firebaseOnAuthStateChanged,
+  signIn,
+  getCurrentUserUid,
   createNewLead,
   getGuest,
   updateGuest,
-  listenCompletionPct,
-  getCurrentUserUid
-} from './gp-firebase.js';
+  attachCompletionListener
+} from "./gp-firebase.js";
+
+// Sample questions for Step 2
+const gpQuestions = [
+  { id: "numLines", label: "How many lines do you need?", type: "number", weight: 15 },
+  { id: "carrier", label: "Current Carrier", type: "text", weight: 14 },
+  { id: "deviceStatus", label: "Device Status", type: "text", weight: 12 },
+  { id: "usage", label: "Phone Usage", type: "text", weight: 6 },
+  { id: "promos", label: "Interested in promos?", type: "text", weight: 2 }
+];
 
 export class GuestFormApp {
   constructor({ onLeadChange, onProgressUpdate }) {
-    this.guestKey = null;
-    this.guestData = {};
     this.onLeadChange = onLeadChange;
     this.onProgressUpdate = onProgressUpdate;
-    this.uiStep = "step1";
 
-    // Bind UI Elements
-    this.inputs = {
-      custName: document.getElementById("custName"),
-      custPhone: document.getElementById("custPhone"),
-      solutionText: document.getElementById("solutionText"),
-    };
+    // DOM elements
+    this.leadIdDisplay = document.getElementById("leadIdDisplay");
+    this.progressBar = document.getElementById("progressBar");
+    this.progressLabel = document.getElementById("progressLabel");
 
-    // Assume gpQuestions is globally available or importable
-    this.questions = window.gpQuestions || [];
+    this.custNameInput = document.getElementById("custName");
+    this.custPhoneInput = document.getElementById("custPhone");
+    this.solutionText = document.getElementById("solutionText");
+    this.step2Container = document.getElementById("step2Fields");
 
-    this.attachEvents();
-  }
-
-  attachEvents() {
-    // Live save for customer info
-    ['custName', 'custPhone'].forEach(id => {
-      const input = this.inputs[id];
-      if (!input) return;
-      input.addEventListener('input', this.debounce(() => this.saveCurrentGuest(), 300));
-    });
-
-    // Live save for solution text
-    if (this.inputs.solutionText) {
-      this.inputs.solutionText.addEventListener('input', this.debounce(() => this.saveCurrentGuest(), 300));
-    }
-
-    // Live save for Step 2 (evaluate questions)
-    this.questions.forEach(q => {
-      const el = document.getElementById(q.id);
-      if (!el) return;
-      const ev = q.type === 'select' ? 'change' : 'input';
-      el.addEventListener(ev, this.debounce(() => this.saveCurrentGuest(), 300));
-    });
-  }
-
-  debounce(fn, delay = 300) {
-    let timeoutId;
-    return (...args) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => fn.apply(this, args), delay);
-    };
-  }
-
-  async createNewLead() {
-    const uid = getCurrentUserUid();
-    const newKey = await createNewLead(uid);
-    this.guestKey = newKey;
+    this.guestKey = null;
     this.guestData = {};
-    if (this.onLeadChange) this.onLeadChange(newKey);
-    await this.loadGuest(newKey);
+
+    this.debounceTimeout = null;
+
+    this.initInputs();
+    this.renderStep2Fields();
   }
 
-  async loadGuest(gid) {
-    const guest = await getGuest(gid);
-    if (!guest) {
-      this.guestKey = null;
-      this.guestData = {};
-      this.resetForm();
-      return;
-    }
-    this.guestKey = gid;
-    this.guestData = guest;
+  initInputs() {
+    const inputs = [
+      this.custNameInput,
+      this.custPhoneInput,
+      this.solutionText
+    ];
 
-    this.writeFields(guest);
-    if (this.onLeadChange) this.onLeadChange(gid);
-
-    // Listen for completionPct changes
-    if (this.unsubCompletion) this.unsubCompletion(); // unsubscribe previous
-    this.unsubCompletion = listenCompletionPct(gid, pct => {
-      if (this.onProgressUpdate) this.onProgressUpdate(pct);
+    inputs.forEach(input => {
+      input.addEventListener("input", () => this.saveGuestDebounced());
     });
   }
 
-  writeFields(g) {
-    if (this.inputs.custName) this.inputs.custName.value = g.custName || "";
-    if (this.inputs.custPhone) this.inputs.custPhone.value = g.custPhone || "";
-    if (this.inputs.solutionText) this.inputs.solutionText.value = g.solution?.text || "";
+  renderStep2Fields() {
+    this.step2Container.innerHTML = "";
+    gpQuestions.forEach(q => {
+      const label = document.createElement("label");
+      label.textContent = q.label + ` (${q.weight} pts)`;
 
-    this.questions.forEach(q => {
-      const el = document.getElementById(q.id);
-      if (!el) return;
-      el.value = g.evaluate?.[q.id] ?? "";
+      let input;
+      if (q.type === "number") {
+        input = document.createElement("input");
+        input.type = "number";
+      } else {
+        input = document.createElement("input");
+        input.type = "text";
+      }
+      input.id = q.id;
+      input.value = "";
+      input.addEventListener("input", () => this.saveGuestDebounced());
+
+      label.appendChild(input);
+      this.step2Container.appendChild(label);
     });
   }
 
-  readFields() {
-    const out = {
-      custName: this.inputs.custName?.value.trim() || "",
-      custPhone: this.inputs.custPhone?.value.trim() || "",
-      solutionText: this.inputs.solutionText?.value.trim() || "",
-      evaluate: {}
-    };
-    this.questions.forEach(q => {
-      const el = document.getElementById(q.id);
-      out.evaluate[q.id] = el ? el.value.trim() : "";
-    });
-    return out;
+  async saveGuestDebounced() {
+    clearTimeout(this.debounceTimeout);
+    this.debounceTimeout = setTimeout(() => this.saveGuestNow(), 500);
   }
 
-  async saveCurrentGuest() {
-    if (!this.guestKey) return; // no guest to update
+  async saveGuestNow() {
+    if (!this.guestKey) return;
 
-    const fields = this.readFields();
-    const now = Date.now();
+    const evaluateData = {};
+    gpQuestions.forEach(q => {
+      const val = document.getElementById(q.id)?.value.trim() || "";
+      evaluateData[q.id] = val;
+    });
 
-    // Determine status (can be replaced with your own logic)
-    const status = (fields.solutionText && fields.solutionText.length > 0) ? "proposal" : "working";
-
-    const updates = {
-      custName: fields.custName,
-      custPhone: fields.custPhone,
-      evaluate: fields.evaluate,
-      solution: { text: fields.solutionText, completedAt: now },
-      updatedAt: now,
-      status
+    const dataToSave = {
+      custName: this.custNameInput.value.trim(),
+      custPhone: this.custPhoneInput.value.trim(),
+      solution: { text: this.solutionText.value.trim() },
+      evaluate: evaluateData,
+      updatedAt: Date.now()
     };
 
     try {
-      await updateGuest(this.guestKey, updates);
-    } catch (err) {
-      console.error("Error saving guest:", err);
+      await updateGuest(this.guestKey, dataToSave);
+    } catch (e) {
+      console.error("Error saving guest:", e);
     }
   }
 
-  resetForm() {
-    Object.values(this.inputs).forEach(input => {
-      if (input) input.value = "";
-    });
-    this.questions.forEach(q => {
-      const el = document.getElementById(q.id);
-      if (el) el.value = "";
-    });
+  async loadGuest(gid) {
+    if (!gid) return;
+    try {
+      const guest = await getGuest(gid);
+      if (!guest) return;
+
+      this.guestKey = gid;
+      this.guestData = guest;
+
+      this.custNameInput.value = guest.custName || "";
+      this.custPhoneInput.value = guest.custPhone || "";
+
+      this.solutionText.value = guest.solution?.text || "";
+
+      gpQuestions.forEach(q => {
+        document.getElementById(q.id).value = guest.evaluate?.[q.id] || "";
+      });
+
+      if (this.onLeadChange) this.onLeadChange(this.guestKey);
+
+      attachCompletionListener(this.guestKey, (pct) => {
+        if (this.onProgressUpdate) this.onProgressUpdate(pct);
+      });
+
+    } catch (e) {
+      console.error("Error loading guest:", e);
+    }
+  }
+
+  async createNewLead() {
+    try {
+      const uid = getCurrentUserUid();
+      const newKey = await createNewLead(uid);
+      await this.loadGuest(newKey);
+      if (this.onLeadChange) this.onLeadChange(newKey);
+    } catch (e) {
+      console.error("Error creating new lead:", e);
+    }
   }
 }
+
+// Initialization & auth logic (optional: move to another module)
+firebaseOnAuthStateChanged(async (user) => {
+  if (user) {
+    document.getElementById("authContainer").style.display = "none";
+    document.getElementById("guestApp").style.display = "block";
+
+    const app = new GuestFormApp({
+      onLeadChange: (id) => {
+        document.getElementById("leadIdDisplay").textContent = `Lead ID: ${id}`;
+        localStorage.setItem("last_guestinfo_key", id);
+      },
+      onProgressUpdate: (pct) => {
+        document.getElementById("progressBar").value = pct;
+        document.getElementById("progressLabel").textContent = pct + "%";
+      }
+    });
+
+    const lastLead = localStorage.getItem("last_guestinfo_key");
+    if (lastLead) await app.loadGuest(lastLead);
+
+    document.getElementById("newLeadBtn").onclick = async () => {
+      await app.createNewLead();
+    };
+  } else {
+    document.getElementById("authContainer").style.display = "block";
+    document.getElementById("guestApp").style.display = "none";
+  }
+});
