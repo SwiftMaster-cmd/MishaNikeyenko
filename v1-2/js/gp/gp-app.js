@@ -1,148 +1,226 @@
 // gp-app.js
-import { getGuest, updateGuest, attachCompletionListener } from './gp-firebase.js';
+import {
+  firebaseOnAuthStateChanged,
+  signIn,
+  getCurrentUserUid,
+  createNewLead,
+  getGuest,
+  updateGuest,
+  attachCompletionListener
+} from "./gp-firebase.js";
 
-class GuestApp {
-  #guestKey = null;
-  #guestObj = {};
-  #completionUnsub = null;
+const gpQuestions = [
+  { id: "numLines", label: "How many lines do you need?", type: "number", weight: 15 },
+  { id: "carrier", label: "Current Carrier", type: "text", weight: 14 },
+  { id: "deviceStatus", label: "Device Status", type: "text", weight: 12 },
+  { id: "usage", label: "Phone Usage", type: "text", weight: 6 },
+  { id: "promos", label: "Interested in promos?", type: "text", weight: 2 }
+];
 
-  constructor() {
-    // Bind input events for live saving
-    this.initEventListeners();
+export class GuestFormApp {
+  constructor({ onLeadChange, onProgressUpdate }) {
+    this.onLeadChange = onLeadChange;
+    this.onProgressUpdate = onProgressUpdate;
+
+    this.leadIdDisplay = document.getElementById("leadIdDisplay");
+    this.progressBar = document.getElementById("progressBar");
+    this.progressLabel = document.getElementById("progressLabel");
+
+    this.custNameInput = document.getElementById("custName");
+    this.custPhoneInput = document.getElementById("custPhone");
+    this.solutionText = document.getElementById("solutionText");
+    this.step2Container = document.getElementById("step2Fields");
+
+    this.guestKey = null;
+    this.guestData = {};
+
+    this.debounceTimeout = null;
+
+    this.initInputs();
+    this.renderStep2Fields();
   }
 
-  get guestKey() {
-    return this.#guestKey;
-  }
-
-  setGuestKey(key) {
-    if (this.#guestKey === key) return;
-    this.#guestKey = key;
-    this.#guestObj = {};
-    if (this.#completionUnsub) {
-      this.#completionUnsub(); // detach old listener
-      this.#completionUnsub = null;
-    }
-  }
-
-  async loadContext() {
-    if (!this.#guestKey) return;
-    try {
-      const guest = await getGuest(this.#guestKey);
-      if (guest) {
-        this.#guestObj = guest;
-        this.populateFields(guest);
-      } else {
-        this.#guestObj = {};
-        this.clearFields();
-      }
-    } catch (e) {
-      console.error('Failed to load guest:', e);
-    }
-  }
-
-  populateFields(guest) {
-    const custName = document.getElementById('custName');
-    const custPhone = document.getElementById('custPhone');
-    const solutionText = document.getElementById('solutionText');
-
-    if (custName) custName.value = guest.custName || '';
-    if (custPhone) custPhone.value = guest.custPhone || '';
-    if (solutionText) solutionText.value = guest.solution?.text || '';
-
-    // Populate evaluate questions dynamically
-    if (guest.evaluate && window.gpQuestions) {
-      window.gpQuestions.forEach(q => {
-        const el = document.getElementById(q.id);
-        if (el) el.value = guest.evaluate[q.id] || '';
-      });
-    }
-  }
-
-  clearFields() {
-    ['custName', 'custPhone', 'solutionText'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = '';
+  initInputs() {
+    [this.custNameInput, this.custPhoneInput, this.solutionText].forEach(input => {
+      if (input) input.addEventListener("input", () => this.saveGuestDebounced());
     });
-    if (window.gpQuestions) {
-      window.gpQuestions.forEach(q => {
-        const el = document.getElementById(q.id);
-        if (el) el.value = '';
-      });
-    }
   }
 
-  readFields() {
-    const out = {
-      custName: document.getElementById('custName')?.value.trim() || '',
-      custPhone: document.getElementById('custPhone')?.value.trim() || '',
-      solutionText: document.getElementById('solutionText')?.value.trim() || '',
-      evaluate: {}
-    };
-    if (window.gpQuestions) {
-      window.gpQuestions.forEach(q => {
-        const el = document.getElementById(q.id);
-        out.evaluate[q.id] = el ? el.value.trim() : '';
-      });
-    }
-    return out;
+  renderStep2Fields() {
+    if (!this.step2Container) return;
+    this.step2Container.innerHTML = "";
+    gpQuestions.forEach(q => {
+      const label = document.createElement("label");
+      label.textContent = q.label + ` (${q.weight} pts)`;
+
+      const input = document.createElement("input");
+      input.type = q.type === "number" ? "number" : "text";
+      input.id = q.id;
+      input.value = "";
+      input.addEventListener("input", () => this.saveGuestDebounced());
+
+      label.appendChild(input);
+      this.step2Container.appendChild(label);
+    });
   }
 
-  async saveNow() {
-    if (!this.#guestKey) return;
-    const data = this.readFields();
+  saveGuestDebounced() {
+    clearTimeout(this.debounceTimeout);
+    this.debounceTimeout = setTimeout(() => this.saveGuestNow(), 500);
+  }
 
-    // Compose update payload with timestamps
-    const now = Date.now();
-    const updates = {
-      custName: data.custName,
-      custPhone: data.custPhone,
-      solution: data.solutionText ? { text: data.solutionText, updatedAt: now } : null,
-      evaluate: data.evaluate,
-      updatedAt: now,
+  calculateProgress(data) {
+    const weights = {
+      custName: 8,
+      custPhone: 7,
+      solution: 25
     };
 
+    let earned = 0;
+    let total = 0;
+
+    if (data.custName && data.custName.trim()) earned += weights.custName;
+    total += weights.custName;
+
+    if (data.custPhone && data.custPhone.trim()) earned += weights.custPhone;
+    total += weights.custPhone;
+
+    if (data.solution?.text && data.solution.text.trim()) earned += weights.solution;
+    total += weights.solution;
+
+    gpQuestions.forEach(q => {
+      total += q.weight;
+      if (data.evaluate && data.evaluate[q.id] && data.evaluate[q.id].trim()) {
+        earned += q.weight;
+      }
+    });
+
+    return Math.round((earned / total) * 100);
+  }
+
+  async saveGuestNow() {
+    if (!this.guestKey) return;
+
+    const evaluateData = {};
+    gpQuestions.forEach(q => {
+      const el = document.getElementById(q.id);
+      evaluateData[q.id] = el ? el.value.trim() : "";
+    });
+
+    const dataToSave = {
+      custName: this.custNameInput?.value.trim() || "",
+      custPhone: this.custPhoneInput?.value.trim() || "",
+      solution: { text: this.solutionText?.value.trim() || "" },
+      evaluate: evaluateData,
+      updatedAt: Date.now()
+    };
+
+    dataToSave.completionPct = this.calculateProgress(dataToSave);
+
+    if (this.onProgressUpdate) this.onProgressUpdate(dataToSave.completionPct);
+
     try {
-      await updateGuest(this.#guestKey, updates);
+      await updateGuest(this.guestKey, dataToSave);
     } catch (e) {
-      console.error('Failed to save guest:', e);
+      console.error("Error saving guest:", e);
     }
   }
 
-  attachCompletionListener(updateCallback) {
-    if (!this.#guestKey) return;
-    if (this.#completionUnsub) this.#completionUnsub();
+  async loadGuest(gid) {
+    if (!gid) return;
+    try {
+      const guest = await getGuest(gid);
+      if (!guest) return;
 
-    this.#completionUnsub = attachCompletionListener(this.#guestKey, pct => {
-      if (updateCallback && typeof updateCallback === 'function') {
-        updateCallback(pct);
-      }
-    });
+      this.guestKey = gid;
+      this.guestData = guest;
+
+      if (this.custNameInput) this.custNameInput.value = guest.custName || "";
+      if (this.custPhoneInput) this.custPhoneInput.value = guest.custPhone || "";
+      if (this.solutionText) this.solutionText.value = guest.solution?.text || "";
+
+      gpQuestions.forEach(q => {
+        const el = document.getElementById(q.id);
+        if (el) el.value = guest.evaluate?.[q.id] || "";
+      });
+
+      if (this.onLeadChange) this.onLeadChange(this.guestKey);
+
+      // Set progress on load
+      const progress = guest.completionPct ?? this.calculateProgress(guest);
+      if (this.onProgressUpdate) this.onProgressUpdate(progress);
+
+      attachCompletionListener(this.guestKey, (pct) => {
+        if (this.onProgressUpdate) this.onProgressUpdate(pct);
+      });
+    } catch (e) {
+      console.error("Error loading guest:", e);
+    }
   }
 
-  initEventListeners() {
-    // Save on input or change in any tracked field
-    const saveHandler = this.saveNow.bind(this);
-
-    ['custName', 'custPhone', 'solutionText'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.addEventListener('input', saveHandler);
-        el.addEventListener('change', saveHandler);
-      }
-    });
-
-    if (window.gpQuestions) {
-      window.gpQuestions.forEach(q => {
-        const el = document.getElementById(q.id);
-        if (el) {
-          el.addEventListener('input', saveHandler);
-          el.addEventListener('change', saveHandler);
-        }
-      });
+  async createNewLead() {
+    try {
+      const uid = getCurrentUserUid();
+      const newKey = await createNewLead(uid);
+      await this.loadGuest(newKey);
+      if (this.onLeadChange) this.onLeadChange(newKey);
+      return newKey;
+    } catch (e) {
+      console.error("Error creating new lead:", e);
+      return null;
     }
   }
 }
 
-// Singleton export
-export const gpApp = new GuestApp();
+// ----------- AUTH AND UI LOGIC -------------
+
+const emailInput = document.getElementById("emailInput");
+const passwordInput = document.getElementById("passwordInput");
+const signInBtn = document.getElementById("signInBtn");
+const errorMsg = document.getElementById("errorMsg");
+
+signInBtn.addEventListener("click", async () => {
+  errorMsg.textContent = "";
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+  if (!email || !password) {
+    errorMsg.textContent = "Please enter email and password.";
+    return;
+  }
+  try {
+    await signIn(email, password);
+  } catch (error) {
+    errorMsg.textContent = "Sign in failed: " + error.message;
+  }
+});
+
+firebaseOnAuthStateChanged(async (user) => {
+  if (user) {
+    document.getElementById("authContainer").style.display = "none";
+    document.getElementById("guestApp").style.display = "block";
+
+    const app = new GuestFormApp({
+      onLeadChange: (id) => {
+        document.getElementById("leadIdDisplay").textContent = `Lead ID: ${id}`;
+        localStorage.setItem("last_guestinfo_key", id);
+      },
+      onProgressUpdate: (pct) => {
+        document.getElementById("progressBar").value = pct;
+        document.getElementById("progressLabel").textContent = pct + "%";
+      }
+    });
+
+    let lastLead = localStorage.getItem("last_guestinfo_key");
+    if (!lastLead) {
+      lastLead = await app.createNewLead();
+    }
+    await app.loadGuest(lastLead);
+
+    document.getElementById("newLeadBtn").onclick = async () => {
+      await app.createNewLead();
+    };
+  } else {
+    document.getElementById("authContainer").style.display = "block";
+    document.getElementById("guestApp").style.display = "none";
+  }
+});
