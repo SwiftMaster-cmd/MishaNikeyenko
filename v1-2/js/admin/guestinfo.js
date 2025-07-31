@@ -610,10 +610,21 @@
     window.renderAdminApp();
   }
 
-  // Create new lead (clear last key & redirect)
-  function createNewLead() {
-    try { localStorage.removeItem("last_guestinfo_key"); } catch {}
-    window.location.href = GUESTINFO_PAGE.split("?")[0];
+  // **Updated** Create new lead: create in Firebase, store key, redirect with gid
+  async function createNewLead() {
+    try {
+      const ref = await window.db.ref("guestinfo").push({
+        createdAt: Date.now(),
+        status: "new",
+        userUid: window.currentUid || null
+      });
+      const newKey = ref.key;
+      localStorage.setItem("last_guestinfo_key", newKey);
+      const baseUrl = GUESTINFO_PAGE.split("?")[0];
+      window.location.href = `${baseUrl}?gid=${encodeURIComponent(newKey)}&uistart=step1`;
+    } catch (e) {
+      alert("Error creating new lead: " + e.message);
+    }
   }
 
   // Open full workflow page for a guest lead with uistart hint
