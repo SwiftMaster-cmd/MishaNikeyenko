@@ -301,3 +301,35 @@ textarea {
     display: inline-block;
   }
 }
+#newLeadBtn,
+#dashboardBtn,
+#toggleLeadIdBtn {
+  padding: 0.6rem 1.2rem;
+  font-weight: 700;
+  font-size: 1rem;
+  color: white;
+  background-color: #1e90ff;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 16px rgba(30,144,255,0.4);
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 110px;
+  text-align: center;
+}
+
+#newLeadBtn:hover:not(:disabled),
+#dashboardBtn:hover:not(:disabled),
+#toggleLeadIdBtn:hover:not(:disabled) {
+  background-color: #4aa8ff;
+  box-shadow: 0 6px 20px rgba(30,144,255,0.6);
+}
+
+#newLeadBtn:disabled,
+#dashboardBtn:disabled,
+#toggleLeadIdBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
