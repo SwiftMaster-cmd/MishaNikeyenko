@@ -1,4 +1,16 @@
 // gp-firebase.js
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+import { getAuth, onAuthStateChanged as onAuthStateChangedSDK } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  get,
+  update,
+  onValue,
+  off
+} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+
 export const firebaseConfig = {
   apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGZ9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
@@ -10,45 +22,41 @@ export const firebaseConfig = {
   measurementId: "G-XXXXXXX"
 };
 
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/database';
-
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
-
-const auth = firebase.auth();
-const db = firebase.database();
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
 export function onAuthStateChanged(callback) {
-  return auth.onAuthStateChanged(callback);
+  return onAuthStateChangedSDK(auth, callback);
 }
 
 export async function createNewLead(userUid) {
-  const ref = await db.ref("guestinfo").push({
+  const newRef = ref(db, "guestinfo");
+  const pushRef = await push(newRef, {
     createdAt: Date.now(),
     status: "new",
     userUid: userUid || null
   });
-  return ref.key;
+  return pushRef.key;
 }
 
 export async function getGuest(gid) {
-  const snap = await db.ref(`guestinfo/${gid}`).get();
+  const guestRef = ref(db, `guestinfo/${gid}`);
+  const snap = await get(guestRef);
   return snap.exists() ? snap.val() : null;
 }
 
 export async function updateGuest(gid, data) {
-  await db.ref(`guestinfo/${gid}`).update(data);
+  const guestRef = ref(db, `guestinfo/${gid}`);
+  await update(guestRef, data);
 }
 
 export function attachCompletionListener(gid, onUpdate) {
-  const ref = db.ref(`guestinfo/${gid}/completionPct`);
-  ref.off("value");
-  ref.on("value", snap => {
-    if (!snap.exists()) return;
-    onUpdate(snap.val());
+  const completionRef = ref(db, `guestinfo/${gid}/completionPct`);
+  off(completionRef, "value"); // detach previous listener if any
+  onValue(completionRef, snapshot => {
+    if (!snapshot.exists()) return;
+    onUpdate(snapshot.val());
   });
 }
 

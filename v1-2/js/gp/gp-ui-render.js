@@ -1,178 +1,163 @@
 // gp-ui-render.js
-export function createProgressHeader(guestKey, onNewLeadClick, dashboardUrl = "../html/admin.html") {
-  // Remove old header if exists
-  document.getElementById('gpProgressHeader')?.remove();
+(function(global){
+  global.createProgressHeader = function(app, dashUrl) {
+    // Remove old header if present
+    document.getElementById('gpProgressHeader')?.remove();
 
-  const header = document.createElement('header');
-  header.id = 'gpProgressHeader';
-  header.style = `
-    position: sticky;
-    top: 0;
-    z-index: 9999;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 24px;
-    background: rgba(26, 28, 36, 0.97);
-    backdrop-filter: blur(16px) saturate(180%);
-    border-bottom: 1px solid rgba(255,255,255,0.12);
-  `;
+    const header = document.createElement("header");
+    header.id = "gpProgressHeader";
 
-  // Back button
-  const backBtn = document.createElement('a');
-  backBtn.href = dashboardUrl;
-  backBtn.textContent = '← Dashboard';
-  backBtn.style.cssText = `
-    color: #1e90ff;
-    font-weight: 700;
-    font-size: 1.1rem;
-    text-decoration: none;
-    padding: 8px 18px;
-    border-radius: 12px;
-  `;
+    header.classList.add("gp-progress-header");
 
-  // Lead ID display
-  const leadIdDisplay = document.createElement('div');
-  leadIdDisplay.textContent = guestKey ? `Lead ID: ${guestKey}` : "No Lead Loaded";
-  leadIdDisplay.style = 'color: #82caff; font-weight: 700; font-size: 1.1rem;';
+    // Left: Dashboard link
+    const dashBtn = document.createElement("a");
+    dashBtn.href = dashUrl;
+    dashBtn.id = "backToDash";
+    dashBtn.textContent = "← Dashboard";
+    dashBtn.setAttribute("tabindex", "0");
 
-  // New Lead button
-  const newLeadBtn = document.createElement('button');
-  newLeadBtn.textContent = '+ New Lead';
-  newLeadBtn.style = `
-    background: #00c853;
-    color: white;
-    border: none;
-    border-radius: 12px;
-    padding: 8px 16px;
-    font-weight: 700;
-    cursor: pointer;
-  `;
-  newLeadBtn.onclick = onNewLeadClick;
+    // Middle: progress label + bar + lead ID + new lead button container
+    const center = document.createElement("div");
+    center.classList.add("gp-progress-main");
 
-  header.appendChild(backBtn);
-  header.appendChild(leadIdDisplay);
-  header.appendChild(newLeadBtn);
+    // Completion label with numeric percent span
+    const label = document.createElement("label");
+    label.htmlFor = "progressBar";
+    label.textContent = "Completion: ";
 
-  document.body.prepend(header);
+    const pctLabel = document.createElement("span");
+    pctLabel.id = "progressLabel";
+    pctLabel.textContent = "0%";
+    label.appendChild(pctLabel);
 
-  // Return elements needed for dynamic updates
-  return { leadIdDisplay };
-}
+    // Progress bar element
+    const bar = document.createElement("progress");
+    bar.id = "progressBar";
+    bar.max = 100;
+    bar.value = 0;
 
-export function renderProgressBar() {
-  const container = document.createElement('div');
-  container.id = 'progressBarContainer';
-  container.style = `
-    width: 100%;
-    max-width: 440px;
-    margin: 12px auto;
-    position: relative;
-  `;
+    // Lead ID display
+    const leadIdDisplay = document.createElement("div");
+    leadIdDisplay.id = "leadIdDisplay";
+    leadIdDisplay.classList.add("lead-id-display");
+    leadIdDisplay.textContent = "Lead ID: --";
 
-  const progress = document.createElement('progress');
-  progress.id = 'progressBar';
-  progress.max = 100;
-  progress.value = 0;
-  progress.style = `
-    width: 100%;
-    height: 24px;
-    border-radius: 12px;
-    appearance: none;
-    background: rgba(255, 255, 255, 0.13);
-    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.2);
-  `;
+    // New Lead button
+    const newLeadBtn = document.createElement("button");
+    newLeadBtn.id = "newLeadBtn";
+    newLeadBtn.textContent = "+ New Lead";
+    newLeadBtn.classList.add("btn", "btn-success", "btn-sm");
+    newLeadBtn.style.marginTop = "8px";
+    newLeadBtn.addEventListener("click", async () => {
+      if (typeof global.gpApp.createNewLead === "function") {
+        await global.gpApp.createNewLead();
+      } else {
+        console.warn("createNewLead() not implemented");
+      }
+    });
 
-  const percentText = document.createElement('div');
-  percentText.id = 'progressText';
-  percentText.textContent = '0%';
-  percentText.style = `
-    position: absolute;
-    top: 50%;
-    right: 16px;
-    transform: translateY(-50%);
-    color: #82caff;
-    font-weight: 700;
-    font-size: 1.1rem;
-  `;
+    center.appendChild(label);
+    center.appendChild(bar);
+    center.appendChild(leadIdDisplay);
+    center.appendChild(newLeadBtn);
 
-  container.appendChild(progress);
-  container.appendChild(percentText);
+    header.appendChild(dashBtn);
+    header.appendChild(center);
 
-  return container;
-}
+    document.body.prepend(header);
+  };
 
-export function renderStepContainers() {
-  const container = document.createElement('div');
-  container.id = 'stepsContainer';
-  container.style = `
-    display: flex;
-    gap: 24px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin: 32px auto;
-    max-width: 1080px;
-  `;
+  global.updateProgressHeader = function(pct) {
+    pct = Math.min(100, Math.max(0, Math.round(pct || 0)));
+    const bar = document.getElementById("progressBar");
+    const pctLabel = document.getElementById("progressLabel");
+    if (bar) bar.value = pct;
+    if (pctLabel) pctLabel.textContent = pct + "%";
+  };
 
-  // Step 1 container
-  const step1 = document.createElement('section');
-  step1.id = 'step1Form';
-  step1.style = `
-    flex: 1 1 280px;
-    background: #252733;
-    border-radius: 16px;
-    padding: 24px;
-    color: white;
-  `;
-  step1.innerHTML = `
-    <h2>Step 1: Customer Info</h2>
-    <!-- inputs will be rendered by event handlers -->
-  `;
+  global.updateLeadId = function(id) {
+    const leadIdDisplay = document.getElementById("leadIdDisplay");
+    if (!leadIdDisplay) return;
+    leadIdDisplay.textContent = id ? `Lead ID: ${id}` : "Lead ID: --";
+  };
 
-  // Step 2 container
-  const step2 = document.createElement('section');
-  step2.id = 'step2Form';
-  step2.style = `
-    flex: 2 1 560px;
-    background: #22273c;
-    border-radius: 16px;
-    padding: 24px;
-    color: white;
-    overflow-y: auto;
-  `;
-  step2.innerHTML = `
-    <h2>Step 2: Evaluate Needs</h2>
-    <div id="step2Fields"></div>
-  `;
+  function renderUI() {
+    const app = document.getElementById("guestApp");
+    if (!app) return;
+    app.innerHTML = "";
 
-  // Step 3 container
-  const step3 = document.createElement('section');
-  step3.id = 'step3Form';
-  step3.style = `
-    flex: 1 1 280px;
-    background: #252733;
-    border-radius: 16px;
-    padding: 24px;
-    color: white;
-  `;
-  step3.innerHTML = `
-    <h2>Step 3: Proposed Solution</h2>
-    <textarea id="solutionText" rows="8" placeholder="What we’ll offer…"></textarea>
-  `;
+    global.createProgressHeader(app, global.DASHBOARD_URL || "../html/admin.html");
 
-  container.appendChild(step1);
-  container.appendChild(step2);
-  container.appendChild(step3);
+    // Container for steps
+    const container = document.createElement("div");
+    container.classList.add("steps-container");
 
-  return container;
-}
+    // Step 1: Customer Info
+    const step1 = document.createElement("section");
+    step1.id = "step1Form";
+    step1.classList.add("step-container");
+    step1.innerHTML = `
+      <h2>Step 1: Customer Info</h2>
+      <label for="custName" class="glabel">Customer Name <span class="gp-pts">(8pts)</span></label>
+      <input id="custName" type="text" placeholder="Full name" class="ginput" autocomplete="off" />
 
-// Update progress bar helper
-export function updateProgressBar(pct) {
-  const progress = document.getElementById('progressBar');
-  const text = document.getElementById('progressText');
-  if (!progress || !text) return;
-  const clamped = Math.min(100, Math.max(0, Math.round(pct)));
-  progress.value = clamped;
-  text.textContent = clamped + '%';
-}
+      <label for="custPhone" class="glabel">Customer Phone <span class="gp-pts">(7pts)</span></label>
+      <input id="custPhone" type="tel" placeholder="Phone number" class="ginput" autocomplete="off" />
+    `;
+
+    // Step 2: Evaluate Needs
+    const step2 = document.createElement("section");
+    step2.id = "step2Form";
+    step2.classList.add("step-container");
+    step2.innerHTML = `
+      <h2>Step 2: Evaluate Needs</h2>
+      <div id="step2Fields"></div>
+    `;
+
+    // Step 3: Proposed Solution
+    const step3 = document.createElement("section");
+    step3.id = "step3Form";
+    step3.classList.add("step-container");
+    step3.innerHTML = `
+      <h2>Step 3: Proposed Solution <span class="gp-pts">(25pts)</span></h2>
+      <textarea id="solutionText" placeholder="What we'll offer…" class="ginput" rows="8"></textarea>
+    `;
+
+    container.appendChild(step1);
+    container.appendChild(step2);
+    container.appendChild(step3);
+
+    app.appendChild(container);
+
+    if (typeof global.renderQuestions === "function") {
+      global.renderQuestions("step2Fields");
+    }
+    if (typeof global.hydrateAnswers === "function") {
+      global.hydrateAnswers();
+    }
+    if (typeof global.setupInstantSaveForStep1 === "function") {
+      global.setupInstantSaveForStep1();
+    }
+    if (typeof global.setupSolutionSave === "function") {
+      global.setupSolutionSave();
+    }
+    if (typeof global.updateTotalPoints === "function") {
+      global.updateTotalPoints();
+    }
+    if (typeof global.updatePitchText === "function") {
+      global.updatePitchText();
+    }
+    if (global.gpApp?.saveNow) {
+      global.gpApp.saveNow();
+    }
+  }
+
+  global.renderUI = renderUI;
+
+  // On auth state change, re-render UI
+  if (typeof global.onAuthStateChanged === "function") {
+    global.onAuthStateChanged(() => {
+      renderUI();
+    });
+  }
+})(window);
