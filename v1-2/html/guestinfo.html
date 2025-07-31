@@ -5,6 +5,138 @@
   <title>OSL Guest Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="../css/guest-portal.css" />
+  <style>
+    /* Additional styles for menu toggle and header layout */
+
+    #stickyHeader {
+      position: sticky;
+      top: 0;
+      background: rgba(26, 28, 36, 0.97);
+      backdrop-filter: saturate(180%) blur(16px);
+      border-bottom: 1px solid #444;
+      padding: 12px 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      z-index: 1000;
+      user-select: none;
+    }
+
+    #headerInner {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    #portalTitle {
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: #82caff;
+      flex-grow: 1;
+      user-select: text;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #menuToggle {
+      font-size: 1.8rem;
+      background: none;
+      border: none;
+      color: #82caff;
+      cursor: pointer;
+      user-select: none;
+      display: none; /* hidden on desktop */
+      padding: 4px 8px;
+    }
+
+    #headerNav {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    #headerNav.hidden {
+      display: none;
+    }
+
+    #headerNav button,
+    #headerNav span,
+    #headerNav progress {
+      user-select: none;
+    }
+
+    #leadIdText {
+      font-family: monospace;
+      font-weight: 600;
+      color: #1e90ff;
+      background: #222;
+      padding: 6px 12px;
+      border-radius: 8px;
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: text;
+      display: inline-block;
+      user-select: all;
+    }
+
+    progress#progressBar {
+      width: 100px;
+      height: 20px;
+      border-radius: 12px;
+      margin-left: 10px;
+      appearance: none;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    progress#progressBar::-webkit-progress-bar {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+    }
+
+    progress#progressBar::-webkit-progress-value {
+      background: linear-gradient(90deg, #1e90ff, #4aa8ff);
+      border-radius: 12px;
+    }
+
+    #progressLabel {
+      color: #1e90ff;
+      font-weight: 700;
+      margin-left: 8px;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 600px) {
+      #menuToggle {
+        display: block;
+      }
+      #headerNav {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      #headerNav.hidden {
+        display: none;
+      }
+      #progressBar {
+        width: 100%;
+        max-width: none;
+        margin-left: 0;
+      }
+      #progressLabel {
+        margin-left: 0;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -19,12 +151,12 @@
   <div id="guestApp">
     <header id="stickyHeader">
       <div id="headerInner">
-        <h1 id="portalTitle">OSL Guest Portal</h1>
+        <h1 id="portalTitle" title="OSL Guest Portal">OSL Guest Portal</h1>
         <button id="menuToggle" aria-label="Toggle menu">&#9776;</button>
 
-        <nav id="headerNav" class="hidden">
+        <nav id="headerNav" class="hidden" aria-label="Main navigation">
           <button id="newLeadBtn">+ New Lead</button>
-          <button id="dashboardBtn" type="button">Dashboard</button>
+          <button id="dashboardBtn" type="button" onclick="window.location.href='./admin.html'">Dashboard</button>
           <button id="toggleLeadIdBtn" type="button">See Lead ID</button>
           <span id="leadIdText" class="hidden">--</span>
           <progress id="progressBar" max="100" value="0" aria-label="Progress"></progress>
@@ -36,11 +168,11 @@
     <main id="mainContent">
       <section id="step1Form" class="step-section">
         <h2>Step 1: Customer Info</h2>
-        <label>
+        <label for="custName">
           Customer Name
           <input id="custName" type="text" autocomplete="off" />
         </label>
-        <label>
+        <label for="custPhone">
           Customer Phone
           <input id="custPhone" type="tel" autocomplete="off" />
         </label>
@@ -60,7 +192,16 @@
 
   <script type="module" src="../js/gp/gp-firebase.js"></script>
   <script type="module" src="../js/gp/gp-app.js"></script>
-    <script type="module" src="../js/gp/gp.js"></script>
+
+  <script>
+    // Menu toggle for mobile
+    const menuToggle = document.getElementById('menuToggle');
+    const headerNav = document.getElementById('headerNav');
+
+    menuToggle.addEventListener('click', () => {
+      headerNav.classList.toggle('hidden');
+    });
+  </script>
 
 </body>
 </html>

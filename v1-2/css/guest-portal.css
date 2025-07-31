@@ -17,7 +17,7 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Auth & App containers */
+/* Containers */
 #authContainer,
 #guestApp {
   max-width: 480px;
@@ -35,15 +35,22 @@ html, body {
 /* Inputs & Buttons */
 input, button, textarea {
   width: 100%;
-  padding: 0.75rem;
-  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
   border: none;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.07);
   color: #e2e8f0;
   font-size: 1rem;
   font-family: inherit;
-  margin-top: 0.5rem;
-  resize: vertical;
+  margin-top: 0.75rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  user-select: text;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid #1e90ff;
 }
 
 button {
@@ -52,6 +59,8 @@ button {
   cursor: pointer;
   user-select: none;
   transition: background-color 0.2s ease;
+  border-radius: 14px;
+  padding: 0.75rem 1.2rem;
 }
 
 button:hover:not(:disabled) {
@@ -63,10 +72,13 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Error Message */
 #errorMsg {
   color: #ff5252;
-  min-height: 1.2rem;
+  min-height: 1.3rem;
   margin-top: 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
 }
 
 /* Sticky header */
@@ -88,11 +100,11 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 #portalTitle {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: 700;
   user-select: none;
   flex: 1 1 auto;
@@ -105,17 +117,18 @@ button:disabled {
   background: transparent;
   border: none;
   color: #82caff;
-  font-size: 1.75rem;
+  font-size: 1.9rem;
   cursor: pointer;
   user-select: none;
   display: none;
   flex-shrink: 0;
+  padding: 0 6px;
 }
 
 /* Navigation buttons container */
 #headerNav {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
   flex-wrap: nowrap;
   flex: 0 0 auto;
@@ -124,9 +137,9 @@ button:disabled {
 
 #headerNav button {
   flex: 1 1 auto;
-  min-width: 80px;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  min-width: 90px;
+  padding: 0.6rem 1.2rem;
+  border-radius: 14px;
   font-weight: 700;
   color: white;
   border: none;
@@ -134,6 +147,7 @@ button:disabled {
   white-space: nowrap;
   user-select: none;
   transition: background-color 0.2s ease;
+  box-shadow: 0 3px 10px rgba(30,144,255,0.3);
 }
 
 #headerNav button:hover:not(:disabled) {
@@ -144,14 +158,15 @@ button:disabled {
 #leadIdText {
   font-family: monospace;
   background: #222;
-  padding: 4px 10px;
-  border-radius: 8px;
+  padding: 6px 12px;
+  border-radius: 12px;
   color: #1e90ff;
   user-select: all;
-  max-width: 180px;
+  max-width: 220px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: text;
 }
 
 /* Hidden utility */
@@ -161,14 +176,15 @@ button:disabled {
 
 /* Progress bar */
 progress#progressBar {
-  width: 100px;
-  height: 18px;
+  width: 110px;
+  height: 20px;
   border-radius: 12px;
   appearance: none;
   background: rgba(255, 255, 255, 0.1);
   border: none;
   overflow: hidden;
-  box-shadow: inset 0 1px 4px rgba(0,0,0,0.2);
+  box-shadow: inset 0 1px 5px rgba(0,0,0,0.25);
+  transition: width 0.3s ease;
 }
 
 progress#progressBar::-webkit-progress-bar {
@@ -180,6 +196,7 @@ progress#progressBar::-webkit-progress-value {
   background: linear-gradient(90deg, #1e90ff, #4aa8ff);
   border-radius: 12px;
   box-shadow: 0 2px 10px #1e90ff88;
+  animation: progressGlow 2s ease infinite alternate;
 }
 
 progress#progressBar::-moz-progress-bar {
@@ -187,20 +204,30 @@ progress#progressBar::-moz-progress-bar {
   border-radius: 12px;
 }
 
+@keyframes progressGlow {
+  from {
+    box-shadow: 0 0 5px #4aa8ff;
+  }
+  to {
+    box-shadow: 0 0 15px #1e90ff;
+  }
+}
+
 /* Progress label */
 #progressLabel {
   font-weight: 700;
   color: #4aa8ff;
-  font-size: 1rem;
-  margin-left: 8px;
+  font-size: 1.1rem;
+  margin-left: 10px;
   user-select: none;
+  white-space: nowrap;
 }
 
 /* Main content and form sections */
 #mainContent {
   max-width: 480px;
   width: 94vw;
-  margin: 2rem auto;
+  margin: 2.5rem auto 3rem auto;
 }
 
 .step-section {
@@ -209,7 +236,7 @@ progress#progressBar::-moz-progress-bar {
 
 .step-section h2 {
   font-weight: 700;
-  font-size: 1.25rem;
+  font-size: 1.3rem;
   margin-bottom: 1rem;
 }
 
@@ -225,16 +252,16 @@ input[type="tel"],
 select,
 textarea {
   width: 100%;
-  font-size: 1.1rem;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.1);
+  font-size: 1.15rem;
+  padding: 0.85rem 1.2rem;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   color: #e2e8f0;
   transition: background 0.2s, border-color 0.2s;
   text-align: center;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-weight: 500;
+  font-weight: 600;
   user-select: text;
 }
 
@@ -242,14 +269,15 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: #1e90ff;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.25);
   outline: 2px solid #4aa8ff;
   outline-offset: 2px;
+  user-select: auto;
 }
 
 textarea {
   resize: vertical;
-  min-height: 110px;
+  min-height: 120px;
 }
 
 /* Responsive */
@@ -260,16 +288,16 @@ textarea {
 
   #headerNav {
     position: absolute;
-    top: 64px;
+    top: 60px;
     right: 0;
     background: rgba(26, 28, 36, 0.95);
     backdrop-filter: saturate(180%) blur(16px);
-    padding: 12px 16px;
-    border-radius: 0 0 0 12px;
-    box-shadow: 0 2px 10px rgba(30,144,255,0.3);
+    padding: 14px 18px;
+    border-radius: 0 0 0 16px;
+    box-shadow: 0 2px 12px rgba(30,144,255,0.3);
     flex-direction: column;
-    width: 240px;
-    gap: 12px;
+    width: 260px;
+    gap: 16px;
     z-index: 20000;
     display: none;
   }

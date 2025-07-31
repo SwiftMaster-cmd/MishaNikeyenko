@@ -21,13 +21,8 @@ const headerNav = document.getElementById('headerNav');
 
 // Show/hide lead ID
 toggleLeadIdBtn.addEventListener('click', () => {
-  if (leadIdText.classList.contains('hidden')) {
-    leadIdText.classList.remove('hidden');
-    toggleLeadIdBtn.textContent = 'Hide Lead ID';
-  } else {
-    leadIdText.classList.add('hidden');
-    toggleLeadIdBtn.textContent = 'See Lead ID';
-  }
+  const isHidden = leadIdText.classList.toggle('hidden');
+  toggleLeadIdBtn.textContent = isHidden ? 'See Lead ID' : 'Hide Lead ID';
 });
 
 // Toggle mobile menu
@@ -75,7 +70,7 @@ newLeadBtn.addEventListener('click', async () => {
   updateProgress(0);
 });
 
-// Dashboard button (optional additional logic can go here)
+// Dashboard button
 dashboardBtn.addEventListener('click', () => {
   window.location.href = './admin.html';
 });
