@@ -1,32 +1,40 @@
 // gp-firebase.js
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/database';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  get,
+  update,
+  onValue
+} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
 
-export const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGV9dslMzE",
   authDomain: "osls-644fd.firebaseapp.com",
   databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
   projectId: "osls-644fd",
-  storageBucket: "osls-644fd.firebasestorage.app",
+  storageBucket: "osls-644fd.appspot.com",
   messagingSenderId: "798578046321",
   appId: "1:798578046321:web:8758776701786a2fccf2d0",
   measurementId: "G-9HWXNSBE1T"
 };
 
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-const auth = firebase.auth();
-const db = firebase.database();
-
-export function onAuthStateChanged(callback) {
-  return auth.onAuthStateChanged(callback);
+export function firebaseOnAuthStateChanged(callback) {
+  return onAuthStateChanged(auth, callback);
 }
 
 export async function signIn(email, password) {
-  return auth.signInWithEmailAndPassword(email, password);
+  return signInWithEmailAndPassword(auth, email, password);
 }
 
 export function getCurrentUserUid() {
@@ -34,29 +42,37 @@ export function getCurrentUserUid() {
 }
 
 export async function createNewLead(userUid) {
-  const ref = await db.ref("guestinfo").push({
-    createdAt: Date.now(),    // lead generation timestamp
-    updatedAt: Date.now(),    // set updatedAt on creation
+  const guestRef = ref(db, "guestinfo");
+  const newRef = push(guestRef);
+  await update(newRef, {
+    createdAt: Date.now(),
+    updatedAt: Date.now(),   // <-- add updatedAt here on creation
     status: "new",
     userUid: userUid || null
   });
-  return ref.key;
+  return newRef.key;
 }
 
 export async function getGuest(gid) {
-  const snap = await db.ref(`guestinfo/${gid}`).get();
+  const guestRef = ref(db, `guestinfo/${gid}`);
+  const snap = await get(guestRef);
   return snap.exists() ? snap.val() : null;
 }
 
 export async function updateGuest(gid, data) {
-  await db.ref(`guestinfo/${gid}`).update(data);
+  const guestRef = ref(db, `guestinfo/${gid}`);
+  // Make sure updatedAt is always set when updating
+  if (!data.updatedAt) {
+    data.updatedAt = Date.now();
+  }
+  await update(guestRef, data);
 }
 
 export function attachCompletionListener(gid, onUpdate) {
-  const ref = db.ref(`guestinfo/${gid}/completionPct`);
-  ref.off("value");
-  ref.on("value", snap => {
-    if (!snap.exists()) return;
-    onUpdate(snap.val());
+  const completionRef = ref(db, `guestinfo/${gid}/completionPct`);
+  onValue(completionRef, (snapshot) => {
+    if (snapshot.exists()) {
+      onUpdate(snapshot.val());
+    }
   });
 }
