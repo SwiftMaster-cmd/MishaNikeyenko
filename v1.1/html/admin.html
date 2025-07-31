@@ -10,7 +10,10 @@
   <meta name="color-scheme" content="dark light" />
 
   <link rel="stylesheet" href="../css/dashboard.css" />
-  <link rel="stylesheet" href="../css/gi.css" />
+    <link rel="stylesheet" href="../css/gi.css" />
+  
+                 
+ 
 </head>
 <body>
   <div class="admin-header">
@@ -26,28 +29,7 @@
     </div>
   </div>
 
-  <div id="adminApp" class="admin-app-container" style="display: flex; flex-wrap: wrap; gap: 2rem; padding: 1rem;">
-    <section id="usersContainer" style="flex: 1 1 300px; min-width: 280px; max-width: 400px; border: 1px solid #444; border-radius: 8px; padding: 1rem; background: #1e1e2f;">
-      <h3>Users</h3>
-    </section>
-
-    <section id="reviewsContainer" style="flex: 1 1 300px; min-width: 280px; max-width: 400px; border: 1px solid #444; border-radius: 8px; padding: 1rem; background: #1e1e2f;">
-      <h3>Reviews</h3>
-    </section>
-
-    <section id="storesContainer" style="flex: 1 1 300px; min-width: 280px; max-width: 400px; border: 1px solid #444; border-radius: 8px; padding: 1rem; background: #1e1e2f;">
-      <h3>Stores</h3>
-    </section>
-
-    <section id="guestFormsContainer" style="flex: 1 1 600px; min-width: 580px; border: 1px solid #444; border-radius: 8px; padding: 1rem; background: #1e1e2f;">
-      <h3>Guest Forms</h3>
-    </section>
-
-    <section id="guestInfoContainer" style="flex: 1 1 600px; min-width: 580px; border: 1px solid #444; border-radius: 8px; padding: 1rem; background: #1e1e2f;">
-      <h3>Guest Info</h3>
-    </section>
-  </div>
-
+  <div id="adminApp" class="admin-app-container"></div>
   <div id="messagesModalRoot"></div>
 
   <!-- Firebase SDKs -->
@@ -63,12 +45,15 @@
   <script src="../js/admin/reviews.js"></script>
   <script src="../js/admin/stores.js"></script>
 
-  <!-- GuestInfo – ES modules -->
+  <!-- GuestInfo – now ES modules -->
   <script type="module" src="../js/admin/gi/gi-container.js"></script>
   <script type="module">
     import { initGuestinfo } from '../js/admin/gi/gi-container.js';
+    // once Firebase and your core admin.js have set up window.db, uid & role:
     window.addEventListener('DOMContentLoaded', () => {
       initGuestinfo();
+      // dashboard.js will call window.renderAdminApp();
+      // if you need an initial render right away:
       if (typeof window.renderAdminApp === 'function') {
         window.renderAdminApp();
       }
@@ -80,7 +65,7 @@
   <script src="../js/admin/gf/gf-continue.js"></script>
   <script src="../js/admin/gf/gf-handoff.js"></script>
 
-  <!-- Messages AFTER admin.js -->
+  <!-- Messages AFTER admin.js so firebase is ready -->
   <script src="../js/admin/messages.js"></script>
 
   <!-- Dashboard renderer last -->
