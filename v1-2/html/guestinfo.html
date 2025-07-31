@@ -4,76 +4,69 @@
   <meta charset="UTF-8" />
   <title>OSL Guest Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Link external CSS files -->
-  <link rel="stylesheet" href="../css/guest-portal.css" />
-
+  <link rel="stylesheet" href="guest-portal.css" />
 </head>
 <body>
 
-  <div id="authContainer" class="auth-container">
+  <div id="authContainer">
     <h2>Sign In</h2>
-    <div id="errorMsg" class="error-msg"></div>
+    <div id="errorMsg"></div>
     <input type="email" id="emailInput" placeholder="Email" autocomplete="username" />
     <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password" />
     <button id="signInBtn">Sign In</button>
   </div>
 
-  <div id="guestApp" class="guest-app" style="display:none;">
-    <header id="stickyHeader" class="sticky-header">
-      <button id="newLeadBtn" class="btn">+ New Lead</button>
-      <button id="dashboardBtn" class="btn" onclick="window.location.href='./admin.html'">Dashboard</button>
-      <div id="leadIdContainer" class="lead-id-container">
-        <button id="toggleLeadIdBtn" class="btn small-btn">See Lead ID</button>
-        <span id="leadIdText" class="lead-id-text">--</span>
-      </div>
-      <div class="gp-progress-main">
-        <progress id="progressBar" max="100" value="0"></progress>
-        <span id="progressLabel">0%</span>
+  <div id="guestApp">
+    <header id="stickyHeader">
+      <div id="headerContent">
+        <div id="headerTitleRow">
+          <h1>OSL Guest Portal</h1>
+          <button id="menuToggle" aria-label="Toggle Menu">&#9776;</button>
+        </div>
+        <div id="headerButtonRow" class="collapsed">
+          <button id="newLeadBtn">+ New Lead</button>
+          <button id="dashboardBtn" onclick="window.location.href='./admin.html'">Dashboard</button>
+          <div id="leadIdContainer">
+            <button id="toggleLeadIdBtn">See Lead ID</button>
+            <span id="leadIdText">--</span>
+          </div>
+          <progress id="progressBar" max="100" value="0"></progress>
+          <span id="progressLabel">0%</span>
+        </div>
       </div>
     </header>
 
-    <section id="step1Form" class="step-container">
+    <section id="step1Form">
       <h3>Step 1: Customer Info</h3>
-      <label class="glabel">
+      <label>
         Customer Name
         <input id="custName" type="text" autocomplete="off" />
       </label>
-      <label class="glabel">
+      <label>
         Customer Phone
         <input id="custPhone" type="tel" autocomplete="off" />
       </label>
     </section>
 
-    <section id="step2Form" class="step-container">
+    <section id="step2Form">
       <h3>Step 2: Evaluate Needs</h3>
       <div id="step2Fields"><!-- Questions rendered dynamically --></div>
     </section>
 
-    <section id="step3Form" class="step-container">
+    <section id="step3Form">
       <h3>Step 3: Proposed Solution</h3>
       <textarea id="solutionText" rows="6" placeholder="Enter proposed solution…"></textarea>
     </section>
   </div>
 
-  <!-- JS Modules -->
   <script type="module" src="../js/gp/gp-firebase.js"></script>
   <script type="module" src="../js/gp/gp-app.js"></script>
 
   <script>
-    // DOM Elements
-    const authContainer = document.getElementById('authContainer');
-    const guestApp = document.getElementById('guestApp');
-    const errorMsg = document.getElementById('errorMsg');
-    const signInBtn = document.getElementById('signInBtn');
-    const emailInput = document.getElementById('emailInput');
-    const passwordInput = document.getElementById('passwordInput');
-    const newLeadBtn = document.getElementById('newLeadBtn');
-    const progressBar = document.getElementById('progressBar');
-    const progressLabel = document.getElementById('progressLabel');
-    const leadIdText = document.getElementById('leadIdText');
+    // Toggle lead ID visibility
     const toggleLeadIdBtn = document.getElementById('toggleLeadIdBtn');
+    const leadIdText = document.getElementById('leadIdText');
 
-    // Toggle Lead ID visibility
     toggleLeadIdBtn.addEventListener('click', () => {
       if (leadIdText.style.display === 'inline-block') {
         leadIdText.style.display = 'none';
@@ -84,59 +77,14 @@
       }
     });
 
-    import { firebaseOnAuthStateChanged, signIn, getCurrentUserUid, createNewLead } from '../js/gp/gp-firebase.js';
-    import { gpApp } from '../js/gp/gp-app.js';
+    // Mobile menu toggle
+    const menuToggle = document.getElementById('menuToggle');
+    const headerButtonRow = document.getElementById('headerButtonRow');
 
-    // Sign in handler
-    signInBtn.addEventListener('click', async () => {
-      errorMsg.textContent = "";
-      try {
-        await signIn(emailInput.value.trim(), passwordInput.value.trim());
-      } catch (e) {
-        errorMsg.textContent = e.message || "Sign in failed";
-      }
+    menuToggle.addEventListener('click', () => {
+      headerButtonRow.classList.toggle('expanded');
+      headerButtonRow.classList.toggle('collapsed');
     });
-
-    // Auth state listener
-    firebaseOnAuthStateChanged(async (user) => {
-      if (user) {
-        authContainer.style.display = 'none';
-        guestApp.style.display = 'block';
-
-        if (!gpApp.guestKey) {
-          const newKey = await createNewLead(getCurrentUserUid());
-          gpApp.setGuestKey(newKey);
-        }
-        updateLeadDisplay();
-        gpApp.loadContext();
-        gpApp.attachCompletionListener(updateProgress);
-
-      } else {
-        authContainer.style.display = 'block';
-        guestApp.style.display = 'none';
-      }
-    });
-
-    // New Lead button
-    newLeadBtn.addEventListener('click', async () => {
-      if (!gpApp) return alert("App not ready");
-      const newKey = await createNewLead(getCurrentUserUid());
-      gpApp.setGuestKey(newKey);
-      updateLeadDisplay();
-      gpApp.loadContext();
-    });
-
-    // Update progress bar and label
-    function updateProgress(pct) {
-      progressBar.value = pct;
-      progressLabel.textContent = `${pct}%`;
-    }
-
-    // Update Lead ID text
-    function updateLeadDisplay() {
-      leadIdText.textContent = gpApp.guestKey || '--';
-    }
   </script>
-
 </body>
 </html>
