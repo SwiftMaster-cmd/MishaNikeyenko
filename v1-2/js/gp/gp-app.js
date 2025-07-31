@@ -1,4 +1,3 @@
-// gp-app.js
 import {
   firebaseOnAuthStateChanged,
   signIn,
@@ -22,7 +21,6 @@ export class GuestFormApp {
     this.onLeadChange = onLeadChange;
     this.onProgressUpdate = onProgressUpdate;
 
-    this.leadIdDisplay = document.getElementById("leadIdDisplay");
     this.progressBar = document.getElementById("progressBar");
     this.progressLabel = document.getElementById("progressLabel");
 
