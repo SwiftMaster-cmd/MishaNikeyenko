@@ -2,107 +2,120 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>OSL Guest Portal</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Customer Info – OSL Guest Portal</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/guest-portal.css" />
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0; 
       background: #121212;
-      color: #e2e8f0;
-      margin: 0; padding: 0;
-      display: flex; flex-direction: column; min-height: 100vh;
+      color: #e0e0e0;
+      font-family: system-ui, sans-serif;
+    }
+    #stickyHeader {
+      position: sticky;
+      top: 0;
+      background: rgba(30, 30, 30, 0.95);
+      backdrop-filter: saturate(180%) blur(16px);
+      padding: 12px 20px;
+      display: flex;
+      gap: 12px;
       align-items: center;
-      justify-content: center;
+      z-index: 1000;
+      border-bottom: 1px solid #444;
     }
-    #authContainer, #guestApp {
-      width: 100%; max-width: 480px; margin: 1rem;
-      background: rgba(26,28,36,0.95);
-      border-radius: 12px; padding: 2rem;
-      box-shadow: 0 4px 20px rgba(30,144,255,0.2);
+    #stickyHeader button {
+      background-color: #1e90ff;
+      border: none;
+      color: white;
+      padding: 8px 14px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.2s ease;
     }
-    #guestApp { display: none; }
-    input, button {
-      width: 100%; margin: 0.5rem 0;
-      padding: 0.75rem; border-radius: 8px;
-      border: none; font-size: 1rem;
+    #stickyHeader button:hover {
+      background-color: #4aa8ff;
     }
-    button {
-      background: #1e90ff; color: white;
-      font-weight: 700; cursor: pointer;
+    #leadIdContainer {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
     }
-    button:disabled {
-      background: #555; cursor: not-allowed;
-    }
-    #errorMsg {
-      color: #ff5252; min-height: 1.2rem;
-    }
-    header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 1rem;
-      color: #82caff;
-      font-weight: 600;
-    }
-    progress {
-      width: 100%; height: 20px; border-radius: 12px; margin-top: 0.5rem;
-      appearance: none; overflow: hidden;
-      background: rgba(255,255,255,0.1);
-    }
-    progress::-webkit-progress-bar {
-      background: rgba(255,255,255,0.1);
-      border-radius: 12px;
-    }
-    progress::-webkit-progress-value {
-      background: linear-gradient(90deg, #1e90ff, #4aa8ff);
-      border-radius: 12px;
+    #leadIdText {
+      user-select: all;
+      background: #222;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-family: monospace;
+      display: none;
+      max-width: 240px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #1e90ff;
     }
   </style>
 </head>
 <body>
 
-  <div id="authContainer">
-    <h2>Sign In</h2>
-    <div id="errorMsg"></div>
-    <input type="email" id="emailInput" placeholder="Email" autocomplete="username" />
-    <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password" />
-    <button id="signInBtn">Sign In</button>
-  </div>
+  <header id="stickyHeader">
+    <button id="btnNewLead">+ New Lead</button>
+    <button id="btnDashboard" onclick="window.location.href='./admin.html'">Dashboard</button>
 
-  <div id="guestApp">
-    <header>
-      <button id="newLeadBtn">+ New Lead</button>
-      <span id="leadIdDisplay">Lead ID: --</span>
-    </header>
+    <div id="leadIdContainer">
+      <button id="btnToggleLeadId">See Lead ID</button>
+      <span id="leadIdText">-</span>
+    </div>
+  </header>
 
-    <progress id="progressBar" max="100" value="0"></progress>
-    <span id="progressLabel">0%</span>
+  <div id="guestApp"></div> <!-- container JS will fill -->
 
-    <section id="step1Form">
-      <h3>Step 1: Customer Info</h3>
-      <label>
-        Customer Name
-        <input id="custName" type="text" autocomplete="off" />
-      </label>
-      <label>
-        Customer Phone
-        <input id="custPhone" type="tel" autocomplete="off" />
-      </label>
-    </section>
+  <!-- Firebase SDKs -->
+  <script type="module" src="../js/gp-firebase.js"></script>
+  <script type="module" src="../js/gp-app.js"></script>
+  <script type="module" src="../js/ui-app.js"></script>
 
-    <section id="step2Form">
-      <h3>Step 2: Evaluate Needs</h3>
-      <div id="step2Fields">
-        <!-- Questions rendered dynamically -->
-      </div>
-    </section>
+  <script>
+    const btnToggleLeadId = document.getElementById('btnToggleLeadId');
+    const leadIdText = document.getElementById('leadIdText');
 
-    <section id="step3Form">
-      <h3>Step 3: Proposed Solution</h3>
-      <textarea id="solutionText" rows="6" placeholder="Enter proposed solution…"></textarea>
-    </section>
-  </div>
+    btnToggleLeadId.addEventListener('click', () => {
+      if (leadIdText.style.display === 'inline-block') {
+        leadIdText.style.display = 'none';
+        btnToggleLeadId.textContent = 'See Lead ID';
+      } else {
+        leadIdText.style.display = 'inline-block';
+        btnToggleLeadId.textContent = 'Hide Lead ID';
+      }
+    });
 
-<script type="module" src="../js/gp/gp-firebase.js"></script>
-<script type="module" src="../js/gp/gp-app.js"></script>
+    // Assuming your gpApp exposes current lead id as gpApp.guestKey
+    // Update lead id display on load and on changes
+    function updateLeadIdDisplay() {
+      const id = window.gpApp?.guestKey || '-';
+      leadIdText.textContent = id;
+    }
+
+    // Hook the new lead button to gpApp.createNewLead or equivalent
+    document.getElementById('btnNewLead').addEventListener('click', async () => {
+      if (window.gpApp?.createNewLead) {
+        await window.gpApp.createNewLead();
+        updateLeadIdDisplay();
+      } else {
+        alert('New Lead function not available');
+      }
+    });
+
+    // On page load update lead id
+    window.addEventListener('load', () => {
+      updateLeadIdDisplay();
+    });
+  </script>
 
 </body>
 </html>
