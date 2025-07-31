@@ -2,7 +2,7 @@
 (function(global){
   // Firebase initialization
   const cfg = global.GP_FIREBASE_CONFIG || {
-    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRGZ9dslMzE",
+    apiKey: "AIzaSyD9fILTNJQ0wsPftUsPkdLrhRG9dslMzE",
     authDomain: "osls-644fd.firebaseapp.com",
     databaseURL: "https://osls-644fd-default-rtdb.firebaseio.com",
     projectId: "osls-644fd",
@@ -79,10 +79,33 @@
     });
   }
 
+  // Create a new guest record and assign _guestKey
+  async function createNewGuest() {
+    if (_guestKey) return _guestKey; // already have one
+
+    const ref = db.ref('guestinfo').push();
+    _guestKey = ref.key;
+
+    // Initialize with empty or default data if needed
+    await ref.set({
+      createdAt: Date.now(),
+      status: "new"
+    });
+
+    // Save _guestKey in localStorage for persistence
+    try {
+      localStorage.setItem("last_guestinfo_key", _guestKey);
+    } catch (_) {}
+
+    return _guestKey;
+  }
+
   // Save or update the guest record
   async function saveGuestNow() {
-    // If not editing an existing lead, don't save
-    if (!_guestKey) return; // <--- CRITICAL GUARD
+    // If no guestKey, create a new guest record first
+    if (!_guestKey) {
+      await createNewGuest();
+    }
 
     const f   = readFields();
     const now = Date.now();
