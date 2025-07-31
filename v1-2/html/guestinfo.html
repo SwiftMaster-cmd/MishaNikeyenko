@@ -4,176 +4,76 @@
   <meta charset="UTF-8" />
   <title>OSL Guest Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #121212;
-      color: #e2e8f0;
-      margin: 0; padding: 0;
-      display: flex; flex-direction: column; min-height: 100vh;
-      align-items: center;
-      justify-content: flex-start;
-    }
-    #authContainer, #guestApp {
-      width: 100%; max-width: 480px; margin: 1rem;
-      background: rgba(26,28,36,0.95);
-      border-radius: 12px; padding: 2rem;
-      box-shadow: 0 4px 20px rgba(30,144,255,0.2);
-    }
-    #guestApp { display: none; }
-    input, button, textarea {
-      width: 100%; margin: 0.5rem 0;
-      padding: 0.75rem; border-radius: 8px;
-      border: none; font-size: 1rem;
-      background: rgba(255,255,255,0.05);
-      color: #e2e8f0;
-      font-family: inherit;
-      resize: vertical;
-    }
-    button {
-      background: #1e90ff; color: white;
-      font-weight: 700; cursor: pointer;
-      user-select: none;
-    }
-    button:disabled {
-      background: #555; cursor: not-allowed;
-    }
-    #errorMsg {
-      color: #ff5252; min-height: 1.2rem;
-    }
-    header#stickyHeader {
-      position: sticky;
-      top: 0;
-      background: rgba(30,30,30,0.95);
-      backdrop-filter: saturate(180%) blur(16px);
-      padding: 12px 20px;
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      z-index: 1000;
-      border-bottom: 1px solid #444;
-      color: #82caff;
-      font-weight: 600;
-    }
-    header#stickyHeader button {
-      background-color: #1e90ff;
-      border: none;
-      color: white;
-      padding: 8px 14px;
-      font-weight: 700;
-      border-radius: 8px;
-      cursor: pointer;
-      user-select: none;
-      transition: background-color 0.2s ease;
-    }
-    header#stickyHeader button:hover {
-      background-color: #4aa8ff;
-    }
-    #leadIdContainer {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.9rem;
-      user-select: none;
-    }
-    #leadIdText {
-      background: #222;
-      padding: 4px 10px;
-      border-radius: 8px;
-      font-family: monospace;
-      display: none;
-      max-width: 240px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: #1e90ff;
-      user-select: all;
-    }
-    progress {
-      width: 100%; height: 20px; border-radius: 12px; margin-top: 0.5rem;
-      appearance: none; overflow: hidden;
-      background: rgba(255,255,255,0.1);
-    }
-    progress::-webkit-progress-bar {
-      background: rgba(255,255,255,0.1);
-      border-radius: 12px;
-    }
-    progress::-webkit-progress-value {
-      background: linear-gradient(90deg, #1e90ff, #4aa8ff);
-      border-radius: 12px;
-    }
-    label {
-      font-weight: 600;
-      display: block;
-      margin-top: 1rem;
-    }
-  </style>
+  <!-- Link external CSS files -->
+  <link rel="stylesheet" href="../css/guest-portal.css" />
+
 </head>
 <body>
 
-  <div id="authContainer">
+  <div id="authContainer" class="auth-container">
     <h2>Sign In</h2>
-    <div id="errorMsg"></div>
+    <div id="errorMsg" class="error-msg"></div>
     <input type="email" id="emailInput" placeholder="Email" autocomplete="username" />
     <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password" />
     <button id="signInBtn">Sign In</button>
   </div>
 
-  <div id="guestApp">
-    <header id="stickyHeader">
-      <button id="newLeadBtn">+ New Lead</button>
-      <button id="dashboardBtn" onclick="window.location.href='./admin.html'">Dashboard</button>
-      <div id="leadIdContainer">
-        <button id="toggleLeadIdBtn">See Lead ID</button>
-        <span id="leadIdText">--</span>
+  <div id="guestApp" class="guest-app" style="display:none;">
+    <header id="stickyHeader" class="sticky-header">
+      <button id="newLeadBtn" class="btn">+ New Lead</button>
+      <button id="dashboardBtn" class="btn" onclick="window.location.href='./admin.html'">Dashboard</button>
+      <div id="leadIdContainer" class="lead-id-container">
+        <button id="toggleLeadIdBtn" class="btn small-btn">See Lead ID</button>
+        <span id="leadIdText" class="lead-id-text">--</span>
+      </div>
+      <div class="gp-progress-main">
+        <progress id="progressBar" max="100" value="0"></progress>
+        <span id="progressLabel">0%</span>
       </div>
     </header>
 
-    <progress id="progressBar" max="100" value="0"></progress>
-    <span id="progressLabel">0%</span>
-
-    <section id="step1Form">
+    <section id="step1Form" class="step-container">
       <h3>Step 1: Customer Info</h3>
-      <label>
+      <label class="glabel">
         Customer Name
         <input id="custName" type="text" autocomplete="off" />
       </label>
-      <label>
+      <label class="glabel">
         Customer Phone
         <input id="custPhone" type="tel" autocomplete="off" />
       </label>
     </section>
 
-    <section id="step2Form">
+    <section id="step2Form" class="step-container">
       <h3>Step 2: Evaluate Needs</h3>
       <div id="step2Fields"><!-- Questions rendered dynamically --></div>
     </section>
 
-    <section id="step3Form">
+    <section id="step3Form" class="step-container">
       <h3>Step 3: Proposed Solution</h3>
       <textarea id="solutionText" rows="6" placeholder="Enter proposed solution…"></textarea>
     </section>
   </div>
 
+  <!-- JS Modules -->
   <script type="module" src="../js/gp/gp-firebase.js"></script>
   <script type="module" src="../js/gp/gp-app.js"></script>
 
   <script>
+    // DOM Elements
     const authContainer = document.getElementById('authContainer');
     const guestApp = document.getElementById('guestApp');
     const errorMsg = document.getElementById('errorMsg');
     const signInBtn = document.getElementById('signInBtn');
     const emailInput = document.getElementById('emailInput');
     const passwordInput = document.getElementById('passwordInput');
-
     const newLeadBtn = document.getElementById('newLeadBtn');
     const progressBar = document.getElementById('progressBar');
     const progressLabel = document.getElementById('progressLabel');
     const leadIdText = document.getElementById('leadIdText');
     const toggleLeadIdBtn = document.getElementById('toggleLeadIdBtn');
 
-    // Toggle lead ID visibility
+    // Toggle Lead ID visibility
     toggleLeadIdBtn.addEventListener('click', () => {
       if (leadIdText.style.display === 'inline-block') {
         leadIdText.style.display = 'none';
@@ -187,7 +87,7 @@
     import { firebaseOnAuthStateChanged, signIn, getCurrentUserUid, createNewLead } from '../js/gp/gp-firebase.js';
     import { gpApp } from '../js/gp/gp-app.js';
 
-    // Sign in button handler
+    // Sign in handler
     signInBtn.addEventListener('click', async () => {
       errorMsg.textContent = "";
       try {
@@ -197,7 +97,7 @@
       }
     });
 
-    // Listen for auth state changes
+    // Auth state listener
     firebaseOnAuthStateChanged(async (user) => {
       if (user) {
         authContainer.style.display = 'none';
@@ -217,7 +117,7 @@
       }
     });
 
-    // New Lead button handler
+    // New Lead button
     newLeadBtn.addEventListener('click', async () => {
       if (!gpApp) return alert("App not ready");
       const newKey = await createNewLead(getCurrentUserUid());
@@ -232,10 +132,11 @@
       progressLabel.textContent = `${pct}%`;
     }
 
-    // Update lead ID display
+    // Update Lead ID text
     function updateLeadDisplay() {
       leadIdText.textContent = gpApp.guestKey || '--';
     }
   </script>
+
 </body>
 </html>
