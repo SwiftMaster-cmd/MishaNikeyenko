@@ -163,22 +163,7 @@
     // Do NOT trigger save here! No blank guests will be created.
   }
 
-  // Step navigation controls
-  function ensureStepNav() {
-    if (el("gp-step-nav")) return;
-    const nav = document.createElement("div");
-    nav.id = "gp-step-nav";
-    nav.className = "gp-step-nav";
-    nav.innerHTML = `
-      <button data-step="step1">1. Customer</button>
-      <button data-step="step2">2. Evaluate</button>
-      <button data-step="step3">3. Solution</button>`;
-    document.body.prepend(nav);
-    nav.addEventListener("click", e => {
-      const b = e.target.closest("button[data-step]");
-      if (b) global.gpApp.gotoStep(b.dataset.step);
-    });
-  }
+  // Navigation handler only, no buttons created
   function navHandler(step) {
     ["step1","step2","step3"].forEach(s => {
       const form = el(s + "Form");
@@ -202,7 +187,7 @@
       return;
     }
     el("gp-auth-overlay")?.remove();
-    ensureStepNav();
+    // ensureStepNav();  <-- REMOVED: no buttons now
     await loadContext();
   });
 
