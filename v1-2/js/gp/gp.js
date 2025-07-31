@@ -1,4 +1,4 @@
-import { firebaseOnAuthStateChanged, signIn, getCurrentUserUid, createNewLead } from '../js/gp/gp-firebase.js';
+import { firebaseOnAuthStateChanged, signIn, getCurrentUserUid, createNewLead } from './gp-firebase.js';
 import { gpApp } from './gp-app.js';
 
 // Elements
