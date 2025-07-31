@@ -76,45 +76,44 @@
       const bar   = el("progressBar");
       if (label) label.textContent = `${pct}%`;
       if (bar)    bar.value = pct;
+      // Also update header progress if exists
+      if (global.updateProgressHeader) global.updateProgressHeader(pct);
     });
   }
 
   // Save or update the guest record
   async function saveGuestNow() {
-    // If not editing an existing lead, don't save
-    if (!_guestKey) return; // <--- CRITICAL GUARD
+    if (!_guestKey) return; // Must have guest key to save
 
-    const f   = readFields();
+    const f = readFields();
     const now = Date.now();
     const status = global.gpCore
       ? global.gpCore.detectStatus({ ..._guestObj, ...f, solution: { text: f.solutionText } })
       : "new";
 
-    // Prepare nested evaluate data
     const evalData = {};
     (global.gpQuestions || []).forEach(q => {
       evalData[q.id] = f[q.id] || "";
     });
 
-    // Update existing guest only
     const updates = {
-      [`guestinfo/${_guestKey}/custName`]:    f.custName,
-      [`guestinfo/${_guestKey}/custPhone`]:   f.custPhone,
-      [`guestinfo/${_guestKey}/status`]:      status,
-      [`guestinfo/${_guestKey}/updatedAt`]:   now
+      [`guestinfo/${_guestKey}/custName`]: f.custName,
+      [`guestinfo/${_guestKey}/custPhone`]: f.custPhone,
+      [`guestinfo/${_guestKey}/status`]: status,
+      [`guestinfo/${_guestKey}/updatedAt`]: now
     };
     if (f.solutionText) {
       updates[`guestinfo/${_guestKey}/solution`] = {
-        text:           f.solutionText,
-        completedAt:    _guestObj.solution?.completedAt || now
+        text: f.solutionText,
+        completedAt: _guestObj.solution?.completedAt || now
       };
     } else {
       updates[`guestinfo/${_guestKey}/solution`] = null;
     }
-    // Nested evaluate updates
     Object.entries(evalData).forEach(([k, v]) => {
       updates[`guestinfo/${_guestKey}/evaluate/${k}`] = v;
     });
+
     try {
       await db.ref().update(updates);
     } catch (e) {
@@ -125,7 +124,7 @@
   // Load existing context or initialize fresh
   async function loadContext() {
     const params = new URLSearchParams(window.location.search);
-    const gid    = params.get("gid") || localStorage.getItem("last_guestinfo_key");
+    const gid = params.get("gid") || localStorage.getItem("last_guestinfo_key");
 
     if (gid) {
       try {
@@ -142,9 +141,15 @@
           const step = st === "proposal" ? "step3" : st === "working" ? "step2" : "step1";
           global.gpApp.gotoStep(step);
           if (global.updateTotalPoints) global.updateTotalPoints();
-          if (global.updatePitchText)  global.updatePitchText();
+          if (global.updatePitchText) global.updatePitchText();
 
           attachCompletionListener();
+
+          // Store last guest key for reloads
+          try {
+            localStorage.setItem("last_guestinfo_key", gid);
+          } catch {}
+
           return;
         }
       } catch (e) {
@@ -152,15 +157,18 @@
       }
     }
 
-    // If guest doesn't exist, just reset UI, but DON'T create or autosave a blank guest.
+    // Reset UI if no guest loaded
     _guestObj = {};
     _guestKey = null;
     global.gpApp.gotoStep("step1");
     writeFields({});
     loadAnswersFromGuest({});
     if (global.updateTotalPoints) global.updateTotalPoints();
-    if (global.updatePitchText)  global.updatePitchText();
-    // Do NOT trigger save here! No blank guests will be created.
+    if (global.updatePitchText) global.updatePitchText();
+
+    try {
+      localStorage.removeItem("last_guestinfo_key");
+    } catch {}
   }
 
   // Navigation handler only, no buttons created
@@ -172,6 +180,8 @@
     Array.from(document.querySelectorAll("#gp-step-nav button")).forEach(b =>
       b.classList.toggle("active", b.dataset.step === step)
     );
+    _uiStep = step;
+    if (global.updateCurrentStep) global.updateCurrentStep(step);
   }
 
   // Auth and initialization
@@ -187,16 +197,15 @@
       return;
     }
     el("gp-auth-overlay")?.remove();
-    // ensureStepNav();  <-- REMOVED: no buttons now
     await loadContext();
   });
 
   // Expose API
   global.gpBasic = {
     get guestKey(){ return _guestKey; },
-    save:    saveGuestNow,
-    goto:    navHandler,
-    open:    loadContext
+    save: saveGuestNow,
+    goto: navHandler,
+    open: loadContext
   };
   global.gpApp = {
     get guestKey(){ return gpBasic.guestKey; },
