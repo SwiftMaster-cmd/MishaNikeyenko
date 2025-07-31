@@ -2,33 +2,83 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Customer Info – OSL Guest Portal</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-
-  <link rel="stylesheet" href="../css/dashboard.css" />
+  <title>Guest Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="../css/guest-portal.css" />
-  <style>
-    /* fallback styles */
-    .hidden { display: none !important; }
-    .gp-pts { opacity: .6; font-weight: 400; font-size: .85em; margin-left: .25em; }
-    /* Add any other inline or fallback styles you want */
-  </style>
 </head>
 <body>
 
-  <div id="guestApp"></div> <!-- container JS will fill -->
+  <header id="leadHeader">
+    <button id="newLeadBtn">+ New Lead</button>
+    <span id="leadIdDisplay">Lead ID: --</span>
+    <progress id="progressBar" max="100" value="0"></progress>
+    <span id="progressLabel">0%</span>
+  </header>
 
-  <!-- Firebase Compat CDN Scripts (Global namespace) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <main id="guestApp">
+    <section id="step1Form">
+      <h2>Step 1: Customer Info</h2>
+      <label>Customer Name
+        <input id="custName" type="text" autocomplete="off" />
+      </label>
+      <label>Customer Phone
+        <input id="custPhone" type="tel" autocomplete="off" />
+      </label>
+    </section>
 
-<script type="module" src="../js/gp/gp-core.js"></script>
-<script type="module" src="../js/gp/gp-ui-render.js"></script>
-<script type="module" src="../js/gp/progress-bar.js"></script>
-<script type="module" src="../js/gp/step-ui.js"></script>
-<script type="module" src="../js/gp/ui-app.js"></script>
-<script type="module" src="../js/gp/gp-app-min.js"></script>
+    <section id="step2Form">
+      <h2>Step 2: Evaluate Needs</h2>
+      <div id="step2Fields">
+        <!-- Your gpQuestions inputs rendered here -->
+      </div>
+    </section>
+
+    <section id="step3Form">
+      <h2>Step 3: Proposed Solution</h2>
+      <textarea id="solutionText" rows="6"></textarea>
+    </section>
+  </main>
+
+  <script type="module">
+   import { GuestFormApp } from '../js/gp/gp-app.js';
+import { firebaseOnAuthStateChanged, getCurrentUserUid, createNewLead } from '../js/gp/gp-firebase.js';
+
+    // Assume gpQuestions is loaded separately or inline as global
+
+    const leadIdDisplay = document.getElementById("leadIdDisplay");
+    const progressBar = document.getElementById("progressBar");
+    const progressLabel = document.getElementById("progressLabel");
+    const newLeadBtn = document.getElementById("newLeadBtn");
+
+    const app = new GuestFormApp({
+      onLeadChange: (id) => {
+        leadIdDisplay.textContent = id ? `Lead ID: ${id}` : "Lead ID: --";
+      },
+      onProgressUpdate: (pct) => {
+        progressBar.value = pct;
+        progressLabel.textContent = pct + "%";
+      }
+    });
+
+    firebaseOnAuthStateChanged(async user => {
+      if (!user) {
+        alert("Please sign in to continue.");
+        // handle sign-in UI here
+        return;
+      }
+      const lastKey = localStorage.getItem("last_guestinfo_key");
+      if (lastKey) {
+        await app.loadGuest(lastKey);
+      }
+    });
+
+    newLeadBtn.addEventListener("click", async () => {
+      const uid = getCurrentUserUid();
+      const newKey = await createNewLead(uid);
+      localStorage.setItem("last_guestinfo_key", newKey);
+      await app.loadGuest(newKey);
+    });
+  </script>
 
 </body>
 </html>
