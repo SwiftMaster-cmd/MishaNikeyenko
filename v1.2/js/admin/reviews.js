@@ -1,5 +1,5 @@
 // reviews.js  -- role-filtered store review cards w/ high-avg collapse + expand
-// v2: big bold avg stars in store header; removed reload button
+// v3: default show only store name + big centered stars + count; expand store shows reviews; click review toggles details
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
   const HIGH_AVG_THRESHOLD = 4.7;
@@ -63,12 +63,12 @@
     const val   = Number(avg) || 0;
     const stars = starString(val);
     // big + bold class; numeric avg shown smaller but inline
-    return `<span class="store-avg-stars-big" title="${val.toFixed(1)} / 5"><strong>${stars}</strong><span class="store-avg-num"> ${val.toFixed(1)}</span></span>`;
+    return `<span class="store-avg-stars-big" title="${val.toFixed(1)} / 5" style="font-size:2.5rem; font-weight:bold; color:#63bbff;">${stars} <span style="font-size:1.2rem; font-weight:400; margin-left:0.25rem;">${val.toFixed(1)}</span></span>`;
   }
 
   function reviewStarsHtml(r) {
     const rating = Number(r.rating) || 0;
-    return `<span class="review-stars">${starString(rating)}</span>`;
+    return `<span class="review-stars" style="color:#63bbff; font-weight:700;">${starString(rating)}</span>`;
   }
 
   function formatTs(ms) {
@@ -106,42 +106,46 @@
   }
 
   /* --------------------------------------------------------------
-   * Build summary block (collapsed header; big stars inline w/ name)
+   * Build summary block (collapsed header; big stars inline w/ name centered)
    * -------------------------------------------------------------- */
   function storeSummaryHtml(store, entries, avg, isOpen) {
     const count = entries.length;
-    const cls   = isOpen ? "store-summary open" : "store-summary";
-    const stars = avgStarsHtml(avg);
-    const arrow = isOpen ? "▾" : "▸";
+    const cls = isOpen ? "store-summary open" : "store-summary";
     return `
-      <div class="${cls}" onclick="window.reviews.toggleStore('${encodeURIComponent(store)}')">
-        <div class="store-summary-main">
-          <span class="store-summary-arrow">${arrow}</span>
-          <span class="store-summary-name">${store}</span>
-          ${stars}
-          <span class="store-summary-count">(${count})</span>
+      <div class="${cls}" onclick="window.reviews.toggleStore('${encodeURIComponent(store)}')" style="cursor:pointer; text-align:center; padding: 1rem 0; user-select:none; border-bottom: 1px solid #2e3f5f;">
+        <div class="store-summary-name" style="font-weight:900; font-size:1.25rem; color:#63bbff; margin-bottom:0.3rem;">
+          ${store}
+        </div>
+        <div class="store-summary-stars" style="margin-bottom: 0.3rem;">
+          ${avgStarsHtml(avg)}
+        </div>
+        <div class="store-summary-count" style="color:#b3caff;">
+          (${count} review${count !== 1 ? "s" : ""})
         </div>
       </div>
     `;
   }
 
   /* --------------------------------------------------------------
-   * Build review card HTML (single review)
+   * Build review card HTML (single review) with toggle details on click
    * -------------------------------------------------------------- */
   function reviewCardHtml(id, r) {
     const stars = reviewStarsHtml(r);
     return `
-      <div class="review-card" id="review-${id}">
-        <div class="review-header">
+      <div class="review-card collapsed" id="review-${id}" onclick="this.classList.toggle('collapsed')" 
+        style="cursor:pointer; border-radius:12px; background:rgba(23,30,45,0.6); margin-bottom:1rem; padding:1rem; box-shadow:0 0 12px rgba(30,144,255,0.3); color:#e7f2ff;">
+        <div class="review-header" style="display:flex; justify-content: space-between; align-items: center; font-weight:700;">
           <span class="review-star">${stars}</span>
           <div><b>Associate:</b> ${r.associate || '-'}</div>
           ${canDelete(window.currentRole)
-            ? `<button class="btn btn-danger btn-sm" onclick="window.reviews.deleteReview('${id}')">Delete</button>`
+            ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); window.reviews.deleteReview('${id}')">Delete</button>`
             : ''}
         </div>
-        <div class="review-comment">${r.comment || ''}</div>
-        <div class="review-meta">
-          <span><b>When:</b> ${formatTs(r.timestamp)}</span>
+        <div class="review-comment" style="margin-top: 0.5rem; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease; opacity: 0; pointer-events: none;">
+          ${r.comment || ''}
+        </div>
+        <div class="review-meta" style="margin-top:0.3rem; font-size:0.85rem; color:#a8b9db; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease; opacity: 0; pointer-events: none;">
+          <span><b>When:</b> ${formatTs(r.timestamp)}</span><br/>
           <span><b>Referral:</b> ${r.refName ? `${r.refName} / ${r.refPhone || ''}` : '-'}</span>
         </div>
       </div>
