@@ -191,10 +191,10 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
 const cardStyle = `
   background: transparent;
   border-radius: var(--radius-md);
-  padding: 12px 24px;
+  padding: 12px 32px;
   position: relative;
-  backdrop-filter: blur(2px) saturate(120%);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(4px) saturate(120%);
+  -webkit-backdrop-filter: blur(4px) saturate(120%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow:
     0 4px 30px rgba(31, 38, 135, 0.1),
