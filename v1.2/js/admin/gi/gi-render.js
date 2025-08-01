@@ -171,7 +171,7 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   // time ago
   const when = timeAgo(g.submittedAt);
 
-  // submitted by bubble
+  // submitted by bubble with distinct glow
   const roleCls = currentRole === "me"    ? "role-badge role-me"
                  : currentRole === "lead" ? "role-badge role-lead"
                  : currentRole === "dm"   ? "role-badge role-dm"
@@ -193,6 +193,69 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   ].filter(Boolean).join("");
 
   return `
+    <style>
+      /* Responsive bigger customer name */
+      #guest-card-${id} .guest-name {
+        font-weight: 600;
+        font-size: 1.25rem;
+        margin: 0.5rem 0;
+        text-align: center;
+        color: #dbeafe;
+        user-select: text;
+      }
+      @media (min-width: 768px) {
+        #guest-card-${id} .guest-name {
+          font-size: 1.5rem;
+        }
+      }
+
+      /* Submitter name glowing better */
+      #guest-card-${id} .submitter-name {
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        background: rgba(23,30,45,0.6);
+        color: #a5d6ff;
+        box-shadow:
+          0 0 6px 2px #55baffaa,
+          0 0 12px 4px #55baff66;
+        user-select: none;
+        white-space: nowrap;
+        cursor: default;
+      }
+
+      /* Phone number clickable and larger on wider screens */
+      #guest-card-${id} .guest-phone {
+        cursor: pointer;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        background: rgba(23,30,45,0.6);
+        color: #a5b4fc;
+        transition: background 0.25s ease, color 0.25s ease;
+        user-select: text;
+      }
+      #guest-card-${id} .guest-phone:hover {
+        background: var(--brand);
+        color: #f0f9ff;
+      }
+      @media (min-width: 768px) {
+        #guest-card-${id} .guest-phone {
+          font-size: 1rem;
+        }
+      }
+
+      /* Timeframe style */
+      #guest-card-${id} .guest-time {
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        background: rgba(23,30,45,0.6);
+        color: #9ca3af;
+        user-select: none;
+      }
+    </style>
+
     <div class="guest-card" id="guest-card-${id}"
          style="background:${bg};border-radius:var(--radius-md);padding:12px;position:relative;">
       <!-- header: status + pitch + toggle -->
@@ -211,25 +274,22 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
       </div>
 
       <!-- customer name centered -->
-      <div style="text-align:center;font-weight:600;font-size:1.1em;margin:8px 0;">
+      <div class="guest-name">
         ${esc(g.custName || "-")}
       </div>
 
       <!-- footer: submitted by, phone toggle, time -->
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <span class="${roleCls}"
-              style="padding:2px 6px;border-radius:999px;font-size:.85em;background:${bg};">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+        <span class="submitter-name" title="Submitted by">
           ${nameLabel}
         </span>
-        <span class="guest-phone"
-              data-raw="${raw}"
-              data-mask="${masked}"
-              style="padding:2px 6px;border-radius:999px;font-size:.85em;cursor:pointer;background:${bg};"
-              onclick="window.guestinfo.togglePhone('${id}')">
+        <span class="guest-phone" 
+              data-raw="${raw}" 
+              data-mask="${masked}" 
+              onclick="(function(e){navigator.clipboard.writeText('${raw}'); alert('Copied: ${raw}');})(event)">
           ${masked}
         </span>
-        <span class="guest-time"
-              style="padding:2px 6px;border-radius:999px;font-size:.75em;background:${bg};">
+        <span class="guest-time">
           ${when}
         </span>
       </div>
