@@ -1,10 +1,11 @@
 /* ==========================================================================
-   Reviews Section Styles
+   Reviews Section Styles (Updated for new stars-only UI)
    ========================================================================== */
 
 .reviews-section {
   background: transparent;
-  
+  padding: 1.5rem 2rem;
+  user-select: text;
 }
 
 .reviews-section h2 {
@@ -13,17 +14,17 @@
   color: #60a5fa;
   margin-bottom: 1.8rem;
   text-shadow: 0 0 5px #3b82f6bb;
-  user-select: text;
 }
 
-/* Container for grouped store reviews */
+/* Container for all store review blocks */
 .reviews-container {
   display: flex;
   flex-direction: column;
-  gap: 1.6rem;
+  gap: 2rem;
   max-height: 70vh;
   overflow-y: auto;
   padding-right: 6px;
+  user-select: text;
 }
 
 .reviews-container::-webkit-scrollbar {
@@ -44,92 +45,99 @@
   background: rgba(30, 144, 255, 0.9);
 }
 
-/* Store summary header */
-.store-summary {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: rgba(30, 30, 30, 0.65);
-  padding: 12px 16px;
-  border-radius: 14px;
-  user-select: none;
-  border: 1.5px solid rgba(30, 144, 255, 0.4);
-  box-shadow: 0 0 12px rgba(30, 144, 255, 0.35);
-  transition: background-color 0.3s ease;
+/* Store block wrapper - center stars */
+.store-block {
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
-.store-summary:hover {
-  background: rgba(30, 144, 255, 0.15);
-  box-shadow: 0 0 20px rgba(30, 144, 255, 0.7);
-}
-
-.store-summary.open {
-  background: rgba(30, 144, 255, 0.25);
-  box-shadow: 0 0 26px rgba(30, 144, 255, 0.9);
-}
-
-/* Store summary elements */
-.store-summary-main {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-}
-
-.store-summary-arrow {
-  font-size: 1.6rem;
-  color: #60a5fa;
-  user-select: none;
-}
-
-.store-summary-name {
-  flex-grow: 1;
-  font-weight: 700;
-  font-size: 1.2rem;
-  color: #dbeafe;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
+/* Big glowing stars for store average */
 .store-avg-stars-big {
-  font-size: 1.6rem;
+  font-size: 3rem;
   font-weight: 900;
-  color: #facc15; /* gold */
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  color: #63bbff;
   user-select: none;
-  text-shadow: 0 0 5px #fbbf24bb;
+  cursor: pointer;
+  letter-spacing: 3px;
+  text-shadow:
+    0 0 8px #63bbff,
+    0 0 15px #63bbff,
+    0 0 22px #1e90ff,
+    0 0 40px #1e90ff;
+  display: inline-block;
+  transition: color 0.3s ease;
 }
 
-.store-avg-num {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #fef3c7;
+.store-avg-stars-big:hover {
+  color: #1e90ff;
+  text-shadow:
+    0 0 12px #1e90ff,
+    0 0 24px #1e90ff,
+    0 0 36px #63bbff,
+    0 0 60px #63bbff;
 }
 
-/* Review card */
+/* Reviews list container shown when expanded */
+.reviews-store-list {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 6px;
+  user-select: text;
+  border-radius: 14px;
+}
+
+/* Scrollbar for expanded review list */
+.reviews-store-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.reviews-store-list::-webkit-scrollbar-track {
+  background: rgba(30, 30, 30, 0.3);
+  border-radius: 8px;
+}
+
+.reviews-store-list::-webkit-scrollbar-thumb {
+  background: rgba(30, 144, 255, 0.6);
+  border-radius: 8px;
+}
+
+.reviews-store-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 144, 255, 0.9);
+}
+
+/* Individual review card */
 .review-card {
-  background: rgba(20, 25, 35, 0.8);
+  background: rgba(23, 30, 45, 0.7);
   border-radius: 14px;
   padding: 1rem 1.2rem;
   box-shadow: 0 5px 18px rgba(30, 144, 255, 0.5);
   border: 1.5px solid rgba(30, 144, 255, 0.45);
-  user-select: text;
+  color: #cbd5e1;
+  font-size: 0.95rem;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: #cbd5e1;
-  font-size: 0.95rem;
+  cursor: pointer;
+  user-select: text;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  overflow: hidden;
+  max-height: 70px;
+}
+
+/* Expanded review card */
+.review-card:not(.collapsed) {
+  max-height: 1000px;
 }
 
 /* Review header */
 .review-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   font-weight: 600;
   color: #93c5fd;
@@ -138,12 +146,14 @@
 /* Stars in review */
 .review-stars {
   font-size: 1.3rem;
-  color: #fbbf24; /* amber */
+  color: #63bbff;
   user-select: none;
-  text-shadow: 0 0 6px #fbbf2499;
+  text-shadow:
+    0 0 6px #63bbff99,
+    0 0 10px #63bbff99;
 }
 
-/* Delete button in review */
+/* Delete button */
 .review-header .btn-danger {
   padding: 0.3rem 0.8rem;
   font-size: 0.85rem;
@@ -169,6 +179,10 @@
   white-space: pre-wrap;
   line-height: 1.3;
   user-select: text;
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
 }
 
 /* Review metadata */
@@ -179,48 +193,28 @@
   color: #94a3b8;
   font-weight: 500;
   user-select: none;
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
 }
 
 .review-meta span {
   white-space: nowrap;
 }
 
-/* Expanded store list container */
-.reviews-store-list {
-  margin-top: 0.8rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  max-height: 60vh;
-  overflow-y: auto;
-  padding-right: 6px;
+/* Expand comment and meta when review card not collapsed */
+.review-card:not(.collapsed) .review-comment,
+.review-card:not(.collapsed) .review-meta {
+  max-height: 500px;
+  opacity: 1;
+  pointer-events: auto;
 }
 
-.reviews-store-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.reviews-store-list::-webkit-scrollbar-track {
-  background: rgba(30, 30, 30, 0.3);
-  border-radius: 8px;
-}
-
-.reviews-store-list::-webkit-scrollbar-thumb {
-  background: rgba(30, 144, 255, 0.6);
-  border-radius: 8px;
-}
-
-.reviews-store-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(30, 144, 255, 0.9);
-}
-
-/* Responsive */
+/* Responsive adjustments */
 @media (max-width: 768px) {
   .reviews-section {
     padding: 1.5rem 1.8rem;
-  }
-  .store-summary-name {
-    font-size: 1.1rem;
   }
   .review-card {
     font-size: 0.9rem;
@@ -237,11 +231,8 @@
 }
 
 @media (max-width: 480px) {
-  .store-summary-arrow {
-    font-size: 1.3rem;
-  }
   .store-avg-stars-big {
-    font-size: 1.3rem;
+    font-size: 2.4rem;
   }
   .review-header .btn-danger {
     padding: 0.25rem 0.6rem;
