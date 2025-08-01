@@ -520,3 +520,36 @@
     width: 100%;
   }
 }
+/* Increase right padding to accommodate clear button */
+.guestinfo-controls input[type="text"],
+.guestinfo-controls input[type="date"] {
+  padding: 0.48em 2.5em 0.48em 0.8em; /* right padding bumped from 1.4em to 2.5em */
+  /* rest unchanged */
+}
+
+/* Clear button styles */
+.clear-btn {
+  position: absolute;
+  right: 8px; /* a bit more right spacing */
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  color: #a5b4fccc;
+  user-select: none;
+  transition: color 0.25s ease;
+  padding: 0;
+  line-height: 1;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.clear-btn:hover {
+  color: var(--brand);
+}
