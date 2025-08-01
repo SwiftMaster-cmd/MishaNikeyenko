@@ -13,14 +13,13 @@
   --particle-color: #2ba8ff;
 }
 
-/* Base setup */
 html, body {
   margin: 0;
   height: 100%;
   font-family: var(--main-font);
   color: #e7f2ff;
   overflow-x: hidden;
-background: transparent;
+  background: transparent !important; /* Force fully transparent */
   position: relative;
   min-height: 100vh;
 }
