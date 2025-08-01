@@ -200,7 +200,7 @@ button:focus,
 .guestinfo-controls button:focus,
 .admin-header button:focus {
   animation-play-state: running;
-  animation-duration: 4s !important; /* speed up */
+  animation-duration: 4s !important;
   transform: scale(1.07);
   outline: none;
   box-shadow: none;
