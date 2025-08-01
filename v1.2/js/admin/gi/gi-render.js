@@ -151,8 +151,10 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
 
+  // Glassy background for card
   const bg = "rgba(23, 30, 45, 0.7)";
-
+  
+  // determine pitch %
   const savedPct = typeof g.completionPct === "number"
     ? g.completionPct
     : (g.completion?.pct ?? null);
@@ -160,76 +162,69 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
     ? savedPct
     : computeGuestPitchQuality(normGuest(g)).pct;
 
+  // mask phone
   const raw    = esc(g.custPhone || "");
   const num    = digitsOnly(g.custPhone || "");
   const last4  = num.slice(-4).padStart(4, "0");
   const masked = `XXX-${last4}`;
 
+  // time ago
   const when = timeAgo(g.submittedAt);
 
+  // submitter role badge class
   const roleCls = currentRole === "me"    ? "role-badge role-me"
                  : currentRole === "lead" ? "role-badge role-lead"
                  : currentRole === "dm"   ? "role-badge role-dm"
                                            : "role-badge role-admin";
   const nameLabel = esc(submitter.name || submitter.email || "-");
 
+  // actions permissions
   const sold   = detectStatus(g) === "sold";
   const canEdit = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
   const canSold = canEdit && !sold;
   const actions = [
-    `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">
-       ${g.evaluate||g.solution||g.sale ? "Open" : "Continue"}
-     </button>`,
-    canEdit ? `<button class="btn btn-primary btn-sm" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
-    canSold ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
-    sold    ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
-    canEdit ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
+    `<button class="btn" onclick="window.guestinfo.openGuestInfoPage('${id}')">${g.evaluate||g.solution||g.sale ? "Open" : "Continue"}</button>`,
+    canEdit ? `<button class="btn" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
+    canSold ? `<button class="btn" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
+    sold    ? `<button class="btn btn-danger" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
+    canEdit ? `<button class="btn btn-danger" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
   ].filter(Boolean).join("");
 
   return `
     <style>
-      /* Guest Info grid container */
-      #guestinfo-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1.25rem;
-        padding: 1rem 1.5rem;
+      /* Container grid handled outside, card styling here */
+      #guest-card-${id} {
+        background: ${bg};
+        border-radius: var(--radius-md);
+        padding: 12px;
+        box-shadow: 0 0 15px rgba(30, 144, 255, 0.2);
+        display: flex;
+        flex-direction: column;
+        user-select: none;
         box-sizing: border-box;
+        cursor: default;
+        transition: box-shadow 0.25s ease;
       }
-      @media (max-width: 1024px) {
-        #guestinfo-grid {
-          grid-template-columns: repeat(2, 1fr);
-        }
-      }
-      @media (max-width: 600px) {
-        #guestinfo-grid {
-          grid-template-columns: 1fr;
-          padding-left: 1rem;
-          padding-right: 1rem;
-        }
+      #guest-card-${id}:hover {
+        box-shadow: 0 0 25px rgba(30, 144, 255, 0.5);
       }
 
-      /* Responsive bigger customer name */
+      /* Guest name clickable */
       #guest-card-${id} .guest-name {
         font-weight: 600;
         font-size: 1.25rem;
         margin: 0.5rem 0;
         text-align: center;
         color: #dbeafe;
-        user-select: text;
         cursor: pointer;
         transition: text-decoration 0.3s ease;
+        user-select: text;
       }
       #guest-card-${id} .guest-name:hover {
         text-decoration: underline;
       }
-      @media (min-width: 768px) {
-        #guest-card-${id} .guest-name {
-          font-size: 1.5rem;
-        }
-      }
 
-      /* Submitter name glowing better */
+      /* Submitter bubble */
       #guest-card-${id} .submitter-name {
         padding: 2px 8px;
         border-radius: 999px;
@@ -242,9 +237,11 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         user-select: none;
         white-space: nowrap;
         cursor: default;
+        text-align: center;
+        margin-bottom: 0.5rem;
       }
 
-      /* Phone number clickable and larger on wider screens */
+      /* Phone number */
       #guest-card-${id} .guest-phone {
         cursor: pointer;
         padding: 2px 8px;
@@ -254,18 +251,14 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         color: #a5b4fc;
         transition: background 0.25s ease, color 0.25s ease;
         user-select: text;
+        text-align: center;
       }
       #guest-card-${id} .guest-phone:hover {
         background: var(--brand);
         color: #f0f9ff;
       }
-      @media (min-width: 768px) {
-        #guest-card-${id} .guest-phone {
-          font-size: 1rem;
-        }
-      }
 
-      /* Timeframe style */
+      /* Time */
       #guest-card-${id} .guest-time {
         padding: 2px 8px;
         border-radius: 999px;
@@ -273,63 +266,74 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         background: rgba(23,30,45,0.6);
         color: #9ca3af;
         user-select: none;
+        text-align: center;
+        margin-top: 0.5rem;
       }
 
-      /* Card container spacing and styling */
-      #guest-card-${id} {
-        background: ${bg};
+      /* Actions container */
+      #guest-card-${id} .guest-card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 12px;
+        justify-content: center;
+      }
+
+      /* Buttons */
+      #guest-card-${id} .btn {
+        font-weight: 700;
         border-radius: var(--radius-md);
-        padding: 12px;
-        box-sizing: border-box;
-        box-shadow: 0 0 15px rgba(30, 144, 255, 0.2);
-        margin: 0;
+        padding: 0.48em 1.3em;
+        font-size: 1rem;
+        background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
+        color: #f9fdff;
+        box-shadow:
+          inset 0 1px 1px rgba(255 255 255 / 0.3),
+          0 3px 10px rgba(0 123 255 / 0.5);
+        border: none;
+        cursor: pointer;
+        transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+        backdrop-filter: saturate(180%) blur(6px);
+        white-space: nowrap;
+      }
+      #guest-card-${id} .btn:hover,
+      #guest-card-${id} .btn:focus {
+        background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
+        box-shadow:
+          inset 0 2px 3px rgba(255 255 255 / 0.5),
+          0 6px 18px rgba(30 144 255 / 0.8);
+        transform: scale(1.05);
+        outline: none;
       }
     </style>
 
-    <div id="guestinfo-grid">
-      <div class="guest-card" id="guest-card-${id}">
-        <!-- header: status + pitch + toggle -->
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="${statusCls}" style="padding:2px 8px;border-radius:999px;font-size:.85em;">
-            ${statusLbl}
-          </span>
-          <span class="guest-pitch-pill" style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};border:1px solid #fff;">
-            ${pct}%
-          </span>
-          <button class="btn-edit-actions" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;" onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
-        </div>
+    <div id="guest-card-${id}" class="guest-card" role="button" tabindex="0" 
+      aria-label="Open lead for ${esc(g.custName || 'Unknown')}">
 
-        <!-- customer name centered with click -->
-        <div class="guest-name" onclick="window.guestinfo.openGuestInfoPage('${id}')">${esc(g.custName || "-")}</div>
+      <div class="guest-name" onclick="window.guestinfo.openGuestInfoPage('${id}')"
+           onkeydown="if(event.key==='Enter' || event.key===' ') { window.guestinfo.openGuestInfoPage('${id}'); event.preventDefault(); }"
+           role="link" tabindex="0" style="outline:none;">
+        ${esc(g.custName || "-")}
+      </div>
 
-        <!-- footer: submitted by, phone toggle, time -->
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-          <span class="submitter-name" title="Submitted by">${nameLabel}</span>
-          <span class="guest-phone" 
-                data-raw="${raw}" 
-                data-mask="${masked}" 
-                onclick="(function(e){navigator.clipboard.writeText('${raw}'); alert('Copied: ${raw}');})(event)">
-            ${masked}
-          </span>
-          <span class="guest-time">${when}</span>
-        </div>
+      <div class="submitter-name" title="Submitted by">
+        ${nameLabel}
+      </div>
 
-        <!-- hidden actions -->
-        <div class="guest-card-actions" style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
-          ${actions}
-        </div>
+      <div class="guest-phone" 
+           data-raw="${raw}" 
+           data-mask="${masked}" 
+           onclick="navigator.clipboard.writeText('${raw}'); alert('Copied: ${raw}');"
+           role="button" tabindex="0" aria-label="Copy phone number ${raw}">
+        ${masked}
+      </div>
 
-        <!-- hidden edit form -->
-        <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
-          <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}"/></label>
-          <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}"/></label>
-          <label>Service Type  <input type="text" name="serviceType" value="${esc(g.serviceType||"")}"/></label>
-          <label>Situation     <textarea name="situation">${esc(g.situation||"")}</textarea></label>
-          <div style="margin-top:8px;">
-            <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
-          </div>
-        </form>
+      <div class="guest-time">
+        ${when}
+      </div>
+
+      <div class="guest-card-actions">
+        ${actions}
       </div>
     </div>
   `;
