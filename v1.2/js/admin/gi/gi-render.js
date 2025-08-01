@@ -1,372 +1,341 @@
-// guestinfo-render.js
+import {
+  groupByStatus,
+  statusSectionHtml,
+  detectStatus
+} from './gi-render.js';
 
-// ── Constants ───────────────────────────────────────────────────────────────
-export const PITCH_WEIGHTS = {
-  custName: 8, custPhone: 7,
-  currentCarrier: 12, numLines: 8, coverageZip: 8,
-  deviceStatus: 8, finPath: 12,
-  billPain: 4, dataNeed: 4, hotspotNeed: 2, intlNeed: 2,
-  solutionText: 25
+import {
+  toggleEdit,
+  cancelEdit,
+  saveEdit,
+  deleteGuestInfo,
+  markSold,
+  deleteSale,
+  openGuestInfoPage,
+  recomputePitch,
+  toggleActionButtons
+} from './gi-action.js';
+
+// Time & filter helpers
+const msNDaysAgo = n => Date.now() - n * 864e5;
+const latestActivityTs = g => Math.max(
+  g.updatedAt || 0,
+  g.submittedAt || 0,
+  g.sale?.soldAt || 0,
+  g.solution?.completedAt || 0
+);
+const inCurrentWeek = g => latestActivityTs(g) >= msNDaysAgo(7);
+const dateToISO = ts => ts ? new Date(ts).toISOString().slice(0, 10) : '';
+
+// Role-based filtering helpers
+const getUsersUnderDM = (users, dmUid) => {
+  const leads = Object.entries(users)
+    .filter(([,u]) => u.role === "lead" && u.assignedDM === dmUid)
+    .map(([uid]) => uid);
+  const mes = Object.entries(users)
+    .filter(([,u]) => u.role === "me" && leads.includes(u.assignedLead))
+    .map(([uid]) => uid);
+  return new Set([...leads, ...mes]);
 };
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-export function hasVal(v) {
-  if (v == null) return false;
-  if (typeof v === "string")  return v.trim() !== "";
-  if (typeof v === "number")  return true;
-  if (typeof v === "boolean") return v;
-  if (Array.isArray(v))       return v.length > 0;
-  if (typeof v === "object")  return Object.keys(v).length > 0;
-  return false;
-}
+const filterByRole = (guestinfo, users, uid, role) => {
+  if (!guestinfo || !users || !uid || !role) return {};
+  if (role === "admin") return guestinfo;
+  if (role === "dm") {
+    const under = getUsersUnderDM(users, uid);
+    under.add(uid);
+    return Object.fromEntries(
+      Object.entries(guestinfo).filter(([,g]) => under.has(g.userUid))
+    );
+  }
+  if (role === "lead") {
+    const mes = Object.entries(users)
+      .filter(([,u]) => u.role === "me" && u.assignedLead === uid)
+      .map(([uid]) => uid);
+    const vis = new Set([...mes, uid]);
+    return Object.fromEntries(
+      Object.entries(guestinfo).filter(([,g]) => vis.has(g.userUid))
+    );
+  }
+  if (role === "me") {
+    return Object.fromEntries(
+      Object.entries(guestinfo).filter(([,g]) => g.userUid === uid)
+    );
+  }
+  return {};
+};
 
-export function digitsOnly(s) {
-  return (s || "").replace(/\D+/g, "");
-}
-
-export function esc(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-export function timeAgo(ts) {
-  if (!ts) return "-";
-  const diff = Date.now() - ts;
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(diff / 3600000);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(diff / 86400000);
-  return `${days}d`;
-}
-
-// ── Core logic ─────────────────────────────────────────────────────────────
-export function detectStatus(g) {
-  const s = (g?.status || "").toLowerCase();
-  if (s) return s;
-  if (g?.solution && hasVal(g.solution.text)) return "proposal";
-  if (["currentCarrier","numLines","coverageZip","deviceStatus","finPath",
-       "billPain","dataNeed","hotspotNeed","intlNeed"]
-      .some(k => hasVal(g.evaluate?.[k]))
-  ) return "working";
-  return "new";
-}
-
-export function normGuest(src) {
-  src = src || {};
-  const custName  = src.custName  ?? src.guestName  ?? "";
-  const custPhone = src.custPhone ?? src.guestPhone ?? "";
-  const e = { ...(src.evaluate || {}) };
-  if (e.currentCarrier == null && src.currentCarrier != null) e.currentCarrier = src.currentCarrier;
-  if (e.numLines      == null && src.numLines      != null) e.numLines      = src.numLines;
-  if (e.coverageZip   == null && src.coverageZip   != null) e.coverageZip   = src.coverageZip;
-  if (e.deviceStatus  == null && src.deviceStatus  != null) e.deviceStatus  = src.deviceStatus;
-  if (e.finPath       == null && src.finPath       != null) e.finPath       = src.finPath;
-  const sol = { ...(src.solution || {}) };
-  if (sol.text == null && src.solutionText != null) sol.text = src.solutionText;
-
-  const out = {
-    ...src,
-    custName,
-    custPhone,
-    custPhoneDigits: digitsOnly(custPhone),
-    evaluate: e,
-    solution: sol,
-    prefilledStep1: src.prefilledStep1 || hasVal(custName) || hasVal(custPhone)
+// Persistent filter state
+if (!window._guestinfo_filters) {
+  window._guestinfo_filters = {
+    name: "",
+    employee: "",
+    date: "",
+    filterMode: "week",
+    showProposals: false,
+    soldOnly: false,
+    panelOpen: false
   };
-  out.status = detectStatus(out);
-  return out;
 }
 
-export function getField(g, k) {
-  const e = g.evaluate || {}, sol = g.solution || {};
-  switch (k) {
-    case "custName":      return g?.custName;
-    case "custPhone":     return g?.custPhone;
-    case "currentCarrier":return e.currentCarrier;
-    case "numLines":      return e.numLines;
-    case "coverageZip":   return e.coverageZip;
-    case "deviceStatus":  return e.deviceStatus;
-    case "finPath":       return e.finPath;
-    case "billPain":      return e.billPain;
-    case "dataNeed":      return e.dataNeed;
-    case "hotspotNeed":   return e.hotspotNeed;
-    case "intlNeed":      return e.intlNeed;
-    case "solutionText":  return sol.text;
-    default: return undefined;
+// Controls bar + Filters panel
+function controlsBarHtml(propCount, soldCount, role) {
+  const f = window._guestinfo_filters;
+
+  // Header buttons
+  const header = `
+    <div class="guestinfo-controls-header">
+      <button class="btn btn-secondary btn-sm"
+              aria-pressed="${f.panelOpen}"
+              onclick="window.guestinfo.toggleFilterPanel()"
+              aria-label="Toggle Filters Panel">
+        ${f.panelOpen ? 'Filters ▴' : 'Filters ▾'}
+      </button>
+      <button class="btn btn-success btn-sm"
+              onclick="window.guestinfo.createNewLead()"
+              aria-label="Create New Lead">
+        + New Lead
+      </button>
+    </div>`;
+
+  // Panel contents
+  const panelStyle = f.panelOpen
+    ? 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;'
+    : 'display:none;';
+  const panel = `
+    <div id="filter-panel" style="${panelStyle}" role="region" aria-live="polite" aria-atomic="true">
+      <div class="search-wrapper">
+        <input id="filter-name" type="text" placeholder="🔍 Customer name…" 
+               value="${f.name}" 
+               oninput="window.guestinfo.setSearchName(this.value)" 
+               aria-label="Filter by customer name" />
+        <button class="clear-btn" aria-label="Clear customer name filter" onclick="window.guestinfo.clearSearchName()">×</button>
+      </div>
+      <div class="search-wrapper">
+        <input id="filter-emp" type="text" placeholder="🔍 Employee…" 
+               value="${f.employee}" 
+               oninput="window.guestinfo.setSearchEmployee(this.value)" 
+               aria-label="Filter by employee" />
+        <button class="clear-btn" aria-label="Clear employee filter" onclick="window.guestinfo.clearSearchEmployee()">×</button>
+      </div>
+      <div class="search-wrapper">
+        <input id="filter-date" type="date" 
+               value="${f.date}" 
+               onchange="window.guestinfo.setSearchDate(this.value)" 
+               aria-label="Filter by date" />
+        <button class="clear-btn" aria-label="Clear date filter" onclick="window.guestinfo.clearSearchDate()">×</button>
+      </div>
+      <button class="btn btn-secondary btn-sm"
+              onclick="window.guestinfo.toggleFilterMode()"
+              aria-pressed="${f.filterMode === 'week'}"
+              aria-label="Toggle Filter Mode">
+        ${f.filterMode === 'week' ? 'Show All' : 'This Week'}
+      </button>
+      <button class="btn btn-warning btn-sm"
+              onclick="window.guestinfo.toggleShowProposals()"
+              aria-pressed="${f.showProposals}"
+              aria-label="Toggle Follow-Ups">
+        ${f.showProposals ? 'Back to Leads' : `⚠ Follow-Ups (${propCount})`}
+      </button>
+      ${role !== 'me'
+        ? `<button class="btn btn-secondary btn-sm"
+                   onclick="window.guestinfo.toggleSoldOnly()"
+                   aria-pressed="${f.soldOnly}"
+                   aria-label="Toggle Sales filter">
+             ${f.soldOnly ? 'Back to Leads' : `Sales (${soldCount})`}
+           </button>`
+        : ''}
+      <button class="btn-clear-filters btn-sm" 
+              onclick="window.guestinfo.clearAllFilters()"
+              aria-label="Clear All Filters">
+        Clear All
+      </button>
+    </div>`;
+
+  return `<div class="guestinfo-controls">${header}${panel}</div>`;
+}
+
+// Empty state with accessible button
+function emptyHtml(msg = "No guest leads in this view.") {
+  return `
+    <div class="guestinfo-empty" style="text-align:center;margin-top:16px;">
+      <p><b>${msg}</b></p>
+      <button class="btn btn-success btn-sm"
+              onclick="window.guestinfo.createNewLead()"
+              aria-label="Create New Lead">
+        + New Lead
+      </button>
+    </div>`;
+}
+
+// Main renderer
+export function renderGuestinfoSection(guestinfo, users, uid, role) {
+  const f = window._guestinfo_filters;
+
+  // Role filter
+  let items = filterByRole(guestinfo, users, uid, role);
+
+  // Name filter
+  if (f.name) {
+    const nameLower = f.name.toLowerCase();
+    items = Object.fromEntries(
+      Object.entries(items).filter(([,g]) =>
+        g.custName?.toLowerCase().includes(nameLower)
+      )
+    );
   }
-}
 
-export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
-  let earned = 0, max = 0;
-  for (const [k, wt] of Object.entries(weights)) {
-    max += wt;
-    if (hasVal(getField(g, k))) earned += wt;
-  }
-  return { pct: max ? Math.round(earned/max*100) : 0 };
-}
-
-export function statusBadge(status) {
-  const map = {
-    new:      ["role-badge role-guest", "NEW"],
-    working:  ["role-badge role-lead",  "WORKING"],
-    proposal: ["role-badge role-dm",    "PROPOSAL"],
-    sold:     ["role-badge role-admin", "SOLD"]
-  };
-  return map[status] || map.new;
-}
-
-// ── Main render function ────────────────────────────────────────────────
-export function renderGuestCards(guestMap, users, currentUid, currentRole) {
-  const containerStyle = `
-    display: grid;
-    grid-template-columns: repeat(1, 1fr);
-    gap: 1rem;
-    padding: 1rem 1.5rem;
-    box-sizing: border-box;
-  `;
-
-  // Responsive CSS added inline
-  const styleId = "guest-cards-responsive-style";
-  if (!document.getElementById(styleId)) {
-    const styleEl = document.createElement("style");
-    styleEl.id = styleId;
-    styleEl.textContent = `
-      @media (min-width: 600px) {
-        #guestCardsContainer {
-          grid-template-columns: repeat(2, 1fr);
-        }
-      }
-      @media (min-width: 1024px) {
-        #guestCardsContainer {
-          grid-template-columns: repeat(3, 1fr);
-        }
-      }
-    `;
-    document.head.appendChild(styleEl);
+  // Employee filter
+  if (f.employee) {
+    const empLower = f.employee.toLowerCase();
+    items = Object.fromEntries(
+      Object.entries(items).filter(([,g]) => {
+        const sub = users[g.userUid] || {};
+        const n = (sub.name || sub.email || "").toLowerCase();
+        return n.includes(empLower);
+      })
+    );
   }
 
-  // Render all cards as grid items
-  const cardsHtml = Object.entries(guestMap).map(([id, g]) => guestCardHtml(id, g, users, currentUid, currentRole)).join("");
+  // Date filter
+  if (f.date) {
+    items = Object.fromEntries(
+      Object.entries(items).filter(([,g]) =>
+        dateToISO(g.submittedAt) === f.date
+      )
+    );
+  }
+
+  // Counts for toggles
+  const fullGroups = groupByStatus(items);
+  const propCount  = fullGroups.proposal.length;
+  const soldCount  = fullGroups.sold.length;
+
+  // Timeframe / proposals / sales toggles
+  if (!f.showProposals && !f.soldOnly && f.filterMode === 'week' && role !== 'me') {
+    items = Object.fromEntries(
+      Object.entries(items).filter(([,g]) => inCurrentWeek(g))
+    );
+  }
+
+  // Regroup
+  const groups = groupByStatus(items);
+
+  // Build inner HTML
+  let inner = '';
+  if (f.soldOnly && role !== 'me') {
+    inner = groups.sold.length
+      ? statusSectionHtml('Sales', groups.sold, users, uid, role)
+      : emptyHtml('No sales in this view.');
+  } else if (f.showProposals) {
+    inner = groups.proposal.length
+      ? statusSectionHtml('Follow-Ups', groups.proposal, users, uid, role, true)
+      : emptyHtml('No follow-ups in this view.');
+  } else {
+    const hasAny = groups.new.length || groups.working.length || groups.proposal.length;
+    if (!hasAny) {
+      inner = emptyHtml("You're all caught up!");
+    } else {
+      if (groups.new.length)     inner += statusSectionHtml('New',      groups.new,     users, uid, role);
+      if (groups.working.length) inner += statusSectionHtml('Working',  groups.working, users, uid, role);
+      if (groups.proposal.length)inner += statusSectionHtml('Proposal', groups.proposal,users, uid, role, true);
+    }
+  }
 
   return `
-    <div id="guestCardsContainer" style="${containerStyle}" role="list">
-      ${cardsHtml}
-    </div>
+    <section class="admin-section guestinfo-section" id="guestinfo-section" role="region" aria-live="polite">
+      ${controlsBarHtml(propCount, soldCount, role)}
+      <div id="guestinfo-results" tabindex="-1">
+        ${inner}
+      </div>
+    </section>
   `;
 }
 
-export function guestCardHtml(id, g, users, currentUid, currentRole) {
-  const submitter = users[g.userUid] || {};
-  const [statusCls, statusLbl] = statusBadge(detectStatus(g));
-  const bg = "rgba(23, 30, 45, 0.7)";
-
-  // Pitch %
-  const savedPct = typeof g.completionPct === "number"
-    ? g.completionPct
-    : (g.completion?.pct ?? null);
-  const pct = savedPct != null
-    ? savedPct
-    : computeGuestPitchQuality(normGuest(g)).pct;
-
-  // Mask phone
-  const raw    = esc(g.custPhone || "");
-  const num    = digitsOnly(g.custPhone || "");
-  const last4  = num.slice(-4).padStart(4, "0");
-  const masked = `XXX-${last4}`;
-
-  // Time ago
-  const when = timeAgo(g.submittedAt);
-
-  // Submitter role class
-  const roleCls = currentRole === "me"    ? "role-badge role-me"
-                 : currentRole === "lead" ? "role-badge role-lead"
-                 : currentRole === "dm"   ? "role-badge role-dm"
-                                           : "role-badge role-admin";
-
-  const nameLabel = esc(submitter.name || submitter.email || "-");
-
-  // Permissions & actions hidden behind menu
-  const sold   = detectStatus(g) === "sold";
-  const canEdit = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
-  const canSold = canEdit && !sold;
-
-  const actions = [
-    `<button class="btn" onclick="window.guestinfo.openGuestInfoPage('${id}')">Open</button>`,
-    canEdit ? `<button class="btn" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
-    canSold ? `<button class="btn" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
-    sold    ? `<button class="btn btn-danger" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
-    canEdit ? `<button class="btn btn-danger" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
-  ].filter(Boolean).join("");
-
-  return `
-    <style>
-      #guest-card-${id} {
-        background: ${bg};
-        border-radius: var(--radius-md);
-        padding: 1rem 1.2rem;
-        box-shadow: 0 0 15px rgba(30, 144, 255, 0.2);
-        display: flex;
-        flex-direction: column;
-        user-select: none;
-        box-sizing: border-box;
-        cursor: default;
-        position: relative;
-      }
-      #guest-card-${id}:hover {
-        box-shadow: 0 0 25px rgba(30, 144, 255, 0.5);
-      }
-      #guest-card-${id} .guest-name {
-        font-weight: 600;
-        font-size: 1.25rem;
-        margin: 0.5rem 0;
-        text-align: center;
-        color: #dbeafe;
-        cursor: pointer;
-        transition: text-decoration 0.3s ease;
-        user-select: text;
-      }
-      #guest-card-${id} .guest-name:hover {
-        text-decoration: underline;
-      }
-      #guest-card-${id} .submitter-name {
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 0.9rem;
-        background: rgba(23,30,45,0.6);
-        color: #a5d6ff;
-        box-shadow:
-          0 0 6px 2px #55baffaa,
-          0 0 12px 4px #55baff66;
-        user-select: none;
-        white-space: nowrap;
-        cursor: default;
-        text-align: center;
-        margin-bottom: 0.5rem;
-      }
-      #guest-card-${id} .guest-phone {
-        cursor: pointer;
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 0.85rem;
-        background: rgba(23,30,45,0.6);
-        color: #a5b4fc;
-        transition: background 0.25s ease, color 0.25s ease;
-        user-select: text;
-        text-align: center;
-      }
-      #guest-card-${id} .guest-phone:hover {
-        background: var(--brand);
-        color: #f0f9ff;
-      }
-      #guest-card-${id} .guest-time {
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        background: rgba(23,30,45,0.6);
-        color: #9ca3af;
-        user-select: none;
-        text-align: center;
-        margin-top: 0.5rem;
-      }
-      #guest-card-${id} .btn-menu {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        background: transparent;
-        border: none;
-        color: #55baff;
-        font-size: 1.6rem;
-        cursor: pointer;
-        user-select: none;
-        padding: 4px;
-        line-height: 1;
-        border-radius: 999px;
-        transition: background 0.3s ease;
-      }
-      #guest-card-${id} .btn-menu:hover {
-        background: rgba(30,144,255,0.2);
-      }
-      #guest-card-${id} .guest-card-actions {
-        display: none;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 40px;
-        justify-content: center;
-      }
-      #guest-card-${id} .guest-card-actions.active {
-        display: flex;
-      }
-      #guest-card-${id} .btn {
-        font-weight: 700;
-        border-radius: var(--radius-md);
-        padding: 0.48em 1.3em;
-        font-size: 1rem;
-        background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
-        color: #f9fdff;
-        box-shadow:
-          inset 0 1px 1px rgba(255 255 255 / 0.3),
-          0 3px 10px rgba(0 123 255 / 0.5);
-        border: none;
-        cursor: pointer;
-        transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
-        backdrop-filter: saturate(180%) blur(6px);
-        white-space: nowrap;
-      }
-      #guest-card-${id} .btn:hover,
-      #guest-card-${id} .btn:focus {
-        background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
-        box-shadow:
-          inset 0 2px 3px rgba(255 255 255 / 0.5),
-          0 6px 18px rgba(30 144 255 / 0.8);
-        transform: scale(1.05);
-        outline: none;
-      }
-    </style>
-
-    <div id="guest-card-${id}" class="guest-card" role="listitem" tabindex="0" aria-label="Open lead for ${esc(g.custName || "Unknown")}">
-
-      <button class="btn-menu" aria-label="Toggle actions menu" onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
-
-      <div class="guest-name" 
-           onclick="window.guestinfo.openGuestInfoPage('${id}')"
-           onkeydown="if(event.key==='Enter' || event.key===' ') { window.guestinfo.openGuestInfoPage('${id}'); event.preventDefault(); }"
-           role="link" tabindex="0" style="outline:none;">
-        ${esc(g.custName || "-")}
-      </div>
-
-      <div class="submitter-name" title="Submitted by">
-        ${nameLabel}
-      </div>
-
-      <div class="guest-phone" 
-           data-raw="${raw}" 
-           data-mask="${masked}" 
-           onclick="navigator.clipboard.writeText('${raw}'); alert('Copied: ${raw}');"
-           role="button" tabindex="0" aria-label="Copy phone number ${raw}">
-        ${masked}
-      </div>
-
-      <div class="guest-time">
-        ${when}
-      </div>
-
-      <div class="guest-card-actions">
-        ${actions}
-      </div>
-    </div>
-  `;
+// Filter setters & clearers
+export function toggleFilterPanel() {
+  window._guestinfo_filters.panelOpen = !window._guestinfo_filters.panelOpen;
+  window.renderAdminApp();
+}
+export function setSearchName(val) {
+  window._guestinfo_filters.name = val;
+  window.renderAdminApp();
+}
+export function clearSearchName() {
+  window._guestinfo_filters.name = '';
+  window.renderAdminApp();
+}
+export function setSearchEmployee(val) {
+  window._guestinfo_filters.employee = val;
+  window.renderAdminApp();
+}
+export function clearSearchEmployee() {
+  window._guestinfo_filters.employee = '';
+  window.renderAdminApp();
+}
+export function setSearchDate(val) {
+  window._guestinfo_filters.date = val;
+  window.renderAdminApp();
+}
+export function clearSearchDate() {
+  window._guestinfo_filters.date = '';
+  window.renderAdminApp();
+}
+export function toggleFilterMode() {
+  const f = window._guestinfo_filters;
+  f.filterMode = f.filterMode === 'week' ? 'all' : 'week';
+  f.showProposals = false;
+  f.soldOnly = false;
+  window.renderAdminApp();
+}
+export function toggleShowProposals() {
+  const f = window._guestinfo_filters;
+  f.showProposals = !f.showProposals;
+  f.soldOnly = false;
+  window.renderAdminApp();
+}
+export function toggleSoldOnly() {
+  const f = window._guestinfo_filters;
+  f.soldOnly = !f.soldOnly;
+  f.showProposals = false;
+  window.renderAdminApp();
+}
+export function clearAllFilters() {
+  window._guestinfo_filters = {
+    name: "", employee: "", date: "",
+    filterMode: "week",
+    showProposals: false,
+    soldOnly: false,
+    panelOpen: false
+  };
+  window.renderAdminApp();
+}
+export function createNewLead() {
+  try { localStorage.removeItem("last_guestinfo_key"); } catch (_) {}
+  window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split('?')[0];
 }
 
-// Toggle the visibility of the actions menu per card
-export function toggleActionButtons(id) {
-  const card = document.getElementById(`guest-card-${id}`);
-  if (!card) return;
-  const actions = card.querySelector(".guest-card-actions");
-  if (!actions) return;
-  actions.classList.toggle("active");
+// Initialization
+export function initGuestinfo() {
+  window.guestinfo = {
+    renderGuestinfoSection,
+    toggleFilterPanel,
+    setSearchName, clearSearchName,
+    setSearchEmployee, clearSearchEmployee,
+    setSearchDate, clearSearchDate,
+    toggleFilterMode,
+    toggleShowProposals,
+    toggleSoldOnly,
+    clearAllFilters,
+    toggleActionButtons,
+    toggleEdit,
+    cancelEdit,
+    saveEdit,
+    deleteGuestInfo,
+    markSold,
+    deleteSale,
+    openGuestInfoPage,
+    createNewLead,
+    recomputePitch
+  };
 }
