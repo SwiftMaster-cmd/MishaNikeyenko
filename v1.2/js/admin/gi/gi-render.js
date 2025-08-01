@@ -111,6 +111,7 @@ export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
 }
 
 export function statusBadge(status) {
+  // Glassy status badges with subtle coloring
   const map = {
     new:      ["role-badge role-guest", "NEW"],
     working:  ["role-badge role-lead",  "WORKING"],
@@ -151,6 +152,9 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
 
+  // Use uniform glassy background instead of colored tint
+  const bg = "rgba(23, 30, 45, 0.7)";
+
   // determine pitch %
   const savedPct = typeof g.completionPct === "number"
     ? g.completionPct
@@ -158,12 +162,6 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const pct = savedPct != null
     ? savedPct
     : computeGuestPitchQuality(normGuest(g)).pct;
-
-  // choose a dark muted background tinted by quality
-  let bg;
-  if (pct >= 75)      bg = "rgba(0, 80, 0, 0.4)";
-  else if (pct >= 40) bg = "rgba(80, 80, 0, 0.4)";
-  else                bg = "rgba(80, 0, 0, 0.4)";
 
   // mask phone
   const raw    = esc(g.custPhone || "");
