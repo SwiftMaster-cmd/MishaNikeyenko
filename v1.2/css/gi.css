@@ -2,7 +2,7 @@
    Guest Info Section Container - Glassy style with rounded corners
    ========================================================================== */
 .guestinfo-section {
-  background: rgba(23, 30, 45, 0.75);
+  background: transparent;
   border-radius: 32px;
   box-shadow: 0 8px 40px rgba(30, 144, 255, 0.25);
   backdrop-filter: blur(20px) saturate(140%);
