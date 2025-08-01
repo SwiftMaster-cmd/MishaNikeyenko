@@ -138,6 +138,36 @@ export function groupByStatus(guestMap) {
 }
 
 // ── Section renderer ───────────────────────────────────────────────────────
+
+// Filters bar with icon right-aligned, new lead centered
+export function guestinfoControlsBarHtml(onNewLead, onFilter) {
+  // Inline SVG for filter icon
+  const filterIcon = `
+    <svg width="23" height="23" viewBox="0 0 24 24" style="vertical-align: middle;" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="24" height="24" fill="none"/>
+      <path d="M3 5h18M6 12h12M10 19h4" stroke="#55baff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+  // Flex container: filters icon right, new lead button centered
+  return `
+    <div class="guestinfo-controls-bar" style="
+      display: flex; align-items: center; width: 100%; position: relative; margin-bottom: 18px;
+    ">
+      <div style="flex:1; text-align: center;">
+        <button class="btn btn-primary btn-new-lead" onclick="${onNewLead}">
+          + New Lead
+        </button>
+      </div>
+      <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%);">
+        <button class="btn btn-filters" onclick="${onFilter}" title="Filters" style="
+          background: none; border: none; padding: 0 10px; cursor: pointer; box-shadow: none;">
+          ${filterIcon}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight = false) {
   if (!rows?.length) {
     return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
