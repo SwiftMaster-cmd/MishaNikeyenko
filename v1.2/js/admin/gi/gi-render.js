@@ -137,6 +137,16 @@ export function groupByStatus(guestMap) {
   return groups;
 }
 
+// ── Section renderer ───────────────────────────────────────────────────────
+export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight = false) {
+  if (!rows?.length) {
+    return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
+  }
+  return rows.map(([id, g]) =>
+    guestCardHtml(id, g, users, currentUid, currentRole)
+  ).join("");
+}
+
 export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
@@ -178,6 +188,27 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
 
   return `
     <style>
+      /* Guest Info grid container */
+      #guestinfo-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.25rem;
+        padding: 1rem 1.5rem;
+        box-sizing: border-box;
+      }
+      @media (max-width: 1024px) {
+        #guestinfo-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 600px) {
+        #guestinfo-grid {
+          grid-template-columns: 1fr;
+          padding-left: 1rem;
+          padding-right: 1rem;
+        }
+      }
+
       /* Responsive bigger customer name */
       #guest-card-${id} .guest-name {
         font-weight: 600;
@@ -244,67 +275,62 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         user-select: none;
       }
 
-      /* Card container spacing and padding for mobile */
+      /* Card container spacing and styling */
       #guest-card-${id} {
-        margin: 1rem 0.75rem;
+        background: ${bg};
         border-radius: var(--radius-md);
         padding: 12px;
-        background: ${bg};
         box-sizing: border-box;
         box-shadow: 0 0 15px rgba(30, 144, 255, 0.2);
-      }
-
-      @media (max-width: 600px) {
-        #guest-card-${id} {
-          margin-left: 1rem;
-          margin-right: 1rem;
-          padding: 1rem 1.2rem;
-        }
+        margin: 0;
       }
     </style>
 
-    <div class="guest-card" id="guest-card-${id}">
-      <!-- header: status + pitch + toggle -->
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="${statusCls}" style="padding:2px 8px;border-radius:999px;font-size:.85em;">
-          ${statusLbl}
-        </span>
-        <span class="guest-pitch-pill" style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};border:1px solid #fff;">
-          ${pct}%
-        </span>
-        <button class="btn-edit-actions" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;" onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
-      </div>
-
-      <!-- customer name centered with click -->
-      <div class="guest-name" onclick="window.guestinfo.openGuestInfoPage('${id}')">${esc(g.custName || "-")}</div>
-
-      <!-- footer: submitted by, phone toggle, time -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-        <span class="submitter-name" title="Submitted by">${nameLabel}</span>
-        <span class="guest-phone" 
-              data-raw="${raw}" 
-              data-mask="${masked}" 
-              onclick="(function(e){navigator.clipboard.writeText('${raw}'); alert('Copied: ${raw}');})(event)">
-          ${masked}
-        </span>
-        <span class="guest-time">${when}</span>
-      </div>
-
-      <!-- hidden actions -->
-      <div class="guest-card-actions" style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
-        ${actions}
-      </div>
-
-      <!-- hidden edit form -->
-      <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
-        <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}"/></label>
-        <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}"/></label>
-        <label>Service Type  <input type="text" name="serviceType" value="${esc(g.serviceType||"")}"/></label>
-        <label>Situation     <textarea name="situation">${esc(g.situation||"")}</textarea></label>
-        <div style="margin-top:8px;">
-          <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
+    <div id="guestinfo-grid">
+      <div class="guest-card" id="guest-card-${id}">
+        <!-- header: status + pitch + toggle -->
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="${statusCls}" style="padding:2px 8px;border-radius:999px;font-size:.85em;">
+            ${statusLbl}
+          </span>
+          <span class="guest-pitch-pill" style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};border:1px solid #fff;">
+            ${pct}%
+          </span>
+          <button class="btn-edit-actions" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;" onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
         </div>
-      </form>
-    </div>`;
-}    
+
+        <!-- customer name centered with click -->
+        <div class="guest-name" onclick="window.guestinfo.openGuestInfoPage('${id}')">${esc(g.custName || "-")}</div>
+
+        <!-- footer: submitted by, phone toggle, time -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+          <span class="submitter-name" title="Submitted by">${nameLabel}</span>
+          <span class="guest-phone" 
+                data-raw="${raw}" 
+                data-mask="${masked}" 
+                onclick="(function(e){navigator.clipboard.writeText('${raw}'); alert('Copied: ${raw}');})(event)">
+            ${masked}
+          </span>
+          <span class="guest-time">${when}</span>
+        </div>
+
+        <!-- hidden actions -->
+        <div class="guest-card-actions" style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
+          ${actions}
+        </div>
+
+        <!-- hidden edit form -->
+        <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
+          <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}"/></label>
+          <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}"/></label>
+          <label>Service Type  <input type="text" name="serviceType" value="${esc(g.serviceType||"")}"/></label>
+          <label>Situation     <textarea name="situation">${esc(g.situation||"")}</textarea></label>
+          <div style="margin-top:8px;">
+            <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
