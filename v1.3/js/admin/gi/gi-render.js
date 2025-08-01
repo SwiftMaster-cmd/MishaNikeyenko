@@ -111,7 +111,6 @@ export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
 }
 
 export function statusBadge(status) {
-  // Glassy status badges with subtle coloring
   const map = {
     new:      ["role-badge role-guest", "NEW"],
     working:  ["role-badge role-lead",  "WORKING"],
@@ -139,28 +138,65 @@ export function groupByStatus(guestMap) {
 
 // ── Section renderer ───────────────────────────────────────────────────────
 
-// Filters bar with icon right-aligned, new lead centered
 export function guestinfoControlsBarHtml(onNewLead, onFilter) {
-  // Inline SVG for filter icon
   const filterIcon = `
-    <svg width="23" height="23" viewBox="0 0 24 24" style="vertical-align: middle;" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="24" height="24" fill="none"/>
-      <path d="M3 5h18M6 12h12M10 19h4" stroke="#55baff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 5h16l-6.5 8.5V20l-3-2v-4.5L4 5z" stroke="#55baff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   `;
-  // Flex container: filters icon right, new lead button centered
   return `
     <div class="guestinfo-controls-bar" style="
-      display: flex; align-items: center; width: 100%; position: relative; margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      position: relative;
+      min-height: 64px;
+      margin-bottom: 18px;
+      padding: 8px 0 8px 0;
+      background: none;
     ">
-      <div style="flex:1; text-align: center;">
-        <button class="btn btn-primary btn-new-lead" onclick="${onNewLead}">
+      <div style="flex:1;text-align:center;">
+        <button class="btn btn-primary btn-new-lead"
+          style="
+            min-width: 148px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            padding: 16px 0;
+            border-radius: 999px;
+            box-shadow: 0 2px 12px rgba(30,144,255,0.08);
+            touch-action: manipulation;
+          "
+          onclick="${onNewLead}">
           + New Lead
         </button>
       </div>
-      <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%);">
-        <button class="btn btn-filters" onclick="${onFilter}" title="Filters" style="
-          background: none; border: none; padding: 0 10px; cursor: pointer; box-shadow: none;">
+      <div style="
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+      ">
+        <button class="btn btn-filters"
+          style="
+            background: rgba(30,144,255,0.08);
+            border: none;
+            border-radius: 50%;
+            width: 52px;
+            height: 52px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 12px rgba(30,144,255,0.10);
+            transition: background 0.15s;
+            touch-action: manipulation;
+          "
+          onclick="${onFilter}"
+          title="Filters"
+          aria-label="Filter">
           ${filterIcon}
         </button>
       </div>
@@ -180,35 +216,23 @@ export function statusSectionHtml(title, rows, users, currentUid, currentRole, h
 export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
-
-  // Glassy background for card
   const bg = "rgba(23, 30, 45, 0.7)";
-
-  // determine pitch %
   const savedPct = typeof g.completionPct === "number"
     ? g.completionPct
     : (g.completion?.pct ?? null);
   const pct = savedPct != null
     ? savedPct
     : computeGuestPitchQuality(normGuest(g)).pct;
-
-  // mask phone
   const raw    = esc(g.custPhone || "");
   const num    = digitsOnly(g.custPhone || "");
   const last4  = num.slice(-4).padStart(4, "0");
   const masked = `XXX-${last4}`;
-
-  // time ago
   const when = timeAgo(g.submittedAt);
-
-  // submitted by bubble with distinct glow
   const roleCls = currentRole === "me"    ? "role-badge role-me"
                  : currentRole === "lead" ? "role-badge role-lead"
                  : currentRole === "dm"   ? "role-badge role-dm"
                                            : "role-badge role-admin";
   const nameLabel = esc(submitter.name || submitter.email || "-");
-
-  // actions hidden by default
   const sold   = detectStatus(g) === "sold";
   const canEdit = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
   const canSold = canEdit && !sold;
@@ -224,7 +248,6 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
 
   return `
     <style>
-      /* Responsive bigger customer name */
       #guest-card-${id} .guest-name {
         font-weight: 600;
         font-size: 1.25rem;
@@ -238,8 +261,6 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
           font-size: 1.5rem;
         }
       }
-
-      /* Submitter name glowing better */
       #guest-card-${id} .submitter-name {
         padding: 2px 8px;
         border-radius: 999px;
@@ -253,8 +274,6 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         white-space: nowrap;
         cursor: default;
       }
-
-      /* Phone number clickable and larger on wider screens */
       #guest-card-${id} .guest-phone {
         cursor: pointer;
         padding: 2px 8px;
@@ -274,8 +293,6 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
           font-size: 1rem;
         }
       }
-
-      /* Timeframe style */
       #guest-card-${id} .guest-time {
         padding: 2px 8px;
         border-radius: 999px;
@@ -285,10 +302,8 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         user-select: none;
       }
     </style>
-
     <div class="guest-card" id="guest-card-${id}"
          style="background:${bg};border-radius:var(--radius-md);padding:12px;position:relative;">
-      <!-- header: status + pitch + toggle -->
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="${statusCls}"
               style="padding:2px 8px;border-radius:999px;font-size:.85em;">
@@ -302,13 +317,9 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
                 style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
                 onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
       </div>
-
-      <!-- customer name centered -->
       <div class="guest-name">
         ${esc(g.custName || "-")}
       </div>
-
-      <!-- footer: submitted by, phone toggle, time -->
       <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
         <span class="submitter-name" title="Submitted by">
           ${nameLabel}
@@ -323,14 +334,10 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
           ${when}
         </span>
       </div>
-
-      <!-- hidden actions -->
       <div class="guest-card-actions"
            style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
         ${actions}
       </div>
-
-      <!-- hidden edit form -->
       <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
         <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}"/></label>
         <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}"/></label>
