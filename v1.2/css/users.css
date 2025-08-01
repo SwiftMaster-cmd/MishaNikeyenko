@@ -1,105 +1,123 @@
 /* ==========================================================================
-   Users Section CSS - Clean, Minimal, Polished Glassy
+   Users Section CSS Overhaul - Polished Glassy & Subtle
    ========================================================================== */
 
+/* --- Base Section --- */
 .users-section {
-  background: rgba(30, 30, 40, 0.85);
-  border-radius: 18px;
+  background: rgba(20, 25, 35, 0.75);
+  border-radius: 16px;
   padding: 2rem 2.5rem;
-  backdrop-filter: saturate(130%) blur(12px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  color: #e6e8eb;
+  backdrop-filter: saturate(130%) blur(14px);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    inset 0 0 20px rgba(255, 255, 255, 0.05);
+  color: #c0d4e8;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   user-select: none;
   max-width: 100%;
   overflow-wrap: break-word;
 }
 
+/* --- Section Header --- */
 .users-section h2 {
-  font-size: 1.85rem;
-  font-weight: 700;
-  color: #f5f7fa;
-  margin-bottom: 1.4rem;
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #6cb8ff;
+  text-shadow: 0 0 6px rgba(108, 184, 255, 0.5);
+  margin-bottom: 1.3rem;
   user-select: text;
-  letter-spacing: 0.02em;
-  border-left: 4px solid #0071e3;
-  padding-left: 12px;
 }
 
-/* Users container */
+/* --- Users Container --- */
 .users-by-store-container {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: 1.7rem;
 }
 
-/* Store block */
+/* --- Store Block --- */
 .user-store-block {
-  background: rgba(40, 42, 52, 0.7);
-  border-radius: 14px;
-  padding: 0.7rem 1rem;
-  transition: background-color 0.3s ease;
+  background: rgba(25, 30, 45, 0.6);
+  border-radius: 16px;
+  backdrop-filter: saturate(110%) blur(12px);
+  box-shadow:
+    0 0 8px rgba(0, 0, 0, 0.25),
+    inset 0 0 14px rgba(255, 255, 255, 0.06);
+  padding: 1rem 1.8rem;
+  transition: background-color 0.3s ease, box-shadow 0.4s ease;
   cursor: pointer;
   user-select: none;
   overflow: hidden;
-  box-shadow: inset 0 0 6px rgba(255,255,255,0.05);
+  animation: fadeInUp 0.45s ease forwards;
 }
 
+/* Store block open state */
 .user-store-block.user-store-block-open {
-  background-color: rgba(55, 58, 70, 0.85);
+  background-color: rgba(15, 20, 35, 0.85);
+  box-shadow:
+    0 0 20px rgba(60, 130, 230, 0.3),
+    inset 0 0 28px rgba(255, 255, 255, 0.08);
 }
 
+/* Hover effect - subtle tint and soft shadow */
 .user-store-block:hover {
-  background-color: rgba(60, 63, 77, 0.9);
+  background-color: rgba(22, 30, 50, 0.85);
+  box-shadow:
+    0 6px 24px rgba(30, 90, 180, 0.22),
+    inset 0 0 28px rgba(255, 255, 255, 0.09);
 }
 
-/* Store summary */
+/* --- Store Summary (Collapsed Header) --- */
 .user-store-summary {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 14px 22px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1.12rem;
   user-select: none;
-  color: #cfd6e4;
-  background-color: rgba(25, 28, 38, 0.8);
+  color: #8bbaff;
+  box-shadow: 0 0 10px rgba(60, 150, 240, 0.25);
   transition: background-color 0.35s ease, color 0.35s ease;
+  background-color: rgba(25, 35, 50, 0.35);
+  border: 1px solid rgba(100, 150, 255, 0.15);
 }
 
 .user-store-summary.open {
-  background-color: rgba(40, 90, 175, 0.15);
-  color: #9cc6ff;
+  background-color: rgba(30, 130, 230, 0.22);
+  color: #5a9eff;
+  box-shadow: 0 0 20px rgba(30, 130, 230, 0.4);
+  border-color: rgba(30, 130, 230, 0.35);
 }
 
-/* Caret */
+/* Caret icon */
 .uss-caret {
   font-size: 1.35rem;
-  color: #7a8ba8;
+  color: #5aa3ff;
   user-select: none;
-  transition: transform 0.3s ease, color 0.3s ease;
+  transition: transform 0.3s ease;
 }
 
 .user-store-summary.open .uss-caret {
   transform: rotate(90deg);
-  color: #4a90e2;
 }
 
-/* Store number/name */
+/* Store number */
 .uss-name {
   flex: 1 1 auto;
   font-family: "Roboto Mono", monospace;
-  font-size: 1.15rem;
-  letter-spacing: 0.1em;
-  color: #cad3e8;
+  font-size: 1.18rem;
+  letter-spacing: 0.11em;
+  color: #72aaff;
+  text-shadow: 0 0 5px rgba(114, 170, 255, 0.5);
   user-select: text;
 }
 
 /* Role mix pills */
 .uss-role-mix {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   user-select: none;
 }
 
@@ -109,22 +127,23 @@
   padding: 4px 12px;
   border-radius: 9999px;
   font-size: 0.9rem;
-  font-weight: 600;
-  color: #f0f3f7;
-  background: rgba(80, 80, 80, 0.5);
+  font-weight: 700;
+  color: #f0f8ff;
+  text-shadow: 0 0 5px rgba(0,0,0,0.5);
+  box-shadow: 0 0 8px rgba(40, 130, 240, 0.3);
   transition: background-color 0.3s ease;
   user-select: none;
   cursor: default;
 }
 
 .uss-role-pill.lead {
-  background-color: rgba(76, 175, 80, 0.6);
-  color: #e9f5e9;
+  background-color: #4caf50cc;
+  box-shadow: 0 0 12px #4caf5099;
 }
 
 .uss-role-pill.me {
-  background-color: rgba(33, 150, 243, 0.6);
-  color: #d6e9ff;
+  background-color: #2196f3cc;
+  box-shadow: 0 0 12px #2196f399;
 }
 
 /* Staffing count & icon */
@@ -132,131 +151,138 @@
   font-family: "Roboto Mono", monospace;
   font-weight: 700;
   font-size: 1rem;
-  color: #aabce3;
+  color: #75c0ff;
+  text-shadow: 0 0 6px #75c0ffaa;
   user-select: none;
 }
 
 .uss-icon {
   font-size: 1.3rem;
-  color: #aabce3;
+  color: #75c0ff;
+  text-shadow: 0 0 10px #75c0ffbb;
   user-select: none;
 }
 
 /* Store goal input (Admin only) */
 .store-goal-input {
   width: 75px;
-  padding: 8px 12px;
+  padding: 7px 12px;
   border-radius: 10px;
-  border: 1.5px solid rgba(100, 120, 150, 0.4);
-  background: rgba(30, 30, 40, 0.85);
-  color: #cad3e8;
+  border: 1.5px solid rgba(40, 140, 255, 0.45);
+  background: rgba(20, 25, 40, 0.9);
+  color: #abc9ff;
   font-size: 1rem;
-  font-weight: 600;
-  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-weight: 700;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   text-align: center;
-  box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.08);
-  transition: border-color 0.3s ease;
-  cursor: text;
+  box-shadow: inset 0 1px 5px rgba(30, 90, 180, 0.15);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .store-goal-input:focus {
   outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
+  border-color: #5a9eff;
+  box-shadow: 0 0 20px rgba(90, 158, 255, 0.5);
 }
 
-/* User card */
+/* --- User Card --- */
 .user-card {
-  background: rgba(25, 28, 40, 0.85);
-  border-radius: 14px;
-  padding: 14px 20px;
+  background: rgba(14, 22, 34, 0.85);
+  border-radius: 16px;
+  backdrop-filter: saturate(120%) blur(12px);
+  box-shadow:
+    0 3px 14px rgba(0, 70, 140, 0.22),
+    inset 0 0 28px rgba(255, 255, 255, 0.05);
+  padding: 16px 22px;
   margin-top: 14px;
-  color: #d6dce8;
+  color: #c5dbff;
   user-select: text;
+  animation: fadeInUp 0.45s ease forwards;
+  transition: box-shadow 0.3s ease;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  transition: background-color 0.25s ease;
 }
 
+/* User card header */
 .user-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 12px;
   gap: 16px;
-  margin-bottom: 10px;
 }
 
 .user-name {
-  font-weight: 700;
-  font-size: 1.15rem;
-  color: #5f7fa8;
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: #54abff;
   user-select: text;
+  text-shadow: 0 0 10px rgba(84, 171, 255, 0.45);
 }
 
 .user-email {
   font-size: 0.9rem;
-  font-weight: 500;
-  color: #98a9c4;
+  font-weight: 600;
+  color: #95b9f9;
   user-select: text;
+  margin-top: 2px;
 }
 
 /* Role badge */
 .role-badge {
-  font-weight: 600;
-  padding: 4px 12px;
+  font-weight: 700;
+  padding: 6px 16px;
   border-radius: 9999px;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   user-select: none;
-  color: #e0e6f2;
-  background-color: rgba(80, 80, 80, 0.5);
+  color: white;
+  text-shadow: 0 0 6px rgba(0,0,0,0.7);
+  box-shadow: 0 0 14px rgba(30, 160, 255, 0.6);
   transition: background-color 0.3s ease;
 }
 
 .role-badge.role-me {
-  background-color: rgba(33, 150, 243, 0.6);
-  color: #d6e9ff;
+  background-color: #2196f3cc;
 }
 
 .role-badge.role-lead {
-  background-color: rgba(76, 175, 80, 0.6);
-  color: #e9f5e9;
+  background-color: #4caf50cc;
 }
 
 .role-badge.role-dm {
-  background-color: rgba(0, 160, 255, 0.6);
-  color: #d0eaff;
+  background-color: #00aaffcc;
 }
 
 .role-badge.role-admin {
-  background-color: rgba(0, 113, 227, 0.6);
-  color: #d0eaff;
+  background-color: #0071e3cc;
 }
 
 /* User card info */
 .user-card-info {
   display: flex;
-  gap: 24px;
-  font-size: 0.9rem;
+  gap: 28px;
+  font-size: 0.94rem;
   font-weight: 600;
-  color: #a0afd5;
+  color: #9cbcee;
   user-select: text;
 }
 
 .user-card-info div b {
-  color: #5a7ab9;
+  color: #54aaff;
 }
 
 /* User card actions */
 .user-card-actions {
-  margin-top: 14px;
+  margin-top: 16px;
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 18px;
   user-select: none;
 }
 
+/* User card selects and labels */
 .user-card-actions label {
-  font-size: 0.9rem;
-  color: #9badcc;
+  font-size: 0.95rem;
+  color: #9bbcee;
   font-weight: 600;
   user-select: none;
   cursor: pointer;
@@ -264,12 +290,12 @@
 
 .user-card-actions select {
   margin-left: 8px;
-  padding: 5px 12px;
+  padding: 6px 12px;
   border-radius: 10px;
-  border: 1.5px solid rgba(100, 120, 150, 0.4);
-  background: rgba(25, 28, 40, 0.85);
-  color: #aabce3;
-  font-weight: 600;
+  border: 1.5px solid rgba(40, 150, 255, 0.45);
+  background: rgba(20, 25, 40, 0.9);
+  color: #abcfff;
+  font-weight: 700;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   cursor: pointer;
   user-select: none;
@@ -278,8 +304,8 @@
 
 .user-card-actions select:hover,
 .user-card-actions select:focus {
-  border-color: #4a90e2;
-  box-shadow: 0 0 12px rgba(74, 144, 226, 0.3);
+  border-color: #58aaff;
+  box-shadow: 0 0 18px rgba(88, 170, 255, 0.45);
   outline: none;
 }
 
@@ -288,11 +314,11 @@
   background-color: transparent;
   border: 2px solid #e74c3c;
   color: #e74c3c;
-  padding: 7px 16px;
+  padding: 8px 18px;
   border-radius: 12px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 0 12px #e74c3c88;
+  box-shadow: 0 0 14px #e74c3c88;
   transition: all 0.3s ease;
   user-select: none;
 }
@@ -301,16 +327,16 @@
 .btn-danger-outline:focus {
   background-color: #e74c3c;
   color: #fff;
-  box-shadow: 0 0 22px #e74c3ccc;
+  box-shadow: 0 0 24px #e74c3ccc;
   outline: none;
-  transform: scale(1.05);
+  transform: scale(1.06);
 }
 
-/* Animations */
+/* --- Animations --- */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -318,7 +344,7 @@
   }
 }
 
-/* Responsive */
+/* --- Responsive --- */
 @media (max-width: 900px) {
   .user-store-summary {
     font-size: 1rem;
