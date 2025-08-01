@@ -1,5 +1,3 @@
-// guestinfo-actions.js
-
 import { normGuest, computeGuestPitchQuality } from './gi-render.js';
 
 // Toggle visibility of the action buttons container
@@ -11,7 +9,7 @@ export function toggleActionButtons(id) {
   actions.style.display = actions.style.display === 'flex' ? 'none' : 'flex';
 }
 
-// Show or hide the quick‐edit form
+// Show or hide the quick-edit form
 export function toggleEdit(id) {
   const card = document.getElementById(`guest-card-${id}`);
   if (!card) return;
@@ -44,7 +42,9 @@ export async function saveEdit(id) {
     await window.db.ref(`guestinfo/${id}`).update(data);
     await recomputePitch(id);
     cancelEdit(id);
-    await window.renderAdminApp();
+    // **Removed immediate full app rerender to avoid losing focus while typing**
+    // await window.renderAdminApp();
+    // Instead, you may choose to re-render on explicit user action or with debounce
   } catch (e) {
     alert('Error saving changes: ' + e.message);
   }
