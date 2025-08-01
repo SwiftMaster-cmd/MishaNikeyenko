@@ -1,13 +1,11 @@
-/* ==========================================================================
-   Guest Info Section CSS - Polished, Minimal, Glassy
-   ========================================================================== */
+/* --- Guest Info Section CSS - Polished, Minimal, Glassy, No Glows --- */
 
 .guestinfo-section {
   background: rgba(20, 25, 40, 0.75);
   border-radius: 16px;
   padding: 2rem 2.5rem;
-  backdrop-filter: saturate(150%) blur(12px);
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: saturate(140%) blur(10px);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
   color: #e0e6f0;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   user-select: none;
@@ -40,39 +38,34 @@
   gap: 14px;
   justify-content: flex-start;
   user-select: text;
-  border: 1px solid rgba(74,168,255,0.3);
-  backdrop-filter: saturate(130%) blur(8px);
+  border: 1px solid rgba(74, 168, 255, 0.15);
+  backdrop-filter: saturate(120%) blur(8px);
 }
 
-.search-wrapper {
-  position: relative;
-  flex-grow: 1;
-  max-width: 280px;
-  min-width: 160px;
-}
-
+/* Inputs: subtle border + no glowing */
 .search-wrapper input[type="text"],
 .search-wrapper input[type="date"] {
   width: 100%;
   padding: 0.6rem 2.5rem 0.6rem 0.8rem;
   border-radius: 10px;
-  border: 1.5px solid #0071e3;
+  border: 1.3px solid rgba(74,168,255,0.3);
   background: rgba(20, 25, 40, 0.85);
   color: #e0e6f0;
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0.015em;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: border-color 0.3s ease;
   user-select: text;
 }
 
 .search-wrapper input[type="text"]:focus,
 .search-wrapper input[type="date"]:focus {
-  border-color: #4aa8ff;
-  box-shadow: 0 0 10px #4aa8ff55;
+  border-color: #4aa8ffcc;
+  box-shadow: none; /* No glow */
   outline: none;
 }
 
+/* Clear button: subtle and transparent */
 .clear-btn {
   position: absolute;
   right: 10px;
@@ -80,20 +73,21 @@
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: #4aa8ffcc;
+  color: rgba(74, 168, 255, 0.5);
   font-size: 1.3rem;
   cursor: pointer;
   user-select: none;
   padding: 0;
   line-height: 1;
-  opacity: 0.7;
+  opacity: 0.6;
   transition: opacity 0.3s ease;
 }
 
 .clear-btn:hover {
-  opacity: 1;
+  opacity: 0.9;
 }
 
+/* Buttons: flat with subtle backgrounds, no shadow */
 .btn, .btn-sm {
   cursor: pointer;
   border-radius: 12px;
@@ -102,9 +96,9 @@
   font-size: 1rem;
   font-weight: 700;
   user-select: none;
-  background-color: rgba(30, 40, 60, 0.6);
-  color: #4aa8ff;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  background-color: rgba(30, 40, 60, 0.45);
+  color: #4aa8ffcc;
+  transition: background-color 0.25s ease, color 0.25s ease, transform 0.2s ease;
   flex-shrink: 0;
   min-width: 90px;
   text-align: center;
@@ -112,44 +106,44 @@
 }
 
 .btn-secondary {
-  background-color: rgba(40, 55, 85, 0.75);
+  background-color: rgba(40, 55, 85, 0.65);
 }
 
 .btn-secondary:hover,
 .btn-secondary:focus {
-  background-color: #0071e3;
-  color: #fff;
+  background-color: #0071e3cc;
+  color: #e0e6f0;
   outline: none;
-  transform: scale(1.05);
+  transform: scale(1.04);
 }
 
 .btn-success {
-  background-color: #00e676cc;
+  background-color: #00e676aa;
   color: #003900;
 }
 
 .btn-success:hover,
 .btn-success:focus {
-  background-color: #00ff7fcc;
+  background-color: #00ff7fbb;
   outline: none;
-  transform: scale(1.05);
+  transform: scale(1.04);
 }
 
 .btn-warning {
-  background-color: #ffca28cc;
+  background-color: #ffca28aa;
   color: #3a3a3a;
 }
 
 .btn-warning:hover,
 .btn-warning:focus {
-  background-color: #ffd54fcc;
+  background-color: #ffd54faa;
   outline: none;
-  transform: scale(1.05);
+  transform: scale(1.04);
 }
 
 .btn-clear-filters {
   background-color: transparent;
-  color: #4aa8ffcc;
+  color: #4aa8ff99;
   text-decoration: underline;
   font-weight: 600;
   padding: 0.45rem 1rem;
@@ -158,31 +152,31 @@
 }
 
 .btn-clear-filters:hover {
-  color: #0071e3;
+  color: #0071e3bb;
   cursor: pointer;
   text-decoration: none;
 }
 
-/* Guest Cards */
+/* Guest Cards: flat with subtle shadow */
 .guest-card {
   background-color: rgba(20, 25, 40, 0.7);
   border-radius: 14px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
   padding: 1.2rem 1.6rem;
   margin-bottom: 1.4rem;
   user-select: none;
-  transition: box-shadow 0.3s ease, background-color 0.3s ease;
+  transition: box-shadow 0.25s ease, background-color 0.3s ease;
   position: relative;
   overflow-wrap: anywhere;
 }
 
 .guest-card:hover {
-  background-color: rgba(28, 34, 54, 0.85);
-  box-shadow: 0 6px 18px rgba(0, 113, 227, 0.3);
+  background-color: rgba(28, 34, 54, 0.78);
+  box-shadow: 0 3px 10px rgba(0, 113, 227, 0.15);
   cursor: default;
 }
 
-/* Status badges */
+/* Status badges: flattened colors, no shadow */
 .role-badge {
   padding: 5px 16px;
   border-radius: 9999px;
@@ -193,8 +187,8 @@
   white-space: nowrap;
   color: white;
   letter-spacing: 0.05em;
-  box-shadow: 0 0 6px rgba(255,255,255,0.15);
   transition: background-color 0.3s ease;
+  box-shadow: none;
 }
 
 .role-guest    { background-color: #3a65e0; }
@@ -211,11 +205,11 @@
   border-radius: 9999px;
   padding: 5px 14px;
   color: #eeeeee;
-  background: linear-gradient(90deg, #009900, #004d00);
-  box-shadow: 0 0 10px #00cc00bb;
+  background: linear-gradient(90deg, #006600, #004400);
+  box-shadow: none;
   user-select: none;
   white-space: nowrap;
-  transition: box-shadow 0.3s ease;
+  transition: background 0.3s ease;
 }
 
 /* Header row inside card */
@@ -232,7 +226,7 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #4aa8ffcc;
+  color: #4aa8ffaa;
   user-select: none;
   transition: color 0.3s ease;
   line-height: 1;
@@ -240,7 +234,7 @@
 
 .btn-edit-actions:hover,
 .btn-edit-actions:focus {
-  color: #0071e3;
+  color: #0071e3aa;
   outline: none;
 }
 
@@ -265,24 +259,24 @@
   user-select: text;
 }
 
-/* Guest phone and time badges */
+/* Guest phone and time badges: subtle, no glow */
 .guest-phone,
 .guest-time {
   padding: 4px 10px;
   border-radius: 9999px;
-  background: rgba(20, 25, 40, 0.6);
-  color: #4aa8ffcc;
+  background: rgba(20, 25, 40, 0.5);
+  color: #4aa8ff99;
   cursor: pointer;
   user-select: none;
   transition: background-color 0.3s ease;
   white-space: nowrap;
   font-weight: 600;
-  box-shadow: inset 0 0 4px rgba(0, 113, 227, 0.15);
+  box-shadow: none;
 }
 
 .guest-phone:hover,
 .guest-phone:focus {
-  background-color: #0071e3;
+  background-color: #0071e3cc;
   color: #e1eaff;
   outline: none;
 }
@@ -317,21 +311,21 @@
   margin-top: 8px;
   padding: 10px 14px;
   border-radius: 12px;
-  border: 1.5px solid #0071e3;
+  border: 1.5px solid #0071e3cc;
   background: rgba(20, 25, 40, 0.85);
   color: #d3d9f2;
   font-size: 1.1rem;
   resize: vertical;
   min-height: 60px;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: border-color 0.3s ease;
   font-weight: 600;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .guest-edit-form input[type="text"]:focus,
 .guest-edit-form textarea:focus {
-  border-color: #4aa8ff;
-  box-shadow: 0 0 14px #4aa8ff88;
+  border-color: #4aa8ffcc;
+  box-shadow: none;
   outline: none;
 }
 
