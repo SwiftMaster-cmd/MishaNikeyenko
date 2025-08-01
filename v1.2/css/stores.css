@@ -1,346 +1,286 @@
 /* ==========================================================================
-   Stores Section CSS Overhaul
+   Stores Section Updated CSS Fixes
    ========================================================================== */
 
-/* --- Base Section --- */
+/* Section container */
 .stores-section {
-  background: rgba(20, 25, 35, 0.9);
+  background-color: rgba(12, 18, 28, 0.85);
   border-radius: 16px;
-  padding: 1.5rem 2rem;
+  padding: 20px 24px;
   box-shadow:
-    0 0 25px rgba(30, 144, 255, 0.25),
-    inset 0 0 40px rgba(30, 144, 255, 0.1);
-  animation: pulseGlowSlow 10s ease-in-out infinite;
-  color: #d8e3f0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    0 0 35px rgba(0, 130, 255, 0.25),
+    inset 0 0 55px rgba(0, 130, 255, 0.15);
+  color: #b3d7ff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   user-select: none;
-  max-width: 100%;
-  overflow-wrap: break-word;
 }
 
-/* --- Section Header --- */
+/* Section title */
 .stores-section h2 {
+  color: #39aaff;
+  font-weight: 800;
   font-size: 1.8rem;
-  font-weight: 700;
-  color: #1ec0ff;
-  text-shadow: 0 0 8px #1ec0ffaa;
-  margin-bottom: 1rem;
+  margin-bottom: 1.6rem;
   user-select: text;
 }
 
-/* --- Stores Container --- */
-.stores-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.3rem;
-}
-
-/* --- Store Block --- */
-.user-store-block {
-  background: rgba(25, 30, 45, 0.75);
-  border-radius: 12px;
-  box-shadow:
-    0 0 18px rgba(30, 144, 255, 0.3),
-    inset 0 0 30px rgba(30, 144, 255, 0.08);
-  padding: 0.4rem 0.6rem;
-  transition: box-shadow 0.4s ease, background-color 0.3s ease;
-  cursor: pointer;
-  user-select: none;
-  overflow: hidden;
-  animation: fadeInUp 0.5s ease forwards;
-}
-
-/* Glow effect on hover */
-.user-store-block:hover {
-  box-shadow:
-    0 0 40px rgba(30, 144, 255, 0.65),
-    inset 0 0 50px rgba(30, 144, 255, 0.15);
-  background-color: rgba(30, 35, 55, 0.85);
-}
-
-/* Open state */
-.user-store-block.open {
-  background-color: rgba(35, 45, 65, 0.85);
-  box-shadow:
-    0 0 40px rgba(30, 144, 255, 0.75),
-    inset 0 0 50px rgba(30, 144, 255, 0.18);
-}
-
-/* --- Store Summary (Collapsed Header) --- */
+/* Store summary bar */
 .user-store-summary {
+  background-color: rgba(0, 50, 100, 0.5);
+  border-radius: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
-  border-radius: 12px;
+  gap: 16px;
+  color: #7fc9ff;
   font-weight: 600;
-  font-size: 1rem;
+  box-shadow: 0 0 20px rgba(0, 140, 255, 0.3);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
   user-select: none;
-  color: #d0e2f8;
-  transition: background-color 0.4s ease, color 0.4s ease;
-  box-shadow: 0 0 12px rgba(30, 144, 255, 0.4);
+}
+
+.user-store-summary:hover {
+  background-color: rgba(0, 80, 160, 0.8);
+  box-shadow: 0 0 45px #00a6ffcc;
 }
 
 .user-store-summary.open {
-  background-color: rgba(10, 40, 80, 0.8);
-  color: #a8d0ff;
-  box-shadow: 0 0 30px #1ec0ffcc;
+  background-color: rgba(0, 110, 210, 0.95);
+  box-shadow: 0 0 60px #00b3ffee;
+  color: #cce9ff;
 }
 
-/* Caret icon */
+/* Caret */
 .uss-caret {
-  font-size: 1.25rem;
-  color: #00a3ff;
-  user-select: none;
+  font-size: 1.3rem;
+  color: #33bbff;
   transition: transform 0.3s ease;
+  user-select: none;
 }
 
 .user-store-summary.open .uss-caret {
   transform: rotate(90deg);
 }
 
-/* Store number */
+/* Store number/name */
 .uss-name {
   flex: 1 1 auto;
   font-family: "Roboto Mono", monospace;
-  font-size: 1.15rem;
-  letter-spacing: 0.1em;
-  color: #00bfff;
-  text-shadow: 0 0 5px #00bfffaa;
+  font-size: 1.25rem;
+  color: #3bc7ff;
+  text-shadow: 0 0 10px #3bc7ffbb;
   user-select: text;
 }
 
 /* Role mix pills */
 .uss-role-mix {
   display: flex;
-  gap: 6px;
-  user-select: none;
+  gap: 8px;
 }
 
 .store-pill {
-  display: inline-block;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 9999px;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: #fff;
-  text-shadow: 0 0 6px rgba(0,0,0,0.6);
-  box-shadow: 0 0 8px rgba(30, 144, 255, 0.5);
+  color: white;
   user-select: none;
-  transition: background-color 0.3s ease;
 }
 
 .store-pill.lead {
-  background-color: #4caf50;
-  box-shadow: 0 0 12px #4caf5099;
+  background-color: #25a2f1;
+  box-shadow: 0 0 8px #25a2f1aa;
 }
 
 .store-pill.me {
-  background-color: #2196f3;
-  box-shadow: 0 0 12px #2196f399;
+  background-color: #0fa8e6;
+  box-shadow: 0 0 8px #0fa8e6aa;
 }
 
-/* Progress text */
+/* Progress label */
 .uss-progress {
-  font-family: "Roboto Mono", monospace;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 1rem;
+  color: #7ce56b;
   user-select: none;
-  color: #00d7ff;
-  text-shadow: 0 0 8px #00d7ffbb;
 }
 
-/* Staff/sales met & under goal states */
-.store-met {
-  color: #4caf50;
-  text-shadow: 0 0 10px #4caf5099;
-}
-
-.store-under {
-  color: #ff7043;
-  text-shadow: 0 0 10px #ff704399;
-}
-
-.store-nogoal {
-  color: #888;
-  font-style: italic;
-  text-shadow: none;
-}
-
-/* --- Store Detail Expanded --- */
-.user-store-detail {
-  margin-top: 14px;
-  border-radius: 12px;
-  background: rgba(10, 15, 30, 0.8);
-  box-shadow:
-    inset 0 0 20px rgba(30, 144, 255, 0.15);
-  padding: 1rem 1rem 1.2rem;
+/* Inputs in summary (Admin only) */
+.store-staffgoal-input,
+.store-budget-input {
+  width: 72px;
+  background-color: rgba(30, 30, 30, 0.9);
+  border: 1px solid #1e90ff;
+  color: #9fd9ff;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  text-align: center;
+  cursor: pointer;
   user-select: text;
-  animation: fadeInUp 0.5s ease forwards;
+  transition: border-color 0.3s ease;
 }
 
-/* Table styling */
+.store-staffgoal-input:hover,
+.store-budget-input:hover,
+.store-staffgoal-input:focus,
+.store-budget-input:focus {
+  border-color: #00aaff;
+  outline: none;
+}
+
+/* --- Expanded store detail block --- */
+.user-store-detail {
+  background-color: rgba(0, 35, 70, 0.6);
+  border-radius: 16px;
+  margin-top: 12px;
+  padding: 14px 22px;
+  box-shadow: inset 0 0 35px rgba(0, 140, 255, 0.25);
+  color: #c8e7ff;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  user-select: text;
+  overflow-x: auto;
+}
+
+/* Store table */
 .store-table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 10px;
-  font-size: 0.95rem;
-  color: #c5d1e5;
-  user-select: text;
-  table-layout: fixed;
-}
-
-.store-table th,
-.store-table td {
-  padding: 0.6rem 0.9rem;
-  text-align: left;
-  vertical-align: middle;
+  border-spacing: 0 8px;
 }
 
 .store-table thead th {
+  text-align: left;
+  padding: 12px 16px;
   font-weight: 700;
+  font-size: 1.1rem;
+  color: #76c3ff;
+  border-bottom: 2px solid #2080ff88;
+  user-select: none;
+}
+
+.store-table tbody td {
+  background-color: rgba(10, 22, 40, 0.9);
+  padding: 12px 16px;
+  color: #a3c9ff;
+  font-weight: 600;
   font-size: 1rem;
-  color: #7ec9ff;
-  text-shadow: 0 0 10px #7ec9ffcc;
-  user-select: text;
+  border-bottom: 1px solid #2c70e0aa;
 }
 
-/* Table row */
-.store-table tbody tr {
-  background: rgba(25, 35, 55, 0.75);
-  border-radius: 8px;
-  box-shadow:
-    0 0 10px rgba(30, 144, 255, 0.15);
-  transition: background-color 0.3s ease;
+.store-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
-.store-table tbody tr:hover {
-  background: rgba(40, 60, 100, 0.9);
-  box-shadow:
-    0 0 20px rgba(30, 144, 255, 0.3);
-  cursor: pointer;
+.store-table tbody tr:hover td {
+  background-color: rgba(15, 35, 65, 1);
+  box-shadow: inset 0 0 10px #42aaff99;
+  color: #d9f0ff;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Inputs inside table */
+/* Input in table cells */
 .store-table input[type="text"],
 .store-table input[type="number"] {
-  width: 100%;
-  padding: 6px 10px;
+  background-color: rgba(20, 30, 45, 0.95);
+  border: 1px solid #2a8dff;
   border-radius: 8px;
-  border: 1.5px solid #1e90ff;
-  background: rgba(20, 25, 35, 0.9);
-  color: #c5d1e5;
+  padding: 6px 8px;
+  color: #b5dbff;
+  font-weight: 600;
   font-size: 1rem;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  width: 100%;
   box-sizing: border-box;
+  transition: border-color 0.3s ease;
+  user-select: text;
 }
 
 .store-table input[type="text"]:focus,
 .store-table input[type="number"]:focus {
-  border-color: #4ec0ff;
-  box-shadow: 0 0 12px #4ec0ffcc;
+  border-color: #00b0ff;
   outline: none;
 }
 
 /* Delete button */
-.btn-danger {
-  background-color: #f44336;
-  color: white;
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-weight: 600;
-  box-shadow: 0 0 12px #f44336aa;
-  cursor: pointer;
-  border: none;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.btn-danger:hover,
-.btn-danger:focus {
-  background-color: #e53935;
-  box-shadow: 0 0 20px #e53935cc;
-  outline: none;
-  transform: scale(1.05);
-}
-
-/* Add store form */
-.store-add {
-  margin-top: 1.2rem;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: flex-start;
-}
-
-.store-add input#newStoreNum {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1.5px solid #1e90ff;
-  background: rgba(20, 25, 35, 0.9);
-  color: #c5d1e5;
-  font-size: 1rem;
-  width: 140px;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.store-add input#newStoreNum:focus {
-  border-color: #4ec0ff;
-  box-shadow: 0 0 14px #4ec0ffcc;
-  outline: none;
-}
-
-.store-add button {
-  background-color: #00c853;
-  color: white;
+.store-table button.btn-danger {
+  background-color: transparent;
+  border: 2px solid #ff4949;
+  color: #ff4949;
+  padding: 6px 16px;
+  border-radius: 10px;
   font-weight: 700;
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: none;
   cursor: pointer;
-  box-shadow: 0 0 16px #00c853cc;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  user-select: none;
+  box-shadow: 0 0 10px #ff4949aa;
+  transition: all 0.3s ease;
 }
 
-.store-add button:hover,
-.store-add button:focus {
-  background-color: #00e676;
-  box-shadow: 0 0 26px #00e676cc;
+.store-table button.btn-danger:hover,
+.store-table button.btn-danger:focus {
+  background-color: #ff4949;
+  color: #fff;
+  box-shadow: 0 0 20px #ff4949cc;
   outline: none;
   transform: scale(1.05);
 }
 
-/* --- Animations --- */
-@keyframes pulseGlowSlow {
-  0%, 100% { box-shadow: 0 0 25px rgba(30, 144, 255, 0.3), inset 0 0 40px rgba(30, 144, 255, 0.1); }
-  50% { box-shadow: 0 0 55px rgba(30, 144, 255, 0.7), inset 0 0 60px rgba(30, 144, 255, 0.18); }
+/* Unassigned sales block style */
+.user-store-block-unassigned .user-store-summary {
+  background-color: rgba(100, 100, 100, 0.4);
+  color: #ddd;
+  cursor: default;
+  box-shadow: none;
 }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* Separate blocks */
+.user-store-block {
+  margin-bottom: 24px;
+  border-radius: 18px;
+  padding: 12px 16px;
+  background-color: rgba(3, 14, 38, 0.8);
+  box-shadow:
+    0 0 15px rgba(0, 90, 180, 0.3),
+    inset 0 0 35px rgba(0, 90, 180, 0.15);
 }
 
-/* --- Responsive --- */
+/* Open block overrides */
+.user-store-block.open {
+  background-color: rgba(0, 90, 180, 0.9);
+  box-shadow:
+    0 0 32px rgba(0, 130, 255, 0.7),
+    inset 0 0 50px rgba(0, 130, 255, 0.3);
+}
+
+/* Responsive tweaks */
 @media (max-width: 900px) {
-  .store-table thead th {
-    font-size: 0.85rem;
-  }
-  .store-table tbody tr {
-    font-size: 0.85rem;
-  }
-  .store-add {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-  .store-add input#newStoreNum {
-    width: 100%;
-  }
-  .store-add button {
-    width: 100%;
+  .stores-section {
+    padding: 16px 18px;
   }
   .user-store-summary {
-    font-size: 0.95rem;
+    font-size: 1rem;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .uss-name {
+    font-size: 1.1rem;
+  }
+  .store-pill {
+    font-size: 0.8rem;
+    padding: 3px 8px;
+  }
+  .store-table thead th,
+  .store-table tbody td {
+    font-size: 0.9rem;
+    padding: 10px 12px;
+  }
+  .store-table input[type="text"],
+  .store-table input[type="number"] {
+    font-size: 0.9rem;
+  }
+  .store-table button.btn-danger {
+    padding: 5px 12px;
+    font-size: 0.9rem;
   }
 }
