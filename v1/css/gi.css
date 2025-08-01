@@ -1,17 +1,141 @@
 /* ==========================================================================
-   Water-like Animated UI Elements - Full Update
+   Water-like Animated UI Elements - Full File Update
    ========================================================================== */
 
-/* Shared base for all water-animated elements */
+/* Shared variables */
+:root {
+  --brand: #008cff;
+  --brand-accent: #1e90ff;
+  --bg-glass: rgba(23, 30, 45, 0.75);
+  --border-glass: rgba(80, 160, 255, 0.18);
+  --glass-blur: blur(22px) saturate(130%);
+  --radius-md: 18px;
+  --focus: 0 0 0 2.5px #63b3ed99;
+  --main-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --particle-color: #2ba8ff;
+}
+
+/* Base setup */
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--main-font);
+  color: #e7f2ff;
+  overflow-x: hidden;
+  background: #101824; /* dark base */
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Background gradients and particles */
+body::before {
+  content: "";
+  position: fixed;
+  top: -20%;
+  left: -20%;
+  width: 140vw;
+  height: 140vh;
+  pointer-events: none;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 25% 30%, rgba(30,144,255,0.35), transparent 60%),
+    radial-gradient(circle at 70% 70%, rgba(15,85,255,0.3), transparent 55%),
+    radial-gradient(circle at 85% 20%, rgba(72,195,255,0.25), transparent 65%);
+  filter: blur(140px);
+  animation: bgShift 30s linear infinite alternate;
+}
+
+@keyframes bgShift {
+  0% {
+    background-position: 25% 30%, 70% 70%, 85% 20%;
+  }
+  100% {
+    background-position: 30% 35%, 65% 75%, 90% 25%;
+  }
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    radial-gradient(circle, var(--particle-color) 1.5px, transparent 2px),
+    radial-gradient(circle, var(--particle-color) 1.2px, transparent 1.8px),
+    radial-gradient(circle, var(--particle-color) 1.7px, transparent 2.2px);
+  background-repeat: repeat;
+  background-size: 60px 60px, 100px 100px, 140px 140px;
+  animation: moveParticles 60s linear infinite;
+  opacity: 0.15;
+}
+
+@keyframes moveParticles {
+  0% {
+    background-position: 0 0, 0 0, 0 0;
+  }
+  100% {
+    background-position: 60px 60px, 100px 100px, 140px 140px;
+  }
+}
+
+/* Sticky glassy header */
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+  background: var(--bg-glass);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1.7px solid var(--border-glass);
+  box-shadow: none;
+  padding: 1rem 2.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  transition: box-shadow 0.3s ease;
+  font-family: var(--main-font);
+}
+
+.admin-header h2 {
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.8rem;
+  color: #55baff;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.admin-header .header-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+#messagesBadge {
+  background: #ff4d4f;
+  color: white;
+  font-weight: 900;
+  font-size: 0.75rem;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 6px;
+  margin-left: 6px;
+  user-select: none;
+}
+
+/* Water-like animated UI elements base */
 .water-animated {
   position: relative;
   overflow: hidden;
   background-size: 300% 300%;
   animation: waterFlowSlow 20s ease-in-out infinite;
   box-shadow: none !important;
-  transition: none !important;
   user-select: none;
-  color: #e7f2ff;
   border-radius: 9999px;
   border: 1px solid rgba(80, 160, 255, 0.15);
   white-space: nowrap;
@@ -22,30 +146,35 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  color: #e7f2ff;
 }
 
 /* Role badges */
 .role-badge.water-animated {
   background: linear-gradient(270deg, rgba(23, 30, 45, 0.3), rgba(23, 30, 45, 0.15));
 }
+
 .role-badge.role-guest.water-animated {
   background: linear-gradient(270deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.1));
   border-color: rgba(99, 102, 241, 0.15);
 }
+
 .role-badge.role-lead.water-animated {
   background: linear-gradient(270deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
   border-color: rgba(16, 185, 129, 0.15);
 }
+
 .role-badge.role-dm.water-animated {
   background: linear-gradient(270deg, rgba(37, 99, 235, 0.2), rgba(37, 99, 235, 0.1));
   border-color: rgba(37, 99, 235, 0.15);
 }
+
 .role-badge.role-admin.water-animated {
   background: linear-gradient(270deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
   border-color: rgba(239, 68, 68, 0.15);
 }
 
-/* Pitch % pill */
+/* Pitch pills */
 .guest-pitch-pill.water-animated {
   background: linear-gradient(270deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -67,11 +196,12 @@
   border-radius: 12px;
   color: #dbe9ff;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: background-position 0.3s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
+
 .phone-menu-button.water-animated:hover {
   background-position: 100% 50%;
 }
@@ -92,7 +222,7 @@
   justify-content: center;
 }
 
-/* Guest info labels, tags, etc */
+/* Guest info labels */
 .guest-info-label.water-animated {
   background: linear-gradient(270deg, rgba(23, 30, 45, 0.25), rgba(23, 30, 45, 0.1));
   border: 1px solid rgba(80, 160, 255, 0.10);
@@ -108,12 +238,59 @@
   justify-content: center;
 }
 
-/* Shared animation keyframes */
+/* Animation keyframes */
 @keyframes waterFlowSlow {
   0%, 100% {
     background-position: 0% 50%;
   }
   50% {
     background-position: 100% 50%;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .admin-header {
+    flex-direction: row;
+    gap: 0.8rem;
+    padding: 1rem 1.2rem;
+    border-radius: 24px;
+    margin: 0.8rem;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: none;
+  }
+
+  .admin-header h2 {
+    font-size: 1.5rem;
+    flex-shrink: 1;
+    flex-grow: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0;
+  }
+
+  .admin-header .header-buttons {
+    gap: 0.5rem;
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  .admin-header button {
+    min-width: 40px;
+    max-width: 80px;
+    padding: 0.3em 0.8em;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Hide guest form and review form buttons on mobile */
+  .header-buttons button.guest-form-button,
+  .header-buttons button.review-form-button {
+    display: none !important;
   }
 }
