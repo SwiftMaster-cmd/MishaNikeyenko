@@ -1,5 +1,5 @@
 /* ==========================================================================
-   OSL Admin Dashboard CSS Overhaul - Refined Glassy & Professional Energy
+   OSL Admin Dashboard CSS Overhaul - Refined, Responsive, Animated, Mobile-Friendly
    ========================================================================== */
 
 /* --- Design Tokens & Variables --- */
@@ -8,7 +8,7 @@
   --radius-md: 16px;
   --radius-lg: 24px;
 
-  --brand: #0a84ff; /* Apple-style blue */
+  --brand: #0a84ff; /* Apple-style energetic blue */
   --brand-light: #5ac8fa;
   --brand-dark: #004d99;
 
@@ -68,7 +68,6 @@ html, body {
   user-select: none;
 }
 
-/* Header button style */
 .admin-header button {
   background: var(--bg-glass);
   color: var(--brand-light);
@@ -111,6 +110,7 @@ html, body {
   flex-direction: column;
   gap: 4rem;
   user-select: text;
+  animation: fadeInUp 0.8s ease forwards;
 }
 
 /* --- Admin Sections (cards) --- */
@@ -137,7 +137,6 @@ html, body {
   cursor: default;
 }
 
-/* Section Titles */
 .admin-section h2 {
   margin: 0 0 1.9rem 0;
   font-weight: 900;
@@ -179,7 +178,6 @@ button:focus,
   outline: none;
 }
 
-/* Large button variant */
 .button--large {
   font-size: 1.55rem;
   padding: 1.35rem 2.8rem;
@@ -222,12 +220,10 @@ tbody tr:hover {
   cursor: pointer;
 }
 
-/* Table cells */
 td, th {
   padding: 1.25rem 1.75rem;
 }
 
-/* Rounded corners for first and last table cells */
 tbody tr td:first-child {
   border-top-left-radius: var(--radius-md);
   border-bottom-left-radius: var(--radius-md);
@@ -374,35 +370,139 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
-.admin-section,
-.guestinfo-section,
-.perf-highlights-section,
-.stores-section,
-.users-section,
-.reviews-section {
-  animation: fadeInUp 0.8s cubic-bezier(0.55, 0, 0.1, 1) forwards;
-  will-change: opacity, transform;
-}
-
 /* --- Responsive --- */
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
   #adminApp {
     padding: 0 1.5rem;
   }
   .admin-header {
-    font-size: 1.45rem;
-    padding: 1rem 1.8rem;
+    font-size: 1.5rem;
+    padding: 1.3rem 2rem;
+  }
+  .admin-section {
+    padding: 2.2rem 2.5rem;
   }
   table {
-    font-size: 1.05rem;
-  }
-  .perf-hl-btn {
-    padding: 0.65rem 1.35rem;
-    margin-right: 1.1rem;
-    font-size: 1.05rem;
+    font-size: 1rem;
   }
   button, .button {
-    padding: 0.75rem 1.45rem;
+    padding: 0.8rem 1.6rem;
+    font-size: 1.1rem;
+  }
+  .perf-hl-btn {
+    padding: 0.75rem 1.3rem;
+    margin-right: 1rem;
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 900px) {
+  #adminApp {
+    padding: 0 1rem;
+  }
+  .admin-header {
+    font-size: 1.3rem;
+    padding: 1rem 1.5rem;
+  }
+  .admin-section {
+    padding: 1.8rem 1.8rem;
+  }
+  table {
+    font-size: 0.95rem;
+  }
+  button, .button {
+    padding: 0.7rem 1.3rem;
+    font-size: 1rem;
+  }
+  .perf-hl-btn {
+    padding: 0.6rem 1.1rem;
+    margin-right: 0.7rem;
+    font-size: 1rem;
+  }
+}
+
+/* --- Mobile specific --- */
+@media (max-width: 600px) {
+  #adminApp {
+    padding: 0 1rem;
+  }
+  .admin-header {
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    justify-content: center;
+    font-size: 1.15rem;
+    padding: 1rem 1rem;
+  }
+  .admin-header button {
+    margin-left: 0;
+    flex-grow: 1;
+    max-width: 150px;
+  }
+  .admin-section {
+    padding: 1.5rem 1.2rem;
+  }
+  table, thead, tbody, tr, td, th {
+    display: block;
+    width: 100%;
+  }
+  thead tr {
+    display: none;
+  }
+  tbody tr {
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 0 20px rgba(10, 132, 255, 0.15);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    background: var(--bg-glass);
+  }
+  tbody tr:hover {
+    background-color: rgba(90, 200, 250, 0.15);
+    box-shadow: 0 0 30px rgba(90, 200, 250, 0.25);
+  }
+  td {
+    padding: 0.5rem 1rem;
+    border: none;
+    position: relative;
+    text-align: left;
+    font-size: 0.95rem;
+  }
+  td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--brand-light);
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.85rem;
+  }
+  .perf-hl-btn {
+    padding: 0.55rem 1rem;
+    margin-right: 0.5rem;
+    font-size: 0.95rem;
+  }
+  button, .button {
+    width: 100%;
+    padding: 0.65rem 0;
     font-size: 1.05rem;
   }
+}
+
+/* --- Additional animations --- */
+@keyframes pulseGlowSoft {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(10, 132, 255, 0.2), inset 0 0 40px rgba(90, 200, 250, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 50px rgba(10, 132, 255, 0.5), inset 0 0 60px rgba(90, 200, 250, 0.3);
+  }
+}
+
+.admin-section {
+  animation: pulseGlowSoft 12s ease-in-out infinite;
+}
+
+/* Hover animation for buttons */
+button:hover,
+.button:hover {
+  animation: pulseGlowSoft 1.8s ease-in-out infinite alternate;
 }

@@ -1,149 +1,163 @@
 /* ==========================================================================
-   Users Section CSS Overhaul - Polished Glassy & Subtle
+   Users Section CSS Overhaul - Polished Glassy & Lively Refined Style
    ========================================================================== */
 
 /* --- Base Section --- */
 .users-section {
-  background: rgba(20, 25, 35, 0.75);
-  border-radius: 16px;
-  padding: 2rem 2.5rem;
-  backdrop-filter: saturate(130%) blur(14px);
+  background: rgba(22, 28, 42, 0.8);
+  border-radius: 18px;
+  padding: 2.2rem 2.8rem;
+  backdrop-filter: saturate(140%) blur(15px);
   box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.15),
-    inset 0 0 20px rgba(255, 255, 255, 0.05);
-  color: #c0d4e8;
+    0 6px 14px rgba(0, 0, 0, 0.18),
+    inset 0 0 26px rgba(255, 255, 255, 0.06);
+  color: #c7d9f6;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   user-select: none;
   max-width: 100%;
   overflow-wrap: break-word;
+  transition: background-color 0.4s ease, box-shadow 0.4s ease;
+  will-change: background-color, box-shadow;
+}
+
+.users-section:hover {
+  background-color: rgba(25, 33, 50, 0.92);
+  box-shadow:
+    0 8px 28px rgba(0, 110, 210, 0.38),
+    inset 0 0 40px rgba(255, 255, 255, 0.08);
 }
 
 /* --- Section Header --- */
 .users-section h2 {
-  font-size: 1.9rem;
-  font-weight: 800;
-  color: #6cb8ff;
-  text-shadow: 0 0 6px rgba(108, 184, 255, 0.5);
-  margin-bottom: 1.3rem;
+  font-size: 2rem;
+  font-weight: 900;
+  color: #75aaff;
+  text-shadow: 0 0 8px rgba(117, 170, 255, 0.6);
+  margin-bottom: 1.6rem;
   user-select: text;
+  letter-spacing: 0.03em;
+  will-change: color, text-shadow;
 }
 
 /* --- Users Container --- */
 .users-by-store-container {
   display: flex;
   flex-direction: column;
-  gap: 1.7rem;
+  gap: 1.8rem;
 }
 
 /* --- Store Block --- */
 .user-store-block {
-  background: rgba(25, 30, 45, 0.6);
-  border-radius: 16px;
-  backdrop-filter: saturate(110%) blur(12px);
+  background: rgba(24, 30, 48, 0.65);
+  border-radius: 18px;
+  backdrop-filter: saturate(120%) blur(14px);
   box-shadow:
-    0 0 8px rgba(0, 0, 0, 0.25),
-    inset 0 0 14px rgba(255, 255, 255, 0.06);
-  padding: 1rem 1.8rem;
-  transition: background-color 0.3s ease, box-shadow 0.4s ease;
+    0 0 12px rgba(0, 0, 0, 0.3),
+    inset 0 0 18px rgba(255, 255, 255, 0.07);
+  padding: 1.2rem 2rem;
+  transition: background-color 0.35s ease, box-shadow 0.4s ease;
   cursor: pointer;
   user-select: none;
   overflow: hidden;
   animation: fadeInUp 0.45s ease forwards;
+  will-change: background-color, box-shadow;
 }
 
-/* Store block open state */
 .user-store-block.user-store-block-open {
-  background-color: rgba(15, 20, 35, 0.85);
+  background-color: rgba(18, 26, 48, 0.9);
   box-shadow:
-    0 0 20px rgba(60, 130, 230, 0.3),
-    inset 0 0 28px rgba(255, 255, 255, 0.08);
+    0 0 30px rgba(60, 130, 230, 0.4),
+    inset 0 0 42px rgba(255, 255, 255, 0.1);
 }
 
-/* Hover effect - subtle tint and soft shadow */
 .user-store-block:hover {
-  background-color: rgba(22, 30, 50, 0.85);
+  background-color: rgba(28, 38, 66, 0.95);
   box-shadow:
-    0 6px 24px rgba(30, 90, 180, 0.22),
-    inset 0 0 28px rgba(255, 255, 255, 0.09);
+    0 8px 30px rgba(25, 90, 180, 0.32),
+    inset 0 0 38px rgba(255, 255, 255, 0.12);
 }
 
 /* --- Store Summary (Collapsed Header) --- */
 .user-store-summary {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 22px;
-  border-radius: 14px;
+  gap: 16px;
+  padding: 16px 26px;
+  border-radius: 16px;
   font-weight: 600;
-  font-size: 1.12rem;
+  font-size: 1.15rem;
   user-select: none;
-  color: #8bbaff;
-  box-shadow: 0 0 10px rgba(60, 150, 240, 0.25);
-  transition: background-color 0.35s ease, color 0.35s ease;
-  background-color: rgba(25, 35, 50, 0.35);
-  border: 1px solid rgba(100, 150, 255, 0.15);
+  color: #8db8ff;
+  box-shadow: 0 0 14px rgba(60, 160, 255, 0.28);
+  transition: background-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease;
+  background-color: rgba(22, 35, 54, 0.35);
+  border: 1.5px solid rgba(85, 140, 255, 0.15);
+  will-change: background-color, color, box-shadow;
 }
 
 .user-store-summary.open {
-  background-color: rgba(30, 130, 230, 0.22);
-  color: #5a9eff;
-  box-shadow: 0 0 20px rgba(30, 130, 230, 0.4);
-  border-color: rgba(30, 130, 230, 0.35);
+  background-color: rgba(28, 135, 230, 0.3);
+  color: #589aff;
+  box-shadow: 0 0 30px rgba(30, 140, 230, 0.48);
+  border-color: rgba(30, 140, 230, 0.4);
 }
 
 /* Caret icon */
 .uss-caret {
-  font-size: 1.35rem;
-  color: #5aa3ff;
+  font-size: 1.45rem;
+  color: #61a5ff;
   user-select: none;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, color 0.3s ease;
+  will-change: transform, color;
 }
 
 .user-store-summary.open .uss-caret {
   transform: rotate(90deg);
+  color: #9ac7ff;
 }
 
 /* Store number */
 .uss-name {
   flex: 1 1 auto;
   font-family: "Roboto Mono", monospace;
-  font-size: 1.18rem;
+  font-size: 1.3rem;
   letter-spacing: 0.11em;
-  color: #72aaff;
-  text-shadow: 0 0 5px rgba(114, 170, 255, 0.5);
+  color: #7baaff;
+  text-shadow: 0 0 8px rgba(123, 170, 255, 0.6);
   user-select: text;
+  will-change: color, text-shadow;
 }
 
 /* Role mix pills */
 .uss-role-mix {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   user-select: none;
 }
 
 /* Role pills */
 .uss-role-pill {
   display: inline-block;
-  padding: 4px 12px;
+  padding: 5px 14px;
   border-radius: 9999px;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: #f0f8ff;
-  text-shadow: 0 0 5px rgba(0,0,0,0.5);
-  box-shadow: 0 0 8px rgba(40, 130, 240, 0.3);
+  color: #e6f2ff;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 10px rgba(40, 140, 240, 0.4);
   transition: background-color 0.3s ease;
   user-select: none;
   cursor: default;
 }
 
 .uss-role-pill.lead {
-  background-color: #4caf50cc;
-  box-shadow: 0 0 12px #4caf5099;
+  background-color: #4caf50dd;
+  box-shadow: 0 0 14px #4caf50bb;
 }
 
 .uss-role-pill.me {
-  background-color: #2196f3cc;
-  box-shadow: 0 0 12px #2196f399;
+  background-color: #2196f3dd;
+  box-shadow: 0 0 14px #2196f3bb;
 }
 
 /* Staffing count & icon */
@@ -151,55 +165,65 @@
   font-family: "Roboto Mono", monospace;
   font-weight: 700;
   font-size: 1rem;
-  color: #75c0ff;
-  text-shadow: 0 0 6px #75c0ffaa;
+  color: #7dc0ff;
+  text-shadow: 0 0 8px #7dc0ffbb;
   user-select: none;
 }
 
 .uss-icon {
-  font-size: 1.3rem;
-  color: #75c0ff;
-  text-shadow: 0 0 10px #75c0ffbb;
+  font-size: 1.35rem;
+  color: #7dc0ff;
+  text-shadow: 0 0 12px #7dc0ffbb;
   user-select: none;
 }
 
 /* Store goal input (Admin only) */
 .store-goal-input {
-  width: 75px;
-  padding: 7px 12px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(40, 140, 255, 0.45);
-  background: rgba(20, 25, 40, 0.9);
-  color: #abc9ff;
-  font-size: 1rem;
+  width: 80px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1.8px solid rgba(55, 130, 255, 0.45);
+  background: rgba(20, 26, 45, 0.9);
+  color: #b0caff;
+  font-size: 1.1rem;
   font-weight: 700;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   text-align: center;
-  box-shadow: inset 0 1px 5px rgba(30, 90, 180, 0.15);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: inset 0 1px 7px rgba(60, 130, 255, 0.2);
+  transition: border-color 0.35s ease, box-shadow 0.35s ease;
+  cursor: pointer;
+  user-select: text;
+  will-change: border-color, box-shadow;
 }
 
 .store-goal-input:focus {
   outline: none;
-  border-color: #5a9eff;
-  box-shadow: 0 0 20px rgba(90, 158, 255, 0.5);
+  border-color: #7bb1ff;
+  box-shadow: 0 0 24px rgba(123, 177, 255, 0.6);
 }
 
 /* --- User Card --- */
 .user-card {
-  background: rgba(14, 22, 34, 0.85);
-  border-radius: 16px;
-  backdrop-filter: saturate(120%) blur(12px);
+  background: rgba(16, 24, 44, 0.88);
+  border-radius: 18px;
+  backdrop-filter: saturate(130%) blur(14px);
   box-shadow:
-    0 3px 14px rgba(0, 70, 140, 0.22),
-    inset 0 0 28px rgba(255, 255, 255, 0.05);
-  padding: 16px 22px;
-  margin-top: 14px;
-  color: #c5dbff;
+    0 5px 18px rgba(0, 70, 150, 0.3),
+    inset 0 0 38px rgba(255, 255, 255, 0.07);
+  padding: 18px 26px;
+  margin-top: 18px;
+  color: #c6dbff;
   user-select: text;
-  animation: fadeInUp 0.45s ease forwards;
+  animation: fadeInUp 0.48s ease forwards;
   transition: box-shadow 0.3s ease;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  will-change: box-shadow;
+}
+
+.user-card:hover {
+  box-shadow:
+    0 10px 30px rgba(0, 90, 190, 0.5),
+    inset 0 0 55px rgba(255, 255, 255, 0.1);
 }
 
 /* User card header */
@@ -207,136 +231,139 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  gap: 16px;
+  margin-bottom: 14px;
+  gap: 18px;
 }
 
 .user-name {
-  font-weight: 800;
-  font-size: 1.25rem;
-  color: #54abff;
+  font-weight: 900;
+  font-size: 1.3rem;
+  color: #5a9fff;
   user-select: text;
-  text-shadow: 0 0 10px rgba(84, 171, 255, 0.45);
+  text-shadow: 0 0 10px rgba(90, 159, 255, 0.55);
 }
 
 .user-email {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: #95b9f9;
+  color: #a1b6f9;
   user-select: text;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 /* Role badge */
 .role-badge {
   font-weight: 700;
-  padding: 6px 16px;
+  padding: 6px 18px;
   border-radius: 9999px;
-  font-size: 0.9rem;
+  font-size: 1rem;
   user-select: none;
   color: white;
-  text-shadow: 0 0 6px rgba(0,0,0,0.7);
-  box-shadow: 0 0 14px rgba(30, 160, 255, 0.6);
+  text-shadow: 0 0 7px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 0 18px rgba(30, 160, 255, 0.7);
   transition: background-color 0.3s ease;
+  cursor: default;
 }
 
 .role-badge.role-me {
-  background-color: #2196f3cc;
+  background-color: #2196f3dd;
 }
 
 .role-badge.role-lead {
-  background-color: #4caf50cc;
+  background-color: #4caf50dd;
 }
 
 .role-badge.role-dm {
-  background-color: #00aaffcc;
+  background-color: #00aaffdd;
 }
 
 .role-badge.role-admin {
-  background-color: #0071e3cc;
+  background-color: #0071e3dd;
 }
 
 /* User card info */
 .user-card-info {
   display: flex;
-  gap: 28px;
-  font-size: 0.94rem;
+  gap: 30px;
+  font-size: 0.97rem;
   font-weight: 600;
-  color: #9cbcee;
+  color: #9dbcef;
   user-select: text;
 }
 
 .user-card-info div b {
-  color: #54aaff;
+  color: #5f9eff;
 }
 
 /* User card actions */
 .user-card-actions {
-  margin-top: 16px;
+  margin-top: 18px;
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
+  gap: 20px;
   user-select: none;
 }
 
 /* User card selects and labels */
 .user-card-actions label {
-  font-size: 0.95rem;
-  color: #9bbcee;
+  font-size: 1rem;
+  color: #9ebeff;
   font-weight: 600;
   user-select: none;
   cursor: pointer;
 }
 
 .user-card-actions select {
-  margin-left: 8px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(40, 150, 255, 0.45);
-  background: rgba(20, 25, 40, 0.9);
-  color: #abcfff;
+  margin-left: 10px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1.8px solid rgba(55, 150, 255, 0.45);
+  background: rgba(20, 26, 45, 0.9);
+  color: #aacdff;
   font-weight: 700;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   cursor: pointer;
   user-select: none;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  will-change: border-color, box-shadow;
 }
 
 .user-card-actions select:hover,
 .user-card-actions select:focus {
-  border-color: #58aaff;
-  box-shadow: 0 0 18px rgba(88, 170, 255, 0.45);
+  border-color: #67a3ff;
+  box-shadow: 0 0 20px rgba(103, 163, 255, 0.5);
   outline: none;
 }
 
 /* Delete button */
 .btn-danger-outline {
   background-color: transparent;
-  border: 2px solid #e74c3c;
-  color: #e74c3c;
-  padding: 8px 18px;
-  border-radius: 12px;
+  border: 2px solid #e04c46;
+  color: #e04c46;
+  padding: 9px 20px;
+  border-radius: 14px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 0 14px #e74c3c88;
+  box-shadow: 0 0 18px #e04c4688;
   transition: all 0.3s ease;
   user-select: none;
+  will-change: background-color, box-shadow, transform;
 }
 
 .btn-danger-outline:hover,
 .btn-danger-outline:focus {
-  background-color: #e74c3c;
+  background-color: #e04c46;
   color: #fff;
-  box-shadow: 0 0 24px #e74c3ccc;
+  box-shadow: 0 0 36px #e04c46cc;
   outline: none;
-  transform: scale(1.06);
+  transform: scale(1.07);
 }
 
 /* --- Animations --- */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(18px);
   }
   to {
     opacity: 1;
@@ -347,12 +374,12 @@
 /* --- Responsive --- */
 @media (max-width: 900px) {
   .user-store-summary {
-    font-size: 1rem;
-    gap: 10px;
+    font-size: 1.05rem;
+    gap: 12px;
   }
   .user-card-info {
     flex-direction: column;
-    gap: 10px;
+    gap: 14px;
   }
   .user-card-actions {
     flex-direction: column;
