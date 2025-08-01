@@ -114,7 +114,7 @@ html, body {
   .admin-header {
     flex-direction: column;
     gap: 0.8rem;
-    padding: 1rem;
+    padding: 1rem 1.5rem; /* reduce horizontal padding */
   }
   .admin-header h2 {
     font-size: 1.5rem;
@@ -123,13 +123,16 @@ html, body {
   .admin-header .header-buttons {
     width: 100%;
     justify-content: center;
+    flex-wrap: wrap;  /* allow buttons to wrap to next line */
+    gap: 0.5rem;
   }
   .admin-header button {
-    width: 100%;
-    max-width: 200px;
+    width: auto;
+    max-width: 45%;
+    min-width: 120px;
   }
 }
-
+  
 /* Gradient animation keyframes */
 @keyframes gradientShift {
   0% { background-position: 0% 20%; }
