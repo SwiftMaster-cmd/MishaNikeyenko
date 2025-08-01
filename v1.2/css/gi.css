@@ -1,39 +1,21 @@
 /* ==========================================================================
-   Guest Info Section CSS Overhaul - Glassy Reactive Apple Style
+   Guest Info Section CSS - Polished, Minimal, Glassy
    ========================================================================== */
 
-/* --- Base styling --- */
 .guestinfo-section {
-  background: rgba(20, 25, 40, 0.85);
+  background: rgba(20, 25, 40, 0.75);
   border-radius: 16px;
   padding: 2rem 2.5rem;
-  box-shadow:
-    0 0 25px rgba(0, 113, 227, 0.35),
-    inset 0 0 35px rgba(0, 113, 227, 0.08);
-  animation: pulseGlowSlow 10s ease-in-out infinite;
+  backdrop-filter: saturate(150%) blur(12px);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
   color: #e0e6f0;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   user-select: none;
   max-width: 100%;
   overflow-wrap: break-word;
-  transition: background-color 0.4s ease, box-shadow 0.4s ease;
+  transition: background-color 0.3s ease;
 }
 
-/* Glow pulse animation */
-@keyframes pulseGlowSlow {
-  0%, 100% {
-    box-shadow:
-      0 0 25px rgba(0, 113, 227, 0.35),
-      inset 0 0 35px rgba(0, 113, 227, 0.08);
-  }
-  50% {
-    box-shadow:
-      0 0 50px rgba(0, 113, 227, 0.7),
-      inset 0 0 50px rgba(0, 113, 227, 0.15);
-  }
-}
-
-/* --- Controls Bar --- */
 .guestinfo-controls {
   display: flex;
   flex-direction: column;
@@ -49,21 +31,19 @@
   flex-wrap: wrap;
 }
 
-/* Filter panel */
 #filter-panel {
-  background: rgba(30, 40, 60, 0.8);
+  background: rgba(30, 40, 60, 0.5);
   border-radius: 12px;
   padding: 16px 18px;
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
   justify-content: flex-start;
-  transition: max-height 0.4s ease, opacity 0.4s ease;
   user-select: text;
-  box-shadow: inset 0 0 15px rgba(0, 113, 227, 0.15);
+  border: 1px solid rgba(74,168,255,0.3);
+  backdrop-filter: saturate(130%) blur(8px);
 }
 
-/* --- Search wrappers --- */
 .search-wrapper {
   position: relative;
   flex-grow: 1;
@@ -76,24 +56,23 @@
   width: 100%;
   padding: 0.6rem 2.5rem 0.6rem 0.8rem;
   border-radius: 10px;
-  border: 2px solid #0071e3;
-  background: rgba(20, 25, 40, 0.92);
+  border: 1.5px solid #0071e3;
+  background: rgba(20, 25, 40, 0.85);
   color: #e0e6f0;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0.015em;
-  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
   user-select: text;
 }
 
 .search-wrapper input[type="text"]:focus,
 .search-wrapper input[type="date"]:focus {
   border-color: #4aa8ff;
-  box-shadow: 0 0 16px #4aa8ff;
+  box-shadow: 0 0 10px #4aa8ff55;
   outline: none;
 }
 
-/* Clear button inside inputs */
 .clear-btn {
   position: absolute;
   right: 10px;
@@ -101,13 +80,13 @@
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: #4aa8ff;
-  font-size: 1.4rem;
+  color: #4aa8ffcc;
+  font-size: 1.3rem;
   cursor: pointer;
   user-select: none;
   padding: 0;
   line-height: 1;
-  opacity: 0.85;
+  opacity: 0.7;
   transition: opacity 0.3s ease;
 }
 
@@ -115,7 +94,6 @@
   opacity: 1;
 }
 
-/* --- Filter buttons --- */
 .btn, .btn-sm {
   cursor: pointer;
   border-radius: 12px;
@@ -124,10 +102,9 @@
   font-size: 1rem;
   font-weight: 700;
   user-select: none;
-  box-shadow: 0 0 18px rgba(0, 113, 227, 0.3);
-  background-color: rgba(30, 40, 60, 0.88);
+  background-color: rgba(30, 40, 60, 0.6);
   color: #4aa8ff;
-  transition: background-color 0.4s ease, box-shadow 0.4s ease, color 0.4s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
   flex-shrink: 0;
   min-width: 90px;
   text-align: center;
@@ -135,49 +112,44 @@
 }
 
 .btn-secondary {
-  background-color: rgba(40, 55, 85, 0.95);
+  background-color: rgba(40, 55, 85, 0.75);
 }
 
 .btn-secondary:hover,
 .btn-secondary:focus {
   background-color: #0071e3;
-  box-shadow: 0 0 35px #4aa8ff;
   color: #fff;
   outline: none;
-  transform: scale(1.07);
+  transform: scale(1.05);
 }
 
 .btn-success {
-  background-color: #00e676;
+  background-color: #00e676cc;
   color: #003900;
-  box-shadow: 0 0 16px #00e676aa;
 }
 
 .btn-success:hover,
 .btn-success:focus {
-  background-color: #00ff7f;
-  box-shadow: 0 0 30px #00ff7fcc;
+  background-color: #00ff7fcc;
   outline: none;
-  transform: scale(1.07);
+  transform: scale(1.05);
 }
 
 .btn-warning {
-  background-color: #ffca28;
+  background-color: #ffca28cc;
   color: #3a3a3a;
-  box-shadow: 0 0 14px #ffca28cc;
 }
 
 .btn-warning:hover,
 .btn-warning:focus {
-  background-color: #ffd54f;
-  box-shadow: 0 0 28px #ffd54fcc;
+  background-color: #ffd54fcc;
   outline: none;
-  transform: scale(1.07);
+  transform: scale(1.05);
 }
 
 .btn-clear-filters {
   background-color: transparent;
-  color: #4aa8ff;
+  color: #4aa8ffcc;
   text-decoration: underline;
   font-weight: 600;
   padding: 0.45rem 1rem;
@@ -191,45 +163,22 @@
   text-decoration: none;
 }
 
-/* --- Empty state --- */
-.guestinfo-empty {
-  margin-top: 32px;
-  font-size: 1.25rem;
-  color: #4aa8ff;
-  user-select: none;
-  text-align: center;
-}
-
-.guestinfo-empty b {
-  font-weight: 800;
-  font-size: 1.45rem;
-  display: block;
-  margin-bottom: 12px;
-  text-shadow: 0 0 16px #4aa8ff;
-}
-
-/* --- Guest Cards --- */
+/* Guest Cards */
 .guest-card {
-  background-color: rgba(20, 25, 40, 0.8);
+  background-color: rgba(20, 25, 40, 0.7);
   border-radius: 14px;
-  box-shadow:
-    0 0 25px rgba(0, 113, 227, 0.5),
-    inset 0 0 40px rgba(0, 113, 227, 0.18);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
   padding: 1.2rem 1.6rem;
   margin-bottom: 1.4rem;
   user-select: none;
-  transition: box-shadow 0.45s ease, background-color 0.4s ease;
+  transition: box-shadow 0.3s ease, background-color 0.3s ease;
   position: relative;
   overflow-wrap: anywhere;
-  animation: fadeInUp 0.6s ease forwards;
 }
 
-/* Glow on hover */
 .guest-card:hover {
-  box-shadow:
-    0 0 45px rgba(0, 113, 227, 0.8),
-    inset 0 0 55px rgba(0, 113, 227, 0.3);
-  background-color: rgba(30, 38, 58, 0.9);
+  background-color: rgba(28, 34, 54, 0.85);
+  box-shadow: 0 6px 18px rgba(0, 113, 227, 0.3);
   cursor: default;
 }
 
@@ -244,7 +193,7 @@
   white-space: nowrap;
   color: white;
   letter-spacing: 0.05em;
-  box-shadow: 0 0 9px rgba(255,255,255,0.25);
+  box-shadow: 0 0 6px rgba(255,255,255,0.15);
   transition: background-color 0.3s ease;
 }
 
@@ -263,7 +212,7 @@
   padding: 5px 14px;
   color: #eeeeee;
   background: linear-gradient(90deg, #009900, #004d00);
-  box-shadow: 0 0 14px #00cc00cc;
+  box-shadow: 0 0 10px #00cc00bb;
   user-select: none;
   white-space: nowrap;
   transition: box-shadow 0.3s ease;
@@ -283,9 +232,9 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #4aa8ff;
+  color: #4aa8ffcc;
   user-select: none;
-  transition: color 0.35s ease;
+  transition: color 0.3s ease;
   line-height: 1;
 }
 
@@ -321,14 +270,14 @@
 .guest-time {
   padding: 4px 10px;
   border-radius: 9999px;
-  background: rgba(20, 25, 40, 0.7);
-  color: #4aa8ff;
+  background: rgba(20, 25, 40, 0.6);
+  color: #4aa8ffcc;
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.4s ease;
+  transition: background-color 0.3s ease;
   white-space: nowrap;
   font-weight: 600;
-  box-shadow: inset 0 0 6px rgba(0, 113, 227, 0.2);
+  box-shadow: inset 0 0 4px rgba(0, 113, 227, 0.15);
 }
 
 .guest-phone:hover,
@@ -368,13 +317,13 @@
   margin-top: 8px;
   padding: 10px 14px;
   border-radius: 12px;
-  border: 2px solid #0071e3;
-  background: rgba(20, 25, 40, 0.95);
+  border: 1.5px solid #0071e3;
+  background: rgba(20, 25, 40, 0.85);
   color: #d3d9f2;
   font-size: 1.1rem;
   resize: vertical;
   min-height: 60px;
-  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
   font-weight: 600;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -382,7 +331,7 @@
 .guest-edit-form input[type="text"]:focus,
 .guest-edit-form textarea:focus {
   border-color: #4aa8ff;
-  box-shadow: 0 0 18px #4aa8ff;
+  box-shadow: 0 0 14px #4aa8ff88;
   outline: none;
 }
 
