@@ -2,6 +2,7 @@
    Water-like Animated UI Elements - Full File Update
    ========================================================================== */
 
+/* Shared variables */
 :root {
   --brand: #008cff;
   --brand-accent: #1e90ff;
@@ -14,16 +15,16 @@
   --particle-color: #2ba8ff;
 }
 
-/* Base */
+/* Base setup */
 html, body {
   margin: 0;
   height: 100%;
   font-family: var(--main-font);
   color: #e7f2ff;
   overflow-x: hidden;
+
   position: relative;
   min-height: 100vh;
-  background: transparent;
 }
 
 /* Background gradients and particles */
@@ -43,6 +44,7 @@ body::before {
   filter: blur(140px);
   animation: bgShift 30s linear infinite alternate;
 }
+
 @keyframes bgShift {
   0% {
     background-position: 25% 30%, 70% 70%, 85% 20%;
@@ -67,6 +69,7 @@ body::after {
   animation: moveParticles 60s linear infinite;
   opacity: 0.15;
 }
+
 @keyframes moveParticles {
   0% {
     background-position: 0 0, 0 0, 0 0;
@@ -76,7 +79,7 @@ body::after {
   }
 }
 
-/* Sticky header */
+/* Sticky glassy header */
 .admin-header {
   position: sticky;
   top: 0;
@@ -109,7 +112,6 @@ body::after {
   gap: 1rem;
 }
 
-/* Message badge */
 #messagesBadge {
   background: #ff4d4f;
   color: white;
@@ -126,17 +128,17 @@ body::after {
   user-select: none;
 }
 
-/* Water-like base for badges and buttons */
+/* Water-like animated UI elements base */
 .water-animated {
   position: relative;
   overflow: hidden;
-  border-radius: 9999px;
-  background: linear-gradient(270deg, #0e5acc55, #3f9fff88, #0e5acc55);
   background-size: 300% 300%;
   animation: waterFlowSlow 20s ease-in-out infinite;
   box-shadow: none !important;
   user-select: none;
-  color: #e7f2ff;
+  border-radius: 9999px;
+  border: 1px solid rgba(80, 160, 255, 0.15);
+  white-space: nowrap;
   font-weight: 700;
   font-size: 0.85rem;
   padding: 0.3em 0.9em;
@@ -144,26 +146,29 @@ body::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(80, 160, 255, 0.15);
-  transition: background-position 0.3s ease;
+  color: #e7f2ff;
 }
 
 /* Role badges */
 .role-badge.water-animated {
   background: linear-gradient(270deg, rgba(23, 30, 45, 0.3), rgba(23, 30, 45, 0.15));
 }
+
 .role-badge.role-guest.water-animated {
   background: linear-gradient(270deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.1));
   border-color: rgba(99, 102, 241, 0.15);
 }
+
 .role-badge.role-lead.water-animated {
   background: linear-gradient(270deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
   border-color: rgba(16, 185, 129, 0.15);
 }
+
 .role-badge.role-dm.water-animated {
   background: linear-gradient(270deg, rgba(37, 99, 235, 0.2), rgba(37, 99, 235, 0.1));
   border-color: rgba(37, 99, 235, 0.15);
 }
+
 .role-badge.role-admin.water-animated {
   background: linear-gradient(270deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
   border-color: rgba(239, 68, 68, 0.15);
@@ -191,9 +196,14 @@ body::after {
   border-radius: 12px;
   color: #dbe9ff;
   cursor: pointer;
+  transition: background-position 0.3s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.phone-menu-button.water-animated:hover {
+  background-position: 100% 50%;
 }
 
 /* Employee name badges */
@@ -284,8 +294,6 @@ body::after {
     display: none !important;
   }
 }
-
-/* Hide filters and clear buttons */
 #filter-customer,
 #filter-date,
 #filter-employee,
