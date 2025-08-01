@@ -427,3 +427,96 @@
     width: 100%;
   }
 }
+.guestinfo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: center;
+  margin-bottom: 1.6rem;
+  justify-content: flex-start;
+  overflow-x: hidden; /* disable horizontal scroll */
+  padding-bottom: 0;
+}
+
+/* search-wrapper adjusts to available space and shrinks */
+.search-wrapper {
+  position: relative;
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: 200px;  /* flexible base */
+  min-width: 140px;   /* don't shrink below this */
+  max-width: 100%;    /* prevent overflow */
+  box-sizing: border-box;
+}
+
+/* inputs fill the wrapper */
+.guestinfo-controls input[type="text"],
+.guestinfo-controls input[type="date"] {
+  width: 100%;
+  padding: 0.48em 1.4em 0.48em 0.8em;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-glass);
+  background: rgba(23, 30, 45, 0.6);
+  color: #e7f2ff;
+  font-family: var(--main-font);
+  font-size: 1rem;
+  box-shadow: var(--shadow-inset);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  user-select: text;
+}
+
+/* buttons shrink if needed */
+.guestinfo-controls button {
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+  min-width: 110px;
+  max-width: 160px;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+/* Clear button inside inputs - position fixed */
+.clear-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  color: #a5b4fccc;
+  user-select: none;
+  transition: color 0.25s ease;
+  padding: 0;
+  line-height: 1;
+  z-index: 2;
+}
+
+.clear-btn:hover {
+  color: var(--brand);
+}
+
+/* Responsive - stack vertically and full width on mobile */
+@media (max-width: 600px) {
+  .guestinfo-controls {
+    flex-direction: column;
+    align-items: stretch;
+    overflow-x: visible;
+  }
+  .search-wrapper {
+    flex-basis: auto;
+    min-width: auto;
+    max-width: 100%;
+  }
+  .guestinfo-controls input[type="text"],
+  .guestinfo-controls input[type="date"] {
+    width: 100%;
+  }
+  .guestinfo-controls button {
+    max-width: 100%;
+    min-width: auto;
+    width: 100%;
+  }
+}
