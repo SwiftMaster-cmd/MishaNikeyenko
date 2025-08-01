@@ -83,28 +83,50 @@
 /* Filters wrapper replaced with icon + new lead inline */
 .guestinfo-controls {
   display: flex;
-  flex-direction: row;
-  justify-content: center; /* center all buttons by default */
+  gap: 1rem;
   align-items: center;
-  gap: 1.2rem;
   margin-bottom: 1.6rem;
-  padding: 0 1.5rem;
-  width: 100%;
-  box-sizing: border-box;
-  position: relative;
-  min-height: 56px;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
-/* "New Lead" button centered absolutely */
+/* Filter Icon Button */
+.filter-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
+  box-shadow:
+    inset 0 1px 1px rgba(255 255 255 / 0.3),
+    0 3px 10px rgba(0 123 255 / 0.5);
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+  backdrop-filter: saturate(180%) blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #f9fdff;
+  font-size: 1.4rem;
+  user-select: none;
+}
+
+.filter-icon-btn:hover,
+.filter-icon-btn:focus {
+  background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
+  box-shadow:
+    inset 0 2px 3px rgba(255 255 255 / 0.5),
+    0 6px 18px rgba(30 144 255 / 0.8);
+  transform: scale(1.1);
+  outline: none;
+}
+
+/* New Lead Button next to filter icon */
 .new-lead-btn {
-  order: 1;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2;
   flex-shrink: 0;
   min-width: 120px;
   max-width: 160px;
+  white-space: nowrap;
   border-radius: 24px;
   padding: 0.48em 1.2em;
   font-weight: 700;
@@ -132,12 +154,32 @@
   outline: none;
 }
 
-/* Filter Icon Button aligns right */
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .guestinfo-controls {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    gap: 0.8rem;
+  }
+  .new-lead-btn {
+    min-width: auto;
+    max-width: 140px;
+    width: 100%;
+    font-size: 0.95rem;
+  }
+}
+/* Filters wrapper: keep buttons inline */
+.guestinfo-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.6rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Filter Icon Button */
 .filter-icon-btn {
-  order: 2;
-  margin-left: auto; /* push it to the right */
-  margin-right: 0;
-  position: static;
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -149,7 +191,7 @@
   cursor: pointer;
   transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
   backdrop-filter: saturate(180%) blur(6px);
-  display: flex !important;
+  display: flex;
   justify-content: center;
   align-items: center;
   color: #f9fdff;
@@ -157,40 +199,65 @@
   user-select: none;
 }
 
-.filter-icon-btn:hover,
-.filter-icon-btn:focus {
+/* Hide filter icon button entirely since filters are hidden */
+#filter-name,
+#filter-emp,
+#filter-date,
+#filter-name + .clear-btn,
+#filter-emp + .clear-btn,
+#filter-date + .clear-btn {
+  display: none !important;
+}
+
+/* Also hide filter icon button since no filters visible */
+.filter-icon-btn {
+  display: none !important;
+}
+
+/* New Lead Button next to filter icon */
+.new-lead-btn {
+  flex-shrink: 0;
+  min-width: 120px;
+  max-width: 160px;
+  white-space: nowrap;
+  border-radius: 24px;
+  padding: 0.48em 1.2em;
+  font-weight: 700;
+  font-size: 1rem;
+  background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
+  color: #f9fdff;
+  box-shadow:
+    inset 0 1px 1px rgba(255 255 255 / 0.3),
+    0 3px 10px rgba(0 123 255 / 0.5);
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+  backdrop-filter: saturate(180%) blur(6px);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.new-lead-btn:hover,
+.new-lead-btn:focus {
   background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
   box-shadow:
     inset 0 2px 3px rgba(255 255 255 / 0.5),
     0 6px 18px rgba(30 144 255 / 0.8);
-  transform: scale(1.1);
+  transform: scale(1.05);
   outline: none;
-}
-
-/* Hide filters if not needed */
-/* Example: to hide filters, add class 'hide' to .filter-icon-btn */
-.guestinfo-controls .filter-icon-btn.hide {
-  display: none !important;
 }
 
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .guestinfo-controls {
-    flex-direction: row;
-    justify-content: center;
+    padding-left: 1rem;
+    padding-right: 1rem;
     gap: 0.8rem;
-    padding: 0 0.8rem;
-    min-height: 44px;
   }
-  .new-lead-btn,
-  .filter-icon-btn {
-    position: static !important;
-    transform: none !important;
-    width: auto !important;
-    min-width: 110px;
-    max-width: 160px;
-    margin: 0;
-    flex: 1 1 auto;
-    justify-content: center;
+  .new-lead-btn {
+    min-width: auto;
+    max-width: 140px;
+    width: 100%;
+    font-size: 0.95rem;
   }
-}
+} lead button and filters button needs to be inline with each other and align right on filters and center the new lead button 
