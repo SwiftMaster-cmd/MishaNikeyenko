@@ -8,13 +8,12 @@ import {
   attachCompletionListener
 } from "./gp-firebase.js";
 
-// Step 2 question structure
 const gpQuestions = [
-  { id: "carrier", label: "What carrier are you with right now?", type: "text", weight: 15 },
-  { id: "tenure", label: "How long have you been with them?", type: "text", weight: 14 },
-  { id: "satisfaction", label: "What do you like most about your current service?", type: "text", weight: 12 },
-  { id: "issues", label: "Any issues with coverage, billing, or support?", type: "text", weight: 10 },
-  { id: "contract", label: "Are you in a contract or month-to-month?", type: "text", weight: 8 }
+  { id: "currentPlan", label: "What plan are you currently on and how much do you pay per month?", type: "text", weight: 15 },
+  { id: "topFrustration", label: "What’s your #1 frustration with your current carrier or service?", type: "text", weight: 14 },
+  { id: "familyNeeds", label: "Is your account just for you or do you have family members using your plan?", type: "text", weight: 12 },
+  { id: "coveragePriority", label: "How important is coverage where you live, work, or travel?", type: "text", weight: 10 },
+  { id: "dataUsage", label: "Do you ever run into issues with slow data or data limits?", type: "text", weight: 8 }
 ];
 
 // App logic
