@@ -371,3 +371,59 @@
     max-width: 100%;
   }
 }
+.guestinfo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: center;
+  margin-bottom: 1.6rem;
+  justify-content: flex-start; /* or center if you prefer */
+  overflow-x: auto; /* optional: allows horizontal scroll if too narrow */
+  padding-bottom: 8px; /* some padding for scrollbar */
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--brand) transparent;
+}
+
+.guestinfo-controls::-webkit-scrollbar {
+  height: 6px;
+}
+
+.guestinfo-controls::-webkit-scrollbar-thumb {
+  background: var(--brand);
+  border-radius: 10px;
+}
+
+.search-wrapper {
+  position: relative;
+  flex-grow: 1;
+  min-width: 180px;  /* prevent inputs from shrinking too small */
+  max-width: 280px;  /* max size */
+  flex-basis: 280px; /* base width for flex */
+  box-sizing: border-box;
+}
+
+.guestinfo-controls button {
+  flex-shrink: 0;   /* prevent buttons shrinking */
+  min-width: 120px; /* reasonable min width */
+  max-width: 160px; /* max width */
+  white-space: nowrap;
+}
+
+/* Responsive tweak: on small screens stack vertically */
+@media (max-width: 600px) {
+  .guestinfo-controls {
+    flex-direction: column;
+    align-items: stretch;
+    overflow-x: visible; /* disable horizontal scroll on mobile */
+  }
+  .search-wrapper {
+    max-width: 100%;
+    flex-basis: auto;
+    min-width: auto;
+  }
+  .guestinfo-controls button {
+    max-width: 100%;
+    min-width: auto;
+    width: 100%;
+  }
+}
