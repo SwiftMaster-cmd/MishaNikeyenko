@@ -294,3 +294,12 @@ body::after {
     display: none !important;
   }
 }
+#filter-customer,
+#filter-date,
+#filter-employee,
+#filter-customer + .clear-btn,
+#filter-date + .clear-btn,
+#filter-employee + .clear-btn,
+.clear-all-btn {
+  display: none !important;
+}
