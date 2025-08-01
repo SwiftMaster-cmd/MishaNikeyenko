@@ -1,7 +1,7 @@
-/* Reset and base */
-*,
-*::before,
-*::after {
+/* ==========================================================================
+   RESET AND BASE
+   ========================================================================== */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -18,150 +18,169 @@ html, body {
   scroll-behavior: smooth;
 }
 
-/* Header */
+/* ==========================================================================
+   HEADER (GLASS, RESPONSIVE, STICKY)
+   ========================================================================== */
 #stickyHeader {
   position: sticky;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   width: 100vw;
-  background: rgba(30, 30, 30, 0.4);
+  background: rgba(30, 30, 30, 0.45);
   backdrop-filter: saturate(180%) blur(24px);
   -webkit-backdrop-filter: saturate(180%) blur(24px);
   border-bottom: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 4px 30px rgba(30, 144, 255, 0.4);
+  box-shadow: 0 6px 32px rgba(30, 144, 255, 0.45);
   z-index: 10000;
-  padding: 1rem 2rem;
+  padding: 1.13rem 0 0.3rem 0; /* More vertical space */
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 #headerInner {
-  width: 90vw;
+  width: 100%;
   max-width: 900px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.15rem;
+  margin: 0 auto;
+  padding: 0 1.2rem;
+  min-height: 70px; /* Increase header height for touch targets */
 }
 
-/* Title */
-#portalTitle {
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: #82caff;
-  user-select: none;
-  flex: 1 1 auto;
-  white-space: nowrap;
-}
-
-/* Nav */
-#headerNav {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: nowrap;
-  flex: 0 0 auto;
-  min-width: 0;
-}
-
-#headerNav button {
-  flex: 1 1 auto;
-  min-width: 110px;
-  padding: 0.6rem 1.2rem;
-  border-radius: 14px;
-  font-weight: 700;
-  color: white;
+.header-back {
+  font-size: 1.65em;
+  background: none;
   border: none;
-  background-color: #1e90ff;
-  white-space: nowrap;
-  user-select: none;
-  transition: background-color 0.2s ease;
-  box-shadow: 0 6px 20px rgba(30,144,255,0.5);
+  color: #74d2fa;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0.13em 0.47em;
+  border-radius: 13px;
+  transition: background 0.13s, color 0.13s;
+  margin-right: 0.13em;
+  box-shadow: 0 2px 12px #1492ff18;
+}
+.header-back:hover { background: #2266b624; color: #fff; }
+
+.header-newlead {
+  font-size: 1.42em;
+  background: linear-gradient(95deg,#2492ff 20%,#18ffd8 90%);
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  font-weight: 900;
+  padding: 0.21em 1.17em 0.21em 1.17em;
+  box-shadow: 0 3px 16px #21c0ff33;
+  cursor: pointer;
+  margin-left: 0.12em;
+  transition: background 0.14s, color 0.14s, box-shadow 0.13s;
+  min-width: 46px;
+}
+.header-newlead:hover { background: #17a2ff; color: #fff; box-shadow: 0 5px 25px #2ee0ff66; }
+
+.progress-bar-row {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: 0.87em;
+  padding: 0 0.8em;
 }
 
-#headerNav button:hover:not(:disabled) {
-  background-color: #4aa8ff;
+/* Progress bar fills the space between arrow and +, min/max for mobile and desktop */
+#progressBar {
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 110px;
+  max-width: 520px;
+  height: 27px;
+  border-radius: 16px;
+  appearance: none;
+  background: rgba(255,255,255,0.14);
+  border: none;
+  overflow: hidden;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.24);
+  margin: 0;
+  vertical-align: middle;
+  accent-color: #1e90ff;
 }
+#progressBar::-webkit-progress-bar { background: rgba(255,255,255,0.15); border-radius: 16px; }
+#progressBar::-webkit-progress-value { background: linear-gradient(90deg,#1e90ff,#4aa8ff); border-radius: 16px; box-shadow: 0 0 15px #1e90ff88; }
+#progressBar::-moz-progress-bar { background: linear-gradient(90deg,#1e90ff,#4aa8ff); border-radius: 16px; }
 
-/* Lead ID text */
-#leadIdText {
-  font-family: monospace;
-  background: rgba(0,0,0,0.4);
-  padding: 6px 12px;
-  border-radius: 12px;
-  color: #1e90ff;
+/* Progress % label: glassy, bold, pill, matches buttons, always centered, no underline, strong */
+#progressLabel, .progress-label {
+  font-weight: 900;
+  font-family: 'SF Pro Display', 'Segoe UI', Arial, sans-serif;
+  color: #1ef3ff;
+  font-size: 1.25em;
+  letter-spacing: 0.04em;
+  background: linear-gradient(96deg,#122f47 35%,#39e4ff 170%);
+  padding: 0.18em 1.28em 0.18em 1.28em;
+  border-radius: 24px;
+  margin-left: 0.22em;
+  box-shadow: 0 3px 14px #18d1ff33, 0 2px 10px #1e90ff12;
+  border: 2px solid #24e7ff38;
+  text-shadow: 0 2px 7px #0b3340cc, 0 1px 3px #0005;
   user-select: all;
-  max-width: 220px;
+  pointer-events: auto;
+  display: inline-block;
+  min-width: 3.3em;
+  text-align: center;
+  transition: filter 0.14s;
+  vertical-align: middle;
+}
+#progressLabel:active, #progressLabel:focus, #progressLabel:hover {
+  filter: brightness(1.12);
+  text-decoration: none;
+}
+
+/* Lead ID label (hidden by default, appears right of %) */
+.lead-id-label {
+  margin-left: 0.52em;
+  font-size: 1.04em;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: #23253be8;
+  border-radius: 9px;
+  padding: 0.13em 0.7em;
+  user-select: all;
+  max-width: 200px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border: 1.5px solid #14b6ff2d;
+  box-shadow: 0 2px 8px #1e90ff22;
+  vertical-align: middle;
 }
+.hidden { display: none !important; }
 
-/* Hide utility */
-.hidden {
-  display: none !important;
-}
-
-/* Progress bar */
-progress#progressBar {
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: 400px;
-  height: 22px;
-  border-radius: 14px;
-  appearance: none;
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
-  overflow: hidden;
-  box-shadow: inset 0 1px 6px rgba(0,0,0,0.25);
-  min-width: 120px;
-}
-
-progress#progressBar::-webkit-progress-bar {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 14px;
-}
-
-progress#progressBar::-webkit-progress-value {
-  background: linear-gradient(90deg, #1e90ff, #4aa8ff);
-  border-radius: 14px;
-  box-shadow: 0 0 12px #1e90ff88;
-  transition: width 0.3s ease;
-}
-
-progress#progressBar::-moz-progress-bar {
-  background: linear-gradient(90deg, #1e90ff, #4aa8ff);
-  border-radius: 14px;
-}
-
-/* Progress label */
-#progressLabel {
-  font-weight: 700;
-  color: #4aa8ff;
-  font-size: 1.1rem;
-  margin-left: 12px;
-  user-select: none;
-}
-
-/* Main content and form */
+/* ==========================================================================
+   MAIN CONTENT & FORM
+   ========================================================================== */
 #mainContent {
   width: 90vw;
   max-width: 900px;
-  margin: 2rem auto 4rem;
+  margin: 2.3rem auto 4rem;
   background: rgba(26,28,36,0.7);
-  border-radius: 18px;
-  padding: 2rem 3rem;
-  box-shadow: 0 12px 40px rgba(30,144,255,0.6);
+  border-radius: 20px;
+  padding: 2.1rem 3.2rem;
+  box-shadow: 0 16px 48px rgba(30,144,255,0.57);
   backdrop-filter: saturate(180%) blur(24px);
   -webkit-backdrop-filter: saturate(180%) blur(24px);
   user-select: text;
 }
 
-/* Steps */
 .step-section {
   margin-bottom: 2.5rem;
 }
-
 .step-section h2 {
   font-weight: 700;
   font-size: 1.5rem;
@@ -169,7 +188,6 @@ progress#progressBar::-moz-progress-bar {
   color: #b9cfff;
 }
 
-/* Labels */
 label {
   display: block;
   font-weight: 600;
@@ -177,7 +195,6 @@ label {
   color: #d5dcff;
 }
 
-/* Inputs */
 input[type="text"],
 input[type="number"],
 input[type="tel"],
@@ -207,129 +224,38 @@ textarea:focus {
   outline-offset: 2px;
 }
 
-/* Textarea */
 textarea {
   resize: vertical;
   min-height: 120px;
 }
 
-/* Responsive header */
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+@media (max-width: 900px) {
+  #headerInner, #mainContent {
+    max-width: 98vw;
+    padding: 0 0.6rem;
+  }
+}
 @media (max-width: 768px) {
   #headerInner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+    gap: 0.65em;
+    padding: 0 0.15rem;
+    min-height: 60px;
   }
-
-  #headerNav {
-    width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
+  .progress-bar-row {
+    padding: 0 0.05em;
+    gap: 0.21em;
   }
-
-  #headerNav button {
-    flex: 1 1 45%;
-    min-width: auto;
-  }
+  #progressBar { min-width: 54px; max-width: 130px; height: 15px; }
+  #progressLabel { font-size: 0.97em; padding: 0.09em 0.57em; }
+  .lead-id-label { font-size: 0.92em; padding: 0.09em 0.31em; }
 }
-
-/* Mobile hamburger */
-#menuToggle {
-  display: none;
-  background: transparent;
-  border: none;
-  color: #82caff;
-  font-size: 2rem;
-  cursor: pointer;
-  user-select: none;
-  flex-shrink: 0;
-  padding: 0 8px;
-}
-
-@media (max-width: 600px) {
-  #menuToggle {
-    display: block;
-  }
-
-  #headerNav {
-    display: none;
-    position: absolute;
-    top: 60px;
-    right: 0;
-    background: rgba(26, 28, 36, 0.95);
-    backdrop-filter: saturate(180%) blur(20px);
-    padding: 1rem 1.5rem;
-    border-radius: 0 0 0 12px;
-    box-shadow: 0 6px 25px rgba(30,144,255,0.5);
-    flex-direction: column;
-    width: 220px;
-    gap: 1rem;
-    z-index: 100000;
-  }
-
-  #headerNav.expanded {
-    display: flex;
-  }
-
-  #headerNav button {
-    flex: none;
-    width: 100%;
-  }
-}
-@media (min-width: 768px) {
-  #headerNav {
-    display: flex !important;
-  }
-
-  #menuToggle {
-    display: none;
-  }
-}
-
-@media (max-width: 767px) {
-  #headerNav.hidden {
-    display: none;
-  }
-
-  #headerNav {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  #menuToggle {
-    display: inline-block;
-  }
-}
-#newLeadBtn,
-#dashboardBtn,
-#toggleLeadIdBtn {
-  padding: 0.6rem 0.6rem;
-  font-weight: 700;
-  font-size: 1rem;
-  color: white;
-  background-color: #1e90ff;
-  border: none;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 4px 16px rgba(30,144,255,0.4);
-  white-space: nowrap;
-  flex: 1 1 auto;
-  min-width: 110px;
-  text-align: center;
-}
-
-#newLeadBtn:hover:not(:disabled),
-#dashboardBtn:hover:not(:disabled),
-#toggleLeadIdBtn:hover:not(:disabled) {
-  background-color: #4aa8ff;
-  box-shadow: 0 6px 20px rgba(30,144,255,0.6);
-}
-
-#newLeadBtn:disabled,
-#dashboardBtn:disabled,
-#toggleLeadIdBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+@media (max-width: 470px) {
+  #headerInner { gap: 0.1em; min-height: 44px; }
+  .progress-bar-row { gap: 0.09em; padding: 0 0.01em; }
+  #progressBar { min-width: 29px; max-width: 60vw; }
+  #progressLabel { font-size: 0.91em; padding: 0.07em 0.24em; min-width: 2em; }
+  .lead-id-label { font-size: 0.87em; padding: 0.07em 0.21em; }
 }

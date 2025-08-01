@@ -1,3 +1,5 @@
+// guestinfo-render.js
+
 // ── Constants ───────────────────────────────────────────────────────────────
 export const PITCH_WEIGHTS = {
   custName: 8, custPhone: 7,
@@ -109,6 +111,7 @@ export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
 }
 
 export function statusBadge(status) {
+  // Glassy status badges with subtle coloring
   const map = {
     new:      ["role-badge role-guest", "NEW"],
     working:  ["role-badge role-lead",  "WORKING"],
@@ -135,46 +138,6 @@ export function groupByStatus(guestMap) {
 }
 
 // ── Section renderer ───────────────────────────────────────────────────────
-
-// Filters bar with icon right-aligned, new lead centered inline
-export function guestinfoControlsBarHtml(onNewLead, onFilter) {
-  const filterIcon = `
-    <svg width="23" height="23" viewBox="0 0 24 24" style="vertical-align: middle;" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="24" height="24" fill="none"/>
-      <path d="M3 5h18M6 12h12M10 19h4" stroke="#55baff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  `;
-  return `
-    <div class="guestinfo-controls-bar" style="
-      display: flex;
-      align-items: center;
-      width: 100%;
-      margin-bottom: 18px;
-      padding: 0 1.5rem;
-      box-sizing: border-box;
-    ">
-      <div style="flex:1"></div>
-      <div style="flex: none;">
-        <button class="btn btn-primary btn-new-lead" onclick="${onNewLead}">
-          + New Lead
-        </button>
-      </div>
-      <div style="flex:1; text-align: right;">
-        <button class="btn btn-filters" onclick="${onFilter}" title="Filters" style="
-          background: none;
-          border: none;
-          padding: 0 10px;
-          cursor: pointer;
-          box-shadow: none;
-          color: #55baff;
-        ">
-          ${filterIcon}
-        </button>
-      </div>
-    </div>
-  `;
-}
-
 export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight = false) {
   if (!rows?.length) {
     return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
