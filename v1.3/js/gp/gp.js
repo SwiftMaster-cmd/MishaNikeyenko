@@ -27,5 +27,5 @@ newLeadBtn.addEventListener('click', async () => {
 
 // Dashboard button redirect
 dashboardBtn.addEventListener('click', () => {
-  window.location.href = '../html/admin.html';
+  window.location.href = '../../html/admin.html';
 });
