@@ -4,7 +4,6 @@
   --bg-glass: rgba(23, 30, 45, 0.75);
   --border-glass: rgba(80, 160, 255, 0.18);
   --glass-blur: blur(22px) saturate(130%);
-  /* Shadows removed for no-glow style */
   --shadow-inset: none;
   --shadow-xl: none;
   --radius-md: 18px;
