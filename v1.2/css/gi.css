@@ -3,12 +3,6 @@
    ========================================================================== */
 .guestinfo-section {
   background: transparent;
-  border-radius: 32px;
-  margin-bottom: 3rem;
-  padding: 2.8rem 3rem 2.5rem 3rem;
-  color: #e7f2ff;
-  font-family: var(--main-font);
-  transition: box-shadow 0.3s ease;
 }
 
 .guestinfo-section:hover {

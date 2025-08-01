@@ -3,16 +3,8 @@
    ========================================================================== */
 
 .reviews-section {
-  background: rgba(26, 28, 36, 0.8);
-  border-radius: 18px;
-  padding: 2rem 2.5rem;
-  box-shadow: 0 12px 44px rgba(30, 144, 255, 0.55);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border: 1.5px solid rgba(30, 144, 255, 0.5);
-  color: #cbd5e1;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  user-select: text;
+  background: transparent;
+  
 }
 
 .reviews-section h2 {

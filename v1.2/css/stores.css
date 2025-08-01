@@ -2,17 +2,8 @@
    Stores Section (Apple-Glass UI)
    ========================================================================== */
 .stores-section {
-  background: rgba(18,28,48,0.88);
-  border-radius: 22px;
-  box-shadow: 0 4px 40px 0 rgba(10,120,255,0.17);
-  backdrop-filter: blur(18px) saturate(130%);
-  padding: 2.3rem 2.3rem 2rem 2.3rem;
-  color: #def1ff;
-  font-family: var(--main-font);
-  max-width: 100%;
-  margin: 0 auto 2.5rem auto;
-  user-select: none;
-  transition: box-shadow 0.3s, background 0.3s;
+  background: transparent;
+  ;
 }
 
 .user-store-summary {
