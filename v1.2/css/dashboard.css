@@ -1,74 +1,84 @@
 /* ==========================================================================
-   OSL Admin Dashboard CSS Overhaul
+   OSL Admin Dashboard CSS Overhaul - Glassy & Reactive Apple Style
    ========================================================================== */
 
 /* --- Design Tokens & Variables --- */
 :root {
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
 
-  --brand: #1e90ff;
+  --brand: #0071e3;
   --brand-light: #4aa8ff;
-  --brand-dark: #165fbb;
+  --brand-dark: #004a9f;
 
-  --bg-dark: #0d1117;
-  --bg-darker: #0a0f18;
-  --bg-glass: rgba(20, 25, 35, 0.8);
+  --bg-dark: #0c1119;
+  --bg-darker: #080b13;
+  --bg-glass: rgba(20, 25, 40, 0.85);
 
   --text-main: #e0e6f0;
-  --text-muted: #a3a9b8;
+  --text-muted: #8a90a6;
   --text-hi: #ffffff;
 
-  --shadow-glow: 0 0 10px var(--brand);
-  --shadow-glow-strong: 0 0 20px var(--brand-light);
-  --shadow-glow-faint: 0 0 6px rgba(30, 144, 255, 0.3);
+  --shadow-glow: 0 0 15px var(--brand);
+  --shadow-glow-strong: 0 0 30px var(--brand-light);
+  --shadow-glow-faint: 0 0 8px rgba(0, 113, 227, 0.3);
 
   --z-header: 9999;
+  --transition-speed: 0.35s;
+  --font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* --- Global & Layout --- */
-body, html {
-  margin: 0; padding: 0; height: 100%;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(270deg, #0d1117, #14293d, #0a0f18, #14293d);
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--font-family);
+  background: linear-gradient(270deg, #0c1119, #14293d, #080b13, #14293d);
   background-size: 800% 800%;
-  animation: bgGradientShift 25s ease infinite;
+  animation: bgGradientShift 30s ease infinite;
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-y: scroll;
+  user-select: none;
 }
 
 @keyframes bgGradientShift {
-  0% {background-position: 0% 50%;}
-  50% {background-position: 100% 50%;}
-  100% {background-position: 0% 50%;}
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* --- Header --- */
 .admin-header {
   position: sticky;
   top: 0;
-  background: rgba(12, 17, 25, 0.85);
-  backdrop-filter: saturate(180%) blur(10px);
+  background: var(--bg-glass);
+  backdrop-filter: saturate(180%) blur(14px);
   border-bottom: 2px solid var(--brand);
-  box-shadow: 0 4px 12px rgba(30,144,255,0.4);
+  box-shadow: 0 6px 16px rgba(0, 113, 227, 0.6);
   z-index: var(--z-header);
-  padding: 1rem 2rem;
+  padding: 1.25rem 3rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  animation: headerPulseGlow 6s ease-in-out infinite;
-  transition: box-shadow 0.3s ease;
-  font-weight: 700;
-  font-size: 1.4rem;
+  font-weight: 800;
+  font-size: 1.6rem;
   color: var(--text-hi);
+  transition: box-shadow var(--transition-speed) ease;
+  animation: headerPulseGlow 8s ease-in-out infinite;
+  user-select: none;
 }
 
 @keyframes headerPulseGlow {
-  0%, 100% { box-shadow: 0 4px 12px rgba(30,144,255,0.4); }
-  50% { box-shadow: 0 8px 24px rgba(30,144,255,0.7); }
+  0%, 100% {
+    box-shadow: 0 6px 16px rgba(0, 113, 227, 0.4);
+  }
+  50% {
+    box-shadow: 0 8px 30px rgba(0, 113, 227, 0.9);
+  }
 }
 
 /* Header buttons */
@@ -77,13 +87,18 @@ body, html {
   color: var(--brand-light);
   border: none;
   border-radius: var(--radius-md);
-  padding: 0.5rem 1rem;
-  margin-left: 0.5rem;
+  padding: 0.6rem 1.5rem;
+  margin-left: 0.8rem;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1rem;
   box-shadow: var(--shadow-glow-faint);
-  transition: all 0.3s ease;
+  transition: background-color var(--transition-speed) ease,
+              color var(--transition-speed) ease,
+              box-shadow var(--transition-speed) ease,
+              transform var(--transition-speed) ease;
   user-select: none;
+  will-change: transform, box-shadow;
 }
 
 .admin-header button:hover,
@@ -92,54 +107,65 @@ body, html {
   color: var(--text-hi);
   box-shadow: var(--shadow-glow-strong);
   outline: none;
-  transform: scale(1.05);
+  transform: scale(1.08);
 }
 
 /* --- Main app container --- */
 #adminApp {
   max-width: 1400px;
-  margin: 2rem auto 5rem auto;
-  padding: 0 1rem;
+  margin: 2.5rem auto 6rem auto;
+  padding: 0 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: 3rem;
+  user-select: text;
 }
 
 /* --- Admin Sections (cards) --- */
 .admin-section {
   background: var(--bg-glass);
   border-radius: var(--radius-lg);
-  padding: 1.5rem 2rem;
+  padding: 2rem 2.5rem;
   box-shadow:
-    0 0 15px rgba(30,144,255,0.3),
-    inset 0 0 20px rgba(30,144,255,0.05);
-  transition: box-shadow 0.3s ease, background-color 0.3s ease;
+    0 0 20px rgba(0, 113, 227, 0.35),
+    inset 0 0 25px rgba(0, 113, 227, 0.07);
+  transition: box-shadow var(--transition-speed) ease, background-color var(--transition-speed) ease;
   position: relative;
-  animation: pulseGlowSlow 8s ease-in-out infinite;
+  animation: pulseGlowSlow 10s ease-in-out infinite;
+  user-select: text;
 }
 
-/* Hover effect on sections */
 .admin-section:hover {
   box-shadow:
-    0 0 30px rgba(30,144,255,0.6),
-    inset 0 0 30px rgba(30,144,255,0.1);
-  background-color: rgba(25, 30, 45, 0.95);
+    0 0 40px rgba(0, 113, 227, 0.75),
+    inset 0 0 40px rgba(0, 113, 227, 0.15);
+  background-color: rgba(28, 34, 55, 0.98);
   cursor: default;
 }
 
 /* Pulsing glow keyframe */
 @keyframes pulseGlowSlow {
-  0%, 100% { box-shadow: 0 0 15px rgba(30,144,255,0.3), inset 0 0 20px rgba(30,144,255,0.05); }
-  50% { box-shadow: 0 0 30px rgba(30,144,255,0.6), inset 0 0 30px rgba(30,144,255,0.1); }
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(0, 113, 227, 0.35),
+      inset 0 0 25px rgba(0, 113, 227, 0.07);
+  }
+  50% {
+    box-shadow:
+      0 0 40px rgba(0, 113, 227, 0.75),
+      inset 0 0 40px rgba(0, 113, 227, 0.15);
+  }
 }
 
 /* Section titles */
 .admin-section h2 {
-  margin: 0 0 1rem 0;
-  font-weight: 700;
+  margin: 0 0 1.2rem 0;
+  font-weight: 800;
+  font-size: 2rem;
   color: var(--text-hi);
-  text-shadow: 0 0 6px var(--brand-light);
-  letter-spacing: 0.02em;
+  text-shadow: 0 0 12px var(--brand-light);
+  letter-spacing: 0.03em;
+  user-select: none;
 }
 
 /* --- Buttons --- */
@@ -148,13 +174,13 @@ button,
   background-color: var(--brand);
   border: none;
   color: var(--text-hi);
-  padding: 0.7rem 1.4rem;
-  font-size: 1rem;
-  font-weight: 600;
+  padding: 0.75rem 1.6rem;
+  font-size: 1.05rem;
+  font-weight: 700;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-glow);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-speed) ease;
   user-select: none;
   will-change: transform, box-shadow;
 }
@@ -164,15 +190,15 @@ button:hover,
 button:focus,
 .button:focus {
   background-color: var(--brand-light);
-  box-shadow: 0 0 30px var(--brand-light);
-  transform: scale(1.07);
+  box-shadow: 0 0 35px var(--brand-light);
+  transform: scale(1.1);
   outline: none;
 }
 
 /* Large button variant */
 .button--large {
-  font-size: 1.2rem;
-  padding: 1rem 2rem;
+  font-size: 1.3rem;
+  padding: 1.1rem 2.2rem;
 }
 
 /* --- Tables --- */
@@ -181,36 +207,38 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   color: var(--text-main);
-  box-shadow: 0 0 12px rgba(30,144,255,0.15);
+  box-shadow: 0 0 18px rgba(0, 113, 227, 0.2);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: rgba(10, 15, 25, 0.75);
+  background: rgba(12, 17, 25, 0.75);
   user-select: text;
-  transition: background-color 0.3s ease;
+  transition: background-color var(--transition-speed) ease;
 }
 
 thead tr {
-  background: rgba(30, 40, 60, 0.8);
+  background: rgba(22, 32, 52, 0.85);
   text-align: left;
   color: var(--text-hi);
-  font-weight: 700;
+  font-weight: 800;
+  user-select: none;
 }
 
 tbody tr {
-  transition: background-color 0.25s ease, box-shadow 0.3s ease;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
   cursor: default;
+  user-select: text;
 }
 
 tbody tr:hover {
-  background-color: rgba(30, 144, 255, 0.12);
-  box-shadow: 0 0 15px rgba(30, 144, 255, 0.25);
+  background-color: rgba(0, 113, 227, 0.14);
+  box-shadow: 0 0 18px rgba(0, 113, 227, 0.28);
   cursor: pointer;
 }
 
 /* Table cells */
 td, th {
-  padding: 0.8rem 1rem;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 1rem 1.4rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
 /* Rounded corners for first and last table cells */
@@ -226,10 +254,14 @@ tbody tr td:last-child {
 /* --- Expand/Collapse Carets --- */
 .caret, .uss-caret {
   cursor: pointer;
-  transition: transform 0.3s ease;
+  transition: transform var(--transition-speed) ease;
   display: inline-block;
   user-select: none;
   color: var(--brand-light);
+  font-weight: 800;
+  font-size: 1.4rem;
+  line-height: 1;
+  user-select: none;
 }
 
 .expanded .caret, .expanded .uss-caret {
@@ -242,25 +274,26 @@ tbody tr td:last-child {
   background: var(--bg-glass);
   border: none;
   border-radius: var(--radius-md);
-  padding: 0.6rem 1rem;
+  padding: 0.7rem 1.2rem;
   margin-right: 1rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-main);
   box-shadow: var(--shadow-glow-faint);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  transition: all 0.3s ease;
+  gap: 0.5rem;
+  transition: all var(--transition-speed) ease;
   user-select: none;
+  will-change: box-shadow, transform;
 }
 
 .perf-hl-btn:hover,
 .perf-hl-btn:focus {
   box-shadow: var(--shadow-glow-strong);
   color: var(--brand-light);
-  background-color: rgba(30, 144, 255, 0.2);
-  transform: scale(1.1);
+  background-color: rgba(0, 113, 227, 0.18);
+  transform: scale(1.12);
   outline: none;
 }
 
@@ -277,12 +310,12 @@ tbody tr td:last-child {
 }
 
 .ph-icon {
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   user-select: none;
 }
 
 .ph-label {
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .ph-val {
@@ -293,44 +326,49 @@ tbody tr td:last-child {
 
 /* --- Guest caught up message --- */
 .guestinfo-empty-all p b {
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   color: var(--brand-light);
-  text-shadow: 0 0 12px var(--brand);
+  text-shadow: 0 0 16px var(--brand);
+  user-select: none;
 }
 
 /* --- Form inputs --- */
 input, select, textarea {
-  background: rgba(20, 25, 35, 0.85);
-  border: 1.5px solid var(--brand);
+  background: rgba(20, 25, 40, 0.9);
+  border: 2px solid var(--brand);
   border-radius: var(--radius-sm);
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.2rem;
   color: var(--text-main);
-  font-size: 1rem;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  outline-offset: 2px;
+  font-size: 1.05rem;
+  transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+  outline-offset: 3px;
   user-select: text;
   caret-color: var(--brand-light);
-  font-family: inherit;
+  font-family: var(--font-family);
+  font-weight: 600;
+  font-feature-settings: "tnum";
+  box-shadow: inset 0 2px 6px rgba(255 255 255 / 0.1);
 }
 
 input:focus, select:focus, textarea:focus {
   border-color: var(--brand-light);
-  box-shadow: 0 0 8px var(--brand-light);
+  box-shadow: 0 0 12px var(--brand-light);
   outline: none;
 }
 
 /* --- Scrollbar styling --- */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 12px;
+  height: 12px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(20, 25, 35, 0.6);
+  background: rgba(20, 25, 40, 0.6);
   border-radius: var(--radius-lg);
 }
 ::-webkit-scrollbar-thumb {
   background: var(--brand);
   border-radius: var(--radius-lg);
-  border: 2px solid rgba(20, 25, 35, 0.6);
+  border: 3px solid rgba(20, 25, 40, 0.6);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--brand-light);
@@ -340,7 +378,7 @@ input:focus, select:focus, textarea:focus {
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -354,28 +392,29 @@ input:focus, select:focus, textarea:focus {
 .stores-section,
 .users-section,
 .reviews-section {
-  animation: fadeInUp 0.6s ease forwards;
+  animation: fadeInUp 0.7s cubic-bezier(0.55, 0, 0.1, 1) forwards;
+  will-change: opacity, transform;
 }
 
 /* --- Responsive --- */
 @media (max-width: 900px) {
   #adminApp {
-    padding: 0 0.5rem;
+    padding: 0 1rem;
   }
   .admin-header {
-    font-size: 1.2rem;
-    padding: 1rem;
+    font-size: 1.3rem;
+    padding: 1rem 1.5rem;
   }
   table {
     font-size: 0.9rem;
   }
   .perf-hl-btn {
-    padding: 0.5rem 0.8rem;
-    margin-right: 0.5rem;
+    padding: 0.5rem 1rem;
+    margin-right: 0.8rem;
     font-size: 0.9rem;
   }
   button, .button {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
   }
 }
