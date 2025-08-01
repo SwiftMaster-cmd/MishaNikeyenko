@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Guest Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/guestform.css" />
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head>
+<body>
+  <form id="guestForm">
+    <h2>3273 - Walmart </h2>
+    <h4>Service Form</h4>
+
+    <input type="text" id="guestName" placeholder="Your name" required />
+    <input type="tel" id="guestPhone" placeholder="Phone number" required />
+
+    <label>
+      <input type="checkbox" id="agreeTerms" required />
+      I agree to the<a href="html/terms.html" target="_blank">terms.</a>
+    </label>
+
+    <button type="submit">Submit</button>
+  </form>
+
+  <script src="js/guestform.js"></script>
+</body>
+</html>
