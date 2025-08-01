@@ -13,18 +13,25 @@
   --particle-color: #2ba8ff;
 }
 
-html, body {
+/* Dark base background on html */
+html {
+  background: #101824;
+  height: 100%;
+}
+
+/* Body setup: transparent to show stars */
+body {
   margin: 0;
   height: 100%;
   font-family: var(--main-font);
   color: #e7f2ff;
   overflow-x: hidden;
-  background: transparent !important; /* Force fully transparent */
+  background: transparent;
   position: relative;
   min-height: 100vh;
 }
 
-/* Layered blurred radial gradients (keep subtle) */
+/* Layered blurred radial gradients (starry background) */
 body::before {
   content: "";
   position: fixed;
@@ -52,7 +59,7 @@ body::before {
   }
 }
 
-/* Floating tech particles (random circles) */
+/* Floating tech particles */
 body::after {
   content: "";
   position: fixed;
@@ -103,7 +110,6 @@ body::after {
   font-weight: 900;
   font-size: 1.8rem;
   color: #55baff;
-  /* Removed text-shadow */
   letter-spacing: 0.04em;
   user-select: none;
 }
