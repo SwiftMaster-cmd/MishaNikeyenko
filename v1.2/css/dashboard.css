@@ -1,5 +1,5 @@
 /* ==========================================================================
-   OSL Admin Dashboard CSS Overhaul - Subtle Reflective Glassy Minimal
+   OSL Admin Dashboard CSS Overhaul - Energetic Vibrant Glassy Style
    ========================================================================== */
 
 /* --- Design Tokens & Variables --- */
@@ -8,23 +8,23 @@
   --radius-md: 18px;
   --radius-lg: 26px;
 
-  --brand: #0071e3;
-  --brand-light: #4aa8ff;
-  --brand-dark: #004a9f;
+  --brand: #0091ff; /* brighter blue */
+  --brand-light: #66b8ff;
+  --brand-dark: #006fcc;
 
-  --bg-dark: #0c1119;
-  --bg-darker: #080b13;
-  --bg-glass: rgba(20, 25, 40, 0.55);
+  --bg-dark: #0d1526;
+  --bg-darker: #080f1a;
+  --bg-glass: rgba(24, 34, 60, 0.65);
 
-  --text-main: #e0e6f0;
-  --text-muted: #7f8597;
+  --text-main: #e6f0ff;
+  --text-muted: #a0aecf;
   --text-hi: #ffffff;
 
-  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.15);
-  --shadow-inner: inset 0 0 10px rgba(255, 255, 255, 0.06);
+  --shadow-soft: 0 3px 12px rgba(0, 145, 255, 0.4);
+  --shadow-inner: inset 0 0 14px rgba(102, 184, 255, 0.18);
 
   --z-header: 9999;
-  --transition-speed: 0.35s;
+  --transition-speed: 0.28s;
   --font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -32,9 +32,9 @@
 html, body {
   margin: 0; padding: 0; height: 100%;
   font-family: var(--font-family);
-  background: linear-gradient(270deg, #0c1119, #14293d, #080b13, #14293d);
-  background-size: 800% 800%;
-  animation: bgGradientShift 30s ease infinite;
+  background: linear-gradient(270deg, #0d1526, #1b2a52, #0b1833, #1b2a52);
+  background-size: 900% 900%;
+  animation: bgGradientShift 25s ease infinite;
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -53,16 +53,16 @@ html, body {
   position: sticky;
   top: 0;
   background: var(--bg-glass);
-  backdrop-filter: saturate(140%) blur(18px);
-  border-bottom: 1.8px solid rgba(0, 113, 227, 0.3);
+  backdrop-filter: saturate(150%) blur(20px);
+  border-bottom: 2px solid var(--brand-light);
   box-shadow: var(--shadow-soft);
   z-index: var(--z-header);
-  padding: 1.5rem 3rem;
+  padding: 1.6rem 3rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-weight: 800;
-  font-size: 1.6rem;
+  font-weight: 900;
+  font-size: 1.7rem;
   color: var(--text-hi);
   transition: box-shadow var(--transition-speed) ease;
   user-select: none;
@@ -72,30 +72,34 @@ html, body {
 .admin-header button {
   background: var(--bg-glass);
   color: var(--brand-light);
-  border: none;
+  border: 1.5px solid var(--brand-light);
   border-radius: var(--radius-md);
-  padding: 0.6rem 1.6rem;
-  margin-left: 1rem;
+  padding: 0.7rem 1.7rem;
+  margin-left: 1.2rem;
   cursor: pointer;
-  font-weight: 700;
-  font-size: 1rem;
+  font-weight: 800;
+  font-size: 1.05rem;
   box-shadow: var(--shadow-inner);
   transition:
     background-color var(--transition-speed) ease,
     color var(--transition-speed) ease,
     box-shadow var(--transition-speed) ease,
-    transform var(--transition-speed) ease;
+    transform var(--transition-speed) ease,
+    border-color var(--transition-speed) ease;
   user-select: none;
   will-change: transform, box-shadow;
 }
 
 .admin-header button:hover,
 .admin-header button:focus {
-  background-color: rgba(74, 168, 255, 0.15);
-  color: var(--brand-light);
-  box-shadow: inset 0 0 10px rgba(74, 168, 255, 0.2);
+  background-color: var(--brand-light);
+  color: var(--bg-darker);
+  border-color: var(--brand);
+  box-shadow:
+    0 0 18px var(--brand-light),
+    inset 0 0 18px var(--brand);
   outline: none;
-  transform: scale(1.03);
+  transform: scale(1.08);
 }
 
 /* --- Main app container --- */
@@ -105,16 +109,16 @@ html, body {
   padding: 0 2rem;
   display: flex;
   flex-direction: column;
-  gap: 3.5rem;
+  gap: 4rem;
   user-select: text;
 }
 
 /* --- Admin Sections (cards) --- */
 .admin-section {
   background: var(--bg-glass);
-  backdrop-filter: saturate(140%) blur(20px);
+  backdrop-filter: saturate(160%) blur(22px);
   border-radius: var(--radius-lg);
-  padding: 2.2rem 3.2rem;
+  padding: 2.5rem 3.5rem;
   box-shadow:
     var(--shadow-soft),
     var(--shadow-inner);
@@ -126,37 +130,39 @@ html, body {
 }
 
 .admin-section:hover {
-  background-color: rgba(28, 34, 55, 0.85);
+  background-color: rgba(35, 50, 85, 0.9);
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.18),
-    inset 0 0 20px rgba(255, 255, 255, 0.07);
+    0 12px 40px rgba(0, 145, 255, 0.45),
+    inset 0 0 28px rgba(102, 184, 255, 0.2);
   cursor: default;
 }
 
 /* Section Titles */
 .admin-section h2 {
-  margin: 0 0 1.5rem 0;
-  font-weight: 800;
-  font-size: 2.2rem;
+  margin: 0 0 1.8rem 0;
+  font-weight: 900;
+  font-size: 2.4rem;
   color: var(--text-hi);
-  text-shadow: 0 0 8px rgba(74, 168, 255, 0.3);
-  letter-spacing: 0.035em;
+  text-shadow: 0 0 14px var(--brand-light);
+  letter-spacing: 0.04em;
   user-select: none;
 }
 
 /* --- Buttons --- */
 button,
 .button {
-  background-color: rgba(0, 113, 227, 0.85);
+  background-color: var(--brand);
   border: none;
   color: var(--text-hi);
-  padding: 0.75rem 1.55rem;
-  font-size: 1.05rem;
-  font-weight: 700;
+  padding: 0.85rem 1.8rem;
+  font-size: 1.15rem;
+  font-weight: 800;
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-inner);
+  box-shadow:
+    0 0 20px var(--brand-light),
+    inset 0 0 8px var(--brand);
   cursor: pointer;
-  transition: background-color var(--transition-speed) ease, transform var(--transition-speed) ease;
+  transition: background-color 0.28s ease, transform 0.28s ease, box-shadow 0.28s ease;
   user-select: none;
   will-change: transform, box-shadow;
 }
@@ -165,16 +171,18 @@ button:hover,
 .button:hover,
 button:focus,
 .button:focus {
-  background-color: rgba(74, 168, 255, 0.3);
-  box-shadow: inset 0 0 15px rgba(74, 168, 255, 0.35);
-  transform: scale(1.04);
+  background-color: var(--brand-light);
+  box-shadow:
+    0 0 32px var(--brand-light),
+    inset 0 0 14px var(--brand);
+  transform: scale(1.12);
   outline: none;
 }
 
 /* Large button variant */
 .button--large {
-  font-size: 1.3rem;
-  padding: 1.05rem 2.1rem;
+  font-size: 1.5rem;
+  padding: 1.3rem 2.6rem;
 }
 
 /* --- Tables --- */
@@ -183,40 +191,40 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   color: var(--text-main);
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 0 20px rgba(0, 145, 255, 0.35);
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--bg-glass);
-  backdrop-filter: saturate(140%) blur(20px);
+  backdrop-filter: saturate(160%) blur(22px);
   user-select: text;
   transition: background-color var(--transition-speed) ease;
 }
 
 thead tr {
-  background: rgba(22, 32, 52, 0.7);
+  background: rgba(30, 40, 65, 0.8);
   text-align: left;
   color: var(--text-hi);
-  font-weight: 800;
+  font-weight: 900;
   user-select: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 tbody tr {
-  transition: background-color 0.28s ease, box-shadow 0.28s ease;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
   cursor: default;
   user-select: text;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 
 tbody tr:hover {
-  background-color: rgba(74, 168, 255, 0.12);
-  box-shadow: inset 0 0 12px rgba(74, 168, 255, 0.18);
+  background-color: rgba(74, 168, 255, 0.2);
+  box-shadow: inset 0 0 20px rgba(74, 168, 255, 0.3);
   cursor: pointer;
 }
 
 /* Table cells */
 td, th {
-  padding: 1rem 1.5rem;
+  padding: 1.15rem 1.6rem;
 }
 
 /* Rounded corners for first and last table cells */
@@ -237,7 +245,7 @@ tbody tr td:last-child {
   user-select: none;
   color: var(--brand-light);
   font-weight: 700;
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   line-height: 1;
 }
 
@@ -249,18 +257,18 @@ tbody tr td:last-child {
 /* --- Performance Highlight Buttons --- */
 .perf-hl-btn {
   background: var(--bg-glass);
-  backdrop-filter: saturate(130%) blur(14px);
+  backdrop-filter: saturate(150%) blur(16px);
   border: none;
   border-radius: var(--radius-md);
-  padding: 0.75rem 1.4rem;
-  margin-right: 1.2rem;
+  padding: 0.85rem 1.5rem;
+  margin-right: 1.4rem;
   font-weight: 700;
   color: var(--text-main);
   box-shadow: var(--shadow-inner);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
   transition: all var(--transition-speed) ease;
   user-select: none;
   will-change: box-shadow, transform;
@@ -268,10 +276,10 @@ tbody tr td:last-child {
 
 .perf-hl-btn:hover,
 .perf-hl-btn:focus {
-  box-shadow: inset 0 0 18px rgba(74, 168, 255, 0.3);
-  background-color: rgba(74, 168, 255, 0.13);
+  box-shadow: inset 0 0 20px var(--brand-light);
+  background-color: rgba(74, 168, 255, 0.18);
   color: var(--brand-light);
-  transform: scale(1.07);
+  transform: scale(1.1);
   outline: none;
 }
 
@@ -288,12 +296,12 @@ tbody tr td:last-child {
 }
 
 .ph-icon {
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   user-select: none;
 }
 
 .ph-label {
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .ph-val {
@@ -304,21 +312,21 @@ tbody tr td:last-child {
 
 /* --- Guest caught up message --- */
 .guestinfo-empty-all p b {
-  font-size: 1.35rem;
+  font-size: 1.5rem;
   color: var(--brand-light);
-  text-shadow: 0 0 14px var(--brand);
+  text-shadow: 0 0 18px var(--brand);
   user-select: none;
 }
 
 /* --- Form inputs --- */
 input, select, textarea {
   background: var(--bg-glass);
-  backdrop-filter: saturate(130%) blur(14px);
-  border: 1.8px solid rgba(74, 168, 255, 0.3);
+  backdrop-filter: saturate(150%) blur(16px);
+  border: 1.8px solid var(--brand-light);
   border-radius: var(--radius-sm);
-  padding: 0.65rem 1.3rem;
+  padding: 0.75rem 1.4rem;
   color: var(--text-main);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
   outline-offset: 3px;
   user-select: text;
@@ -326,38 +334,39 @@ input, select, textarea {
   font-family: var(--font-family);
   font-weight: 600;
   font-feature-settings: "tnum";
-  box-shadow: inset 0 2px 6px rgba(255 255 255 / 0.12);
+  box-shadow: inset 0 2px 6px rgba(255 255 255 / 0.15);
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: var(--brand-light);
-  box-shadow: 0 0 14px var(--brand-light);
+  border-color: var(--brand);
+  box-shadow: 0 0 18px var(--brand-light);
   outline: none;
 }
 
 /* --- Scrollbar styling --- */
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(20, 25, 40, 0.55);
+  background: var(--bg-glass);
   border-radius: var(--radius-lg);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(74, 168, 255, 0.45);
+  background: var(--brand);
   border-radius: var(--radius-lg);
-  border: 3px solid rgba(20, 25, 40, 0.6);
+  border: 3px solid var(--bg-glass);
+  transition: background-color 0.3s ease;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(74, 168, 255, 0.65);
+  background: var(--brand-light);
 }
 
 /* --- Fade in animation for content sections --- */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -371,29 +380,29 @@ input:focus, select:focus, textarea:focus {
 .stores-section,
 .users-section,
 .reviews-section {
-  animation: fadeInUp 0.7s cubic-bezier(0.55, 0, 0.1, 1) forwards;
+  animation: fadeInUp 0.75s cubic-bezier(0.55, 0, 0.1, 1) forwards;
   will-change: opacity, transform;
 }
 
 /* --- Responsive --- */
 @media (max-width: 900px) {
   #adminApp {
-    padding: 0 1rem;
+    padding: 0 1.25rem;
   }
   .admin-header {
-    font-size: 1.3rem;
-    padding: 1rem 1.5rem;
+    font-size: 1.4rem;
+    padding: 1rem 1.75rem;
   }
   table {
-    font-size: 0.9rem;
+    font-size: 1rem;
   }
   .perf-hl-btn {
-    padding: 0.5rem 1rem;
-    margin-right: 0.8rem;
-    font-size: 0.9rem;
+    padding: 0.6rem 1.2rem;
+    margin-right: 1rem;
+    font-size: 1rem;
   }
   button, .button {
-    padding: 0.6rem 1.2rem;
-    font-size: 0.95rem;
+    padding: 0.7rem 1.4rem;
+    font-size: 1rem;
   }
 }
