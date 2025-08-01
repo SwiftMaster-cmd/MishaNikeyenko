@@ -1,348 +1,116 @@
 /* ==========================================================================
-   Admin Dashboard Core Styles (Based on your baseboard CSS & Role Mgmt style)
+   OSL Dashboard - Core Shell (Apple-inspired, glassy)
    ========================================================================== */
+:root {
+  --brand: #008cff;
+  --brand-accent: #1e90ff;
+  --bg-glass: rgba(23,30,45,0.89);
+  --bg-light: rgba(255,255,255,0.75);
+  --border-glass: rgba(80,160,255,0.18);
+  --glass-blur: blur(22px) saturate(130%);
+  --shadow-xl: 0 4px 40px 0 rgba(30,144,255,0.16);
+  --shadow-inset: 0 2px 8px rgba(30,144,255,0.11) inset;
+  --radius-xl: 26px;
+  --radius-md: 18px;
+  --focus: 0 0 0 2.5px #63b3ed99;
+  --main-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
 
-/* Container for the whole admin app */
+body, html {
+  font-family: var(--main-font);
+  background: linear-gradient(115deg, #182436 0%, #22304c 100%);
+  color: #e7f2ff;
+  min-height: 100vh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.57;
+  letter-spacing: .01em;
+}
+
 #adminApp {
-  width: 90vw;
-  max-width: 960px;
-  margin: 2rem auto 4rem;
-  background: rgba(26, 28, 36, 0.85);
-  border-radius: 20px;
-  padding: 2.5rem 3rem;
-  box-shadow: 0 14px 48px rgba(30, 144, 255, 0.65);
-  backdrop-filter: saturate(180%) blur(22px);
-  -webkit-backdrop-filter: saturate(180%) blur(22px);
-  color: #cbd5e1;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  user-select: text;
-  transition: background-color 0.3s ease;
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 2.5rem 1.2rem 4rem 1.2rem;
 }
 
-/* Shared admin section styling */
 .admin-section {
-  margin-bottom: 3rem;
-  background: rgba(30, 30, 30, 0.6);
-  border-radius: 16px;
-  padding: 2rem 2.5rem;
-  box-shadow: 0 8px 24px rgba(30, 144, 255, 0.35);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border: 1.5px solid rgba(30, 144, 255, 0.4);
+  background: var(--bg-glass);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: var(--glass-blur);
+  border: 1.7px solid var(--border-glass);
+  margin-bottom: 2.5rem;
+  padding: 2.3rem 2.3rem 2rem 2.3rem;
+  transition: box-shadow 0.25s, background 0.2s;
 }
 
-/* Section Titles */
 .admin-section h2 {
-  font-weight: 800;
-  font-size: 2rem;
-  color: #60a5fa;
-  margin-bottom: 1.8rem;
-  text-shadow: 0 0 5px #3b82f6bb;
-  user-select: text;
-}
-
-/* Button styles (logout, messages) */
-#logoutBtn,
-#messagesBtn {
-  padding: 0.7rem 1.5rem;
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: #fff;
-  background-color: #1e90ff;
-  border: none;
-  border-radius: 14px;
-  cursor: pointer;
-  box-shadow: 0 5px 18px rgba(30,144,255,0.6);
-  user-select: none;
-  transition: background-color 0.25s ease, box-shadow 0.25s ease;
-  margin-left: 1rem;
-  min-width: 120px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-#logoutBtn:hover:not(:disabled),
-#messagesBtn:hover:not(:disabled) {
-  background-color: #4aa8ff;
-  box-shadow: 0 7px 24px rgba(30,144,255,0.8);
-}
-
-#logoutBtn:disabled,
-#messagesBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Messages Badge */
-#messagesBadge {
-  background: #ef4444; /* red */
-  color: white;
-  font-weight: 700;
-  font-size: 0.85rem;
-  padding: 0 7px;
-  border-radius: 12px;
-  min-width: 22px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 6px;
-  user-select: none;
-  box-shadow: 0 0 8px #ef4444cc;
-}
-
-/* Performance Highlights Section */
-.perf-highlights-section {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.3rem;
-  justify-content: center;
-}
-
-.perf-hl-row {
-  display: flex;
-  gap: 1.2rem;
-  justify-content: center;
-  flex-wrap: wrap;
-  width: 100%;
-  max-width: 740px;
-}
-
-.perf-hl-btn {
-  background: rgba(30, 30, 30, 0.7);
-  border: 1.5px solid rgba(30, 144, 255, 0.5);
-  border-radius: 14px;
-  box-shadow: 0 0 12px rgba(30,144,255,0.4);
-  padding: 1rem 1.8rem;
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: #a5b4fc;
-  cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  min-width: 130px;
-  justify-content: center;
-}
-
-.perf-hl-btn:hover {
-  background: rgba(30, 144, 255, 0.3);
-  box-shadow: 0 0 24px rgba(30, 144, 255, 0.7);
-}
-
-.perf-hl-btn .ph-icon {
-  font-size: 1.3rem;
-}
-
-.perf-hl-btn .ph-label {
-  flex: 1;
-  text-align: left;
-  color: #60a5fa;
-}
-
-.perf-hl-btn .ph-val {
+  font-size: 2.2rem;
   font-weight: 900;
-  color: #dbeafe;
-  min-width: 36px;
-  text-align: right;
-}
-
-/* Status color variants */
-.perf-hl-btn.good {
-  color: #22c55e; /* green */
-  border-color: #22c55eaa;
-  box-shadow: 0 0 18px #22c55e88;
-}
-
-.perf-hl-btn.good:hover {
-  background: rgba(34, 197, 94, 0.3);
-  box-shadow: 0 0 28px #22c55ecc;
-}
-
-.perf-hl-btn.warn {
-  color: #fbbf24; /* amber */
-  border-color: #fbbf2488;
-  box-shadow: 0 0 18px #fbbf2488;
-}
-
-.perf-hl-btn.warn:hover {
-  background: rgba(251, 191, 36, 0.3);
-  box-shadow: 0 0 28px #fbbf24aa;
-}
-
-.perf-hl-btn.bad {
-  color: #ef4444; /* red */
-  border-color: #ef4444aa;
-  box-shadow: 0 0 18px #ef4444aa;
-}
-
-.perf-hl-btn.bad:hover {
-  background: rgba(239, 68, 68, 0.3);
-  box-shadow: 0 0 28px #ef4444cc;
-}
-
-/* Guest Caught-Up Section */
-.guest-caughtup-section {
-  text-align: center;
+  color: #44aaff;
+  margin-bottom: 1.2rem;
+  letter-spacing: .03em;
   user-select: none;
+  text-shadow: 0 2px 18px #222d41cc;
 }
 
-.guest-caughtup-section h2 {
-  margin-bottom: 1.6rem;
-}
-
-.guestinfo-empty-all p {
-  font-size: 1.15rem;
-  margin-bottom: 0.5rem;
-  color: #a5b4fc;
-  user-select: text;
-}
-
-.guestinfo-empty-all p b {
-  font-size: 1.3rem;
-  color: #60a5fa;
-}
-
-.guestinfo-empty-all button {
-  margin-top: 1.6rem;
-  padding: 0.75rem 2.5rem;
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: white;
-  background-color: #1e90ff;
-  border-radius: 14px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 5px 22px rgba(30,144,255,0.7);
-  user-select: none;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.guestinfo-empty-all button:hover {
-  background-color: #4aa8ff;
-  box-shadow: 0 7px 30px rgba(30,144,255,0.9);
-}
-
-/* Placeholders for future sections */
-/* Stores Section */
-.stores-section {
-  background: rgba(26, 28, 36, 0.7);
-  border-radius: 16px;
-  padding: 2rem 2.5rem;
-  box-shadow: 0 10px 40px rgba(30, 144, 255, 0.5);
-  backdrop-filter: saturate(180%) blur(20px);
-  border: 1.5px solid rgba(30, 144, 255, 0.4);
-  margin-bottom: 3rem;
-  color: #cbd5e1;
-}
-
-/* Users Section */
-.users-section {
-  background: rgba(26, 28, 36, 0.7);
-  border-radius: 16px;
-  padding: 2rem 2.5rem;
-  box-shadow: 0 10px 40px rgba(30, 144, 255, 0.5);
-  backdrop-filter: saturate(180%) blur(20px);
-  border: 1.5px solid rgba(30, 144, 255, 0.4);
-  margin-bottom: 3rem;
-  color: #cbd5e1;
-}
-
-/* Reviews Section */
-.reviews-section {
-  background: rgba(26, 28, 36, 0.7);
-  border-radius: 16px;
-  padding: 2rem 2.5rem;
-  box-shadow: 0 10px 40px rgba(30, 144, 255, 0.5);
-  backdrop-filter: saturate(180%) blur(20px);
-  border: 1.5px solid rgba(30, 144, 255, 0.4);
-  margin-bottom: 3rem;
-  color: #cbd5e1;
-}
-
-/* Utility classes */
-.text-center {
-  text-align: center;
-}
-
-.button {
-  user-select: none;
-  border-radius: 14px;
-  cursor: pointer;
+.btn, button {
+  font-family: inherit;
   font-weight: 700;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  white-space: nowrap;
+  border-radius: 11px;
+  padding: .48em 1.3em;
+  font-size: 1.02rem;
   border: none;
+  outline: none;
+  background: #2492ff linear-gradient(90deg,#17b2ff2a,#007bffa2 95%);
+  color: #f9fdff;
+  box-shadow: 0 2px 18px #2a99ff12;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.14s;
 }
 
-.button--success {
-  background-color: #22c55e;
-  color: white;
-  box-shadow: 0 5px 22px rgba(34, 197, 94, 0.7);
+.btn:focus, button:focus {
+  box-shadow: var(--focus);
+  outline: none;
+}
+.btn-danger {
+  background: #eb3941 linear-gradient(90deg,#e900002a,#c91111b0 95%);
+}
+.btn-primary {
+  background: #147bff linear-gradient(90deg,#3fcbff2a,#0f43c8b0 95%);
+}
+.btn-success {
+  background: #3dcc5c linear-gradient(90deg,#77e6532a,#0f9c36b0 95%);
+}
+.btn-secondary {
+  background: #474b58 linear-gradient(90deg,#9bb6de2a,#303746b0 95%);
 }
 
-.button--success:hover {
-  background-color: #4ade80;
-  box-shadow: 0 7px 30px rgba(34, 197, 94, 0.9);
+input, select, textarea {
+  border-radius: 10px;
+  border: 1.2px solid #2f4862;
+  background: rgba(255,255,255,0.10);
+  color: #e7f2ff;
+  font-family: inherit;
+  font-size: 1.02rem;
+  padding: .41em 1.1em;
+  box-shadow: var(--shadow-inset);
+  outline: none;
+  transition: border .17s, box-shadow .17s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #56bbff;
+  box-shadow: var(--focus);
 }
 
-.button--large {
-  padding: 0.9rem 2.8rem;
-  font-size: 1.2rem;
+::-webkit-scrollbar {
+  width: 9px;
+  background: transparent;
 }
-
-/* Scrollbar (optional for better UX) */
-#adminApp::-webkit-scrollbar {
-  width: 10px;
-}
-
-#adminApp::-webkit-scrollbar-track {
-  background: rgba(30, 30, 30, 0.3);
+::-webkit-scrollbar-thumb {
+  background: #38a7ff38;
   border-radius: 10px;
 }
-
-#adminApp::-webkit-scrollbar-thumb {
-  background: rgba(30, 144, 255, 0.6);
-  border-radius: 10px;
-}
-
-#adminApp::-webkit-scrollbar-thumb:hover {
-  background: rgba(30, 144, 255, 0.9);
-}
-
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-  #adminApp {
-    padding: 2rem 2rem;
-    width: 95vw;
-  }
-
-  .perf-hl-row,
-  .perf-highlights-section {
-    justify-content: space-around;
-  }
-
-  #logoutBtn,
-  #messagesBtn {
-    min-width: 100px;
-    font-size: 0.95rem;
-    padding: 0.55rem 1.2rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .perf-hl-btn {
-    min-width: 100px;
-    font-size: 0.9rem;
-    padding: 0.75rem 1rem;
-  }
-
-  #logoutBtn,
-  #messagesBtn {
-    min-width: 80px;
-    font-size: 0.9rem;
-    padding: 0.5rem 1rem;
-  }
+::-webkit-scrollbar-thumb:hover {
+  background: #38a7ffbb;
 }
