@@ -188,6 +188,9 @@
     flex-direction: column;
     align-items: stretch;
     overflow-x: visible;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    border-radius: 24px;
   }
   .search-wrapper {
     max-width: 100%;
@@ -208,17 +211,4 @@
 #filter-emp + .clear-btn,
 #filter-date + .clear-btn {
   display: none !important;
-}
-
-@media (max-width: 600px) {
-  .guestinfo-controls {
-    padding-left: 1rem;
-    padding-right: 1rem;
-    border-radius: 24px;
-    /* existing styles */
-    flex-wrap: wrap;
-    flex-direction: column;
-    align-items: stretch;
-    overflow-x: visible;
-  }
 }
