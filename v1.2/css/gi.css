@@ -200,3 +200,12 @@
     width: 100%;
   }
 }
+/* Hide customer name, employee, and date filter inputs */
+#filter-name,
+#filter-emp,
+#filter-date,
+#filter-name + .clear-btn,
+#filter-emp + .clear-btn,
+#filter-date + .clear-btn {
+  display: none !important;
+}
