@@ -201,6 +201,7 @@ box-shadow:
   inset 0 0 10px rgba(255, 255, 255, 0.05);
 color: inherit;
 transition: box-shadow 0.3s ease;
+;
 
   const savedPct = typeof g.completionPct === "number"
     ? g.completionPct
