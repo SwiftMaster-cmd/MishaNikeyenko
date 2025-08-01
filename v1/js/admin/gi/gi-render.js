@@ -193,7 +193,7 @@ const cardStyle = `
   border-radius: var(--radius-md);
   padding: 12px 24px;
   position: relative;
-  backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(2px) saturate(120%);
   -webkit-backdrop-filter: blur(8px) saturate(120%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow:
