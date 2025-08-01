@@ -1,12 +1,12 @@
 /* ==========================================================================
-   OSL Admin Dashboard CSS Overhaul - Polished Glassy & Refined Style
+   OSL Admin Dashboard CSS Overhaul - Subtle Reflective Glassy Minimal
    ========================================================================== */
 
 /* --- Design Tokens & Variables --- */
 :root {
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 26px;
 
   --brand: #0071e3;
   --brand-light: #4aa8ff;
@@ -14,18 +14,17 @@
 
   --bg-dark: #0c1119;
   --bg-darker: #080b13;
-  --bg-glass: rgba(20, 25, 40, 0.82);
+  --bg-glass: rgba(20, 25, 40, 0.55);
 
   --text-main: #e0e6f0;
   --text-muted: #7f8597;
   --text-hi: #ffffff;
 
-  --shadow-glow: 0 0 8px rgba(0, 113, 227, 0.25);
-  --shadow-glow-strong: 0 0 16px rgba(74, 168, 255, 0.3);
-  --shadow-glow-faint: 0 0 4px rgba(0, 113, 227, 0.12);
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-inner: inset 0 0 10px rgba(255, 255, 255, 0.06);
 
   --z-header: 9999;
-  --transition-speed: 0.33s;
+  --transition-speed: 0.35s;
   --font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -54,11 +53,11 @@ html, body {
   position: sticky;
   top: 0;
   background: var(--bg-glass);
-  backdrop-filter: saturate(170%) blur(12px);
-  border-bottom: 2px solid var(--brand);
-  box-shadow: 0 3px 10px rgba(0, 113, 227, 0.3);
+  backdrop-filter: saturate(140%) blur(18px);
+  border-bottom: 1.8px solid rgba(0, 113, 227, 0.3);
+  box-shadow: var(--shadow-soft);
   z-index: var(--z-header);
-  padding: 1.25rem 3rem;
+  padding: 1.5rem 3rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -75,12 +74,12 @@ html, body {
   color: var(--brand-light);
   border: none;
   border-radius: var(--radius-md);
-  padding: 0.6rem 1.5rem;
-  margin-left: 0.8rem;
+  padding: 0.6rem 1.6rem;
+  margin-left: 1rem;
   cursor: pointer;
   font-weight: 700;
   font-size: 1rem;
-  box-shadow: var(--shadow-glow-faint);
+  box-shadow: var(--shadow-inner);
   transition:
     background-color var(--transition-speed) ease,
     color var(--transition-speed) ease,
@@ -92,54 +91,55 @@ html, body {
 
 .admin-header button:hover,
 .admin-header button:focus {
-  background: var(--brand);
-  color: var(--text-hi);
-  box-shadow: var(--shadow-glow-strong);
+  background-color: rgba(74, 168, 255, 0.15);
+  color: var(--brand-light);
+  box-shadow: inset 0 0 10px rgba(74, 168, 255, 0.2);
   outline: none;
-  transform: scale(1.06);
+  transform: scale(1.03);
 }
 
 /* --- Main app container --- */
 #adminApp {
   max-width: 1400px;
-  margin: 2.5rem auto 6rem auto;
-  padding: 0 1.75rem;
+  margin: 3rem auto 7rem auto;
+  padding: 0 2rem;
   display: flex;
   flex-direction: column;
-  gap: 3rem;
+  gap: 3.5rem;
   user-select: text;
 }
 
 /* --- Admin Sections (cards) --- */
 .admin-section {
   background: var(--bg-glass);
+  backdrop-filter: saturate(140%) blur(20px);
   border-radius: var(--radius-lg);
-  padding: 2rem 3rem;
+  padding: 2.2rem 3.2rem;
   box-shadow:
-    0 0 14px rgba(0, 113, 227, 0.2),
-    inset 0 0 20px rgba(0, 113, 227, 0.05);
+    var(--shadow-soft),
+    var(--shadow-inner);
   transition:
-    box-shadow var(--transition-speed) ease,
-    background-color var(--transition-speed) ease;
+    background-color var(--transition-speed) ease,
+    box-shadow var(--transition-speed) ease;
   position: relative;
   user-select: text;
 }
 
 .admin-section:hover {
+  background-color: rgba(28, 34, 55, 0.85);
   box-shadow:
-    0 0 28px rgba(0, 113, 227, 0.4),
-    inset 0 0 28px rgba(0, 113, 227, 0.1);
-  background-color: rgba(28, 34, 55, 0.92);
+    0 8px 24px rgba(0, 0, 0, 0.18),
+    inset 0 0 20px rgba(255, 255, 255, 0.07);
   cursor: default;
 }
 
 /* Section Titles */
 .admin-section h2 {
-  margin: 0 0 1.25rem 0;
+  margin: 0 0 1.5rem 0;
   font-weight: 800;
-  font-size: 2.1rem;
+  font-size: 2.2rem;
   color: var(--text-hi);
-  text-shadow: 0 0 10px var(--brand-light);
+  text-shadow: 0 0 8px rgba(74, 168, 255, 0.3);
   letter-spacing: 0.035em;
   user-select: none;
 }
@@ -147,16 +147,16 @@ html, body {
 /* --- Buttons --- */
 button,
 .button {
-  background-color: var(--brand);
+  background-color: rgba(0, 113, 227, 0.85);
   border: none;
   color: var(--text-hi);
-  padding: 0.7rem 1.5rem;
+  padding: 0.75rem 1.55rem;
   font-size: 1.05rem;
   font-weight: 700;
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-glow-faint);
+  box-shadow: var(--shadow-inner);
   cursor: pointer;
-  transition: all var(--transition-speed) ease;
+  transition: background-color var(--transition-speed) ease, transform var(--transition-speed) ease;
   user-select: none;
   will-change: transform, box-shadow;
 }
@@ -165,16 +165,16 @@ button:hover,
 .button:hover,
 button:focus,
 .button:focus {
-  background-color: var(--brand-light);
-  box-shadow: 0 0 18px var(--brand-light);
-  transform: scale(1.07);
+  background-color: rgba(74, 168, 255, 0.3);
+  box-shadow: inset 0 0 15px rgba(74, 168, 255, 0.35);
+  transform: scale(1.04);
   outline: none;
 }
 
 /* Large button variant */
 .button--large {
   font-size: 1.3rem;
-  padding: 1rem 2rem;
+  padding: 1.05rem 2.1rem;
 }
 
 /* --- Tables --- */
@@ -183,38 +183,40 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   color: var(--text-main);
-  box-shadow: 0 0 14px rgba(0, 113, 227, 0.18);
+  box-shadow: var(--shadow-soft);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: rgba(12, 17, 25, 0.75);
+  background: var(--bg-glass);
+  backdrop-filter: saturate(140%) blur(20px);
   user-select: text;
   transition: background-color var(--transition-speed) ease;
 }
 
 thead tr {
-  background: rgba(22, 32, 52, 0.85);
+  background: rgba(22, 32, 52, 0.7);
   text-align: left;
   color: var(--text-hi);
   font-weight: 800;
   user-select: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 tbody tr {
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  transition: background-color 0.28s ease, box-shadow 0.28s ease;
   cursor: default;
   user-select: text;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 tbody tr:hover {
-  background-color: rgba(0, 113, 227, 0.12);
-  box-shadow: 0 0 14px rgba(0, 113, 227, 0.25);
+  background-color: rgba(74, 168, 255, 0.12);
+  box-shadow: inset 0 0 12px rgba(74, 168, 255, 0.18);
   cursor: pointer;
 }
 
 /* Table cells */
 td, th {
-  padding: 1rem 1.4rem;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 1rem 1.5rem;
 }
 
 /* Rounded corners for first and last table cells */
@@ -234,7 +236,7 @@ tbody tr td:last-child {
   display: inline-block;
   user-select: none;
   color: var(--brand-light);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.4rem;
   line-height: 1;
 }
@@ -247,13 +249,14 @@ tbody tr td:last-child {
 /* --- Performance Highlight Buttons --- */
 .perf-hl-btn {
   background: var(--bg-glass);
+  backdrop-filter: saturate(130%) blur(14px);
   border: none;
   border-radius: var(--radius-md);
-  padding: 0.7rem 1.3rem;
+  padding: 0.75rem 1.4rem;
   margin-right: 1.2rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-main);
-  box-shadow: var(--shadow-glow-faint);
+  box-shadow: var(--shadow-inner);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -265,10 +268,10 @@ tbody tr td:last-child {
 
 .perf-hl-btn:hover,
 .perf-hl-btn:focus {
-  box-shadow: var(--shadow-glow-strong);
+  box-shadow: inset 0 0 18px rgba(74, 168, 255, 0.3);
+  background-color: rgba(74, 168, 255, 0.13);
   color: var(--brand-light);
-  background-color: rgba(0, 113, 227, 0.15);
-  transform: scale(1.1);
+  transform: scale(1.07);
   outline: none;
 }
 
@@ -285,7 +288,7 @@ tbody tr td:last-child {
 }
 
 .ph-icon {
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   user-select: none;
 }
 
@@ -301,21 +304,22 @@ tbody tr td:last-child {
 
 /* --- Guest caught up message --- */
 .guestinfo-empty-all p b {
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   color: var(--brand-light);
-  text-shadow: 0 0 16px var(--brand);
+  text-shadow: 0 0 14px var(--brand);
   user-select: none;
 }
 
 /* --- Form inputs --- */
 input, select, textarea {
-  background: rgba(20, 25, 40, 0.9);
-  border: 2px solid var(--brand);
+  background: var(--bg-glass);
+  backdrop-filter: saturate(130%) blur(14px);
+  border: 1.8px solid rgba(74, 168, 255, 0.3);
   border-radius: var(--radius-sm);
   padding: 0.65rem 1.3rem;
   color: var(--text-main);
   font-size: 1.1rem;
-  transition: border-color var(--transition-speed) ease;
+  transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
   outline-offset: 3px;
   user-select: text;
   caret-color: var(--brand-light);
@@ -327,7 +331,7 @@ input, select, textarea {
 
 input:focus, select:focus, textarea:focus {
   border-color: var(--brand-light);
-  box-shadow: 0 0 12px var(--brand-light);
+  box-shadow: 0 0 14px var(--brand-light);
   outline: none;
 }
 
@@ -337,16 +341,16 @@ input:focus, select:focus, textarea:focus {
   height: 12px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(20, 25, 40, 0.6);
+  background: rgba(20, 25, 40, 0.55);
   border-radius: var(--radius-lg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--brand);
+  background: rgba(74, 168, 255, 0.45);
   border-radius: var(--radius-lg);
   border: 3px solid rgba(20, 25, 40, 0.6);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--brand-light);
+  background: rgba(74, 168, 255, 0.65);
 }
 
 /* --- Fade in animation for content sections --- */
