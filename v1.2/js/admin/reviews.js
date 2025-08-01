@@ -1,14 +1,9 @@
-// reviews.js  -- role-filtered store review cards w/ high-avg collapse + expand
-// v3: filled glowing stars with hover effect, clean UI, grouped by store with toggle
-
+// reviews.js  -- role-filtered reviews with glowing stars and toggle display
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
-  const HIGH_AVG_THRESHOLD = 4.7;
 
-  // UI open/closed memory (persist on window)
   if (!window._reviews_ui_openStores) window._reviews_ui_openStores = new Set();
 
-  // Permissions
   function canDelete(role) {
     return role === ROLES.ADMIN;
   }
@@ -16,7 +11,6 @@
     if (!canDelete(window.currentRole)) throw "PERM_DENIED_DELETE";
   }
 
-  // Filter reviews visible to current user based on role + assignments
   function filterReviewsByRole(reviews, users, currentUid, currentRole) {
     if (!reviews || !users || !currentUid || !currentRole) return {};
 
@@ -27,7 +21,6 @@
     const visibleStores = new Set();
 
     if (currentRole === ROLES.DM) {
-      // all stores belonging to leads assigned to DM
       for (const [uid, u] of Object.entries(users)) {
         if (u.role === ROLES.LEAD && u.assignedDM === currentUid && u.store) {
           visibleStores.add(u.store);
@@ -42,22 +35,20 @@
     );
   }
 
-  // Helpers for stars (filled glowing stars)
   const STAR = "★";
 
   function starString(n) {
     const rating = Number(n) || 0;
     const full = Math.round(rating);
-    return STAR.repeat(full) + STAR.repeat(5 - full).replace(/./g, '☆'); // filled + hollow for remainder
+    return STAR.repeat(full); // only filled stars
   }
 
   function avgStarsHtml(avg) {
     const val = Number(avg) || 0;
     const stars = starString(val);
     return `
-      <span class="store-avg-stars-big" title="${val.toFixed(1)} / 5" onclick="window.reviews.toggleStoreDetails(this)">
+      <span class="store-avg-stars-big" title="Click to toggle reviews" onclick="window.reviews.toggleStoreDetails(this)">
         <strong>${stars}</strong>
-        <span class="store-avg-num">${val.toFixed(1)}</span>
       </span>`;
   }
 
@@ -71,7 +62,6 @@
     return ms ? new Date(ms).toLocaleString() : "-";
   }
 
-  // Group reviews by store
   function groupByStore(reviewsObj) {
     const map = {};
     for (const [id, r] of Object.entries(reviewsObj || {})) {
@@ -85,7 +75,6 @@
     return map;
   }
 
-  // Calculate average rating
   function calcAvg(entries) {
     if (!entries.length) return 0;
     let sum = 0, count = 0;
@@ -96,7 +85,6 @@
     return count ? sum / count : 0;
   }
 
-  // Build review card HTML
   function reviewCardHtml(id, r) {
     const stars = reviewStarsHtml(r);
     return `
@@ -117,7 +105,6 @@
     `;
   }
 
-  // Render main reviews section with grouped stores
   function renderReviewsSection(reviews, currentRole, users, currentUid) {
     const filteredReviews = filterReviewsByRole(reviews, users, currentUid, currentRole);
     const grouped = groupByStore(filteredReviews);
@@ -153,7 +140,6 @@
     `;
   }
 
-  // Toggle store reviews visibility when stars clicked
   function toggleStoreDetails(el) {
     const storeBlock = el.closest(".store-block");
     if (!storeBlock) return;
@@ -169,7 +155,6 @@
     }
   }
 
-  // Delete review with permission check
   async function deleteReview(id) {
     assertDelete();
     if (confirm("Delete this review?")) {
@@ -178,7 +163,6 @@
     }
   }
 
-  // Public API
   window.reviews = {
     renderReviewsSection,
     deleteReview,
