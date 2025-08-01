@@ -1,5 +1,3 @@
-// guestinfo-container.js
-
 import {
   groupByStatus,
   statusSectionHtml,
@@ -18,23 +16,19 @@ import {
   toggleActionButtons
 } from './gi-action.js';
 
-// ── Time & filter helpers ─────────────────────────────────────────────────
-function msNDaysAgo(n) { return Date.now() - n * 864e5; }
-function latestActivityTs(g) {
-  return Math.max(
-    g.updatedAt || 0,
-    g.submittedAt || 0,
-    g.sale?.soldAt || 0,
-    g.solution?.completedAt || 0
-  );
-}
-function inCurrentWeek(g) { return latestActivityTs(g) >= msNDaysAgo(7); }
-function dateToISO(ts) {
-  return ts ? new Date(ts).toISOString().slice(0, 10) : '';
-}
+// Time & filter helpers
+const msNDaysAgo = n => Date.now() - n * 864e5;
+const latestActivityTs = g => Math.max(
+  g.updatedAt || 0,
+  g.submittedAt || 0,
+  g.sale?.soldAt || 0,
+  g.solution?.completedAt || 0
+);
+const inCurrentWeek = g => latestActivityTs(g) >= msNDaysAgo(7);
+const dateToISO = ts => ts ? new Date(ts).toISOString().slice(0, 10) : '';
 
-// ── Role-based filtering ────────────────────────────────────────────────────
-function getUsersUnderDM(users, dmUid) {
+// Role-based filtering helpers
+const getUsersUnderDM = (users, dmUid) => {
   const leads = Object.entries(users)
     .filter(([,u]) => u.role === "lead" && u.assignedDM === dmUid)
     .map(([uid]) => uid);
@@ -42,9 +36,9 @@ function getUsersUnderDM(users, dmUid) {
     .filter(([,u]) => u.role === "me" && leads.includes(u.assignedLead))
     .map(([uid]) => uid);
   return new Set([...leads, ...mes]);
-}
+};
 
-function filterByRole(guestinfo, users, uid, role) {
+const filterByRole = (guestinfo, users, uid, role) => {
   if (!guestinfo || !users || !uid || !role) return {};
   if (role === "admin") return guestinfo;
   if (role === "dm") {
@@ -69,9 +63,9 @@ function filterByRole(guestinfo, users, uid, role) {
     );
   }
   return {};
-}
+};
 
-// ── Persistent filter state ────────────────────────────────────────────────
+// Persistent filter state
 if (!window._guestinfo_filters) {
   window._guestinfo_filters = {
     name: "",
@@ -84,19 +78,22 @@ if (!window._guestinfo_filters) {
   };
 }
 
-// ── Controls bar + Filters panel ────────────────────────────────────────────
+// Controls bar + Filters panel
 function controlsBarHtml(propCount, soldCount, role) {
   const f = window._guestinfo_filters;
 
   // Header buttons
   const header = `
-    <div style="display:flex;gap:8px;align-items:center;">
+    <div class="guestinfo-controls-header">
       <button class="btn btn-secondary btn-sm"
-              onclick="window.guestinfo.toggleFilterPanel()">
+              aria-pressed="${f.panelOpen}"
+              onclick="window.guestinfo.toggleFilterPanel()"
+              aria-label="Toggle Filters Panel">
         ${f.panelOpen ? 'Filters ▴' : 'Filters ▾'}
       </button>
       <button class="btn btn-success btn-sm"
-              onclick="window.guestinfo.createNewLead()">
+              onclick="window.guestinfo.createNewLead()"
+              aria-label="Create New Lead">
         + New Lead
       </button>
     </div>`;
@@ -106,41 +103,51 @@ function controlsBarHtml(propCount, soldCount, role) {
     ? 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;'
     : 'display:none;';
   const panel = `
-    <div id="filter-panel" style="${panelStyle}">
+    <div id="filter-panel" style="${panelStyle}" role="region" aria-live="polite" aria-atomic="true">
       <div class="search-wrapper">
         <input id="filter-name" type="text" placeholder="🔍 Customer name…" 
                value="${f.name}" 
-               oninput="window.guestinfo.setSearchName(this.value)" />
-        <button class="clear-btn" onclick="window.guestinfo.clearSearchName()">×</button>
+               oninput="window.guestinfo.setSearchName(this.value)" 
+               aria-label="Filter by customer name" />
+        <button class="clear-btn" aria-label="Clear customer name filter" onclick="window.guestinfo.clearSearchName()">×</button>
       </div>
       <div class="search-wrapper">
         <input id="filter-emp" type="text" placeholder="🔍 Employee…" 
                value="${f.employee}" 
-               oninput="window.guestinfo.setSearchEmployee(this.value)" />
-        <button class="clear-btn" onclick="window.guestinfo.clearSearchEmployee()">×</button>
+               oninput="window.guestinfo.setSearchEmployee(this.value)" 
+               aria-label="Filter by employee" />
+        <button class="clear-btn" aria-label="Clear employee filter" onclick="window.guestinfo.clearSearchEmployee()">×</button>
       </div>
       <div class="search-wrapper">
         <input id="filter-date" type="date" 
                value="${f.date}" 
-               onchange="window.guestinfo.setSearchDate(this.value)" />
-        <button class="clear-btn" onclick="window.guestinfo.clearSearchDate()">×</button>
+               onchange="window.guestinfo.setSearchDate(this.value)" 
+               aria-label="Filter by date" />
+        <button class="clear-btn" aria-label="Clear date filter" onclick="window.guestinfo.clearSearchDate()">×</button>
       </div>
       <button class="btn btn-secondary btn-sm"
-              onclick="window.guestinfo.toggleFilterMode()">
+              onclick="window.guestinfo.toggleFilterMode()"
+              aria-pressed="${f.filterMode === 'week'}"
+              aria-label="Toggle Filter Mode">
         ${f.filterMode === 'week' ? 'Show All' : 'This Week'}
       </button>
       <button class="btn btn-warning btn-sm"
-              onclick="window.guestinfo.toggleShowProposals()">
+              onclick="window.guestinfo.toggleShowProposals()"
+              aria-pressed="${f.showProposals}"
+              aria-label="Toggle Follow-Ups">
         ${f.showProposals ? 'Back to Leads' : `⚠ Follow-Ups (${propCount})`}
       </button>
       ${role !== 'me'
         ? `<button class="btn btn-secondary btn-sm"
-                   onclick="window.guestinfo.toggleSoldOnly()">
+                   onclick="window.guestinfo.toggleSoldOnly()"
+                   aria-pressed="${f.soldOnly}"
+                   aria-label="Toggle Sales filter">
              ${f.soldOnly ? 'Back to Leads' : `Sales (${soldCount})`}
            </button>`
         : ''}
       <button class="btn-clear-filters btn-sm" 
-              onclick="window.guestinfo.clearAllFilters()">
+              onclick="window.guestinfo.clearAllFilters()"
+              aria-label="Clear All Filters">
         Clear All
       </button>
     </div>`;
@@ -148,26 +155,27 @@ function controlsBarHtml(propCount, soldCount, role) {
   return `<div class="guestinfo-controls">${header}${panel}</div>`;
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────
+// Empty state with accessible button
 function emptyHtml(msg = "No guest leads in this view.") {
   return `
     <div class="guestinfo-empty" style="text-align:center;margin-top:16px;">
       <p><b>${msg}</b></p>
       <button class="btn btn-success btn-sm"
-              onclick="window.guestinfo.createNewLead()">
+              onclick="window.guestinfo.createNewLead()"
+              aria-label="Create New Lead">
         + New Lead
       </button>
     </div>`;
 }
 
-// ── Main renderer ─────────────────────────────────────────────────────────
+// Main renderer
 export function renderGuestinfoSection(guestinfo, users, uid, role) {
   const f = window._guestinfo_filters;
 
-  // 1) Role filter
+  // Role filter
   let items = filterByRole(guestinfo, users, uid, role);
 
-  // 2) Name filter
+  // Name filter
   if (f.name) {
     const nameLower = f.name.toLowerCase();
     items = Object.fromEntries(
@@ -177,7 +185,7 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
     );
   }
 
-  // 3) Employee filter
+  // Employee filter
   if (f.employee) {
     const empLower = f.employee.toLowerCase();
     items = Object.fromEntries(
@@ -189,7 +197,7 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
     );
   }
 
-  // 4) Date filter
+  // Date filter
   if (f.date) {
     items = Object.fromEntries(
       Object.entries(items).filter(([,g]) =>
@@ -203,30 +211,26 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
   const propCount  = fullGroups.proposal.length;
   const soldCount  = fullGroups.sold.length;
 
-  // 5) Timeframe / proposals / sales toggles
+  // Timeframe / proposals / sales toggles
   if (!f.showProposals && !f.soldOnly && f.filterMode === 'week' && role !== 'me') {
     items = Object.fromEntries(
       Object.entries(items).filter(([,g]) => inCurrentWeek(g))
     );
   }
 
-  // 6) Regroup
+  // Regroup
   const groups = groupByStatus(items);
 
-  // 7) Build inner HTML
+  // Build inner HTML
   let inner = '';
   if (f.soldOnly && role !== 'me') {
-    if (groups.sold.length) {
-      inner = statusSectionHtml('Sales', groups.sold, users, uid, role);
-    } else {
-      inner = emptyHtml('No sales in this view.');
-    }
+    inner = groups.sold.length
+      ? statusSectionHtml('Sales', groups.sold, users, uid, role)
+      : emptyHtml('No sales in this view.');
   } else if (f.showProposals) {
-    if (groups.proposal.length) {
-      inner = statusSectionHtml('Follow-Ups', groups.proposal, users, uid, role, true);
-    } else {
-      inner = emptyHtml('No follow-ups in this view.');
-    }
+    inner = groups.proposal.length
+      ? statusSectionHtml('Follow-Ups', groups.proposal, users, uid, role, true)
+      : emptyHtml('No follow-ups in this view.');
   } else {
     const hasAny = groups.new.length || groups.working.length || groups.proposal.length;
     if (!hasAny) {
@@ -239,16 +243,16 @@ export function renderGuestinfoSection(guestinfo, users, uid, role) {
   }
 
   return `
-    <section class="admin-section guestinfo-section" id="guestinfo-section">
+    <section class="admin-section guestinfo-section" id="guestinfo-section" role="region" aria-live="polite">
       ${controlsBarHtml(propCount, soldCount, role)}
-      <div id="guestinfo-results">
+      <div id="guestinfo-results" tabindex="-1">
         ${inner}
       </div>
     </section>
   `;
 }
 
-// ── Filter setters & clearers ─────────────────────────────────────────────
+// Filter setters & clearers
 export function toggleFilterPanel() {
   window._guestinfo_filters.panelOpen = !window._guestinfo_filters.panelOpen;
   window.renderAdminApp();
@@ -311,7 +315,7 @@ export function createNewLead() {
   window.location.href = (window.GUESTINFO_PAGE || "../html/guestinfo.html").split('?')[0];
 }
 
-// ── Initialization ───────────────────────────────────────────────────────
+// Initialization
 export function initGuestinfo() {
   window.guestinfo = {
     renderGuestinfoSection,
