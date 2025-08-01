@@ -23,17 +23,12 @@
   let currentRole = ROLES.ME;
   let _initialLoaded = false;
   let _rtBound = false;
-  let _rtRerenderTO = null;
 
   window._stores = window._stores || {};
   window._users = window._users || {};
   window._reviews = window._reviews || {};
   window._guestinfo = window._guestinfo || {};
   window._sales = window._sales || {};
-
-  window._perf_expand_reviews = window._perf_expand_reviews ?? false;
-  window._perf_expand_stores = window._perf_expand_stores ?? false;
-  window._perf_expand_users = window._perf_expand_users ?? false;
 
   if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
@@ -124,17 +119,11 @@
 
     const { _stores: stores, _users: users, _reviews: reviews, _guestinfo: guestinfo, _sales: sales } = window;
 
-    let guestinfoHtml = guestsCaughtUp()
-      ? caughtUpUnifiedHtml()
-      : window.guestinfo?.renderGuestinfoSection
-      ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
-      : `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">Module not loaded.</p></section>`;
-
+    // Render everything except guestinfo inside main div
     let storesHtml = "";
     let usersHtml = "";
     let reviewsHtml = "";
 
-    // Simple rendering logic without performance highlight toggles
     if (currentRole !== ROLES.ME && window.stores?.renderStoresSection) {
       storesHtml = window.stores.renderStoresSection(stores, users, currentRole, sales);
     }
@@ -149,9 +138,10 @@
       ? window.renderRoleManagementSection(currentRole)
       : "";
 
+    // Render the container with a dedicated guest info div placeholder
     if (adminAppDiv) {
       adminAppDiv.innerHTML = `
-        ${guestinfoHtml}
+        <div id="guestInfoContainer"></div>
         ${storesHtml}
         ${usersHtml}
         ${reviewsHtml}
@@ -159,9 +149,29 @@
       `;
     }
 
+    // Render guestinfo only inside its own container
+    renderGuestInfoSection();
+
+    // Prepare filtered reviews cache (same as before)
     window._filteredReviews = window.reviews?.filterReviewsByRole
       ? Object.entries(window.reviews.filterReviewsByRole(reviews, users, currentUid, currentRole)).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0))
       : Object.entries(reviews).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
+  }
+
+  // Render guest info separately
+  function renderGuestInfoSection() {
+    const guestInfoContainer = document.getElementById("guestInfoContainer");
+    if (!guestInfoContainer) return;
+
+    const { _guestinfo: guestinfo, _users: users, currentUid, currentRole } = window;
+
+    let guestinfoHtml = guestsCaughtUp()
+      ? caughtUpUnifiedHtml()
+      : window.guestinfo?.renderGuestinfoSection
+      ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
+      : `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">Module not loaded.</p></section>`;
+
+    guestInfoContainer.innerHTML = guestinfoHtml;
   }
 
   function guestsCaughtUp() {
@@ -186,27 +196,40 @@
     if (_rtBound) return;
     _rtBound = true;
 
-    const scheduleRender = () => {
+    // Only re-render guest info cards on guestinfo changes to avoid losing input focus elsewhere
+    const scheduleGuestInfoRender = () => {
+      if (window._guestInfoRerenderTO) return;
+      window._guestInfoRerenderTO = setTimeout(() => {
+        window._guestInfoRerenderTO = null;
+        renderGuestInfoSection();
+      }, 150);
+    };
+
+    // For other sections, keep current full re-render strategy (can be optimized further)
+    const scheduleFullRender = () => {
       if (_rtRerenderTO) return;
       _rtRerenderTO = setTimeout(() => {
         _rtRerenderTO = null;
         renderAdminApp();
-      }, 100);
+      }, 300);
     };
 
-    function bindRefEvents(ref, objCache, onChildChangedExtra) {
+    function bindRefEvents(ref, objCache, onChildChangedExtra, isGuestinfo = false) {
       ref.on("child_added", (snap) => {
         objCache[snap.key] = snap.val();
-        scheduleRender();
+        if (isGuestinfo) scheduleGuestInfoRender();
+        else scheduleFullRender();
       });
       ref.on("child_changed", (snap) => {
         objCache[snap.key] = snap.val();
         if (onChildChangedExtra) onChildChangedExtra(snap);
-        scheduleRender();
+        if (isGuestinfo) scheduleGuestInfoRender();
+        else scheduleFullRender();
       });
       ref.on("child_removed", (snap) => {
         delete objCache[snap.key];
-        scheduleRender();
+        if (isGuestinfo) scheduleGuestInfoRender();
+        else scheduleFullRender();
       });
     }
 
@@ -219,7 +242,7 @@
       }
     });
     bindRefEvents(db.ref("reviews"), window._reviews);
-    bindRefEvents(db.ref("guestinfo"), window._guestinfo);
+    bindRefEvents(db.ref("guestinfo"), window._guestinfo, null, true);
     bindRefEvents(db.ref("sales"), window._sales);
   }
 
