@@ -115,3 +115,37 @@
     max-width: 200px;
   }
 }
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.admin-header {
+  /* Replace static background with animated gradient */
+  background: linear-gradient(270deg, #0f43c8, #17b2ff, #1e90ff, #0f43c8);
+  background-size: 800% 800%;
+  animation: gradientShift 15s ease infinite;
+
+  /* Keep the glass blur and border */
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1.7px solid var(--border-glass);
+  box-shadow: var(--shadow-inset);
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+  padding: 1rem 2.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  transition: box-shadow 0.3s ease;
+  font-family: var(--main-font);
+}
