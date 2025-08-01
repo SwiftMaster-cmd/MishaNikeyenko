@@ -1,71 +1,178 @@
 /* ==========================================================================
-   Guest Info / Pitch Tracker (Apple Glass)
+   Guest Info / Pitch Tracker (Apple Glass - Updated)
    ========================================================================== */
 .guestinfo-section {
-  background: rgba(18,32,48,0.95);
-  border-radius: 21px;
-  box-shadow: 0 10px 34px rgba(30,144,255,0.16);
-  backdrop-filter: blur(15px) saturate(128%);
-  border: 1.7px solid rgba(80,160,255,0.13);
-  margin-bottom: 2.3rem;
-  padding: 2.1rem 2.1rem 1.5rem 2.1rem;
+  background: rgba(18, 32, 48, 0.92);
+  border-radius: 22px;
+  box-shadow: 0 10px 40px rgba(30, 144, 255, 0.18);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1.7px solid rgba(80, 160, 255, 0.16);
+  margin-bottom: 2.5rem;
+  padding: 2.5rem 2.5rem 1.8rem 2.5rem;
   color: #e7f2ff;
   font-family: var(--main-font);
 }
 
 .guestinfo-status-header {
-  display: flex; gap: 18px; align-items: center;
-  margin-bottom: 1.6rem;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 1.8rem;
 }
+
 .guestinfo-status-badge {
-  font-size: 1.07rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 800;
   border-radius: 9999px;
-  padding: 7px 18px;
-  box-shadow: 0 1px 8px #26aaff22;
-  background: #19b3ff;
+  padding: 8px 22px;
+  box-shadow: 0 2px 10px #26aaff33;
+  background: #1aa7ff;
   color: #fff;
+  user-select: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: background 0.3s ease;
 }
+
+.guestinfo-status-badge:hover {
+  background: #19c0ff;
+  box-shadow: 0 3px 14px #26bfff66;
+}
+
 .guestinfo-proposal {
-  background: rgba(36,60,98,0.14);
-  border-radius: 14px;
-  box-shadow: 0 1px 8px #22bbff22;
-  margin-bottom: 1.4rem;
-  padding: 1.3rem 1.7rem 1.5rem 1.7rem;
+  background: rgba(36, 60, 98, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 2px 10px #22bbff33;
+  margin-bottom: 1.6rem;
+  padding: 1.6rem 2rem 1.8rem 2rem;
+  transition: background 0.3s ease;
 }
+
+.guestinfo-proposal:hover {
+  background: rgba(40, 70, 110, 0.26);
+}
+
 .guest-card {
-  background: rgba(30,60,90,0.13);
-  border-radius: 13px;
-  margin: 1.2rem 0;
-  box-shadow: 0 1.5px 7px #009aff1c;
-  padding: 1.08rem 1.3rem 0.9rem 1.3rem;
+  background: rgba(30, 60, 90, 0.16);
+  border-radius: 15px;
+  margin: 1.4rem 0;
+  box-shadow: 0 3px 15px #009aff2b;
+  padding: 1.4rem 1.8rem 1.1rem 1.8rem;
   color: #e7f2ff;
-  font-size: 1.07rem;
-  border: 1.2px solid #2868aa14;
-  display: flex; flex-direction: column; gap: 1.3rem;
+  font-size: 1.1rem;
+  border: 1.3px solid #2870bb20;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  transition: box-shadow 0.25s ease;
+}
+
+.guest-card:hover {
+  box-shadow: 0 5px 25px #009aff55;
 }
 
 .guest-card-header {
-  display: flex; gap: 1.1rem; align-items: center;
-}
-.guest-card .role-badge {
-  font-weight: 800; font-size: 0.95rem;
-  padding: 4px 10px; border-radius: 9999px;
-  text-transform: uppercase;
-  background-color: #3b82f6;
-  color: #fff; box-shadow: 0 0 10px #3b82f6bb;
+  display: flex;
+  gap: 1.3rem;
+  align-items: center;
+  user-select: none;
 }
 
-.guest-card .role-badge.role-guest  { background-color: #6366f1; }
-.guest-card .role-badge.role-lead   { background-color: #10b981; }
-.guest-card .role-badge.role-dm     { background-color: #2563eb; }
-.guest-card .role-badge.role-admin  { background-color: #ef4444; }
+.guest-card .role-badge {
+  font-weight: 900;
+  font-size: 1rem;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  box-shadow: 0 0 12px;
+  color: #fff;
+  user-select: none;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.guest-card .role-badge.role-guest {
+  background-color: #6366f1;
+  box-shadow: 0 0 14px #6366f1cc;
+}
+.guest-card .role-badge.role-lead {
+  background-color: #10b981;
+  box-shadow: 0 0 14px #10b981cc;
+}
+.guest-card .role-badge.role-dm {
+  background-color: #2563eb;
+  box-shadow: 0 0 14px #2563ebcc;
+}
+.guest-card .role-badge.role-admin {
+  background-color: #ef4444;
+  box-shadow: 0 0 14px #ef4444cc;
+}
 
 .guest-card .guestinfo-meta {
-  color: #a5b4fc; font-size: .97em; margin-top: 2px;
-}
-.guest-card .guest-card-actions {
-  display: flex; gap: 0.7rem; margin-top: 5px;
+  color: #a5b4fc;
+  font-size: 1em;
+  margin-top: 3px;
+  user-select: none;
 }
 
-.guest-card .btn { font-size: .95em; padding: 0.41em 1.09em; }
+.guest-card .guest-card-actions {
+  display: flex;
+  gap: 0.9rem;
+  margin-top: 8px;
+}
+
+.guest-card .btn {
+  font-size: 1rem;
+  padding: 0.48em 1.25em;
+  border-radius: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, box-shadow 0.14s ease;
+}
+
+/* Button color variants */
+.guest-card .btn-primary {
+  background: #147bff linear-gradient(90deg, #3fcbff3a, #0f43c8c0 95%);
+  color: #f9fdff;
+  box-shadow: 0 2px 18px #2a99ff32;
+}
+.guest-card .btn-primary:hover,
+.guest-card .btn-primary:focus {
+  background: #1a8cff;
+  box-shadow: 0 4px 24px #358dff88;
+  outline: none;
+}
+
+.guest-card .btn-secondary {
+  background: #474b58 linear-gradient(90deg, #9bb6de2a, #303746b0 95%);
+  color: #e7f2ff;
+  box-shadow: 0 2px 18px #39415822;
+}
+.guest-card .btn-secondary:hover,
+.guest-card .btn-secondary:focus {
+  background: #5a5f70;
+  box-shadow: 0 4px 22px #50566a44;
+  outline: none;
+}
+
+.guest-card .btn-success {
+  background: #3dcc5c linear-gradient(90deg, #77e6533a, #0f9c36b0 95%);
+  color: #f9fdff;
+  box-shadow: 0 2px 18px #47bc4933;
+}
+.guest-card .btn-success:hover,
+.guest-card .btn-success:focus {
+  background: #45d167;
+  box-shadow: 0 4px 24px #57d67d88;
+  outline: none;
+}
+
+.guest-card .btn-danger {
+  background: #eb3941 linear-gradient(90deg, #e900002a, #c91111b0 95%);
+  color: #f9fdff;
+  box-shadow: 0 2px 18px #d7424b33;
+}
+.guest-card .btn-danger:hover,
+.guest-card .btn-danger:focus {
+  background: #f23f47;
+  box-shadow: 0 4px 24px #f56268cc;
+  outline: none;
+}
