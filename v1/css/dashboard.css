@@ -200,3 +200,91 @@ body::after {
     display: none !important;
   }
 }
+.admin-header button {
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  padding: 0.48em 1.3em;
+  font-size: 1rem;
+  color: #f9fdff;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  backdrop-filter: saturate(180%) blur(6px);
+  position: relative;
+  overflow: hidden;
+
+  background: linear-gradient(270deg, #0e5acc55, #3f9fff88, #0e5acc55);
+  background-size: 600% 600%;
+
+  animation: waterFlow 8s ease-in-out infinite;
+  transition:
+    transform 0.25s ease,
+    background-color 0.25s ease,
+    box-shadow 0.3s ease;
+}
+
+.admin-header button::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.15), transparent 50%),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.1), transparent 45%);
+  opacity: 0.3;
+  pointer-events: none;
+  animation: shimmerMove 6s linear infinite;
+  border-radius: var(--radius-md);
+  z-index: 0;
+}
+
+.admin-header button:hover,
+.admin-header button:focus {
+  transform: scale(1.07);
+  background-position: 100% 50%;
+  outline: none;
+  box-shadow: 0 0 12px rgba(30, 144, 255, 0.7);
+}
+
+.admin-header button:active {
+  transform: scale(0.97);
+  box-shadow: none;
+}
+
+/* Ensure text and content are above the ::before */
+.admin-header button > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Animation keyframes */
+
+@keyframes waterFlow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes shimmerMove {
+  0% {
+    transform: translate(0%, 0%);
+  }
+  100% {
+    transform: translate(30%, 30%);
+  }
+}
+
+/* Responsive tweaks for smaller screens */
+
+@media (max-width: 600px) {
+  .admin-header button {
+    font-size: 0.95rem;
+    padding: 0.42em 1em;
+  }
+}
