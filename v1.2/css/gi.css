@@ -168,3 +168,96 @@
     font-size: 0.95rem;
   }
 }
+/* Filters wrapper: keep buttons inline */
+.guestinfo-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.6rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Filter Icon Button */
+.filter-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
+  box-shadow:
+    inset 0 1px 1px rgba(255 255 255 / 0.3),
+    0 3px 10px rgba(0 123 255 / 0.5);
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+  backdrop-filter: saturate(180%) blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #f9fdff;
+  font-size: 1.4rem;
+  user-select: none;
+}
+
+/* Hide filter icon button entirely since filters are hidden */
+#filter-name,
+#filter-emp,
+#filter-date,
+#filter-name + .clear-btn,
+#filter-emp + .clear-btn,
+#filter-date + .clear-btn {
+  display: none !important;
+}
+
+/* Also hide filter icon button since no filters visible */
+.filter-icon-btn {
+  display: none !important;
+}
+
+/* New Lead Button next to filter icon */
+.new-lead-btn {
+  flex-shrink: 0;
+  min-width: 120px;
+  max-width: 160px;
+  white-space: nowrap;
+  border-radius: 24px;
+  padding: 0.48em 1.2em;
+  font-weight: 700;
+  font-size: 1rem;
+  background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
+  color: #f9fdff;
+  box-shadow:
+    inset 0 1px 1px rgba(255 255 255 / 0.3),
+    0 3px 10px rgba(0 123 255 / 0.5);
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+  backdrop-filter: saturate(180%) blur(6px);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.new-lead-btn:hover,
+.new-lead-btn:focus {
+  background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
+  box-shadow:
+    inset 0 2px 3px rgba(255 255 255 / 0.5),
+    0 6px 18px rgba(30 144 255 / 0.8);
+  transform: scale(1.05);
+  outline: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .guestinfo-controls {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    gap: 0.8rem;
+  }
+  .new-lead-btn {
+    min-width: auto;
+    max-width: 140px;
+    width: 100%;
+    font-size: 0.95rem;
+  }
+}
