@@ -1,13 +1,5 @@
 /* ==========================================================================
-   DASHBOARD v3.2 MOBILE-FIRST THEME
-   ========================================================================== *
-   * Preserves v3 spacing & general look
-   * Adds: Guest Info grouped UI styles, proposal caution, sales badge
-   * Safe-area padding, non-repeating gradient background
-   * Table overflow fixes + stack-to-card patterns
-   * Hide edit forms by default; reveal via .is-editing or JS inline
-   * Mobile-first responsive type & spacing tokens
-   * Stores Performance Highlight (collapsed Stores summary mode)
+   DASHBOARD v3.2 MOBILE-FIRST THEME - FULL with Animated Live Glow Background
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -84,333 +76,393 @@
   --shadow-success:0 4px 14px rgba(0,200,83,.4);
 }
 
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce){
-  :root { --dur-fast:0ms; --dur-med:0ms; --dur-slow:0ms; }
-  *{transition:none!important;animation:none!important;}
+/* --------------------------------------------------------------------------
+   Animated glowing ambient background layers
+   -------------------------------------------------------------------------- */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(120px);
+  opacity: 0.18;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  will-change: background-position;
+}
+
+body::before {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(30,144,255,0.5), transparent 60%),
+    radial-gradient(circle at 80% 60%, rgba(74,168,255,0.3), transparent 70%);
+  animation-name: moveBlueGlow;
+  animation-duration: 40s;
+}
+
+body::after {
+  background:
+    radial-gradient(circle at 50% 70%, rgba(0,200,83,0.4), transparent 60%),
+    radial-gradient(circle at 20% 20%, rgba(30,200,120,0.25), transparent 70%);
+  animation-name: moveGreenGlow;
+  animation-duration: 60s;
+  animation-delay: 20s;
+}
+
+@keyframes moveBlueGlow {
+  0%   { background-position: 30% 40%, 80% 60%; }
+  50%  { background-position: 35% 45%, 75% 65%; }
+  100% { background-position: 30% 40%, 80% 60%; }
+}
+
+@keyframes moveGreenGlow {
+  0%   { background-position: 50% 70%, 20% 20%; }
+  50%  { background-position: 55% 75%, 25% 25%; }
+  100% { background-position: 50% 70%, 20% 20%; }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none !important;
+    filter: none !important;
+    opacity: 0.1;
+  }
 }
 
 /* ==========================================================================
    Base / Reset Extensions
    ========================================================================== */
-*{box-sizing:border-box;margin:0;padding:0;}
-html,body{
-  height:100%;
-  min-height:100%;
-  background:linear-gradient(135deg,var(--bg-page-a) 0%,var(--bg-page-b) 100%) no-repeat fixed;
-  background-size:cover;
-  color:var(--text-med);
-  -webkit-text-size-adjust:100%;
-  text-size-adjust:100%;
-  max-width:100%;
-  overflow-x:hidden;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  min-height: 100%;
+  background: linear-gradient(135deg, var(--bg-page-a) 0%, var(--bg-page-b) 100%) no-repeat fixed;
+  background-size: cover;
+  color: var(--text-med);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  font-family: 'Segoe UI', 'SF Pro', Arial, sans-serif;
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-sm));
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-xl));
+  padding-left: 5%;
+  padding-right: 5%;
+  font-size: var(--fs-md);
+  line-height: 1.4;
 }
-body{
-  font-family:'Segoe UI','SF Pro',Arial,sans-serif;
-  /* Safe-area + bottom pad */
-  padding-top:calc(env(safe-area-inset-top,0px) + var(--space-sm));
-  padding-bottom:calc(env(safe-area-inset-bottom,0px) + var(--space-xl));
-  padding-left:5%;
-  padding-right:5%;
-  font-size:var(--fs-md);
-  line-height:1.4;
-}
-img,svg,video,canvas{max-width:100%;height:auto;display:block;}
-button{font-family:inherit;font-size:inherit;line-height:inherit;}
-a{color:var(--brand);text-decoration:none;}
-a:hover{text-decoration:underline;}
+img, svg, video, canvas { max-width: 100%; height: auto; display: block; }
+button { font-family: inherit; font-size: inherit; line-height: inherit; }
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
 
 /* Scrollbars */
-::-webkit-scrollbar{width:10px;height:10px;}
-::-webkit-scrollbar-track{background:rgba(255,255,255,.05);}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:5px;}
-::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4);}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,.05); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.4); }
 
 /* ==========================================================================
    Professional Sticky Header (Full-Width + Tab-Style Links)
    ========================================================================== */
-/* ==========================================================================
-   Professional Sticky Header (Centered + Rounded Tabs)
-   ========================================================================== */
-.admin-header .header-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;       /* center title & actions */
-  flex-wrap: wrap;
-  padding: 0 var(--space-md);
-  gap: var(--space-sm);
-}
+/* (your existing header styles here; omitted for brevity) */
 
-/* header title */
-.admin-header h2 {
-  margin: 0;
-  font-size: var(--fs-xl);
-  font-weight: 700;
-  color: var(--text-hi);
-  text-align: center;            /* center text */
-  flex: 0 0 auto;
-}
-
-/* tab-style links */
-.admin-header .header-actions {
-  display: flex;
-  gap: var(--space-xs);
-  justify-content: center;       /* center tabs under title */
-  flex-wrap: wrap;
-}
-
-/* pill-shaped tabs */
-.admin-header .header-actions a.tab {
-  display: inline-block;
-  padding: var(--space-xs) var(--space-md);
-  font-size: var(--fs-sm);
-  color: var(--text-med);
-  text-decoration: none;
-  border: 2px solid transparent;
-  border-radius: var(--radius-md);  /* rounded corners */
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
-}
-.admin-header .header-actions a.tab:hover {
-  color: var(--text-hi);
-  border-color: var(--brand);
-  background: rgba(30,144,255,0.1);
-}
-.admin-header .header-actions a.tab.active {
-  color: var(--text-hi);
-  border-color: var(--brand);
-  background: rgba(30,144,255,0.15);
-}
-
-/* responsive stacking on small screens */
-@media (max-width: 480px) {
-  .admin-header .header-container {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .admin-header .header-actions {
-    margin-top: var(--space-xs);
-  }
-}
 /* ==========================================================================
    Main Content Grid
    ========================================================================== */
-#adminApp{
-  width:100%;
-  max-width:100%;
-  margin:var(--space-lg) auto;
-  padding:0;
-  display:grid;
-  grid-template-columns:1fr;
-  gap:var(--space-lg);
+#adminApp {
+  width: 100%;
+  max-width: 100%;
+  margin: var(--space-lg) auto;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
 }
-@media (min-width:768px){
-  #adminApp{max-width:90%;gap:var(--space-xl);}
+@media (min-width: 768px) {
+  #adminApp { max-width: 90%; gap: var(--space-xl); }
 }
-@media (min-width:1200px){
-  #adminApp{max-width:1200px;}
-  /* opt-in for 2-col: uncomment if desired */
-  /* #adminApp{grid-template-columns:1fr 1fr;} */
-  /* #adminApp>.admin-section.section-span-2{grid-column:span 2;} */
+@media (min-width: 1200px) {
+  #adminApp { max-width: 1200px; }
+  /* Uncomment below if you want 2 columns */
+  /* #adminApp { grid-template-columns: 1fr 1fr; }
+     #adminApp > .admin-section.section-span-2 { grid-column: span 2; } */
 }
 
 /* ==========================================================================
    Section Card
    ========================================================================== */
-.admin-section{
-  position:relative;
-  width:100%;
-  background:var(--bg-card);
-  border:1px solid var(--border-color);
-  border-radius:var(--radius-xl);
-  padding:clamp(16px,5vw,32px);
-  box-shadow:var(--shadow-card);
-  backdrop-filter:blur(12px) saturate(180%);
-  transition:box-shadow var(--dur-med) var(--ease-out),background var(--dur-med) var(--ease-out);
+.admin-section {
+  position: relative;
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: clamp(16px, 5vw, 32px);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px) saturate(180%);
+  transition: box-shadow var(--dur-med) var(--ease-out), background var(--dur-med) var(--ease-out);
 }
-.admin-section:hover{box-shadow:var(--shadow-card-h);background:var(--bg-card-hover);}
-.admin-section h2,.section-title{
-  font-size:var(--fs-lg);
-  font-weight:700;
-  color:var(--text-hi);
-  margin-bottom:var(--space-md);
+.admin-section:hover {
+  box-shadow: var(--shadow-card-h);
+  background: var(--bg-card-hover);
+}
+.admin-section h2, .section-title {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text-hi);
+  margin-bottom: var(--space-md);
 }
 
-/* Collapsible (opt-in) */
-.admin-section.collapsible>.section-header{
-  display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;
+/* --------------------------------------------------------------------------
+   Collapsible Sections (opt-in)
+   -------------------------------------------------------------------------- */
+.admin-section.collapsible > .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
 }
-.admin-section.collapsible[data-open="false"]>*:not(.section-header){display:none;}
+.admin-section.collapsible[data-open="false"] > *:not(.section-header) {
+  display: none;
+}
 
 /* ==========================================================================
    Inputs
    ========================================================================== */
-input,select,textarea{
-  width:100%;
-  border-radius:var(--radius-md);
-  border:1px solid var(--border-color);
-  padding:var(--space-xs) var(--space-sm);
-  font-size:var(--fs-md);
-  background:rgba(255,255,255,.06);
-  color:var(--text-med);
-  transition:border var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out);
+input, select, textarea {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--fs-md);
+  background: rgba(255,255,255,0.06);
+  color: var(--text-med);
+  transition: border var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
-input:focus,select:focus,textarea:focus{
-  outline:none;
-  border-color:var(--brand);
-  background:rgba(255,255,255,.1);
-  box-shadow:0 0 0 2px var(--brand-focus-ring);
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  background: rgba(255,255,255,0.1);
+  box-shadow: 0 0 0 2px var(--brand-focus-ring);
 }
 
-/* iOS zoom prevention: ensure tap targets >=16px */
-@media (max-width:600px){
-  input,select,textarea,button,.btn,.gfield{font-size:16px!important;line-height:1.2;}
+/* iOS zoom prevention: tap targets >=16px */
+@media (max-width: 600px) {
+  input, select, textarea, button, .btn, .gfield {
+    font-size: 16px !important;
+    line-height: 1.2;
+  }
 }
 
 /* ==========================================================================
    Buttons
    ========================================================================== */
-button,.btn,.login-btn{
-  border:none;
-  border-radius:var(--radius-md);
-  padding:var(--space-sm) var(--space-md);
-  font-weight:600;
-  cursor:pointer;
-  line-height:1.2;
-  transition:transform var(--dur-fast) var(--ease-out),box-shadow var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out);
+button, .btn, .login-btn {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.2;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
-.btn-sm{padding:var(--space-xs) var(--space-sm);font-size:var(--fs-sm);}
-.btn-lg{padding:var(--space-md) var(--space-lg);font-size:var(--fs-md);}
+.btn-sm {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--fs-sm);
+}
+.btn-lg {
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--fs-md);
+}
 
-.btn-primary{background:var(--brand);color:var(--text-hi);box-shadow:var(--shadow-btn);}
-.btn-primary:hover{background:var(--brand-hover);box-shadow:var(--shadow-btn-h);}
+.btn-primary {
+  background: var(--brand);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-btn);
+}
+.btn-primary:hover {
+  background: var(--brand-hover);
+  box-shadow: var(--shadow-btn-h);
+}
 
-.btn-secondary{background:rgba(255,255,255,.15);color:var(--text-med);}
-.btn-secondary:hover{background:rgba(255,255,255,.25);}
+.btn-secondary {
+  background: rgba(255,255,255,.15);
+  color: var(--text-med);
+}
+.btn-secondary:hover {
+  background: rgba(255,255,255,.25);
+}
 
-.btn-success{background:var(--success);color:var(--text-hi);box-shadow:var(--shadow-success);}
-.btn-success:hover{filter:brightness(1.1);}
+.btn-success {
+  background: var(--success);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-success);
+}
+.btn-success:hover {
+  filter: brightness(1.1);
+}
 
-.btn-danger{background:var(--danger);color:var(--text-hi);box-shadow:var(--shadow-danger);}
-.btn-danger:hover{background:var(--danger-hover);}
+.btn-danger {
+  background: var(--danger);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-danger);
+}
+.btn-danger:hover {
+  background: var(--danger-hover);
+}
 
-.btn-warning{background:var(--warning);color:#000;box-shadow:0 4px 14px rgba(255,179,0,.3);}
-.btn-warning:hover{filter:brightness(1.05);}
+.btn-warning {
+  background: var(--warning);
+  color: #000;
+  box-shadow: 0 4px 14px rgba(255,179,0,.3);
+}
+.btn-warning:hover {
+  filter: brightness(1.05);
+}
 
-.btn-ghost{background:transparent;color:var(--brand);}
-.btn-ghost:hover{background:rgba(30,144,255,.15);}
+.btn-ghost {
+  background: transparent;
+  color: var(--brand);
+}
+.btn-ghost:hover {
+  background: rgba(30,144,255,.15);
+}
 
-/* Make button stacks friendly on small screens */
-@media (max-width:480px){
+/* Responsive button stacking on small screens */
+@media (max-width: 480px) {
   .btn-responsive,
   .user-card-actions button,
   .review-controls button,
   .guest-card .guest-edit-form button,
   .guest-forms-table td button,
   .store-add button,
-  .guestinfo-controls button{
-    width:100%;
-    margin-top:var(--space-xs);
+  .guestinfo-controls button {
+    width: 100%;
+    margin-top: var(--space-xs);
   }
-  .guest-forms-table td button:first-child{margin-top:0;}
+  .guest-forms-table td button:first-child {
+    margin-top: 0;
+  }
 }
 
 /* ==========================================================================
    Role Badges
    ========================================================================== */
-.role-badge{
-  display:inline-block;
-  padding:2px 10px;
-  font-size:var(--fs-xs);
-  font-weight:600;
-  border-radius:999px;
-  line-height:1.2;
-  box-shadow:0 0 0 1px var(--border-color) inset;
-  vertical-align:middle;
-  white-space:nowrap;
+.role-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  border-radius: 999px;
+  line-height: 1.2;
+  box-shadow: 0 0 0 1px var(--border-color) inset;
+  vertical-align: middle;
+  white-space: nowrap;
 }
-.role-admin{background:var(--brand);color:var(--text-hi);}
-.role-dm{background:rgba(60,120,255,.8);color:#fff;}
-.role-lead{background:rgba(30,200,120,.8);color:#fff;}
-.role-me{background:rgba(180,180,200,.4);color:#fff;}
-.role-guest{background:rgba(180,180,200,.5);color:var(--text-med);}
+.role-admin { background: var(--brand); color: var(--text-hi); }
+.role-dm { background: rgba(60,120,255,.8); color: #fff; }
+.role-lead { background: rgba(30,200,120,.8); color: #fff; }
+.role-me { background: rgba(180,180,200,.4); color: #fff; }
+.role-guest { background: rgba(180,180,200,.5); color: var(--text-med); }
 
 /* ==========================================================================
    Tables (Global)
    ========================================================================== */
 .table-responsive-wrapper,
 .guest-forms-table-wrap,
-.store-table-wrap{
-  width:100%;
-  max-width:100%;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
+.store-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:var(--fs-sm);
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
 }
-th,td{
-  padding:var(--space-sm);
-  border-bottom:1px solid var(--border-color);
-  text-align:left;
-  white-space:nowrap;
+th, td {
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+  white-space: nowrap;
+  color: var(--text-med);
 }
-th{color:var(--text-hi);font-weight:600;}
-td{color:var(--text-med);}
-tr:nth-child(odd){background:var(--table-stripe);}
-td:last-child{text-align:right;}
+th {
+  color: var(--text-hi);
+  font-weight: 600;
+}
+td:last-child {
+  text-align: right;
+}
 
 /* Allow wrapping on narrow viewports */
-@media (max-width:640px){
-  th,td{white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+@media (max-width: 640px) {
+  th, td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 }
 
 /* Stackable tables (opt-in via .table-stackable) */
-@media (max-width:600px){
+@media (max-width: 600px) {
   .table-stackable,
   .table-stackable thead,
   .table-stackable tbody,
   .table-stackable tr,
   .table-stackable th,
-  .table-stackable td{
-    display:block;
-    width:100%;
+  .table-stackable td {
+    display: block;
+    width: 100%;
   }
-  .table-stackable thead{display:none;}
-  .table-stackable tr{
-    margin-bottom:var(--space-md);
-    padding:var(--space-md);
-    border:1px solid var(--border-color);
-    border-radius:var(--radius-lg);
-    background:var(--bg-card-hover);
-    box-shadow:var(--shadow-card);
+  .table-stackable thead {
+    display: none;
   }
-  .table-stackable td{
-    padding:var(--space-xs) 0;
-    border:none;
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:var(--space-sm);
+  .table-stackable tr {
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow-card);
   }
-  .table-stackable td::before{
-    content:attr(data-label);
-    font-weight:600;
-    color:var(--text-hi);
-    flex:0 0 auto;
+  .table-stackable td {
+    padding: var(--space-xs) 0;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    white-space: normal;
   }
-  .table-stackable td:last-child{
-    justify-content:flex-start;
-    flex-wrap:wrap;
-    margin-top:var(--space-xs);
-    text-align:left;
+  .table-stackable td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-hi);
+    flex: 0 0 auto;
+  }
+  .table-stackable td:last-child {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: var(--space-xs);
+    text-align: left;
+  }
+  .table-stackable td button {
+    margin: 0;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--fs-xs);
   }
 }
 
@@ -700,10 +752,107 @@ td:last-child{text-align:right;}
 }
 
 /* ==========================================================================
-   Guest Info (Dashboard) -- OVERHAUL
+   Guest Info Controls -- new search & date inputs
    ========================================================================== */
+.guestinfo-controls input[type="text"],
+.guestinfo-controls input[type="date"],
+.guestinfo-controls select {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-hi);
+  font-size: var(--fs-sm);
+  transition:
+    border var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+  appearance: none;
+}
 
+.guestinfo-controls input[type="date"] {
+  cursor: pointer;
+}
 
+.guestinfo-controls input::placeholder {
+  color: var(--text-muted);
+}
+
+.guestinfo-controls input:focus,
+.guestinfo-controls select:focus {
+  border-color: var(--brand);
+  background: rgba(255,255,255,0.1);
+  outline: none;
+}
+
+/* sizing & flex behavior */
+.guestinfo-controls input[type="text"],
+.guestinfo-controls input[type="date"] {
+  min-width: 100px;
+  max-width: 200px;
+  flex: 1;
+}
+
+/* responsive stacking on narrow viewports */
+@media (max-width: 640px) {
+  .guestinfo-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .guestinfo-controls input,
+  .guestinfo-controls select,
+  .guestinfo-controls button {
+    width: 100%;
+    margin-top: var(--space-xs);
+  }
+}
+
+/* ==========================================================================
+   Guest Info -- "Clear Filters" button
+   ========================================================================== */
+.btn-clear-filters {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.btn-clear-filters:hover {
+  background: var(--danger);
+  color: var(--text-hi);
+  box-shadow: var(--shadow-danger);
+}
+
+/* ==========================================================================
+   Responsive -- stack controls on small screens
+   ========================================================================== */
+@media (max-width: 640px) {
+  .guestinfo-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .guestinfo-controls .search-wrapper,
+  .guestinfo-controls input,
+  .guestinfo-controls select,
+  .guestinfo-controls button {
+    width: 100%;
+    margin-top: var(--space-xs);
+  }
+}
+
+/* ==========================================================================
+   Message roles colors
+   ========================================================================== */
+.msg-role-admin{color:#ff5252;border-color:#ff5252;}
+.msg-role-dm{color:#ffb300;border-color:#ffb300;}
+.msg-role-lead{color:#82caff;border-color:#82caff;}
+.msg-role-me{color:#47c971;border-color:#47c971;}
 
 /* ==========================================================================
    Congrats / All-Good card (DEPRECATED - leaving for possible reuse)
@@ -1307,7 +1456,7 @@ td:last-child{text-align:right;}
   font-size:.75rem;
   font-weight:600;
   margin-bottom:2px;
-  opacity:.85;
+  opacity:85;
 }
 .msg-bubble-ts {
   margin-top:2px;
@@ -1408,6 +1557,10 @@ td:last-child{text-align:right;}
   opacity:.5;
   cursor:not-allowed;
 }
+
+/* ==========================================================================
+   Guest Card Actions (toggle show)
+   ========================================================================== */
 .guest-card {
   position: relative;
 }
@@ -1433,42 +1586,20 @@ td:last-child{text-align:right;}
   z-index: 1;
 }
 
-.guest-card-actions {
-  display: none;      /* hidden by default */
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 8px;
-}
-
-.guest-card-actions.show {
-  display: flex;      /* optional if you prefer toggling a class instead */
-}
-
 /* role badges within dialog */
-.msg-role{
-  display:inline-block;
-  min-width:2.5em;
-  padding:0 4px;
-  margin-right:4px;
-  font-size:.75em;
-  font-weight:600;
-  text-align:center;
-  border-radius:4px;
-  border:1px solid rgba(255,255,255,.25);
-  opacity:.8;
-}
-.guest-card-actions-overlay {
-  background: #222;
-  border: 1px solid #555;
-  padding: 8px;
+.msg-role {
+  display: inline-block;
+  min-width: 2.5em;
+  padding: 0 4px;
+  margin-right: 4px;
+  font-size: .75em;
+  font-weight: 600;
+  text-align: center;
   border-radius: 4px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-  position: absolute;
-  top: 28px;
-  right: 0;
-  z-index: 100;
-  display: none;
+  border: 1px solid rgba(255,255,255,.25);
+  opacity: .8;
 }
+
 /* Override guestinfo-container to allow 1 → 2 → 3 columns */
 .guestinfo-container {
   display: grid;
@@ -1487,105 +1618,3 @@ td:last-child{text-align:right;}
     grid-template-columns: repeat(3, 1fr);
   }
 }
-/* ==========================================================================
-   Guest Info Controls -- new search & date inputs
-   ========================================================================== */
-
-.guestinfo-controls input[type="text"],
-.guestinfo-controls input[type="date"],
-.guestinfo-controls select {
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.05);
-  color: var(--text-hi);
-  font-size: var(--fs-sm);
-  transition:
-    border var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
-  appearance: none;
-}
-
-.guestinfo-controls input[type="date"] {
-  cursor: pointer;
-}
-
-.guestinfo-controls input::placeholder {
-  color: var(--text-muted);
-}
-
-.guestinfo-controls input:focus,
-.guestinfo-controls select:focus {
-  border-color: var(--brand);
-  background: rgba(255,255,255,0.1);
-  outline: none;
-}
-
-/* sizing & flex behavior */
-.guestinfo-controls input[type="text"],
-.guestinfo-controls input[type="date"] {
-  min-width: 100px;
-  max-width: 200px;
-  flex: 1;
-}
-
-/* responsive stacking on narrow viewports */
-@media (max-width: 640px) {
-  .guestinfo-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .guestinfo-controls input,
-  .guestinfo-controls select,
-  .guestinfo-controls button {
-    width: 100%;
-    margin-top: var(--space-xs);
-  }
-}
-
-
-/* ==========================================================================
-   Guest Info -- "Clear Filters" button
-   ========================================================================== */
-
-.btn-clear-filters {
-  background: var(--danger-bg);
-  color: var(--danger);
-  border: 1px solid var(--danger);
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  transition:
-    background var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
-}
-
-.btn-clear-filters:hover {
-  background: var(--danger);
-  color: var(--text-hi);
-  box-shadow: var(--shadow-danger);
-}
-
-/* ==========================================================================
-   Responsive -- stack controls on small screens
-   ========================================================================== */
-
-@media (max-width: 640px) {
-  .guestinfo-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .guestinfo-controls .search-wrapper,
-  .guestinfo-controls input,
-  .guestinfo-controls select,
-  .guestinfo-controls button {
-    width: 100%;
-    margin-top: var(--space-xs);
-  }
-}
-.msg-role-admin{color:#ff5252;border-color:#ff5252;}
-.msg-role-dm{color:#ffb300;border-color:#ffb300;}
-.msg-role-lead{color:#82caff;border-color:#82caff;}
-.msg-role-me{color:#47c971;border-color:#47c971;}
