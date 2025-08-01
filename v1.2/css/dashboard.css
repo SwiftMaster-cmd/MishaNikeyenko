@@ -1,374 +1,348 @@
 /* ==========================================================================
-   OSL Admin Dashboard v2025 -- Refined Core CSS Overhaul (Polished)
+   Admin Dashboard Core Styles (Based on your baseboard CSS & Role Mgmt style)
    ========================================================================== */
 
-/* --- RESET & BASE --- */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0; padding: 0;
-}
-html, body {
-  width: 100%; height: 100%;
+/* Container for the whole admin app */
+#adminApp {
+  width: 90vw;
+  max-width: 960px;
+  margin: 2rem auto 4rem;
+  background: rgba(26, 28, 36, 0.85);
+  border-radius: 20px;
+  padding: 2.5rem 3rem;
+  box-shadow: 0 14px 48px rgba(30, 144, 255, 0.65);
+  backdrop-filter: saturate(180%) blur(22px);
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
+  color: #cbd5e1;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #121212, #1e90ff 90%);
-  color: #e2e8f0;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-  scroll-behavior: smooth;
-  -webkit-tap-highlight-color: transparent; /* removes tap highlight on mobile */
+  user-select: text;
+  transition: background-color 0.3s ease;
 }
 
-/* --- HEADER --- */
-#stickyHeader {
-  position: sticky;
-  top: 0; left: 0; right: 0;
-  width: 100vw;
-  background: rgba(30, 30, 30, 0.52);
+/* Shared admin section styling */
+.admin-section {
+  margin-bottom: 3rem;
+  background: rgba(30, 30, 30, 0.6);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 8px 24px rgba(30, 144, 255, 0.35);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 5px 24px rgba(30,144,255,0.52);
-  z-index: 10000;
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: center;
-  user-select: none;
-  transition: background-color 0.3s ease;
-  will-change: background-color;
+  border: 1.5px solid rgba(30, 144, 255, 0.4);
 }
 
-#stickyHeader:hover {
-  background: rgba(30, 30, 30, 0.72);
-}
-
-#headerInner {
-  width: 90vw;
-  max-width: 900px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-/* --- TITLE --- */
-#portalTitle {
-  font-size: 1.8rem;
+/* Section Titles */
+.admin-section h2 {
   font-weight: 800;
-  color: #82caff;
-  white-space: nowrap;
-  flex: 1 1 auto;
-  user-select: none;
-  letter-spacing: 0.02em;
+  font-size: 2rem;
+  color: #60a5fa;
+  margin-bottom: 1.8rem;
+  text-shadow: 0 0 5px #3b82f6bb;
+  user-select: text;
 }
 
-/* --- NAVIGATION BUTTONS --- */
-#headerNav {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: nowrap;
-  flex: 0 0 auto;
-  min-width: 0;
-}
-
-#headerNav button {
-  flex: 1 1 auto;
-  min-width: 110px;
-  padding: 0.65rem 1.4rem;
-  border-radius: 14px;
+/* Button styles (logout, messages) */
+#logoutBtn,
+#messagesBtn {
+  padding: 0.7rem 1.5rem;
   font-weight: 700;
+  font-size: 1.05rem;
   color: #fff;
-  border: none;
   background-color: #1e90ff;
-  white-space: nowrap;
-  user-select: none;
-  box-shadow: 0 7px 26px rgba(30,144,255,0.6);
-  transition: background-color 0.25s ease, box-shadow 0.25s ease;
+  border: none;
+  border-radius: 14px;
   cursor: pointer;
-  will-change: background-color, box-shadow;
+  box-shadow: 0 5px 18px rgba(30,144,255,0.6);
+  user-select: none;
+  transition: background-color 0.25s ease, box-shadow 0.25s ease;
+  margin-left: 1rem;
+  min-width: 120px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-#headerNav button:hover:not(:disabled),
-#headerNav button:focus:not(:disabled) {
+#logoutBtn:hover:not(:disabled),
+#messagesBtn:hover:not(:disabled) {
   background-color: #4aa8ff;
-  box-shadow: 0 10px 34px rgba(30,144,255,0.85);
-  outline: none;
+  box-shadow: 0 7px 24px rgba(30,144,255,0.8);
 }
 
-#headerNav button:disabled {
-  opacity: 0.55;
+#logoutBtn:disabled,
+#messagesBtn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* --- LEAD ID TEXT --- */
-#leadIdText {
-  font-family: monospace;
-  background: rgba(0,0,0,0.48);
-  padding: 6px 14px;
+/* Messages Badge */
+#messagesBadge {
+  background: #ef4444; /* red */
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0 7px;
   border-radius: 12px;
-  color: #1e90ff;
-  user-select: all;
-  max-width: 220px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 0;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-}
-
-/* --- PROGRESS BAR --- */
-progress#progressBar {
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: 400px;
+  min-width: 22px;
   height: 22px;
-  border-radius: 14px;
-  appearance: none;
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
-  overflow: hidden;
-  box-shadow: inset 0 1px 6px rgba(0,0,0,0.3);
-  min-width: 120px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
   user-select: none;
-  will-change: width;
+  box-shadow: 0 0 8px #ef4444cc;
 }
 
-progress#progressBar::-webkit-progress-bar {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 14px;
+/* Performance Highlights Section */
+.perf-highlights-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.3rem;
+  justify-content: center;
 }
 
-progress#progressBar::-webkit-progress-value {
-  background: linear-gradient(90deg, #1e90ff, #4aa8ff);
-  border-radius: 14px;
-  box-shadow: 0 0 16px #1e90ffcc;
-  transition: width 0.3s ease;
-}
-
-progress#progressBar::-moz-progress-bar {
-  background: linear-gradient(90deg, #1e90ff, #4aa8ff);
-  border-radius: 14px;
-}
-
-/* --- PROGRESS LABEL --- */
-#progressLabel {
-  font-weight: 700;
-  color: #4aa8ff;
-  font-size: 1.1rem;
-  margin-left: 12px;
-  user-select: none;
-  flex-shrink: 0;
-  letter-spacing: 0.02em;
-}
-
-/* --- MAIN CONTENT --- */
-#mainContent {
-  width: 90vw;
-  max-width: 900px;
-  margin: 2rem auto 4rem;
-  background: rgba(26, 28, 36, 0.82);
-  border-radius: 18px;
-  padding: 2rem 3rem;
-  box-shadow: 0 14px 44px rgba(30,144,255,0.7);
-  backdrop-filter: saturate(180%) blur(24px);
-  -webkit-backdrop-filter: saturate(180%) blur(24px);
-  user-select: text;
-  transition: background-color 0.3s ease;
-}
-
-#mainContent:hover {
-  background: rgba(26, 28, 36, 0.96);
-}
-
-/* --- STEPS --- */
-.step-section {
-  margin-bottom: 2.7rem;
-}
-
-.step-section h2 {
-  font-weight: 700;
-  font-size: 1.5rem;
-  margin-bottom: 1.1rem;
-  color: #b9cfff;
-  letter-spacing: 0.02em;
-}
-
-/* --- LABELS --- */
-label {
-  display: block;
-  font-weight: 600;
-  margin-top: 1.1rem;
-  color: #d5dcff;
-  user-select: none;
-}
-
-/* --- INPUTS --- */
-input[type="text"],
-input[type="number"],
-input[type="tel"],
-select,
-textarea {
+.perf-hl-row {
+  display: flex;
+  gap: 1.2rem;
+  justify-content: center;
+  flex-wrap: wrap;
   width: 100%;
-  font-size: 1.25rem;
-  padding: 0.85rem 1rem;
+  max-width: 740px;
+}
+
+.perf-hl-btn {
+  background: rgba(30, 30, 30, 0.7);
+  border: 1.5px solid rgba(30, 144, 255, 0.5);
   border-radius: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
-  color: #d8e2ff;
-  transition: background 0.2s, border-color 0.2s;
-  text-align: center;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-weight: 500;
-  user-select: text;
-  box-shadow: inset 0 0 6px rgba(0,0,0,0.85);
-  -webkit-appearance: none;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: #1e90ff;
-  background: rgba(255, 255, 255, 0.15);
-  outline: 2px solid #4aa8ff;
-  outline-offset: 2px;
-}
-
-/* --- TEXTAREA --- */
-textarea {
-  resize: vertical;
-  min-height: 120px;
-}
-
-/* --- RESPONSIVE HEADER --- */
-@media (max-width: 768px) {
-  #headerInner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  #headerNav {
-    width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
-
-  #headerNav button {
-    flex: 1 1 45%;
-    min-width: auto;
-  }
-}
-
-/* --- MOBILE HAMBURGER --- */
-#menuToggle {
-  display: none;
-  background: transparent;
-  border: none;
-  color: #82caff;
-  font-size: 2rem;
+  box-shadow: 0 0 12px rgba(30,144,255,0.4);
+  padding: 1rem 1.8rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #a5b4fc;
   cursor: pointer;
   user-select: none;
-  flex-shrink: 0;
-  padding: 0 8px;
-  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  min-width: 130px;
+  justify-content: center;
 }
 
-@media (max-width: 600px) {
-  #menuToggle {
-    display: block;
-  }
-
-  #headerNav {
-    display: none;
-    position: absolute;
-    top: 60px;
-    right: 0;
-    background: rgba(26, 28, 36, 0.95);
-    backdrop-filter: saturate(180%) blur(20px);
-    padding: 1rem 1.5rem;
-    border-radius: 0 0 0 12px;
-    box-shadow: 0 6px 25px rgba(30,144,255,0.5);
-    flex-direction: column;
-    width: 220px;
-    gap: 1rem;
-    z-index: 100000;
-  }
-
-  #headerNav.expanded {
-    display: flex;
-  }
-
-  #headerNav button {
-    flex: none;
-    width: 100%;
-  }
-}
-@media (min-width: 768px) {
-  #headerNav {
-    display: flex !important;
-  }
-
-  #menuToggle {
-    display: none;
-  }
+.perf-hl-btn:hover {
+  background: rgba(30, 144, 255, 0.3);
+  box-shadow: 0 0 24px rgba(30, 144, 255, 0.7);
 }
 
-@media (max-width: 767px) {
-  #headerNav.hidden {
-    display: none;
-  }
-
-  #headerNav {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  #menuToggle {
-    display: inline-block;
-  }
+.perf-hl-btn .ph-icon {
+  font-size: 1.3rem;
 }
 
-/* --- BUTTONS --- */
-#newLeadBtn,
-#dashboardBtn,
-#toggleLeadIdBtn {
-  padding: 0.6rem 1rem;
-  font-weight: 700;
-  font-size: 1rem;
+.perf-hl-btn .ph-label {
+  flex: 1;
+  text-align: left;
+  color: #60a5fa;
+}
+
+.perf-hl-btn .ph-val {
+  font-weight: 900;
+  color: #dbeafe;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Status color variants */
+.perf-hl-btn.good {
+  color: #22c55e; /* green */
+  border-color: #22c55eaa;
+  box-shadow: 0 0 18px #22c55e88;
+}
+
+.perf-hl-btn.good:hover {
+  background: rgba(34, 197, 94, 0.3);
+  box-shadow: 0 0 28px #22c55ecc;
+}
+
+.perf-hl-btn.warn {
+  color: #fbbf24; /* amber */
+  border-color: #fbbf2488;
+  box-shadow: 0 0 18px #fbbf2488;
+}
+
+.perf-hl-btn.warn:hover {
+  background: rgba(251, 191, 36, 0.3);
+  box-shadow: 0 0 28px #fbbf24aa;
+}
+
+.perf-hl-btn.bad {
+  color: #ef4444; /* red */
+  border-color: #ef4444aa;
+  box-shadow: 0 0 18px #ef4444aa;
+}
+
+.perf-hl-btn.bad:hover {
+  background: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 28px #ef4444cc;
+}
+
+/* Guest Caught-Up Section */
+.guest-caughtup-section {
+  text-align: center;
+  user-select: none;
+}
+
+.guest-caughtup-section h2 {
+  margin-bottom: 1.6rem;
+}
+
+.guestinfo-empty-all p {
+  font-size: 1.15rem;
+  margin-bottom: 0.5rem;
+  color: #a5b4fc;
+  user-select: text;
+}
+
+.guestinfo-empty-all p b {
+  font-size: 1.3rem;
+  color: #60a5fa;
+}
+
+.guestinfo-empty-all button {
+  margin-top: 1.6rem;
+  padding: 0.75rem 2.5rem;
+  font-size: 1.15rem;
+  font-weight: 800;
   color: white;
   background-color: #1e90ff;
-  border: none;
   border-radius: 14px;
+  border: none;
   cursor: pointer;
-  transition: background-color 0.25s ease, box-shadow 0.25s ease;
-  box-shadow: 0 4px 16px rgba(30,144,255,0.4);
-  white-space: nowrap;
-  flex: 1 1 auto;
-  min-width: 110px;
+  box-shadow: 0 5px 22px rgba(30,144,255,0.7);
+  user-select: none;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.guestinfo-empty-all button:hover {
+  background-color: #4aa8ff;
+  box-shadow: 0 7px 30px rgba(30,144,255,0.9);
+}
+
+/* Placeholders for future sections */
+/* Stores Section */
+.stores-section {
+  background: rgba(26, 28, 36, 0.7);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 10px 40px rgba(30, 144, 255, 0.5);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1.5px solid rgba(30, 144, 255, 0.4);
+  margin-bottom: 3rem;
+  color: #cbd5e1;
+}
+
+/* Users Section */
+.users-section {
+  background: rgba(26, 28, 36, 0.7);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 10px 40px rgba(30, 144, 255, 0.5);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1.5px solid rgba(30, 144, 255, 0.4);
+  margin-bottom: 3rem;
+  color: #cbd5e1;
+}
+
+/* Reviews Section */
+.reviews-section {
+  background: rgba(26, 28, 36, 0.7);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 10px 40px rgba(30, 144, 255, 0.5);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1.5px solid rgba(30, 144, 255, 0.4);
+  margin-bottom: 3rem;
+  color: #cbd5e1;
+}
+
+/* Utility classes */
+.text-center {
   text-align: center;
 }
 
-#newLeadBtn:hover:not(:disabled),
-#dashboardBtn:hover:not(:disabled),
-#toggleLeadIdBtn:hover:not(:disabled) {
-  background-color: #4aa8ff;
-  box-shadow: 0 6px 20px rgba(30,144,255,0.6);
+.button {
+  user-select: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  white-space: nowrap;
+  border: none;
 }
 
-#newLeadBtn:disabled,
-#dashboardBtn:disabled,
-#toggleLeadIdBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.button--success {
+  background-color: #22c55e;
+  color: white;
+  box-shadow: 0 5px 22px rgba(34, 197, 94, 0.7);
 }
 
-/* --- UTILITY --- */
-.hidden {
-  display: none !important;
+.button--success:hover {
+  background-color: #4ade80;
+  box-shadow: 0 7px 30px rgba(34, 197, 94, 0.9);
+}
+
+.button--large {
+  padding: 0.9rem 2.8rem;
+  font-size: 1.2rem;
+}
+
+/* Scrollbar (optional for better UX) */
+#adminApp::-webkit-scrollbar {
+  width: 10px;
+}
+
+#adminApp::-webkit-scrollbar-track {
+  background: rgba(30, 30, 30, 0.3);
+  border-radius: 10px;
+}
+
+#adminApp::-webkit-scrollbar-thumb {
+  background: rgba(30, 144, 255, 0.6);
+  border-radius: 10px;
+}
+
+#adminApp::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 144, 255, 0.9);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  #adminApp {
+    padding: 2rem 2rem;
+    width: 95vw;
+  }
+
+  .perf-hl-row,
+  .perf-highlights-section {
+    justify-content: space-around;
+  }
+
+  #logoutBtn,
+  #messagesBtn {
+    min-width: 100px;
+    font-size: 0.95rem;
+    padding: 0.55rem 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .perf-hl-btn {
+    min-width: 100px;
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+  }
+
+  #logoutBtn,
+  #messagesBtn {
+    min-width: 80px;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+  }
 }

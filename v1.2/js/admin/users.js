@@ -1,391 +1,368 @@
-/* =======================================================================
- * users.js  (Dashboard Users / Staffing module)
- * -----------------------------------------------------------------------
- * Features
- *  - Groups users by store.
- *  - Collapsed store summary row shows staffing level + role mix pills.
- *  - Admin can set per-store staffing goal (# bodies counted: LEAD + ME).
- *  - Color codes: full / under / empty; shows ✓ / ⚠ / ✖.
- *  - Expand to reveal detailed user cards + action controls.
- *  - Visibility filtered by viewer role hierarchy.
- *  - Includes "Unassigned" bucket.
- * -----------------------------------------------------------------------
- * Globals expected:
- *    window.db              Firebase db instance
- *    window.currentUid
- *    window.currentRole
- *    window._stores         (optional) stores obj keyed by id or number
- * -----------------------------------------------------------------------
- * CSS hooks required (see dashboard theme patch):
- *    .user-store-summary, .staff-full, .staff-under, .staff-empty,
- *    .uss-role-pill.lead, .uss-role-pill.me, etc.
- * =======================================================================
- */
-(() => {
+/* ==========================================================================
+   Users Section Styles
+   ========================================================================== */
 
-  const ROLES = window.ROLES || { ME:"me", LEAD:"lead", DM:"dm", ADMIN:"admin" };
+.users-section {
+  background: rgba(24, 28, 42, 0.85);
+  border-radius: 18px;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 12px 44px rgba(30, 144, 255, 0.55);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1.5px solid rgba(30, 144, 255, 0.5);
+  color: #cbd5e1;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  user-select: text;
+}
 
-  /* --------------------------------------------------------------------
-   * Local UI expansion state
-   * ------------------------------------------------------------------ */
-  if (!window._userStoresOpen) window._userStoresOpen = {}; // storeNumber -> bool
+.users-section h2 {
+  font-weight: 800;
+  font-size: 2rem;
+  color: #60a5fa;
+  margin-bottom: 1.8rem;
+  text-shadow: 0 0 5px #3b82f6bb;
+  user-select: text;
+}
 
-  /* --------------------------------------------------------------------
-   * Lightweight role helpers
-   * ------------------------------------------------------------------ */
-  const isAdmin = r => r === ROLES.ADMIN;
-  const isDM    = r => r === ROLES.DM;
-  const isLead  = r => r === ROLES.LEAD;
-  const isMe    = r => r === ROLES.ME;
+.users-by-store-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.8rem;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
 
-  /* --------------------------------------------------------------------
-   * Permission wrappers
-   * (Dashboard roots define window.canEdit / window.canDelete; fallbacks)
-   * ------------------------------------------------------------------ */
-  function canEdit(role){
-    if (typeof window.canEdit === "function") return window.canEdit(role);
-    return role !== ROLES.ME; // fallback: everyone but ME
+.users-by-store-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.users-by-store-container::-webkit-scrollbar-track {
+  background: rgba(30, 30, 30, 0.3);
+  border-radius: 8px;
+}
+
+.users-by-store-container::-webkit-scrollbar-thumb {
+  background: rgba(30, 144, 255, 0.6);
+  border-radius: 8px;
+}
+
+.users-by-store-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 144, 255, 0.9);
+}
+
+/* Store block container */
+.user-store-block {
+  background: rgba(18, 20, 35, 0.7);
+  border-radius: 14px;
+  box-shadow: 0 6px 22px rgba(30, 144, 255, 0.45);
+  border: 1.5px solid rgba(30, 144, 255, 0.4);
+  user-select: text;
+  transition: background-color 0.3s ease;
+}
+
+/* Expanded store block */
+.user-store-block-open {
+  background: rgba(30, 144, 255, 0.12);
+  box-shadow: 0 0 26px rgba(30, 144, 255, 0.85);
+}
+
+/* Store summary row */
+.user-store-summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 14px 20px;
+  border-radius: 14px 14px 0 0;
+  font-weight: 700;
+  color: #dbeafe;
+  user-select: none;
+  border-bottom: 1.5px solid rgba(30, 144, 255, 0.35);
+  font-size: 1.1rem;
+}
+
+/* Status classes */
+.staff-full {
+  color: #22c55e; /* green */
+  text-shadow: 0 0 8px #22c55ecc;
+}
+
+.staff-under {
+  color: #facc15; /* amber */
+  text-shadow: 0 0 8px #facc1599;
+}
+
+.staff-empty {
+  color: #6b7280; /* gray */
+  text-shadow: none;
+}
+
+/* Caret */
+.uss-caret {
+  font-size: 1.6rem;
+  color: #60a5fa;
+  min-width: 20px;
+  text-align: center;
+  user-select: none;
+}
+
+/* Store number */
+.uss-name {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Role pills container */
+.uss-role-mix {
+  display: flex;
+  gap: 8px;
+  min-width: 80px;
+  font-size: 1rem;
+}
+
+/* Role pills */
+.uss-role-pill {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  color: white;
+  font-weight: 700;
+  user-select: none;
+  box-shadow: 0 0 8px rgba(30, 144, 255, 0.6);
+  background-color: #3b82f6;
+  transition: background-color 0.3s ease;
+}
+
+.uss-role-pill.lead {
+  background-color: #10b981; /* green */
+  box-shadow: 0 0 10px #10b981cc;
+}
+
+.uss-role-pill.me {
+  background-color: #60a5fa; /* lighter blue */
+  box-shadow: 0 0 10px #60a5faaa;
+}
+
+/* Count */
+.uss-count {
+  font-weight: 700;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* Icon */
+.uss-icon {
+  font-size: 1.3rem;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Store goal input (admin only) */
+.store-goal-input {
+  width: 4.8rem;
+  font-size: 1rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 12px;
+  border: 2px solid rgba(30, 144, 255, 0.5);
+  background: rgba(255, 255, 255, 0.07);
+  color: #cbd5e1;
+  font-weight: 600;
+  text-align: center;
+  transition: border-color 0.3s ease;
+  user-select: text;
+}
+
+.store-goal-input:focus {
+  outline: none;
+  border-color: #4aa8ff;
+  box-shadow: 0 0 12px #4aa8ffcc;
+}
+
+/* User card */
+.user-card {
+  background: rgba(20, 25, 38, 0.85);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  margin-top: 1rem;
+  box-shadow: 0 4px 14px rgba(30, 144, 255, 0.4);
+  color: #cbd5e1;
+  font-size: 1rem;
+  user-select: text;
+  transition: box-shadow 0.3s ease;
+}
+
+.user-card:hover {
+  box-shadow: 0 8px 30px rgba(30, 144, 255, 0.75);
+}
+
+/* User card header */
+.user-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.user-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #60a5fa;
+  user-select: text;
+}
+
+.user-email {
+  font-size: 0.9rem;
+  color: #a5b4fc;
+  user-select: text;
+}
+
+/* Role badge */
+.role-badge {
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  user-select: none;
+  text-transform: uppercase;
+  color: white;
+  background-color: #3b82f6;
+  box-shadow: 0 0 10px #3b82f6cc;
+  white-space: nowrap;
+}
+
+.role-badge.role-me {
+  background-color: #60a5fa;
+  box-shadow: 0 0 12px #60a5faaa;
+}
+
+.role-badge.role-lead {
+  background-color: #10b981;
+  box-shadow: 0 0 12px #10b981cc;
+}
+
+.role-badge.role-dm {
+  background-color: #2563eb;
+  box-shadow: 0 0 12px #2563ebcc;
+}
+
+.role-badge.role-admin {
+  background-color: #ef4444;
+  box-shadow: 0 0 12px #ef4444cc;
+}
+
+/* User card info */
+.user-card-info {
+  display: flex;
+  gap: 1.2rem;
+  font-size: 0.95rem;
+  user-select: text;
+  color: #a5b4fc;
+}
+
+/* User card actions */
+.user-card-actions {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Labels + selects */
+.user-card-actions label {
+  color: #cbd5e1;
+  font-weight: 600;
+  user-select: none;
+  font-size: 0.9rem;
+}
+
+.user-card-actions select {
+  margin-left: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1.5px solid rgba(74, 144, 255, 0.6);
+  color: #cbd5e1;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+  user-select: text;
+}
+
+.user-card-actions select:hover,
+.user-card-actions select:focus {
+  outline: none;
+  border-color: #4aa8ff;
+  box-shadow: 0 0 14px #4aa8ffcc;
+}
+
+/* Delete button */
+.btn-danger-outline {
+  background: transparent;
+  border: 2px solid #ef4444;
+  color: #ef4444;
+  padding: 0.3rem 0.8rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.btn-danger-outline:hover {
+  background: #ef4444;
+  color: white;
+  box-shadow: 0 0 14px #ef4444cc;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .users-section {
+    padding: 1.5rem 2rem;
   }
-  function canDelete(role){
-    if (typeof window.canDelete === "function") return window.canDelete(role);
-    return isAdmin(role) || isDM(role); // fallback
+  .user-store-summary {
+    font-size: 1rem;
+    gap: 0.8rem;
   }
-  function assertEdit(){
-    if (!canEdit(window.currentRole)) throw "PERM_DENIED_EDIT";
+  .uss-name {
+    font-size: 1rem;
   }
-  function assertDelete(){
-    if (!canDelete(window.currentRole)) throw "PERM_DENIED_DELETE";
+  .uss-role-pill {
+    font-size: 0.85rem;
+    padding: 3px 8px;
   }
-
-  /* --------------------------------------------------------------------
-   * VISIBILITY: which users render for viewer?
-   * ------------------------------------------------------------------ */
-  function filterVisibleUsers(users, currentUid, currentRole) {
-    if (!users || !currentUid || !currentRole) return [];
-
-    const currentUser = users[currentUid] || {};
-
-    return Object.entries(users).filter(([uid, u]) => {
-      if (isAdmin(currentRole)) return true;
-
-      if (isDM(currentRole)) {
-        // DM sees everyone except Admin accounts
-        return u.role !== ROLES.ADMIN;
-      }
-
-      if (isLead(currentRole)) {
-        // Lead sees: self, their DM, and all MEs assigned to them
-        if (uid === currentUid) return true;
-        if (u.role === ROLES.ME && u.assignedLead === currentUid) return true;
-        if (u.role === ROLES.DM && currentUser.assignedDM === uid) return true;
-        return false;
-      }
-
-      if (isMe(currentRole)) {
-        // ME sees: self, own Lead, own DM
-        if (uid === currentUid) return true;
-        if (uid === currentUser.assignedLead) return true;
-        if (uid === currentUser.assignedDM) return true;
-        return false;
-      }
-
-      return false;
-    });
+  .user-card {
+    font-size: 0.95rem;
   }
-
-  /* --------------------------------------------------------------------
-   * Store goal lookup
-   *   Priority: stores/<key>.staffGoal -> stores/<key>.goal -> fallback 2
-   *   We try to match storeNumber against _stores keys or storeNumber/number props.
-   * ------------------------------------------------------------------ */
-  function getStoreGoal(storeNumber){
-    const stores = window._stores || {};
-    let goal = null;
-    for (const [k,s] of Object.entries(stores)){
-      const sn = s.storeNumber ?? s.number ?? k;
-      if (sn == storeNumber){ // loose compare
-        goal = parseInt(s.staffGoal ?? s.goal ?? s.staff_goal ?? s.target ?? 2, 10);
-        break;
-      }
-    }
-    if (goal == null || isNaN(goal) || goal <= 0) goal = 2; // default
-    return goal;
+  .user-card-info {
+    flex-direction: column;
+    gap: 0.6rem;
   }
-
-  /* --------------------------------------------------------------------
-   * Persist store staffing goal (Admin only)
-   *   We attempt to find a matching store record; if not found,
-   *   we fall back to /storeStaffGoals/<storeNumber>.
-   * ------------------------------------------------------------------ */
-  async function updateStoreStaffGoal(storeNumber, val){
-    if (!isAdmin(window.currentRole)) return;
-    let num = parseInt(val,10);
-    if (isNaN(num) || num <= 0) num = 1;
-
-    const stores = window._stores || {};
-    let storeKey = null;
-    for (const [k,s] of Object.entries(stores)){
-      const sn = s.storeNumber ?? s.number ?? k;
-      if (sn == storeNumber){ storeKey = k; break; }
-    }
-
-    try {
-      if (storeKey){
-        await window.db.ref(`stores/${storeKey}/staffGoal`).set(num);
-      } else {
-        await window.db.ref(`storeStaffGoals/${storeNumber}`).set(num);
-      }
-      await window.renderAdminApp();
-    } catch (e){
-      alert("Error updating store goal: " + e.message);
-    }
+  .user-card-actions label {
+    display: block;
+    margin-bottom: 0.3rem;
   }
-
-  /* --------------------------------------------------------------------
-   * Compute staffing status for a store
-   *   Count LEAD + ME only (bodies on floor); require at least 1 LEAD
-   * ------------------------------------------------------------------ */
-  function computeStaffStatus(entries, storeNumber) {
-    let leadCount = 0;
-    let meCount   = 0;
-
-    for (const [, u] of entries) {
-      if (u.role === ROLES.LEAD) leadCount++;
-      else if (u.role === ROLES.ME) meCount++;
-    }
-
-    const count   = leadCount + meCount;
-    const hasLead = leadCount > 0;
-    const goal    = getStoreGoal(storeNumber);
-
-    let status, icon, cls;
-    if (count === 0) {
-      status = "empty"; icon = "✖"; cls = "staff-empty";
-    } else if (count >= goal && hasLead) {
-      status = "full"; icon = "✓"; cls = "staff-full";
-    } else {
-      status = "under"; icon = "⚠"; cls = "staff-under";
-    }
-
-    // compact role mix pills (Lead & ME only)
-    const pills = [];
-    if (leadCount) pills.push(`<span class="uss-role-pill lead">L${leadCount>1?leadCount:""}</span>`);
-    if (meCount)   pills.push(`<span class="uss-role-pill me">M${meCount>1?meCount:""}</span>`);
-    const roleMixHtml = pills.join("");
-
-    return { count, goal, hasLead, status, icon, cls, leadCount, meCount, roleMixHtml };
+  .user-card-actions select {
+    width: 100%;
   }
+}
 
-  /* --------------------------------------------------------------------
-   * Collapsed store summary row
-   * ------------------------------------------------------------------ */
-  function storeSummaryHtml(storeNumber, staffStatus, isOpen, isAdminView) {
-    const { count, goal, icon, cls, roleMixHtml, hasLead } = staffStatus;
-    const tooltip = hasLead
-      ? `${count}/${goal} staffed`
-      : `${count}/${goal} staffed (no TL)`;
-    const caret = isOpen ? "▾" : "▸";
-    const editGoalHtml = isAdminView
-      ? `<input type="number" min="1" class="store-goal-input"
-           value="${goal}"
-           onchange="window.users.updateStoreStaffGoal('${storeNumber}', this.value)"
-           onclick="event.stopPropagation();" />`
-      : "";
-
-    return `
-      <div class="user-store-summary ${cls} ${isOpen?"open":""}" data-store="${storeNumber}"
-           onclick="window.users.toggleStoreOpen('${storeNumber}')"
-           title="${tooltip}">
-        <span class="uss-caret">${caret}</span>
-        <span class="uss-name">${storeNumber}</span>
-        <span class="uss-role-mix">${roleMixHtml || ""}</span>
-        <span class="uss-count">${count}/${goal}</span>
-        <span class="uss-icon">${icon}</span>
-        ${editGoalHtml}
-      </div>
-    `;
+@media (max-width: 480px) {
+  .user-store-summary {
+    font-size: 0.9rem;
+    gap: 0.6rem;
   }
-
-  /* --------------------------------------------------------------------
-   * Full user card (expanded detail)
-   * ------------------------------------------------------------------ */
-  function userDetailCardHtml(uid, u, users, currentRole) {
-    const lead = users[u.assignedLead] || {};
-    const dm   = users[u.assignedDM]   || {};
-    const editableRole = (isAdmin(currentRole)) || (isDM(currentRole) && u.role !== ROLES.ADMIN);
-    const canAssignLead = isAdmin(currentRole) || isDM(currentRole);
-    const canAssignDM   = isAdmin(currentRole);
-    const canDeleteUser = isAdmin(currentRole) || isDM(currentRole);
-
-    const roleSelect = editableRole ? `
-      <label>Role:
-        <select onchange="window.users.changeUserRole('${uid}', this.value)">
-          <option value="${ROLES.ME}" ${u.role===ROLES.ME?'selected':''}>ME</option>
-          <option value="${ROLES.LEAD}" ${u.role===ROLES.LEAD?'selected':''}>Lead</option>
-          <option value="${ROLES.DM}" ${u.role===ROLES.DM?'selected':''}>DM</option>
-          <option value="${ROLES.ADMIN}" ${u.role===ROLES.ADMIN?'selected':''}>Admin</option>
-        </select>
-      </label>` : "";
-
-    const leadSelect = canAssignLead ? `
-      <label>Assign Lead:
-        <select onchange="window.users.assignLeadToGuest('${uid}', this.value)">
-          <option value="">None</option>
-          ${Object.entries(users)
-            .filter(([, x]) => x.role === ROLES.LEAD)
-            .map(([id,x])=>`<option value="${id}" ${u.assignedLead===id?'selected':''}>${x.name||x.email}</option>`)
-            .join("")}
-        </select>
-      </label>` : "";
-
-    const dmSelect = canAssignDM ? `
-      <label>Assign DM:
-        <select onchange="window.users.assignDMToLead('${uid}', this.value)">
-          <option value="">None</option>
-          ${Object.entries(users)
-            .filter(([, x]) => x.role === ROLES.DM)
-            .map(([id,x])=>`<option value="${id}" ${u.assignedDM===id?'selected':''}>${x.name||x.email}</option>`)
-            .join("")}
-        </select>
-      </label>` : "";
-
-    const deleteBtn = canDeleteUser
-      ? `<button class="btn btn-danger-outline" onclick="window.users.deleteUser('${uid}')">Delete</button>`
-      : "";
-
-    return `
-      <div class="user-card">
-        <div class="user-card-header">
-          <div>
-            <div class="user-name">${u.name || u.email}</div>
-            <div class="user-email">${u.email}</div>
-          </div>
-          <span class="role-badge role-${u.role}">${u.role.toUpperCase()}</span>
-        </div>
-        <div class="user-card-info">
-          <div><b>Store:</b> ${u.store || '-'}</div>
-          <div><b>Lead:</b> ${lead.name || lead.email || '-'}</div>
-          <div><b>DM:</b> ${dm.name || dm.email || '-'}</div>
-        </div>
-        ${(roleSelect || leadSelect || dmSelect || deleteBtn) ? `
-        <div class="user-card-actions">
-          ${roleSelect}
-          ${leadSelect}
-          ${dmSelect}
-          ${deleteBtn}
-        </div>` : ""}
-      </div>
-    `;
+  .uss-caret {
+    font-size: 1.3rem;
   }
-
-  /* --------------------------------------------------------------------
-   * Expanded store block (summary + list of user cards)
-   * ------------------------------------------------------------------ */
-  function storeBlockHtml(storeNumber, entries, users, currentRole) {
-    const isOpen = !!window._userStoresOpen[storeNumber];
-    const status = computeStaffStatus(entries, storeNumber);
-    const summaryHtml = storeSummaryHtml(storeNumber, status, isOpen, isAdmin(currentRole));
-
-    if (!isOpen) {
-      return `
-        <div class="user-store-block">${summaryHtml}</div>
-      `;
-    }
-
-    const cards = entries.map(([uid,u]) => userDetailCardHtml(uid,u,users,currentRole)).join("");
-    return `
-      <div class="user-store-block user-store-block-open">
-        ${summaryHtml}
-        <div class="user-store-detail">
-          ${cards}
-        </div>
-      </div>
-    `;
+  .user-card-actions {
+    flex-direction: column;
   }
-
-  /* --------------------------------------------------------------------
-   * Main render
-   * ------------------------------------------------------------------ */
-  function renderUsersSection(users, currentRole, currentUid) {
-    const visibleUsers = filterVisibleUsers(users, currentUid, currentRole);
-
-    // group by store
-    const storeMap = new Map(); // storeNumber -> array of [uid,u]
-    const UNASSIGNED = "(Unassigned)";
-    for (const [uid,u] of visibleUsers){
-      const sn = (u.store ?? "").toString().trim() || UNASSIGNED;
-      if (!storeMap.has(sn)) storeMap.set(sn, []);
-      storeMap.get(sn).push([uid,u]);
-    }
-
-    // sort store keys numeric when possible
-    const sortedStores = Array.from(storeMap.keys()).sort((a,b)=>{
-      const an = parseInt(a,10), bn = parseInt(b,10);
-      if (!isNaN(an) && !isNaN(bn)) return an - bn;
-      return a.localeCompare(b);
-    });
-
-    const blocksHtml = sortedStores.map(sn =>
-      storeBlockHtml(sn, storeMap.get(sn), users, currentRole)
-    ).join("");
-
-    return `
-      <section class="admin-section users-section">
-        <h2>Users</h2>
-        <div class="users-by-store-container">
-          ${blocksHtml}
-        </div>
-      </section>
-    `;
+  .user-card-actions select {
+    width: 100%;
   }
-
-  /* --------------------------------------------------------------------
-   * Store open/close toggle
-   * ------------------------------------------------------------------ */
-  function toggleStoreOpen(storeNumber){
-    window._userStoresOpen[storeNumber] = !window._userStoresOpen[storeNumber];
-    window.renderAdminApp();
-  }
-
-  /* --------------------------------------------------------------------
-   * CRUD ops delegated to Firebase
-   * ------------------------------------------------------------------ */
-  async function changeUserRole(uid, role) {
-    assertEdit();
-    await window.db.ref(`users/${uid}/role`).set(role);
-    await window.renderAdminApp();
-  }
-
-  async function assignLeadToGuest(guestUid, leadUid) {
-    assertEdit();
-    await window.db.ref(`users/${guestUid}/assignedLead`).set(leadUid || null);
-    await window.renderAdminApp();
-  }
-
-  async function assignDMToLead(leadUid, dmUid) {
-    assertEdit();
-    await window.db.ref(`users/${leadUid}/assignedDM`).set(dmUid || null);
-    await window.renderAdminApp();
-  }
-
-  async function deleteUser(uid) {
-    assertDelete();
-    if (!confirm("Delete this user?")) return;
-    await window.db.ref(`users/${uid}`).remove();
-    await window.renderAdminApp();
-  }
-
-  /* --------------------------------------------------------------------
-   * Expose public API
-   * ------------------------------------------------------------------ */
-  window.users = {
-    renderUsersSection,
-    changeUserRole,
-    assignLeadToGuest,
-    assignDMToLead,
-    deleteUser,
-    toggleStoreOpen,
-    updateStoreStaffGoal
-  };
-
-})();
+}
