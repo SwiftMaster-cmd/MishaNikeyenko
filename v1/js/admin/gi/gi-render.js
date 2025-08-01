@@ -188,25 +188,18 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
 
-  // Transparent glassy card background with blur and subtle refracted edges
-  const bg = "transparent";
-
-  // Glass blur and border for refracted edges effect
   const cardStyle = `
-    background: ${bg};
+    background: transparent;
     border-radius: var(--radius-md);
-    padding: 12px 24px; /* more padding on sides */
+    padding: 12px 24px;
     position: relative;
-    backdrop-filter: blur(14px) saturate(150%);
-    -webkit-backdrop-filter: blur(14px) saturate(150%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow:
-      0 8px 32px 0 rgba(31, 38, 135, 0.1),
-      inset 0 0 10px 0 rgba(255, 255, 255, 0.05);
-    color: #dbeafe;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: none;
+    box-shadow: none;
+    color: inherit;
   `;
 
-  // determine pitch %
   const savedPct = typeof g.completionPct === "number"
     ? g.completionPct
     : (g.completion?.pct ?? null);
@@ -214,23 +207,19 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
     ? savedPct
     : computeGuestPitchQuality(normGuest(g)).pct;
 
-  // mask phone
   const raw    = esc(g.custPhone || "");
   const num    = digitsOnly(g.custPhone || "");
   const last4  = num.slice(-4).padStart(4, "0");
   const masked = `XXX-${last4}`;
 
-  // time ago
   const when = timeAgo(g.submittedAt);
 
-  // submitted by bubble with distinct glow
   const roleCls = currentRole === "me"    ? "role-badge role-me"
                  : currentRole === "lead" ? "role-badge role-lead"
                  : currentRole === "dm"   ? "role-badge role-dm"
                                            : "role-badge role-admin";
   const nameLabel = esc(submitter.name || submitter.email || "-");
 
-  // actions hidden by default
   const sold   = detectStatus(g) === "sold";
   const canEdit = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
   const canSold = canEdit && !sold;
