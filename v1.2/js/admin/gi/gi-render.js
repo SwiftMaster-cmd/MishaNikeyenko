@@ -137,24 +137,12 @@ export function groupByStatus(guestMap) {
   return groups;
 }
 
-// ── Section renderer ───────────────────────────────────────────────────────
-export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight = false) {
-  if (!rows?.length) {
-    return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
-  }
-  return rows.map(([id, g]) =>
-    guestCardHtml(id, g, users, currentUid, currentRole)
-  ).join("");
-}
-
 export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
 
-  // Glassy background for card
   const bg = "rgba(23, 30, 45, 0.7)";
 
-  // determine pitch %
   const savedPct = typeof g.completionPct === "number"
     ? g.completionPct
     : (g.completion?.pct ?? null);
@@ -162,23 +150,19 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
     ? savedPct
     : computeGuestPitchQuality(normGuest(g)).pct;
 
-  // mask phone
   const raw    = esc(g.custPhone || "");
   const num    = digitsOnly(g.custPhone || "");
   const last4  = num.slice(-4).padStart(4, "0");
   const masked = `XXX-${last4}`;
 
-  // time ago
   const when = timeAgo(g.submittedAt);
 
-  // submitted by bubble with distinct glow
   const roleCls = currentRole === "me"    ? "role-badge role-me"
                  : currentRole === "lead" ? "role-badge role-lead"
                  : currentRole === "dm"   ? "role-badge role-dm"
                                            : "role-badge role-admin";
   const nameLabel = esc(submitter.name || submitter.email || "-");
 
-  // actions hidden by default
   const sold   = detectStatus(g) === "sold";
   const canEdit = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
   const canSold = canEdit && !sold;
@@ -202,6 +186,11 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         text-align: center;
         color: #dbeafe;
         user-select: text;
+        cursor: pointer;
+        transition: text-decoration 0.3s ease;
+      }
+      #guest-card-${id} .guest-name:hover {
+        text-decoration: underline;
       }
       @media (min-width: 768px) {
         #guest-card-${id} .guest-name {
@@ -254,49 +243,55 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         color: #9ca3af;
         user-select: none;
       }
+
+      /* Card container spacing and padding for mobile */
+      #guest-card-${id} {
+        margin: 1rem 0.75rem;
+        border-radius: var(--radius-md);
+        padding: 12px;
+        background: ${bg};
+        box-sizing: border-box;
+        box-shadow: 0 0 15px rgba(30, 144, 255, 0.2);
+      }
+
+      @media (max-width: 600px) {
+        #guest-card-${id} {
+          margin-left: 1rem;
+          margin-right: 1rem;
+          padding: 1rem 1.2rem;
+        }
+      }
     </style>
 
-    <div class="guest-card" id="guest-card-${id}"
-         style="background:${bg};border-radius:var(--radius-md);padding:12px;position:relative;">
+    <div class="guest-card" id="guest-card-${id}">
       <!-- header: status + pitch + toggle -->
       <div style="display:flex;align-items:center;gap:8px;">
-        <span class="${statusCls}"
-              style="padding:2px 8px;border-radius:999px;font-size:.85em;">
+        <span class="${statusCls}" style="padding:2px 8px;border-radius:999px;font-size:.85em;">
           ${statusLbl}
         </span>
-        <span class="guest-pitch-pill"
-              style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};border:1px solid #fff;">
+        <span class="guest-pitch-pill" style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};border:1px solid #fff;">
           ${pct}%
         </span>
-        <button class="btn-edit-actions"
-                style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
-                onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
+        <button class="btn-edit-actions" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;" onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
       </div>
 
-      <!-- customer name centered -->
-      <div class="guest-name">
-        ${esc(g.custName || "-")}
-      </div>
+      <!-- customer name centered with click -->
+      <div class="guest-name" onclick="window.guestinfo.openGuestInfoPage('${id}')">${esc(g.custName || "-")}</div>
 
       <!-- footer: submitted by, phone toggle, time -->
       <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-        <span class="submitter-name" title="Submitted by">
-          ${nameLabel}
-        </span>
+        <span class="submitter-name" title="Submitted by">${nameLabel}</span>
         <span class="guest-phone" 
               data-raw="${raw}" 
               data-mask="${masked}" 
               onclick="(function(e){navigator.clipboard.writeText('${raw}'); alert('Copied: ${raw}');})(event)">
           ${masked}
         </span>
-        <span class="guest-time">
-          ${when}
-        </span>
+        <span class="guest-time">${when}</span>
       </div>
 
       <!-- hidden actions -->
-      <div class="guest-card-actions"
-           style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
+      <div class="guest-card-actions" style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
         ${actions}
       </div>
 
@@ -312,4 +307,4 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         </div>
       </form>
     </div>`;
-}
+}    
