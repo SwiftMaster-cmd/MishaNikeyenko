@@ -111,7 +111,6 @@ export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
 }
 
 export function statusBadge(status) {
-  // Glassy status badges with subtle coloring
   const map = {
     new:      ["role-badge role-guest", "NEW"],
     working:  ["role-badge role-lead",  "WORKING"],
@@ -121,40 +120,52 @@ export function statusBadge(status) {
   return map[status] || map.new;
 }
 
-export function groupByStatus(guestMap) {
-  const groups = { new:[], working:[], proposal:[], sold:[] };
-  for (const [id, g] of Object.entries(guestMap)) {
-    const st = detectStatus(g);
-    (groups[st] ||= []).push([id, g]);
-  }
-  for (const arr of Object.values(groups)) {
-    arr.sort((a, b) => {
-      const ta = Math.max(a[1].updatedAt||0, a[1].submittedAt||0, a[1].sale?.soldAt||0);
-      const tb = Math.max(b[1].updatedAt||0, b[1].submittedAt||0, b[1].sale?.soldAt||0);
-      return tb - ta;
-    });
-  }
-  return groups;
-}
+// ── Main render function ────────────────────────────────────────────────
+export function renderGuestCards(guestMap, users, currentUid, currentRole) {
+  const containerStyle = `
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    box-sizing: border-box;
+  `;
 
-// ── Section renderer ───────────────────────────────────────────────────────
-export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight = false) {
-  if (!rows?.length) {
-    return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
+  // Responsive CSS added inline
+  const styleId = "guest-cards-responsive-style";
+  if (!document.getElementById(styleId)) {
+    const styleEl = document.createElement("style");
+    styleEl.id = styleId;
+    styleEl.textContent = `
+      @media (min-width: 600px) {
+        #guestCardsContainer {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (min-width: 1024px) {
+        #guestCardsContainer {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+    `;
+    document.head.appendChild(styleEl);
   }
-  return rows.map(([id, g]) =>
-    guestCardHtml(id, g, users, currentUid, currentRole)
-  ).join("");
+
+  // Render all cards as grid items
+  const cardsHtml = Object.entries(guestMap).map(([id, g]) => guestCardHtml(id, g, users, currentUid, currentRole)).join("");
+
+  return `
+    <div id="guestCardsContainer" style="${containerStyle}" role="list">
+      ${cardsHtml}
+    </div>
+  `;
 }
 
 export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
-
-  // Glassy background for card
   const bg = "rgba(23, 30, 45, 0.7)";
-  
-  // determine pitch %
+
+  // Pitch %
   const savedPct = typeof g.completionPct === "number"
     ? g.completionPct
     : (g.completion?.pct ?? null);
@@ -162,28 +173,30 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
     ? savedPct
     : computeGuestPitchQuality(normGuest(g)).pct;
 
-  // mask phone
+  // Mask phone
   const raw    = esc(g.custPhone || "");
   const num    = digitsOnly(g.custPhone || "");
   const last4  = num.slice(-4).padStart(4, "0");
   const masked = `XXX-${last4}`;
 
-  // time ago
+  // Time ago
   const when = timeAgo(g.submittedAt);
 
-  // submitter role badge class
+  // Submitter role class
   const roleCls = currentRole === "me"    ? "role-badge role-me"
                  : currentRole === "lead" ? "role-badge role-lead"
                  : currentRole === "dm"   ? "role-badge role-dm"
                                            : "role-badge role-admin";
+
   const nameLabel = esc(submitter.name || submitter.email || "-");
 
-  // actions permissions
+  // Permissions & actions hidden behind menu
   const sold   = detectStatus(g) === "sold";
   const canEdit = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
   const canSold = canEdit && !sold;
+
   const actions = [
-    `<button class="btn" onclick="window.guestinfo.openGuestInfoPage('${id}')">${g.evaluate||g.solution||g.sale ? "Open" : "Continue"}</button>`,
+    `<button class="btn" onclick="window.guestinfo.openGuestInfoPage('${id}')">Open</button>`,
     canEdit ? `<button class="btn" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
     canSold ? `<button class="btn" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
     sold    ? `<button class="btn btn-danger" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
@@ -192,24 +205,21 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
 
   return `
     <style>
-      /* Container grid handled outside, card styling here */
       #guest-card-${id} {
         background: ${bg};
         border-radius: var(--radius-md);
-        padding: 12px;
+        padding: 1rem 1.2rem;
         box-shadow: 0 0 15px rgba(30, 144, 255, 0.2);
         display: flex;
         flex-direction: column;
         user-select: none;
         box-sizing: border-box;
         cursor: default;
-        transition: box-shadow 0.25s ease;
+        position: relative;
       }
       #guest-card-${id}:hover {
         box-shadow: 0 0 25px rgba(30, 144, 255, 0.5);
       }
-
-      /* Guest name clickable */
       #guest-card-${id} .guest-name {
         font-weight: 600;
         font-size: 1.25rem;
@@ -223,8 +233,6 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
       #guest-card-${id} .guest-name:hover {
         text-decoration: underline;
       }
-
-      /* Submitter bubble */
       #guest-card-${id} .submitter-name {
         padding: 2px 8px;
         border-radius: 999px;
@@ -240,8 +248,6 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         text-align: center;
         margin-bottom: 0.5rem;
       }
-
-      /* Phone number */
       #guest-card-${id} .guest-phone {
         cursor: pointer;
         padding: 2px 8px;
@@ -257,8 +263,6 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         background: var(--brand);
         color: #f0f9ff;
       }
-
-      /* Time */
       #guest-card-${id} .guest-time {
         padding: 2px 8px;
         border-radius: 999px;
@@ -269,17 +273,34 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         text-align: center;
         margin-top: 0.5rem;
       }
-
-      /* Actions container */
+      #guest-card-${id} .btn-menu {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: transparent;
+        border: none;
+        color: #55baff;
+        font-size: 1.6rem;
+        cursor: pointer;
+        user-select: none;
+        padding: 4px;
+        line-height: 1;
+        border-radius: 999px;
+        transition: background 0.3s ease;
+      }
+      #guest-card-${id} .btn-menu:hover {
+        background: rgba(30,144,255,0.2);
+      }
       #guest-card-${id} .guest-card-actions {
-        display: flex;
+        display: none;
         flex-wrap: wrap;
         gap: 6px;
-        margin-top: 12px;
+        margin-top: 40px;
         justify-content: center;
       }
-
-      /* Buttons */
+      #guest-card-${id} .guest-card-actions.active {
+        display: flex;
+      }
       #guest-card-${id} .btn {
         font-weight: 700;
         border-radius: var(--radius-md);
@@ -307,10 +328,12 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
       }
     </style>
 
-    <div id="guest-card-${id}" class="guest-card" role="button" tabindex="0" 
-      aria-label="Open lead for ${esc(g.custName || 'Unknown')}">
+    <div id="guest-card-${id}" class="guest-card" role="listitem" tabindex="0" aria-label="Open lead for ${esc(g.custName || "Unknown")}">
 
-      <div class="guest-name" onclick="window.guestinfo.openGuestInfoPage('${id}')"
+      <button class="btn-menu" aria-label="Toggle actions menu" onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
+
+      <div class="guest-name" 
+           onclick="window.guestinfo.openGuestInfoPage('${id}')"
            onkeydown="if(event.key==='Enter' || event.key===' ') { window.guestinfo.openGuestInfoPage('${id}'); event.preventDefault(); }"
            role="link" tabindex="0" style="outline:none;">
         ${esc(g.custName || "-")}
@@ -337,4 +360,13 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
       </div>
     </div>
   `;
+}
+
+// Toggle the visibility of the actions menu per card
+export function toggleActionButtons(id) {
+  const card = document.getElementById(`guest-card-${id}`);
+  if (!card) return;
+  const actions = card.querySelector(".guest-card-actions");
+  if (!actions) return;
+  actions.classList.toggle("active");
 }
