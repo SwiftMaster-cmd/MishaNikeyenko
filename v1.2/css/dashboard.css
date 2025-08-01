@@ -49,24 +49,32 @@
   gap: 1rem;
 }
 
-/* Buttons in header */
+/* Buttons in header - updated style */
 .admin-header button {
   font-weight: 700;
-  border-radius: 12px;
-  padding: 0.5em 1.4em;
+  border-radius: var(--radius-md);
+  padding: 0.48em 1.3em;
   font-size: 1rem;
-  background: var(--brand);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(0,140,255,0.5);
+  background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
+  color: #f9fdff;
+  box-shadow:
+    inset 0 1px 1px rgba(255 255 255 / 0.3),
+    0 3px 10px rgba(0 123 255 / 0.5);
   border: none;
   cursor: pointer;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+  backdrop-filter: saturate(180%) blur(6px);
+  user-select: none;
+  white-space: nowrap;
 }
 
 .admin-header button:hover,
 .admin-header button:focus {
-  background: var(--brand-accent);
-  box-shadow: 0 6px 18px rgba(30,144,255,0.7);
+  background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
+  box-shadow:
+    inset 0 2px 3px rgba(255 255 255 / 0.5),
+    0 6px 18px rgba(30 144 255 / 0.8);
+  transform: scale(1.05);
   outline: none;
 }
 
