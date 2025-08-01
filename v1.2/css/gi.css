@@ -1,154 +1,144 @@
 /* ==========================================================================
-   Guest Info Section - Unified Modern, Clean, Polished (2025)
+   Guest Info Section (2025) – Modern, Unified, Glassy, NO Fake Glows
    ========================================================================== */
 
-/* --- Section Container --- */
+/* --- Section --- */
 .guestinfo-section {
   background: #181f2e;
-  border-radius: 22px;
-  box-shadow: 0 4px 24px #127cff14, 0 1px 12px #5ac8fa10 inset;
-  padding: 2.2rem 2rem;
+  border-radius: 18px;
+  box-shadow: 0 2px 18px #127cff19, 0 1px 8px #5ac8fa11 inset;
+  padding: 2.1rem 1.6rem;
   color: #eaf2ff;
-  font-family: "SF Pro Text", "Inter", system-ui, Arial, sans-serif;
+  font-family: "SF Pro Text", "Inter", Arial, sans-serif;
   margin: 0 auto 2.7rem auto;
   max-width: 100%;
   user-select: none;
-  transition: box-shadow 0.3s, background 0.3s;
+  transition: box-shadow 0.2s, background 0.2s;
 }
 
 /* --- Controls/Filters --- */
 .guestinfo-controls {
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
-  margin-bottom: 1.7rem;
+  gap: 1rem;
+  margin-bottom: 1.3rem;
 }
 
 .guestinfo-controls > div:first-child {
-  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
 }
 
 #filter-panel {
-  display: flex; flex-wrap: wrap; gap: 12px;
-  background: #222e47;
-  border-radius: 13px;
-  padding: 1.1rem 1.2rem;
-  margin-top: 0.3rem;
-  border: 1.5px solid #27407033;
-  box-shadow: 0 2px 8px #127cff0a;
+  display: flex; flex-wrap: wrap; gap: 10px;
+  background: #1d273a;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  margin-top: 0.2rem;
+  border: 1.3px solid #25345230;
+  box-shadow: 0 1px 5px #127cff0a;
   user-select: text;
 }
 
-/* --- Search Inputs --- */
+/* --- Inputs --- */
 .search-wrapper {
   position: relative;
-  min-width: 140px;
-  flex: 1 1 140px;
-  max-width: 240px;
+  min-width: 130px;
+  flex: 1 1 120px;
+  max-width: 210px;
 }
-
-.search-wrapper input[type="text"],
-.search-wrapper input[type="date"] {
+.search-wrapper input[type="text"], .search-wrapper input[type="date"] {
   width: 100%;
-  padding: 0.7rem 2.1rem 0.7rem 0.9rem;
-  border-radius: 9px;
-  border: 1.3px solid #27407044;
-  background: #181f2e;
+  padding: 0.6rem 2rem 0.6rem 0.8rem;
+  border-radius: 8px;
+  border: 1.2px solid #25345240;
+  background: #151b28;
   color: #eaf2ff;
-  font-size: 1rem;
+  font-size: 0.97rem;
   font-weight: 600;
   outline: none;
-  transition: border-color 0.2s, background 0.19s;
+  transition: border-color 0.18s, background 0.16s;
 }
-
 .search-wrapper input:focus {
   border-color: #127cff;
   background: #1e263b;
 }
-
-/* --- Clear (X) Button --- */
 .clear-btn {
   position: absolute;
-  right: 8px; top: 50%;
+  right: 7px; top: 50%;
   transform: translateY(-50%);
-  background: transparent; border: none;
-  color: #5ac8fa;
-  font-size: 1.22rem;
-  opacity: 0.65;
-  cursor: pointer;
-  transition: opacity 0.16s;
-  padding: 0;
-  line-height: 1;
+  background: none; border: none;
+  color: #5ac8fa; font-size: 1.17rem;
+  opacity: 0.6; cursor: pointer; padding: 0; line-height: 1;
+  transition: opacity 0.13s;
 }
 .clear-btn:hover { opacity: 1; }
 
-/* --- Filter/Action Buttons --- */
+/* --- Buttons --- */
 .btn, .btn-sm {
   border: none;
-  border-radius: 11px;
-  padding: 0.56rem 1.22rem;
+  border-radius: 10px;
+  padding: 0.48rem 1.18rem;
   font-size: 1rem;
   font-weight: 700;
-  background: #274070;
+  background: #253452;
   color: #59bbff;
   cursor: pointer;
-  min-width: 88px;
+  min-width: 78px;
   letter-spacing: 0.01em;
-  transition: background 0.16s, color 0.14s, transform 0.12s;
+  transition: background 0.13s, color 0.13s, transform 0.11s;
   user-select: none;
 }
-.btn:hover, .btn:focus { background: #127cff; color: #fff; transform: scale(1.04); }
+.btn:hover, .btn:focus { background: #127cff; color: #fff; transform: scale(1.04);}
 .btn-success     { background: #19c87b; color: #fff; }
 .btn-success:hover, .btn-success:focus { background: #0fa864; color: #fff; }
-.btn-warning     { background: #ffd365; color: #6b5400; }
-.btn-warning:hover, .btn-warning:focus { background: #ffe16b; color: #493c00; }
-.btn-secondary   { background: #223055; color: #4aa8ff; }
-.btn-secondary:hover, .btn-secondary:focus { background: #127cff; color: #fff; }
+.btn-warning     { background: #ffd365; color: #544900; }
+.btn-warning:hover, .btn-warning:focus { background: #ffe16b; color: #322700; }
+.btn-secondary   { background: #1d273a; color: #4aa8ff; }
+.btn-secondary:hover, .btn-secondary:focus { background: #127cff; color: #fff;}
 .btn-clear-filters {
   background: transparent;
   color: #4aa8ffcc;
   text-decoration: underline;
-  padding: 0.42rem 1rem;
+  padding: 0.32rem 0.7rem;
   font-weight: 600;
 }
 .btn-clear-filters:hover { color: #00baff; text-decoration: none; }
 
-/* --- Card List & Empty State --- */
+/* --- Card/Empty State --- */
 .guestinfo-empty, .guestinfo-empty-all {
   text-align: center;
-  margin-top: 1.6rem;
+  margin-top: 1.2rem;
   color: #8ecaff;
   opacity: 0.93;
+  font-weight: 700;
 }
 .guestinfo-empty-all p b {
-  font-size: 1.27rem;
+  font-size: 1.15rem;
   color: #50cfff;
-  text-shadow: 0 1px 10px #193c6c2a;
+  text-shadow: 0 1px 8px #193c6c1a;
   font-weight: 800;
 }
 
 /* --- Cards --- */
 .guest-card {
-  background: #181f2e;
-  border-radius: 16px;
-  box-shadow: 0 2px 14px #127cff13;
-  padding: 1.35rem 1.15rem;
-  margin-bottom: 1.1rem;
+  background: #202842;
+  border-radius: 12px;
+  box-shadow: 0 1px 9px #127cff13;
+  padding: 1.18rem 1.09rem;
+  margin-bottom: 0.85rem;
   position: relative;
-  transition: box-shadow 0.18s, background 0.17s;
-  animation: fadeInUp 0.57s cubic-bezier(.42,0,.18,1) both;
+  transition: box-shadow 0.12s, background 0.14s;
+  animation: fadeInUp 0.39s cubic-bezier(.42,0,.18,1) both;
 }
 .guest-card:hover {
-  background: #223055;
-  box-shadow: 0 5px 26px #127cff27;
+  background: #273258;
+  box-shadow: 0 3px 18px #127cff19;
 }
-
-/* --- Card header --- */
 .guest-card > div:first-child {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 0.2rem;
 }
 .role-badge {
-  padding: 5px 13px;
+  padding: 4px 12px;
   border-radius: 9999px;
   font-weight: 700;
   font-size: 0.92rem;
@@ -156,59 +146,55 @@
   white-space: nowrap;
   background: #127cff;
   color: #fff;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.025em;
   user-select: none;
+  box-shadow: none;
 }
 .role-guest  { background: #1973e6; }
 .role-lead   { background: #19c87b; }
 .role-dm     { background: #1177d1; }
 .role-admin  { background: #ff495c; }
 .role-me     { background: #ffd365; color: #323232; }
-
 .guest-pitch-pill {
-  margin-left: 9px;
+  margin-left: 7px;
   font-weight: 800;
   font-size: 0.92rem;
   border-radius: 9999px;
-  padding: 5px 13px;
-  background: linear-gradient(90deg, #19c87b 45%, #017b47 100%);
+  padding: 4px 12px;
+  background: #1db16c;
   color: #fff;
   user-select: none;
+  box-shadow: none;
 }
 .btn-edit-actions {
   margin-left: auto;
-  background: transparent;
+  background: none;
   border: none;
-  font-size: 1.37rem;
+  font-size: 1.2rem;
   color: #4aa8ffb7;
   cursor: pointer;
-  transition: color 0.17s;
+  transition: color 0.14s;
 }
 .btn-edit-actions:hover { color: #127cff; }
-
-/* --- Customer name --- */
 .guest-card > div:nth-child(2) {
   text-align: center;
   font-weight: 700;
-  font-size: 1.16rem;
+  font-size: 1.08rem;
   color: #eaf2ff;
-  margin: 10px 0 7px 0;
+  margin: 8px 0 4px 0;
   user-select: text;
 }
-
-/* --- Footer --- */
 .guest-card > div:nth-child(3) {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; font-size: 0.95rem; color: #abb9cf; margin-top: 0.4rem;
+  gap: 7px; font-size: 0.91rem; color: #abb9cf; margin-top: 0.2rem;
 }
-
 .guest-phone, .guest-time {
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 9999px;
   background: #223055;
   color: #5ac8fa;
   font-weight: 600;
-  transition: background 0.14s, color 0.12s;
+  transition: background 0.12s, color 0.12s;
   cursor: pointer;
   user-select: none;
 }
@@ -222,35 +208,33 @@
 .guest-card-actions {
   display: none;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 8px;
+  margin-top: 9px;
 }
-
-/* --- Edit Form --- */
 .guest-edit-form {
   display: none;
-  margin-top: 11px;
+  margin-top: 8px;
   user-select: text;
-  animation: fadeInUp 0.4s cubic-bezier(.45,0,.22,1) both;
+  animation: fadeInUp 0.29s cubic-bezier(.45,0,.22,1) both;
 }
 .guest-edit-form label {
   display: flex; flex-direction: column;
-  margin-bottom: 11px; color: #c5dafc; font-size: 1rem; font-weight: 600;
+  margin-bottom: 8px; color: #c5dafc; font-size: 0.98rem; font-weight: 600;
 }
 .guest-edit-form input[type="text"],
 .guest-edit-form textarea {
-  margin-top: 7px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1.3px solid #2740704a;
-  background: #222e47;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #2534523a;
+  background: #181f2e;
   color: #c5dafc;
-  font-size: 1.07rem;
+  font-size: 1rem;
   font-family: inherit;
   font-weight: 600;
-  transition: border-color 0.21s;
+  transition: border-color 0.15s;
   resize: vertical;
-  min-height: 54px;
+  min-height: 44px;
 }
 .guest-edit-form input[type="text"]:focus,
 .guest-edit-form textarea:focus {
@@ -260,29 +244,24 @@
 
 /* --- Animations --- */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px);}
+  from { opacity: 0; transform: translateY(14px);}
   to { opacity: 1; transform: translateY(0);}
 }
 
 /* --- Responsive --- */
 @media (max-width: 950px) {
-  .guestinfo-section { padding: 1.4rem 0.5rem; }
-  .guestinfo-controls > div:first-child { flex-direction: column; gap: 7px;}
-  #filter-panel { flex-direction: column; gap: 9px; padding: 0.8rem;}
-  .search-wrapper { min-width: 110px; max-width: 100%;}
-  .btn, .btn-sm { min-width: 80px; font-size: 0.97rem;}
+  .guestinfo-section { padding: 1.1rem 0.5rem; }
+  .guestinfo-controls > div:first-child { flex-direction: column; gap: 6px;}
+  #filter-panel { flex-direction: column; gap: 8px; padding: 0.6rem;}
+  .search-wrapper { min-width: 90px; max-width: 100%;}
+  .btn, .btn-sm { min-width: 70px; font-size: 0.96rem;}
 }
 @media (max-width: 600px) {
-  .guestinfo-section { padding: 1rem 0.15rem; }
-  .guest-card { padding: 1rem 0.38rem; }
-  .guestinfo-controls { gap: 0.7rem;}
-  .btn, .btn-sm { min-width: 70px; font-size: 0.95rem;}
-  .guest-card > div:nth-child(2) { font-size: 1rem; }
+  .guestinfo-section { padding: 0.7rem 0.1rem; }
+  .guest-card { padding: 0.7rem 0.2rem; }
+  .guestinfo-controls { gap: 0.5rem;}
+  .btn, .btn-sm { min-width: 60px; font-size: 0.93rem;}
+  .guest-card > div:nth-child(2) { font-size: 0.97rem; }
 }
-
-/* --- Accessibility tweaks --- */
 input, textarea, button { font-family: inherit; }
 ::placeholder { color: #a9bbd8; opacity: 1; }
-::-webkit-input-placeholder { color: #a9bbd8; }
-::-moz-placeholder          { color: #a9bbd8; }
-:-ms-input-placeholder      { color: #a9bbd8; }
