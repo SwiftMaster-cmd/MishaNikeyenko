@@ -1,0 +1,304 @@
+/* ==========================================================================
+   Reviews Section CSS Overhaul
+   ========================================================================== */
+
+/* --- Base Section --- */
+.reviews-section {
+  background: rgba(15, 20, 30, 0.9);
+  border-radius: 16px;
+  padding: 1.8rem 2.2rem;
+  box-shadow:
+    0 0 28px rgba(0, 180, 255, 0.3),
+    inset 0 0 50px rgba(0, 180, 255, 0.12);
+  animation: slowPulseGlow 14s ease-in-out infinite;
+  color: #c0e6ff;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  user-select: none;
+}
+
+/* --- Section Header --- */
+.reviews-section h2 {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #00bfff;
+  text-shadow: 0 0 14px #00bfffcc;
+  margin-bottom: 1.2rem;
+  user-select: text;
+}
+
+/* --- Reviews Container --- */
+.reviews-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  max-height: 75vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* --- Store Summary (Collapsed Header) --- */
+.store-summary {
+  background-color: rgba(0, 60, 100, 0.5);
+  border-radius: 14px;
+  padding: 14px 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #80dfff;
+  font-weight: 700;
+  box-shadow:
+    0 0 20px rgba(0, 180, 255, 0.4);
+  transition: background-color 0.4s ease, box-shadow 0.4s ease;
+  user-select: none;
+  user-drag: none;
+}
+
+.store-summary:hover {
+  background-color: rgba(0, 90, 150, 0.8);
+  box-shadow:
+    0 0 40px #00bfffcc;
+}
+
+.store-summary.open {
+  background-color: rgba(0, 110, 180, 0.9);
+  box-shadow:
+    0 0 55px #00bfffee;
+  color: #a0e9ff;
+}
+
+/* Caret arrow */
+.store-summary-arrow {
+  font-size: 1.4rem;
+  color: #00d4ff;
+  transition: transform 0.3s ease;
+  user-select: none;
+}
+
+.store-summary.open .store-summary-arrow {
+  transform: rotate(90deg);
+}
+
+/* Store name */
+.store-summary-name {
+  flex: 1 1 auto;
+  font-family: "Roboto Mono", monospace;
+  font-size: 1.3rem;
+  letter-spacing: 0.1em;
+  color: #00d0ff;
+  text-shadow: 0 0 12px #00d0ffcc;
+  user-select: text;
+}
+
+/* Review count */
+.store-summary-count {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #70d8ffcc;
+  user-select: none;
+}
+
+/* --- Big average stars --- */
+.store-avg-stars-big {
+  font-size: 1.8rem;
+  color: #00bfff;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 0 15px #00bfffcc;
+}
+
+.store-avg-stars-big strong {
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  user-select: none;
+}
+
+/* Numeric average (inline with stars) */
+.store-avg-num {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #00e5ff;
+  user-select: none;
+  text-shadow: 0 0 10px #00e5ffaa;
+}
+
+/* --- Reviews Store List (expanded) --- */
+.reviews-store-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+/* --- Individual Review Card --- */
+.review-card {
+  background: rgba(10, 25, 40, 0.85);
+  border-radius: 14px;
+  box-shadow:
+    0 0 18px rgba(0, 160, 255, 0.5),
+    inset 0 0 45px rgba(0, 160, 255, 0.15);
+  padding: 16px 22px;
+  color: #bbdfff;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  user-select: text;
+  animation: fadeInUp 0.35s ease forwards;
+  transition: box-shadow 0.3s ease;
+}
+
+/* Hover glow on review */
+.review-card:hover {
+  box-shadow:
+    0 0 28px #00aaffcc,
+    inset 0 0 55px #00aaff22;
+}
+
+/* Review header */
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 10px;
+  font-weight: 700;
+  color: #a0d8ff;
+}
+
+/* Star rating inside review */
+.review-star {
+  font-size: 1.4rem;
+  color: #00bfff;
+  text-shadow: 0 0 10px #00bfffcc;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* Review comment */
+.review-comment {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #d1eaff;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+/* Review metadata */
+.review-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9rem;
+  color: #7fbfffcc;
+  user-select: none;
+  font-style: italic;
+}
+
+/* Review meta bold labels */
+.review-meta b {
+  color: #00bfff;
+  font-weight: 600;
+}
+
+/* Delete button for reviews */
+.btn.btn-danger {
+  background-color: transparent;
+  border: 2px solid #f44336;
+  color: #f44336;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 0 10px #f44336aa;
+  transition: all 0.3s ease;
+  user-select: none;
+  user-drag: none;
+}
+
+.btn.btn-danger:hover,
+.btn.btn-danger:focus {
+  background-color: #f44336;
+  color: #fff;
+  box-shadow: 0 0 20px #f44336cc;
+  outline: none;
+  transform: scale(1.05);
+}
+
+/* --- Animations --- */
+@keyframes slowPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(0, 180, 255, 0.3), inset 0 0 40px rgba(0, 180, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 55px rgba(0, 180, 255, 0.7), inset 0 0 60px rgba(0, 180, 255, 0.18);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Scrollbar for reviews container --- */
+.reviews-container::-webkit-scrollbar,
+.reviews-store-list::-webkit-scrollbar {
+  width: 9px;
+}
+
+.reviews-container::-webkit-scrollbar-track,
+.reviews-store-list::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.15);
+  border-radius: 9px;
+}
+
+.reviews-container::-webkit-scrollbar-thumb,
+.reviews-store-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 180, 255, 0.5);
+  border-radius: 9px;
+  transition: background-color 0.3s ease;
+}
+
+.reviews-container::-webkit-scrollbar-thumb:hover,
+.reviews-store-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 180, 255, 0.8);
+}
+
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  .reviews-section {
+    padding: 1rem 1.2rem;
+  }
+  .store-summary {
+    font-size: 1rem;
+    gap: 12px;
+  }
+  .store-summary-name {
+    font-size: 1.1rem;
+  }
+  .store-avg-stars-big {
+    font-size: 1.3rem;
+  }
+  .reviews-store-list {
+    max-height: 50vh;
+  }
+  .review-card {
+    padding: 14px 18px;
+    font-size: 0.95rem;
+  }
+  .review-header {
+    gap: 12px;
+    font-size: 0.9rem;
+  }
+}

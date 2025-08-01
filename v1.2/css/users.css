@@ -1,0 +1,357 @@
+/* ==========================================================================
+   Users Section CSS Overhaul
+   ========================================================================== */
+
+/* --- Base Section --- */
+.users-section {
+  background: rgba(20, 25, 35, 0.9);
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  box-shadow:
+    0 0 25px rgba(0, 200, 255, 0.25),
+    inset 0 0 40px rgba(0, 200, 255, 0.1);
+  animation: slowPulseGlow 12s ease-in-out infinite;
+  color: #d0e4f7;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  user-select: none;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+/* --- Section Header --- */
+.users-section h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #00d4ff;
+  text-shadow: 0 0 10px #00d4ffcc;
+  margin-bottom: 1rem;
+  user-select: text;
+}
+
+/* --- Users Container --- */
+.users-by-store-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.3rem;
+}
+
+/* --- Store Block --- */
+.user-store-block {
+  background: rgba(25, 30, 45, 0.75);
+  border-radius: 14px;
+  box-shadow:
+    0 0 15px rgba(0, 200, 255, 0.3),
+    inset 0 0 30px rgba(0, 200, 255, 0.1);
+  padding: 0.5rem 0.8rem;
+  transition: box-shadow 0.4s ease, background-color 0.3s ease;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  animation: fadeInUp 0.45s ease forwards;
+}
+
+.user-store-block.user-store-block-open {
+  background-color: rgba(10, 25, 55, 0.85);
+  box-shadow:
+    0 0 40px rgba(0, 200, 255, 0.6),
+    inset 0 0 50px rgba(0, 200, 255, 0.18);
+}
+
+/* Glow effect on hover */
+.user-store-block:hover {
+  box-shadow:
+    0 0 40px rgba(0, 200, 255, 0.7),
+    inset 0 0 60px rgba(0, 200, 255, 0.25);
+  background-color: rgba(25, 40, 70, 0.95);
+}
+
+/* --- Store Summary (Collapsed Header) --- */
+.user-store-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1.05rem;
+  user-select: none;
+  color: #a0dfff;
+  box-shadow: 0 0 15px rgba(0, 200, 255, 0.5);
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+.user-store-summary.open {
+  background-color: rgba(0, 180, 255, 0.25);
+  color: #00aaff;
+  box-shadow: 0 0 30px #00aaffcc;
+}
+
+/* Caret icon */
+.uss-caret {
+  font-size: 1.3rem;
+  color: #00bfff;
+  user-select: none;
+  transition: transform 0.3s ease;
+}
+
+.user-store-summary.open .uss-caret {
+  transform: rotate(90deg);
+}
+
+/* Store number */
+.uss-name {
+  flex: 1 1 auto;
+  font-family: "Roboto Mono", monospace;
+  font-size: 1.15rem;
+  letter-spacing: 0.12em;
+  color: #00bbff;
+  text-shadow: 0 0 7px #00bbffbb;
+  user-select: text;
+}
+
+/* Role mix pills */
+.uss-role-mix {
+  display: flex;
+  gap: 8px;
+  user-select: none;
+}
+
+/* Role pills */
+.uss-role-pill {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 0.87rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 8px rgba(0,0,0,0.6);
+  box-shadow: 0 0 10px rgba(0, 180, 255, 0.6);
+  transition: background-color 0.3s ease;
+  user-select: none;
+  cursor: default;
+}
+
+.uss-role-pill.lead {
+  background-color: #4caf50;
+  box-shadow: 0 0 14px #4caf5099;
+}
+
+.uss-role-pill.me {
+  background-color: #2196f3;
+  box-shadow: 0 0 14px #2196f399;
+}
+
+/* Staffing count & icon */
+.uss-count {
+  font-family: "Roboto Mono", monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #00e5ff;
+  text-shadow: 0 0 8px #00e5ffbb;
+  user-select: none;
+}
+
+.uss-icon {
+  font-size: 1.3rem;
+  color: #00e5ff;
+  text-shadow: 0 0 12px #00e5ffcc;
+  user-select: none;
+}
+
+/* Store goal input (Admin only) */
+.store-goal-input {
+  width: 70px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1.8px solid #00bfff;
+  background: rgba(15, 20, 35, 0.9);
+  color: #a0dfff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  text-align: center;
+  box-shadow: 0 0 10px #00bfffaa;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.store-goal-input:focus {
+  outline: none;
+  border-color: #00d4ff;
+  box-shadow: 0 0 20px #00d4ffcc;
+}
+
+/* --- User Card --- */
+.user-card {
+  background: rgba(10, 20, 40, 0.85);
+  border-radius: 14px;
+  box-shadow:
+    0 0 15px rgba(0, 180, 255, 0.4),
+    inset 0 0 40px rgba(0, 180, 255, 0.15);
+  padding: 12px 18px;
+  margin-top: 10px;
+  color: #c0d9f4;
+  user-select: text;
+  animation: fadeInUp 0.4s ease forwards;
+  transition: box-shadow 0.3s ease;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* User card header */
+.user-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.user-name {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #00bfff;
+  user-select: text;
+  text-shadow: 0 0 5px #00bfffcc;
+}
+
+.user-email {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #81c7ff;
+  user-select: text;
+}
+
+/* Role badge */
+.role-badge {
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  user-select: none;
+  color: white;
+  text-shadow: 0 0 5px rgba(0,0,0,0.8);
+  box-shadow: 0 0 12px rgba(0,180,255,0.6);
+  transition: background-color 0.3s ease;
+}
+
+.role-badge.role-me {
+  background-color: #2196f3;
+}
+
+.role-badge.role-lead {
+  background-color: #4caf50;
+}
+
+.role-badge.role-dm {
+  background-color: #00b0ff;
+}
+
+.role-badge.role-admin {
+  background-color: #1e90ff;
+}
+
+/* User card info */
+.user-card-info {
+  display: flex;
+  gap: 24px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #aad4ff;
+  user-select: text;
+}
+
+.user-card-info div b {
+  color: #00bfff;
+}
+
+/* User card actions */
+.user-card-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  user-select: none;
+}
+
+/* User card selects and labels */
+.user-card-actions label {
+  font-size: 0.9rem;
+  color: #aad4ff;
+  font-weight: 600;
+  user-select: none;
+  cursor: pointer;
+}
+
+.user-card-actions select {
+  margin-left: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1.5px solid #00bfff;
+  background: rgba(15, 20, 35, 0.95);
+  color: #a0dfff;
+  font-weight: 700;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.user-card-actions select:hover,
+.user-card-actions select:focus {
+  border-color: #00e5ff;
+  box-shadow: 0 0 18px #00e5ffcc;
+  outline: none;
+}
+
+/* Delete button */
+.btn-danger-outline {
+  background-color: transparent;
+  border: 2px solid #f44336;
+  color: #f44336;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 0 10px #f44336aa;
+  transition: all 0.3s ease;
+}
+
+.btn-danger-outline:hover,
+.btn-danger-outline:focus {
+  background-color: #f44336;
+  color: #fff;
+  box-shadow: 0 0 20px #f44336cc;
+  outline: none;
+  transform: scale(1.05);
+}
+
+/* --- Animations --- */
+@keyframes slowPulseGlow {
+  0%, 100% { box-shadow: 0 0 25px rgba(0, 200, 255, 0.3), inset 0 0 40px rgba(0, 200, 255, 0.1); }
+  50% { box-shadow: 0 0 55px rgba(0, 200, 255, 0.7), inset 0 0 60px rgba(0, 200, 255, 0.18); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  .user-store-summary {
+    font-size: 0.95rem;
+    gap: 8px;
+  }
+  .user-card-info {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .user-card-actions {
+    flex-direction: column;
+  }
+  .user-card-actions label,
+  .user-card-actions select,
+  .btn-danger-outline {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}

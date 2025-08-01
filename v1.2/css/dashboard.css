@@ -1,633 +1,381 @@
 /* ==========================================================================
-   DASHBOARD v3.2 MOBILE-FIRST THEME - ANIMATED OVERHAUL
-   ========================================================================== *
-   * Preserves original spacing & look, adds:
-   * - Animated glowing gradient background + subtle noise overlay
-   * - Sticky header with blur, glow, pulse underline on active tabs
-   * - Fade/slide in animations on cards and sections
-   * - Button hover glows & ripple effect
-   * - Input focus glow pulses
-   * - Card hover elevation + glow
+   OSL Admin Dashboard CSS Overhaul
    ========================================================================== */
 
-/* --------------------------------------------------------------------------
-   Design Tokens (unchanged from original)
-   -------------------------------------------------------------------------- */
+/* --- Design Tokens & Variables --- */
 :root {
-  --brand:            #1e90ff;
-  --brand-hover:      #4aa8ff;
-  --brand-focus-ring: rgba(30,144,255,.6);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 
-  --success:          #00c853;
-  --success-bg:       rgba(0,200,83,.15);
-  --warning:          #ffb300;
-  --warning-bg:       rgba(255,179,0,.15);
-  --danger:           #ff5252;
-  --danger-hover:     #ff1744;
-  --danger-bg:        rgba(255,82,82,.15);
-  --info:             #82caff;
+  --brand: #1e90ff;
+  --brand-light: #4aa8ff;
+  --brand-dark: #165fbb;
 
-  --bg-page-a:        #0f1117;
-  --bg-page-b:        #1a1c24;
-  --bg-card:          rgba(26,28,36,.75);
-  --bg-card-solid:    #1b1d25;
-  --bg-card-hover:    rgba(26,28,36,.95);
+  --bg-dark: #0d1117;
+  --bg-darker: #0a0f18;
+  --bg-glass: rgba(20, 25, 35, 0.8);
 
-  --border-color:     rgba(255,255,255,.08);
-  --border-strong:    rgba(255,255,255,.18);
+  --text-main: #e0e6f0;
+  --text-muted: #a3a9b8;
+  --text-hi: #ffffff;
 
-  --text-hi:          #ffffff;
-  --text-med:         #e2e8f0;
-  --text-lo:          #a0aec0;
-  --text-muted:       #718096;
-  --text-invert:      #0f1117;
+  --shadow-glow: 0 0 10px var(--brand);
+  --shadow-glow-strong: 0 0 20px var(--brand-light);
+  --shadow-glow-faint: 0 0 6px rgba(30, 144, 255, 0.3);
 
-  --table-stripe:     rgba(255,255,255,.03);
-
-  --radius-sm:        4px;
-  --radius-md:        8px;
-  --radius-lg:        16px;
-  --radius-xl:        20px;
-
-  /* Spacing (mobile-first fluid) */
-  --space-2xs: clamp(2px, .25vw, 4px);
-  --space-xs:  clamp(4px, .5vw, 8px);
-  --space-sm:  clamp(8px, 1vw, 12px);
-  --space-md:  clamp(16px, 2vw, 24px);
-  --space-lg:  clamp(24px, 4vw, 40px);
-  --space-xl:  clamp(32px, 6vw, 64px);
-
-  /* Type scale */
-  --fs-2xs: clamp(.7rem, 1.5vw, .75rem);
-  --fs-xs:  clamp(.8rem, 1.8vw, .85rem);
-  --fs-sm:  clamp(.9rem, 2vw, .95rem);
-  --fs-md:  clamp(1rem, 2.5vw, 1.05rem);
-  --fs-lg:  clamp(1.2rem, 3.5vw, 1.4rem);
-  --fs-xl:  clamp(1.6rem, 5vw, 1.75rem);
-  --fs-xxl: clamp(2rem, 7vw, 2.5rem);
-
-  --z-header: 100;
-  --z-modal:  1000;
-
-  --dur-fast: .12s;
-  --dur-med:  .25s;
-  --dur-slow: .4s;
-  --ease-out: cubic-bezier(.25,.8,.25,1);
-  --ease-in:  cubic-bezier(.42,0,1,1);
-  --ease-io:  cubic-bezier(.42,0,.58,1);
-
-  --shadow-card:   0 4px 12px rgba(0,0,0,.6);
-  --shadow-card-h: 0 8px 24px rgba(0,0,0,.8);
-  --shadow-btn:    0 4px 14px rgba(30,144,255,.4);
-  --shadow-btn-h:  0 6px 20px rgba(30,144,255,.6);
-  --shadow-danger: 0 4px 14px rgba(255,82,82,.4);
-  --shadow-success:0 4px 14px rgba(0,200,83,.4);
+  --z-header: 9999;
 }
 
-/* ========================================================================
-   Animate Background Gradient + Noise Overlay
-   ======================================================================== */
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-html, body {
-  height: 100%;
-  min-height: 100%;
-  margin: 0; padding: 0;
-  background: linear-gradient(270deg, #0f1117, #1a1c24, #113344, #0f1117);
+/* --- Global & Layout --- */
+body, html {
+  margin: 0; padding: 0; height: 100%;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(270deg, #0d1117, #14293d, #0a0f18, #14293d);
   background-size: 800% 800%;
-  animation: gradientShift 60s ease infinite;
-  overflow-x: hidden;
-  color: var(--text-med);
-  position: relative;
-  font-family: 'Segoe UI', 'SF Pro', Arial, sans-serif;
+  animation: bgGradientShift 25s ease infinite;
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-y: scroll;
 }
 
-/* subtle noise overlay */
-body::before {
-  content: "";
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)" /></svg>') repeat;
-  opacity: 0.03;
-  z-index: 0;
+@keyframes bgGradientShift {
+  0% {background-position: 0% 50%;}
+  50% {background-position: 100% 50%;}
+  100% {background-position: 0% 50%;}
 }
 
-/* ========================================================================
-   Reduced motion fallback
-   ======================================================================== */
-@media (prefers-reduced-motion: reduce) {
-  :root { --dur-fast: 0ms; --dur-med: 0ms; --dur-slow: 0ms; }
-  * { transition: none !important; animation: none !important; }
-  html, body {
-    background: linear-gradient(135deg, var(--bg-page-a) 0%, var(--bg-page-b) 100%);
-    animation: none !important;
-  }
-  body::before { display: none !important; }
-}
-
-/* ========================================================================
-   Base / Reset Extensions
-   ======================================================================== */
-* {
-  box-sizing: border-box;
-  margin: 0; padding: 0;
-}
-html, body {
-  max-width: 100%;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-body {
-  /* Safe-area + bottom pad */
-  padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-sm));
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-xl));
-  padding-left: 5%;
-  padding-right: 5%;
-  font-size: var(--fs-md);
-  line-height: 1.4;
-  position: relative;
-  z-index: 1; /* Ensure above noise */
-}
-img, svg, video, canvas {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-button {
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  position: relative; /* for ripple */
-  overflow: hidden;
-  cursor: pointer;
-}
-a {
-  color: var(--brand);
-  text-decoration: none;
-  transition: color var(--dur-fast) var(--ease-out);
-}
-a:hover {
-  text-decoration: underline;
-  color: var(--brand-hover);
-}
-
-/* Scrollbars */
-::-webkit-scrollbar {
-  width: 10px; height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: rgba(255,255,255,.05);
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.25);
-  border-radius: 5px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,.4);
-}
-
-/* ========================================================================
-   Professional Sticky Header - Sticky + Blur + Glow + Pulse Underline
-   ======================================================================== */
+/* --- Header --- */
 .admin-header {
   position: sticky;
   top: 0;
-  z-index: var(--z-header);
-  background: rgba(15,17,23,0.85);
+  background: rgba(12, 17, 25, 0.85);
   backdrop-filter: saturate(180%) blur(10px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.7);
-  transition: background 0.3s ease, box-shadow 0.3s ease;
-  user-select: none;
-}
-
-.admin-header .header-container {
-  max-width: 1200px;
-  margin: 0 auto;
+  border-bottom: 2px solid var(--brand);
+  box-shadow: 0 4px 12px rgba(30,144,255,0.4);
+  z-index: var(--z-header);
+  padding: 1rem 2rem;
   display: flex;
   align-items: center;
-  justify-content: center; /* center title & actions */
-  flex-wrap: wrap;
-  padding: 0 var(--space-md);
-  gap: var(--space-sm);
-}
-
-.admin-header h2 {
-  margin: 0;
-  font-size: var(--fs-xl);
-  font-weight: 700;
-  color: var(--text-hi);
-  text-align: center;
-  flex: 0 0 auto;
-}
-
-.admin-header .header-actions {
-  display: flex;
-  gap: var(--space-xs);
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.admin-header .header-actions a.tab {
-  position: relative;
-  display: inline-block;
-  padding: var(--space-xs) var(--space-md);
-  font-size: var(--fs-sm);
-  color: var(--text-med);
-  text-decoration: none;
-  border: 2px solid transparent;
-  border-radius: var(--radius-md);
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out),
-    transform 0.2s ease;
-}
-.admin-header .header-actions a.tab:hover {
-  color: var(--brand-hover);
-  text-shadow: 0 0 6px var(--brand-hover);
-  transform: scale(1.05);
-}
-.admin-header .header-actions a.tab.active {
-  color: var(--text-hi);
-  border-color: var(--brand);
-  background: rgba(30,144,255,0.15);
-}
-.admin-header .header-actions a.tab.active::after {
-  content: "";
-  position: absolute;
-  bottom: -4px;
-  left: 10%;
-  width: 80%;
-  height: 3px;
-  background: var(--brand);
-  border-radius: 2px;
-  box-shadow:
-    0 0 8px var(--brand),
-    0 0 15px var(--brand),
-    0 0 20px var(--brand);
-  animation: pulseGlow 2.5s ease-in-out infinite;
-}
-@keyframes pulseGlow {
-  0%, 100% {
-    opacity: 1;
-    transform: scaleX(1);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scaleX(1.1);
-  }
-}
-
-/* Responsive stacking on small screens */
-@media (max-width: 480px) {
-  .admin-header .header-container {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .admin-header .header-actions {
-    margin-top: var(--space-xs);
-  }
-}
-
-/* ========================================================================
-   Main Content Grid
-   ======================================================================== */
-#adminApp {
-  width: 100%;
-  max-width: 100%;
-  margin: var(--space-lg) auto;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-lg);
-  opacity: 0;
-  animation: fadeSlideUp 0.6s forwards ease-out;
-  animation-delay: 0.15s;
-}
-@media (min-width:768px){
-  #adminApp { max-width: 90%; gap: var(--space-xl); }
-}
-@media (min-width:1200px){
-  #adminApp { max-width: 1200px; }
-  /* opt-in for 2-col: uncomment if desired */
-  /* #adminApp{grid-template-columns:1fr 1fr;} */
-  /* #adminApp>.admin-section.section-span-2{grid-column:span 2;} */
-}
-
-/* ========================================================================
-   Section Card (hover glow and lift)
-   ======================================================================== */
-.admin-section {
-  position: relative;
-  width: 100%;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  padding: clamp(16px, 5vw, 32px);
-  box-shadow: var(--shadow-card);
-  backdrop-filter: blur(12px) saturate(180%);
-  transition: box-shadow var(--dur-med) var(--ease-out), background var(--dur-med) var(--ease-out), transform 0.3s ease;
-  opacity: 0;
-  transform: translateY(12px);
-  animation: fadeSlideUp 0.6s forwards ease-out;
-  animation-delay: 0.25s;
-}
-.admin-section:hover {
-  box-shadow:
-    0 12px 32px rgba(30,144,255,0.7),
-    0 0 20px var(--brand);
-  background: var(--bg-card-hover);
-  transform: translateY(-2px);
-}
-.admin-section h2, .section-title {
-  font-size: var(--fs-lg);
-  font-weight: 700;
-  color: var(--text-hi);
-  margin-bottom: var(--space-md);
-}
-
-/* Collapsible (opt-in) */
-.admin-section.collapsible > .section-header {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  user-select: none;
-}
-.admin-section.collapsible[data-open="false"] > *:not(.section-header) {
-  display: none;
-}
-
-/* ========================================================================
-   Inputs with glow on focus
-   ======================================================================== */
-input, select, textarea {
-  width: 100%;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  padding: var(--space-xs) var(--space-sm);
-  font-size: var(--fs-md);
-  background: rgba(255,255,255,.06);
-  color: var(--text-med);
-  transition: border var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-}
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: var(--brand);
-  background: rgba(255,255,255,.1);
-  box-shadow:
-    0 0 8px var(--brand-focus-ring),
-    0 0 20px var(--brand-focus-ring);
+  animation: headerPulseGlow 6s ease-in-out infinite;
+  transition: box-shadow 0.3s ease;
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--text-hi);
 }
 
-/* iOS zoom prevention: ensure tap targets >=16px */
-@media (max-width:600px){
-  input, select, textarea, button, .btn, .gfield {
-    font-size: 16px !important;
-    line-height: 1.2;
-  }
+@keyframes headerPulseGlow {
+  0%, 100% { box-shadow: 0 4px 12px rgba(30,144,255,0.4); }
+  50% { box-shadow: 0 8px 24px rgba(30,144,255,0.7); }
 }
 
-/* ========================================================================
-   Buttons with glow & ripple effect on hover
-   ======================================================================== */
-button, .btn, .login-btn {
+/* Header buttons */
+.admin-header button {
+  background: var(--bg-glass);
+  color: var(--brand-light);
   border: none;
   border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
-  font-weight: 600;
+  padding: 0.5rem 1rem;
+  margin-left: 0.5rem;
   cursor: pointer;
-  line-height: 1.2;
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
-  position: relative;
-  overflow: hidden;
+  font-weight: 600;
+  box-shadow: var(--shadow-glow-faint);
+  transition: all 0.3s ease;
+  user-select: none;
 }
 
-.btn-sm {
-  padding: var(--space-xs) var(--space-sm);
-  font-size: var(--fs-sm);
-}
-.btn-lg {
-  padding: var(--space-md) var(--space-lg);
-  font-size: var(--fs-md);
-}
-
-.btn-primary {
+.admin-header button:hover,
+.admin-header button:focus {
   background: var(--brand);
   color: var(--text-hi);
-  box-shadow: var(--shadow-btn);
+  box-shadow: var(--shadow-glow-strong);
+  outline: none;
+  transform: scale(1.05);
 }
-.btn-primary:hover {
-  background: var(--brand-hover);
+
+/* --- Main app container --- */
+#adminApp {
+  max-width: 1400px;
+  margin: 2rem auto 5rem auto;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+/* --- Admin Sections (cards) --- */
+.admin-section {
+  background: var(--bg-glass);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 2rem;
   box-shadow:
-    0 0 10px var(--brand),
-    0 0 20px var(--brand),
-    0 0 30px var(--brand);
+    0 0 15px rgba(30,144,255,0.3),
+    inset 0 0 20px rgba(30,144,255,0.05);
+  transition: box-shadow 0.3s ease, background-color 0.3s ease;
+  position: relative;
+  animation: pulseGlowSlow 8s ease-in-out infinite;
 }
 
-.btn-secondary {
-  background: rgba(255,255,255,.15);
-  color: var(--text-med);
-}
-.btn-secondary:hover {
-  background: rgba(255,255,255,.25);
+/* Hover effect on sections */
+.admin-section:hover {
+  box-shadow:
+    0 0 30px rgba(30,144,255,0.6),
+    inset 0 0 30px rgba(30,144,255,0.1);
+  background-color: rgba(25, 30, 45, 0.95);
+  cursor: default;
 }
 
-.btn-success {
-  background: var(--success);
+/* Pulsing glow keyframe */
+@keyframes pulseGlowSlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(30,144,255,0.3), inset 0 0 20px rgba(30,144,255,0.05); }
+  50% { box-shadow: 0 0 30px rgba(30,144,255,0.6), inset 0 0 30px rgba(30,144,255,0.1); }
+}
+
+/* Section titles */
+.admin-section h2 {
+  margin: 0 0 1rem 0;
+  font-weight: 700;
   color: var(--text-hi);
-  box-shadow: var(--shadow-success);
-}
-.btn-success:hover {
-  filter: brightness(1.1);
-  box-shadow:
-    0 0 10px var(--success),
-    0 0 20px var(--success),
-    0 0 30px var(--success);
+  text-shadow: 0 0 6px var(--brand-light);
+  letter-spacing: 0.02em;
 }
 
-.btn-danger {
-  background: var(--danger);
+/* --- Buttons --- */
+button,
+.button {
+  background-color: var(--brand);
+  border: none;
   color: var(--text-hi);
-  box-shadow: var(--shadow-danger);
-}
-.btn-danger:hover {
-  background: var(--danger-hover);
-  box-shadow:
-    0 0 10px var(--danger),
-    0 0 20px var(--danger),
-    0 0 30px var(--danger);
-}
-
-.btn-warning {
-  background: var(--warning);
-  color: #000;
-  box-shadow: 0 4px 14px rgba(255,179,0,.3);
-}
-.btn-warning:hover {
-  filter: brightness(1.05);
+  padding: 0.7rem 1.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-glow);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+  will-change: transform, box-shadow;
 }
 
-.btn-ghost {
-  background: transparent;
+button:hover,
+.button:hover,
+button:focus,
+.button:focus {
+  background-color: var(--brand-light);
+  box-shadow: 0 0 30px var(--brand-light);
+  transform: scale(1.07);
+  outline: none;
+}
+
+/* Large button variant */
+.button--large {
+  font-size: 1.2rem;
+  padding: 1rem 2rem;
+}
+
+/* --- Tables --- */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--text-main);
+  box-shadow: 0 0 12px rgba(30,144,255,0.15);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: rgba(10, 15, 25, 0.75);
+  user-select: text;
+  transition: background-color 0.3s ease;
+}
+
+thead tr {
+  background: rgba(30, 40, 60, 0.8);
+  text-align: left;
+  color: var(--text-hi);
+  font-weight: 700;
+}
+
+tbody tr {
+  transition: background-color 0.25s ease, box-shadow 0.3s ease;
+  cursor: default;
+}
+
+tbody tr:hover {
+  background-color: rgba(30, 144, 255, 0.12);
+  box-shadow: 0 0 15px rgba(30, 144, 255, 0.25);
+  cursor: pointer;
+}
+
+/* Table cells */
+td, th {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Rounded corners for first and last table cells */
+tbody tr td:first-child {
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+}
+tbody tr td:last-child {
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+
+/* --- Expand/Collapse Carets --- */
+.caret, .uss-caret {
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  display: inline-block;
+  user-select: none;
+  color: var(--brand-light);
+}
+
+.expanded .caret, .expanded .uss-caret {
+  transform: rotate(90deg);
   color: var(--brand);
 }
-.btn-ghost:hover {
-  background: rgba(30,144,255,.15);
+
+/* --- Performance Highlight Buttons --- */
+.perf-hl-btn {
+  background: var(--bg-glass);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.6rem 1rem;
+  margin-right: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  box-shadow: var(--shadow-glow-faint);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.3s ease;
+  user-select: none;
 }
 
-/* Ripple effect on buttons */
-button::after,
-.btn-primary::after,
-.btn-success::after,
-.btn-danger::after {
-  content: "";
-  position: absolute;
-  border-radius: 50%;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  transform: scale(0);
-  opacity: 0.3;
+.perf-hl-btn:hover,
+.perf-hl-btn:focus {
+  box-shadow: var(--shadow-glow-strong);
+  color: var(--brand-light);
+  background-color: rgba(30, 144, 255, 0.2);
+  transform: scale(1.1);
+  outline: none;
+}
+
+.perf-hl-btn.good {
+  color: #00c853;
+}
+
+.perf-hl-btn.warn {
+  color: #ffb300;
+}
+
+.perf-hl-btn.bad {
+  color: #ff1744;
+}
+
+.ph-icon {
+  font-size: 1.25rem;
+  user-select: none;
+}
+
+.ph-label {
+  letter-spacing: 0.04em;
+}
+
+.ph-val {
+  font-weight: 900;
+  margin-left: auto;
+  font-feature-settings: "tnum";
+}
+
+/* --- Guest caught up message --- */
+.guestinfo-empty-all p b {
+  font-size: 1.2rem;
+  color: var(--brand-light);
+  text-shadow: 0 0 12px var(--brand);
+}
+
+/* --- Form inputs --- */
+input, select, textarea {
+  background: rgba(20, 25, 35, 0.85);
+  border: 1.5px solid var(--brand);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  color: var(--text-main);
+  font-size: 1rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  outline-offset: 2px;
+  user-select: text;
+  caret-color: var(--brand-light);
+  font-family: inherit;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--brand-light);
+  box-shadow: 0 0 8px var(--brand-light);
+  outline: none;
+}
+
+/* --- Scrollbar styling --- */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(20, 25, 35, 0.6);
+  border-radius: var(--radius-lg);
+}
+::-webkit-scrollbar-thumb {
   background: var(--brand);
-  animation: ripple 1s ease infinite;
-  animation-play-state: paused;
+  border-radius: var(--radius-lg);
+  border: 2px solid rgba(20, 25, 35, 0.6);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-light);
 }
 
-button:hover::after,
-button:focus::after {
-  animation-play-state: running;
-}
-
-@keyframes ripple {
-  0% {
-    transform: scale(0);
-    opacity: 0.3;
-  }
-  50% {
-    transform: scale(1.2);
+/* --- Fade in animation for content sections --- */
+@keyframes fadeInUp {
+  from {
     opacity: 0;
+    transform: translateY(10px);
   }
-  100% {
-    transform: scale(0);
-    opacity: 0;
-  }
-}
-
-/* ========================================================================
-   Fade & slide up animation for cards and sections
-   ======================================================================== */
-@keyframes fadeSlideUp {
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-/* ========================================================================
-   Tables & Lists styling (unchanged, just polished)
-   ======================================================================== */
-table {
-  border-collapse: collapse;
-  width: 100%;
-  font-size: var(--fs-sm);
-  margin-top: var(--space-sm);
-  color: var(--text-med);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  box-shadow: var(--shadow-card);
-  background: var(--bg-card-solid);
+.admin-section,
+.guestinfo-section,
+.perf-highlights-section,
+.stores-section,
+.users-section,
+.reviews-section {
+  animation: fadeInUp 0.6s ease forwards;
 }
 
-thead {
-  background: rgba(30,30,30,0.7);
-  color: var(--text-hi);
-}
-
-thead th {
-  padding: var(--space-xs) var(--space-sm);
-  text-align: left;
-  font-weight: 700;
-}
-
-tbody tr {
-  border-bottom: 1px solid var(--border-color);
-  transition: background 0.3s ease;
-}
-tbody tr:hover {
-  background: rgba(30,144,255,0.1);
-}
-
-tbody td {
-  padding: var(--space-xs) var(--space-sm);
-  vertical-align: middle;
-}
-
-/* ========================================================================
-   Scroll-to-top button (optional, glowing pulse)
-   ======================================================================== */
-#scrollTopBtn {
-  position: fixed;
-  bottom: var(--space-lg);
-  right: var(--space-lg);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--brand);
-  color: var(--text-hi);
-  font-size: 24px;
-  box-shadow:
-    0 0 10px var(--brand),
-    0 0 20px var(--brand);
-  cursor: pointer;
-  transition: opacity 0.3s ease;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  user-select: none;
-  z-index: var(--z-modal);
-}
-#scrollTopBtn.show {
-  display: flex;
-  animation: pulseGlow 2.5s ease-in-out infinite;
-}
-
-/* ========================================================================
-   Utility classes (unchanged)
-   ======================================================================== */
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.text-center {
-  text-align: center;
-}
-.mb-sm {
-  margin-bottom: var(--space-sm);
-}
-.mb-md {
-  margin-bottom: var(--space-md);
-}
-.mt-sm {
-  margin-top: var(--space-sm);
-}
-.mt-md {
-  margin-top: var(--space-md);
-}
-.text-muted {
-  color: var(--text-muted);
-}
-.text-danger {
-  color: var(--danger);
-}
-.text-success {
-  color: var(--success);
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  #adminApp {
+    padding: 0 0.5rem;
+  }
+  .admin-header {
+    font-size: 1.2rem;
+    padding: 1rem;
+  }
+  table {
+    font-size: 0.9rem;
+  }
+  .perf-hl-btn {
+    padding: 0.5rem 0.8rem;
+    margin-right: 0.5rem;
+    font-size: 0.9rem;
+  }
+  button, .button {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
 }
