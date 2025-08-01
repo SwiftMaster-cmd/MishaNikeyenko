@@ -1,17 +1,10 @@
-// reviews.js  -- role-filtered store review cards w/ high-avg collapse + expand
-// v3: default show only store name + big centered stars + count; expand store shows reviews; click review toggles details
+// reviews.js  -- show only centered stars by default; click stars expands reviews with full details
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
   const HIGH_AVG_THRESHOLD = 4.7;
 
-  /* --------------------------------------------------------------
-   * UI open/closed memory (persist on window)
-   * -------------------------------------------------------------- */
-  if (!window._reviews_ui_openStores) window._reviews_ui_openStores = new Set(); // see toggleStore()
+  if (!window._reviews_ui_openStores) window._reviews_ui_openStores = new Set();
 
-  /* --------------------------------------------------------------
-   * Perms
-   * -------------------------------------------------------------- */
   function canDelete(role) {
     return role === ROLES.ADMIN;
   }
@@ -19,37 +12,21 @@
     if (!canDelete(window.currentRole)) throw "PERM_DENIED_DELETE";
   }
 
-  /* --------------------------------------------------------------
-   * Filter reviews visible to current user based on role + assignments
-   * -------------------------------------------------------------- */
   function filterReviewsByRole(reviews, users, currentUid, currentRole) {
     if (!reviews || !users || !currentUid || !currentRole) return {};
-
     const currentUser = users[currentUid] || {};
-
     if (currentRole === ROLES.ADMIN) return reviews;
-
     const visibleStores = new Set();
-
     if (currentRole === ROLES.DM) {
-      // all stores belonging to leads assigned to DM
       for (const [uid, u] of Object.entries(users)) {
-        if (u.role === ROLES.LEAD && u.assignedDM === currentUid && u.store) {
-          visibleStores.add(u.store);
-        }
+        if (u.role === ROLES.LEAD && u.assignedDM === currentUid && u.store) visibleStores.add(u.store);
       }
     } else if (currentRole === ROLES.LEAD || currentRole === ROLES.ME) {
       if (currentUser.store) visibleStores.add(currentUser.store);
     }
-
-    return Object.fromEntries(
-      Object.entries(reviews).filter(([, r]) => visibleStores.has(r.store))
-    );
+    return Object.fromEntries(Object.entries(reviews).filter(([, r]) => visibleStores.has(r.store)));
   }
 
-  /* --------------------------------------------------------------
-   * Helpers
-   * -------------------------------------------------------------- */
   const STAR = "★";
   const STAR_EMPTY = "☆";
 
@@ -60,10 +37,9 @@
   }
 
   function avgStarsHtml(avg) {
-    const val   = Number(avg) || 0;
+    const val = Number(avg) || 0;
     const stars = starString(val);
-    // big + bold class; numeric avg shown smaller but inline
-    return `<span class="store-avg-stars-big" title="${val.toFixed(1)} / 5" style="font-size:2.5rem; font-weight:bold; color:#63bbff;">${stars} <span style="font-size:1.2rem; font-weight:400; margin-left:0.25rem;">${val.toFixed(1)}</span></span>`;
+    return `<span class="store-avg-stars-big" title="${val.toFixed(1)} / 5" style="font-size:3rem; font-weight:bold; color:#63bbff; cursor:pointer; user-select:none;">${stars}</span>`;
   }
 
   function reviewStarsHtml(r) {
@@ -75,9 +51,6 @@
     return ms ? new Date(ms).toLocaleString() : "-";
   }
 
-  /* --------------------------------------------------------------
-   * Group reviews by store
-   * -------------------------------------------------------------- */
   function groupByStore(reviewsObj) {
     const map = {};
     for (const [id, r] of Object.entries(reviewsObj || {})) {
@@ -85,50 +58,44 @@
       if (!map[store]) map[store] = [];
       map[store].push([id, r]);
     }
-    // sort each store's reviews newest first
     for (const store in map) {
       map[store].sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
     }
     return map;
   }
 
-  /* --------------------------------------------------------------
-   * Compute avg rating for a group
-   * -------------------------------------------------------------- */
   function calcAvg(entries) {
     if (!entries.length) return 0;
-    let sum = 0, count = 0;
+    let sum = 0,
+      count = 0;
     for (const [, r] of entries) {
       const num = Number(r.rating);
-      if (!isNaN(num)) { sum += num; count++; }
+      if (!isNaN(num)) {
+        sum += num;
+        count++;
+      }
     }
     return count ? sum / count : 0;
   }
 
-  /* --------------------------------------------------------------
-   * Build summary block (collapsed header; big stars inline w/ name centered)
-   * -------------------------------------------------------------- */
-  function storeSummaryHtml(store, entries, avg, isOpen) {
-    const count = entries.length;
-    const cls = isOpen ? "store-summary open" : "store-summary";
+  // Build store block showing just centered stars by default, click stars toggles expanded reviews
+  function storeBlockHtml(store, entries, avg, isOpen) {
+    const starsHtml = avgStarsHtml(avg);
+    const expandedHtml = isOpen
+      ? `<div class="reviews-store-list" data-store="${escapeHtml(store)}" style="margin-top:1rem;">
+        ${entries.map(([id, r]) => reviewCardHtml(id, r)).join("")}
+      </div>`
+      : "";
     return `
-      <div class="${cls}" onclick="window.reviews.toggleStore('${encodeURIComponent(store)}')" style="cursor:pointer; text-align:center; padding: 1rem 0; user-select:none; border-bottom: 1px solid #2e3f5f;">
-        <div class="store-summary-name" style="font-weight:900; font-size:1.25rem; color:#63bbff; margin-bottom:0.3rem;">
-          ${store}
+      <div class="store-block" style="text-align:center; margin-bottom: 2rem;">
+        <div onclick="window.reviews.toggleStore('${encodeURIComponent(store)}')" style="display:inline-block;">
+          ${starsHtml}
         </div>
-        <div class="store-summary-stars" style="margin-bottom: 0.3rem;">
-          ${avgStarsHtml(avg)}
-        </div>
-        <div class="store-summary-count" style="color:#b3caff;">
-          (${count} review${count !== 1 ? "s" : ""})
-        </div>
+        ${expandedHtml}
       </div>
     `;
   }
 
-  /* --------------------------------------------------------------
-   * Build review card HTML (single review) with toggle details on click
-   * -------------------------------------------------------------- */
   function reviewCardHtml(id, r) {
     const stars = reviewStarsHtml(r);
     return `
@@ -152,32 +119,6 @@
     `;
   }
 
-  /* --------------------------------------------------------------
-   * Build expanded store block (summary header always shown)
-   * -------------------------------------------------------------- */
-  function storeBlockHtml(store, entries, avg, isOpen) {
-    const header = storeSummaryHtml(store, entries, avg, isOpen);
-    if (!isOpen) return header;
-    const cards = entries.map(([id, r]) => reviewCardHtml(id, r)).join("");
-    return `
-      ${header}
-      <div class="reviews-store-list" data-store="${escapeHtml(store)}">
-        ${cards}
-      </div>
-    `;
-  }
-
-  /* --------------------------------------------------------------
-   * Legacy flat list builder (kept for dashboard filters)
-   * -------------------------------------------------------------- */
-  function reviewsToHtml(reviewEntries) {
-    if (!reviewEntries.length) return `<p class="text-center">No reviews.</p>`;
-    return reviewEntries.map(([id, r]) => reviewCardHtml(id, r)).join('');
-  }
-
-  /* --------------------------------------------------------------
-   * Main section renderer
-   * -------------------------------------------------------------- */
   function renderReviewsSection(reviews, currentRole, users, currentUid) {
     const filteredReviews = filterReviewsByRole(reviews, users, currentUid, currentRole);
     const grouped = groupByStore(filteredReviews);
@@ -199,49 +140,35 @@
     return `
       <section class="admin-section reviews-section">
         <h2>Reviews</h2>
-        <div class="reviews-container reviews-by-store">
+        <div class="reviews-container">
           ${blocks || `<p class="text-center">No reviews.</p>`}
         </div>
       </section>
     `;
   }
 
-  /* --------------------------------------------------------------
-   * Toggle open/closed for a store summary
-   * -------------------------------------------------------------- */
   function toggleStore(encStore) {
-    const store   = decodeURIComponent(encStore);
-    const key     = encodeURIComponent(store);
+    const store = decodeURIComponent(encStore);
+    const key = encodeURIComponent(store);
     const openSet = window._reviews_ui_openStores;
-
-    // clear existing marks
     openSet.delete(key);
     openSet.delete("!" + key);
-
-    // determine current state from DOM
-    const summaryNode = document.querySelector(`.store-summary[onclick*="${encStore}"]`);
-    const currentlyOpen = summaryNode?.classList.contains("open");
-
+    const summaryNode = document.querySelector(`.store-block div[onclick*="${encStore}"]`);
+    const currentlyOpen = summaryNode?.parentElement.querySelector(".reviews-store-list") !== null;
     if (!currentlyOpen) {
-      openSet.add(key);       // user opens
+      openSet.add(key);
     } else {
-      openSet.add("!" + key); // user closes
+      openSet.add("!" + key);
     }
     window.renderAdminApp();
   }
 
-  /* --------------------------------------------------------------
-   * Star toggle (unchanged; kept for compat)
-   * -------------------------------------------------------------- */
   async function toggleStar(id, starred) {
     if (window.currentRole === ROLES.ME) return;
     await window.db.ref(`reviews/${id}/starred`).set(!starred);
     await window.renderAdminApp();
   }
 
-  /* --------------------------------------------------------------
-   * Delete review
-   * -------------------------------------------------------------- */
   async function deleteReview(id) {
     assertDelete();
     if (confirm("Delete this review?")) {
@@ -250,16 +177,10 @@
     }
   }
 
-  /* --------------------------------------------------------------
-   * Back-compat no-op reload (kept so dashboard doesn't error)
-   * -------------------------------------------------------------- */
   function renderReviewsReload() {
     window.renderAdminApp();
   }
 
-  /* --------------------------------------------------------------
-   * Escape (used in storeBlockHtml)
-   * -------------------------------------------------------------- */
   function escapeHtml(str){
     return (str||"")
       .toString()
@@ -270,16 +191,12 @@
       .replace(/'/g,"&#39;");
   }
 
-  /* --------------------------------------------------------------
-   * Public API
-   * -------------------------------------------------------------- */
   window.reviews = {
     renderReviewsSection,
     deleteReview,
     toggleStar,
-    renderReviewsReload, // kept for compatibility
+    renderReviewsReload,
     filterReviewsByRole,
-    reviewsToHtml,
     toggleStore
   };
 })();
