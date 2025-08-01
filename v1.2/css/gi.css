@@ -4,9 +4,6 @@
 .guestinfo-section {
   background: transparent;
   border-radius: 32px;
-  box-shadow: 0 8px 40px rgba(30, 144, 255, 0.25);
-  backdrop-filter: blur(20px) saturate(140%);
-  border: 1.8px solid rgba(80, 160, 255, 0.25);
   margin-bottom: 3rem;
   padding: 2.8rem 3rem 2.5rem 3rem;
   color: #e7f2ff;
