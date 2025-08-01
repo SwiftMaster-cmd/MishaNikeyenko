@@ -1,4 +1,4 @@
-// reviews.js  -- show only centered stars by default; click stars expands reviews with full details
+// reviews.js  -- show only centered glowing stars by default; click stars expands reviews with full details
 (() => {
   const ROLES = { ME: "me", LEAD: "lead", DM: "dm", ADMIN: "admin" };
   const HIGH_AVG_THRESHOLD = 4.7;
@@ -28,23 +28,44 @@
   }
 
   const STAR = "★";
-  const STAR_EMPTY = "☆";
 
   function starString(n) {
     const rating = Number(n) || 0;
     const full = Math.round(rating);
-    return STAR.repeat(full) + STAR_EMPTY.repeat(Math.max(0, 5 - full));
+    return STAR.repeat(full) + "☆☆☆☆☆".slice(0, 5 - full);
   }
 
   function avgStarsHtml(avg) {
     const val = Number(avg) || 0;
     const stars = starString(val);
-    return `<span class="store-avg-stars-big" title="${val.toFixed(1)} / 5" style="font-size:3rem; font-weight:bold; color:#63bbff; cursor:pointer; user-select:none;">${stars}</span>`;
+    // glowing effect with color and text-shadow
+    return `<span class="store-avg-stars-big" title="${val.toFixed(1)} / 5" style="
+      font-size: 3rem;
+      font-weight: bold;
+      color: #63bbff;
+      text-shadow:
+        0 0 8px #63bbff,
+        0 0 15px #63bbff,
+        0 0 22px #1e90ff,
+        0 0 40px #1e90ff;
+      cursor: pointer;
+      user-select: none;
+      display: inline-block;
+      letter-spacing: 3px;
+    ">${stars}</span>`;
   }
 
   function reviewStarsHtml(r) {
     const rating = Number(r.rating) || 0;
-    return `<span class="review-stars" style="color:#63bbff; font-weight:700;">${starString(rating)}</span>`;
+    const stars = STAR.repeat(Math.round(rating));
+    return `<span class="review-stars" style="
+      color: #63bbff;
+      font-weight: 700;
+      text-shadow:
+        0 0 5px #63bbff,
+        0 0 10px #63bbff;
+      letter-spacing: 1.5px;
+    ">${stars}</span>`;
   }
 
   function formatTs(ms) {
@@ -78,13 +99,12 @@
     return count ? sum / count : 0;
   }
 
-  // Build store block showing just centered stars by default, click stars toggles expanded reviews
   function storeBlockHtml(store, entries, avg, isOpen) {
     const starsHtml = avgStarsHtml(avg);
     const expandedHtml = isOpen
       ? `<div class="reviews-store-list" data-store="${escapeHtml(store)}" style="margin-top:1rem;">
-        ${entries.map(([id, r]) => reviewCardHtml(id, r)).join("")}
-      </div>`
+          ${entries.map(([id, r]) => reviewCardHtml(id, r)).join("")}
+        </div>`
       : "";
     return `
       <div class="store-block" style="text-align:center; margin-bottom: 2rem;">
@@ -100,31 +120,76 @@
     const stars = reviewStarsHtml(r);
     return `
       <div class="review-card collapsed" id="review-${id}" onclick="this.classList.toggle('collapsed')" 
-        style="cursor:pointer; border-radius:12px; background:rgba(23,30,45,0.6); margin-bottom:1rem; padding:1rem; box-shadow:0 0 12px rgba(30,144,255,0.3); color:#e7f2ff;">
-        <div class="review-header" style="display:flex; justify-content: space-between; align-items: center; font-weight:700;">
+        style="
+          cursor: pointer;
+          border-radius: 12px;
+          background: rgba(23,30,45,0.6);
+          margin-bottom: 1rem;
+          padding: 1rem;
+          box-shadow: 0 0 12px rgba(30,144,255,0.3);
+          color: #e7f2ff;
+          transition: max-height 0.3s ease, opacity 0.3s ease;
+          overflow: hidden;
+          max-height: 70px;
+        ">
+        <div class="review-header" style="display:flex; justify-content: space-between; align-items: center; font-weight: 700;">
           <span class="review-star">${stars}</span>
-          <div><b>Associate:</b> ${r.associate || '-'}</div>
-          ${canDelete(window.currentRole)
-            ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); window.reviews.deleteReview('${id}')">Delete</button>`
-            : ''}
+          <div><b>Associate:</b> ${r.associate || "-"}</div>
+          ${
+            canDelete(window.currentRole)
+              ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); window.reviews.deleteReview('${id}')">Delete</button>`
+              : ""
+          }
         </div>
-        <div class="review-comment" style="margin-top: 0.5rem; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease; opacity: 0; pointer-events: none;">
-          ${r.comment || ''}
+        <div class="review-comment" style="margin-top: 0.5rem; max-height: 0; opacity: 0; pointer-events: none; transition: max-height 0.3s ease, opacity 0.3s ease;">
+          ${r.comment || ""}
         </div>
-        <div class="review-meta" style="margin-top:0.3rem; font-size:0.85rem; color:#a8b9db; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease; opacity: 0; pointer-events: none;">
+        <div class="review-meta" style="margin-top: 0.3rem; font-size: 0.85rem; color: #a8b9db; max-height: 0; opacity: 0; pointer-events: none; transition: max-height 0.3s ease, opacity 0.3s ease;">
           <span><b>When:</b> ${formatTs(r.timestamp)}</span><br/>
-          <span><b>Referral:</b> ${r.refName ? `${r.refName} / ${r.refPhone || ''}` : '-'}</span>
+          <span><b>Referral:</b> ${r.refName ? `${r.refName} / ${r.refPhone || ""}` : "-"}</span>
         </div>
       </div>
     `;
   }
+
+  // Toggle review expansion on card click
+  document.addEventListener("click", e => {
+    if (e.target.closest(".review-card")) {
+      const card = e.target.closest(".review-card");
+      if (card.classList.contains("collapsed")) {
+        card.classList.remove("collapsed");
+        // expand comment/meta
+        const comment = card.querySelector(".review-comment");
+        const meta = card.querySelector(".review-meta");
+        comment.style.maxHeight = "500px";
+        comment.style.opacity = "1";
+        comment.style.pointerEvents = "auto";
+        meta.style.maxHeight = "500px";
+        meta.style.opacity = "1";
+        meta.style.pointerEvents = "auto";
+        card.style.maxHeight = "1000px";
+      } else {
+        card.classList.add("collapsed");
+        // collapse comment/meta
+        const comment = card.querySelector(".review-comment");
+        const meta = card.querySelector(".review-meta");
+        comment.style.maxHeight = "0";
+        comment.style.opacity = "0";
+        comment.style.pointerEvents = "none";
+        meta.style.maxHeight = "0";
+        meta.style.opacity = "0";
+        meta.style.pointerEvents = "none";
+        card.style.maxHeight = "70px";
+      }
+    }
+  });
 
   function renderReviewsSection(reviews, currentRole, users, currentUid) {
     const filteredReviews = filterReviewsByRole(reviews, users, currentUid, currentRole);
     const grouped = groupByStore(filteredReviews);
 
     const blocks = Object.entries(grouped)
-      .sort((a,b) => a[0].localeCompare(b[0], undefined, {numeric:true,sensitivity:'base'}))
+      .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: "base" }))
       .map(([store, entries]) => {
         const avg = calcAvg(entries);
         const openSet = window._reviews_ui_openStores;
@@ -132,7 +197,9 @@
         const defaultOpen = avg < HIGH_AVG_THRESHOLD;
         const isOpen = openSet.has(storeKey)
           ? true
-          : (openSet.has("!" + storeKey) ? false : defaultOpen);
+          : openSet.has("!" + storeKey)
+          ? false
+          : defaultOpen;
         return storeBlockHtml(store, entries, avg, isOpen);
       })
       .join("");
@@ -181,14 +248,14 @@
     window.renderAdminApp();
   }
 
-  function escapeHtml(str){
-    return (str||"")
+  function escapeHtml(str) {
+    return (str || "")
       .toString()
-      .replace(/&/g,"&amp;")
-      .replace(/</g,"&lt;")
-      .replace(/>/g,"&gt;")
-      .replace(/"/g,"&quot;")
-      .replace(/'/g,"&#39;");
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   window.reviews = {
@@ -197,6 +264,6 @@
     toggleStar,
     renderReviewsReload,
     filterReviewsByRole,
-    toggleStore
+    toggleStore,
   };
 })();
