@@ -6,6 +6,7 @@
   background: transparent;
   padding: 1.5rem 2rem;
   user-select: text;
+  overflow: visible !important;
 }
 
 .reviews-section h2 {
@@ -23,8 +24,9 @@
   gap: 2rem;
   max-height: 70vh;
   overflow-y: auto;
-  padding-right: 6px;
+  padding: 1rem 1.5rem 1rem 1.5rem;
   user-select: text;
+  overflow: visible !important;
 }
 
 .reviews-container::-webkit-scrollbar {
@@ -49,6 +51,8 @@
 .store-block {
   text-align: center;
   margin-bottom: 2rem;
+  overflow: visible; /* Allow glow to show */
+  padding: 0 10px;
 }
 
 /* Big glowing stars for store average */
@@ -66,6 +70,9 @@
     0 0 40px #1e90ff;
   display: inline-block;
   transition: color 0.3s ease;
+  overflow: visible;
+  margin: 0 auto;
+  padding: 0 5px;
 }
 
 .store-avg-stars-big:hover {
@@ -88,6 +95,7 @@
   padding-right: 6px;
   user-select: text;
   border-radius: 14px;
+  overflow: visible !important;
 }
 
 /* Scrollbar for expanded review list */
