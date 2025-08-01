@@ -161,7 +161,7 @@
 
 /* User card */
 .user-card {
-  background: rgba(20, 25, 38, 0.89);
+  background: transparent;
   border-radius: 12px;
   padding: 1.04rem 1.22rem;
   margin-top: 1.1rem;
