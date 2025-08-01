@@ -146,6 +146,7 @@ body::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  color: #e7f2ff;
 }
 
 /* Role badges */
@@ -293,35 +294,6 @@ body::after {
     display: none !important;
   }
 }
-
-/* ==========================================================================
-   Controls bar layout fix (for JS-generated guestinfo-controls-bar)
-   ========================================================================== */
-
-.guestinfo-controls-bar {
-  display: flex !important;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 18px;
-  padding: 0 1.5rem;
-  box-sizing: border-box;
-}
-
-/* First div is flex:1, no override needed */
-
-.guestinfo-controls-bar > div:nth-child(2) {
-  flex: none;
-  margin: 0 auto;
-  display: flex;
-  justify-content: center;
-}
-
-.guestinfo-controls-bar > div:nth-child(3) {
-  flex: 1;
-  text-align: right;
-}
-
-/* Hide filters and clear buttons as before */
 #filter-customer,
 #filter-date,
 #filter-employee,
@@ -330,4 +302,46 @@ body::after {
 #filter-employee + .clear-btn,
 .clear-all-btn {
   display: none !important;
+}
+.admin-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 1rem 2.3rem;
+}
+
+/* Title aligned left naturally */
+.admin-header h2 {
+  flex: 1;
+  font-weight: 900;
+  font-size: 1.8rem;
+  color: #55baff;
+  letter-spacing: 0.04em;
+  user-select: none;
+  margin: 0;
+}
+
+/* Lead button container - centered horizontally */
+.lead-button-wrapper {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+/* Filter buttons container - right aligned */
+.filter-buttons-wrapper {
+  margin-left: auto; /* push to right */
+  display: flex;
+  gap: 1rem;
+  user-select: none;
+}
+
+/* Optional: style the buttons inside */
+.lead-button-wrapper button,
+.filter-buttons-wrapper button {
+  /* your existing .water-animated or phone-menu-button styles */
+  cursor: pointer;
 }
