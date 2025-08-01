@@ -194,7 +194,7 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
     padding: 12px 24px;
     position: relative;
     backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(2.5px);
     border: none;
     box-shadow: none;
     color: inherit;
@@ -234,80 +234,12 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   ].filter(Boolean).join("");
 
   return `
-    <style>
-      /* Responsive bigger customer name */
-      #guest-card-${id} .guest-name {
-        font-weight: 600;
-        font-size: 1.25rem;
-        margin: 0.5rem 0;
-        text-align: center;
-        color: #dbeafe;
-        user-select: text;
-      }
-      @media (min-width: 768px) {
-        #guest-card-${id} .guest-name {
-          font-size: 1.5rem;
-        }
-      }
-
-      /* Submitter name glowing better */
-      #guest-card-${id} .submitter-name {
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 0.9rem;
-        background: rgba(23,30,45,0.3);
-        color: #a5d6ff;
-        box-shadow:
-          0 0 6px 2px #55baffaa,
-          0 0 12px 4px #55baff66;
-        user-select: none;
-        white-space: nowrap;
-        cursor: default;
-      }
-
-      /* Phone number clickable and larger on wider screens */
-      #guest-card-${id} .guest-phone {
-        cursor: pointer;
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 0.85rem;
-        background: rgba(23,30,45,0.3);
-        color: #a5b4fc;
-        transition: background 0.25s ease, color 0.25s ease;
-        user-select: text;
-      }
-      #guest-card-${id} .guest-phone:hover {
-        background: var(--brand);
-        color: #f0f9ff;
-      }
-      @media (min-width: 768px) {
-        #guest-card-${id} .guest-phone {
-          font-size: 1rem;
-        }
-      }
-
-      /* Timeframe style */
-      #guest-card-${id} .guest-time {
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        background: rgba(23,30,45,0.3);
-        color: #9ca3af;
-        user-select: none;
-      }
-    </style>
-
     <div class="guest-card" id="guest-card-${id}" style="${cardStyle}">
       <!-- header: status + pitch + toggle -->
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="${statusCls}" style="padding:2px 8px;border-radius:999px;font-size:.85em;">
-          ${statusLbl}
-        </span>
-        <span class="guest-pitch-pill" style="padding:2px 8px;border-radius:999px;font-size:.85em;background:transparent;border:1px solid #dbeafe;">
-          ${pct}%
-        </span>
-        <button class="btn-edit-actions" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
-          onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
+      <div class="guest-card-header">
+        <span class="${statusCls} guest-status-badge">${statusLbl}</span>
+        <span class="guest-pitch-pill">${pct}%</span>
+        <button class="btn-edit-actions" onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
       </div>
 
       <!-- customer name centered -->
@@ -316,36 +248,28 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
       </div>
 
       <!-- footer: submitted by, phone toggle, time -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-        <span class="submitter-name" title="Submitted by">
-          ${nameLabel}
-        </span>
-        <span class="guest-phone" 
-              data-raw="${raw}" 
-              data-mask="${masked}" 
-              onclick="(function(e){navigator.clipboard.writeText('${raw}'); alert('Copied: ${raw}');})(event)">
-          ${masked}
-        </span>
-        <span class="guest-time">
-          ${when}
-        </span>
+      <div class="guest-card-footer">
+        <span class="submitter-name" title="Submitted by">${nameLabel}</span>
+        <span class="guest-phone" data-raw="${raw}" data-mask="${masked}" onclick="(function(e){navigator.clipboard.writeText('${raw}'); alert('Copied: ${raw}');})(event)">${masked}</span>
+        <span class="guest-time">${when}</span>
       </div>
 
       <!-- hidden actions -->
-      <div class="guest-card-actions" style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
+      <div class="guest-card-actions" style="display:none;">
         ${actions}
       </div>
 
       <!-- hidden edit form -->
-      <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
+      <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;">
         <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}"/></label>
         <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}"/></label>
         <label>Service Type  <input type="text" name="serviceType" value="${esc(g.serviceType||"")}"/></label>
         <label>Situation     <textarea name="situation">${esc(g.situation||"")}</textarea></label>
-        <div style="margin-top:8px;">
+        <div class="edit-form-buttons">
           <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
         </div>
       </form>
-    </div>`;
+    </div>
+  `;
 }
