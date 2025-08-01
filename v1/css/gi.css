@@ -528,3 +528,12 @@ body::after {
   flex: 1;
   text-align: right;
 }
+#filter-customer,
+#filter-date,
+#filter-employee,
+#filter-customer + .clear-btn,
+#filter-date + .clear-btn,
+#filter-employee + .clear-btn,
+.clear-all-btn {
+  display: none !important;
+}
