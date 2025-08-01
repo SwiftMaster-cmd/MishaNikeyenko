@@ -16,6 +16,8 @@
 
   const adminAppDiv = document.getElementById("adminApp");
   const logoutBtn = document.getElementById("logoutBtn");
+  const messagesBtn = document.getElementById("messagesBtn");
+  const messagesBadge = document.getElementById("messagesBadge");
 
   let currentUid = null;
   let currentRole = ROLES.ME;
@@ -57,11 +59,24 @@
 
     if (logoutBtn) logoutBtn.addEventListener("click", () => auth.signOut());
 
+    if (messagesBtn) {
+      messagesBtn.addEventListener("click", () => {
+        if (window.messages?.openOverlay) window.messages.openOverlay();
+      });
+    }
+    if (messagesBadge && window.messages?.setBadgeEl) {
+      window.messages.setBadgeEl(messagesBadge);
+    }
+
     await initialLoad();
     ensureRealtime();
 
     if (window.guestinfo?.ensureRealtime) window.guestinfo.ensureRealtime();
     if (window.reviews?.ensureRealtime) window.reviews.ensureRealtime();
+
+    if (window.messages?.init) {
+      window.messages.init(currentUid, currentRole);
+    }
   });
 
   async function initialLoad() {

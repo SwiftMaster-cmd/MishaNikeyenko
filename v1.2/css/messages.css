@@ -18,15 +18,21 @@
 }
 
 .msg-overlay-panel {
-  margin: 4.8vh 0 0 0;
-  width: 760px; max-width: 96vw;
+  position: fixed;
+  top: 60px;  /* height of your fixed header */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: calc(100vh - 60px); /* full height minus header */
   background: rgba(25,38,57,0.98);
-  border-radius: 23px;
-  box-shadow: 0 12px 40px #22aaff44;
+  border-radius: 0 0 23px 23px; /* rounded corners only at bottom */
+  box-shadow: none; /* remove shadow for full width */
   overflow: hidden;
-  position: relative;
-  min-height: 520px;
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
+  z-index: 12001;
+  margin: 0; /* remove margin for full bleed */
 }
 
 .msg-overlay-header {
