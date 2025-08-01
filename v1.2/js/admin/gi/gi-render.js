@@ -147,12 +147,11 @@ export function statusSectionHtml(title, rows, users, currentUid, currentRole, h
   ).join("");
 }
 
-// ── Card renderer ──────────────────────────────────────────────────────────
 export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
 
-  // Use uniform glassy background instead of colored tint
+  // Glassy background for card
   const bg = "rgba(23, 30, 45, 0.7)";
 
   // determine pitch %
@@ -195,7 +194,7 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
 
   return `
     <div class="guest-card" id="guest-card-${id}"
-         style="background:${bg};border-radius:8px;padding:12px;position:relative;">
+         style="background:${bg};border-radius:var(--radius-md);padding:12px;position:relative;">
       <!-- header: status + pitch + toggle -->
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="${statusCls}"
