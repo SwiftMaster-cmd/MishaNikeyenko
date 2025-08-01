@@ -8,24 +8,21 @@
 </head>
 <body>
 
-  <header id="stickyHeader">
-
- <div id="headerInner">
-      
-        <div>
-        <button id="newLeadBtn">+ New Lead</button>
-        <button id="dashboardBtn" type="button">Dashboard</button>
-        <button id="toggleLeadIdBtn" type="button">See Lead ID</button>
-
-        <span id="leadIdText" class="hidden" aria-live="polite" aria-atomic="true">--</span>
-                </div>
-                     <span id="progressLabel" aria-live="polite" aria-atomic="true">0%</span>
-                <progress id="progressBar" max="100" value="0" aria-label="Progress"></progress>
-
-        </div>
-                
-      
-  </header>
+ <header id="stickyHeader">
+  <div id="headerInner">
+    <!-- LEFT: Dashboard/back arrow -->
+    <button id="dashboardBtn" title="Back to Dashboard" aria-label="Back to Dashboard" class="header-back">&larr;</button>
+    <!-- CENTER: Title -->
+    <span id="portalTitle">Lead Info</span>
+    <!-- RIGHT: New Lead + -->
+    <button id="newLeadBtn" title="New Lead" aria-label="New Lead" class="header-newlead">+</button>
+  </div>
+  <div class="guest-progress-bar-wrap">
+    <progress id="progressBar" max="100" value="0" aria-label="Progress"></progress>
+    <span id="progressLabel" aria-live="polite" aria-atomic="true" title="Tap to show Lead ID">0%</span>
+    <span id="leadIdText" class="lead-id-label hidden" aria-live="polite" aria-atomic="true">--</span>
+  </div>
+</header>
 
   <main id="mainContent">
     <section id="authContainer" aria-label="Sign In Form">

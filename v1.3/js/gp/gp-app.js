@@ -169,27 +169,52 @@ export class GuestFormApp {
   }
 }
 
-// AUTH AND UI LOGIC
-const emailInput = document.getElementById("emailInput");
-const passwordInput = document.getElementById("passwordInput");
-const signInBtn = document.getElementById("signInBtn");
-const errorMsg = document.getElementById("errorMsg");
+/* ==========================================================================
+   HEADER / PROGRESS / LEAD ID UI LOGIC
+   ========================================================================== */
+const progressLabel = document.getElementById("progressLabel");
+const leadIdText = document.getElementById("leadIdText");
+let leadIdTimeout = null;
 
-signInBtn.addEventListener("click", async () => {
-  errorMsg.textContent = "";
-  const email = emailInput.value.trim();
-  const password = passwordInput.value.trim();
-  if (!email || !password) {
-    errorMsg.textContent = "Please enter email and password.";
-    return;
-  }
-  try {
-    await signIn(email, password);
-  } catch (error) {
-    errorMsg.textContent = "Sign in failed: " + error.message;
+progressLabel.addEventListener("click", () => {
+  if (leadIdText.classList.contains("hidden")) {
+    leadIdText.classList.remove("hidden");
+    clearTimeout(leadIdTimeout);
+    leadIdTimeout = setTimeout(() => {
+      leadIdText.classList.add("hidden");
+    }, 3000);
+  } else {
+    leadIdText.classList.add("hidden");
   }
 });
 
+// Update lead ID in UI
+function setLeadId(leadId) {
+  leadIdText.textContent = leadId || "--";
+  leadIdText.classList.add("hidden");
+}
+// Update progress bar and % in UI
+function setProgress(pct) {
+  document.getElementById("progressBar").value = pct;
+  progressLabel.textContent = pct + "%";
+}
+
+// Dashboard/back button handler (customize as needed)
+document.getElementById("dashboardBtn").onclick = () => {
+  // Implement navigation as you wish
+  window.location.href = "/dashboard"; // or custom logic
+};
+
+// New lead button handler (calls your app logic)
+document.getElementById("newLeadBtn").onclick = async () => {
+  if (window.gpApp && typeof window.gpApp.createNewLead === "function") {
+    await window.gpApp.createNewLead();
+  }
+};
+
+/* ==========================================================================
+   AUTH AND APP INITIALIZATION
+   ========================================================================== */
 firebaseOnAuthStateChanged(async (user) => {
   if (user) {
     document.getElementById("authContainer").style.display = "none";
@@ -197,16 +222,15 @@ firebaseOnAuthStateChanged(async (user) => {
 
     const app = new GuestFormApp({
       onLeadChange: (id) => {
-        document.getElementById("leadIdText").textContent = id || '--';
+        setLeadId(id);
         localStorage.setItem("last_guestinfo_key", id);
       },
       onProgressUpdate: (pct) => {
-        document.getElementById("progressBar").value = pct;
-        document.getElementById("progressLabel").textContent = pct + "%";
+        setProgress(pct);
       }
     });
 
-    window.gpApp = app; // expose globally so gp.js can access
+    window.gpApp = app; // expose globally
 
     let lastLead = localStorage.getItem("last_guestinfo_key");
     if (!lastLead) {
@@ -214,9 +238,7 @@ firebaseOnAuthStateChanged(async (user) => {
     }
     await app.loadGuest(lastLead);
 
-    document.getElementById("newLeadBtn").onclick = async () => {
-      await app.createNewLead();
-    };
+    // No need for newLeadBtn.onclick here, handled above
   } else {
     document.getElementById("authContainer").style.display = "block";
     document.getElementById("guestApp").style.display = "none";
