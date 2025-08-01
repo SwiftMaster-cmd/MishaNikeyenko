@@ -187,3 +187,9 @@ html, body {
   96% { background-position: 40% 10%; }
   100% { background-position: 0% 20%; }
 }
+@media (max-width: 600px) {
+  .header-buttons button.guest-form-button,
+  .header-buttons button.review-form-button {
+    display: none !important;
+  }
+}
