@@ -8,61 +8,64 @@
   border-radius: 22px;
   box-shadow: 0 4px 40px 0 rgba(10,120,255,0.17);
   backdrop-filter: blur(18px) saturate(130%);
-  padding: 2.3rem 2.3rem 2rem 2.3rem;
+  padding: 2.4rem 2.4rem 2.2rem 2.4rem;
   color: #def1ff;
   font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   max-width: 100%;
-  margin: 0 auto 2.5rem auto;
+  margin: 0 auto 2.8rem auto;
   user-select: none;
-  transition: box-shadow 0.3s, background 0.3s;
+  transition: box-shadow 0.3s ease, background 0.3s ease;
 }
 
 /* --- Section title --- */
 .stores-section h2 {
   color: #55baff;
-  font-size: 2rem;
+  font-size: 2.1rem;
   font-weight: 900;
-  margin-bottom: 2rem;
+  margin-bottom: 2.2rem;
   letter-spacing: 0.02em;
-  text-shadow: 0 1px 14px #55baff60;
+  text-shadow: 0 1px 16px #55baff70;
   user-select: text;
 }
 
 /* --- Store summary (bar) --- */
 .user-store-summary {
-  background: rgba(12, 38, 80, 0.63);
+  background: rgba(12, 38, 80, 0.65);
   border-radius: 16px;
-  box-shadow: 0 2px 24px 0 #3ca8e025;
-  padding: 1.2rem 1.8rem;
+  box-shadow: 0 3px 28px 0 #3ca8e025;
+  padding: 1.3rem 2rem;
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 20px;
   font-weight: 600;
   color: #91cfff;
-  margin-bottom: 0.9rem;
-  transition: background 0.23s, box-shadow 0.23s, color 0.23s;
+  margin-bottom: 1rem;
+  transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
+  cursor: pointer;
+  user-select: none;
 }
 
 .user-store-summary:hover {
-  background: rgba(15, 55, 120, 0.85);
-  box-shadow: 0 4px 40px 0 #62d6fd38;
+  background: rgba(15, 55, 120, 0.9);
+  box-shadow: 0 5px 48px 0 #62d6fd50;
   color: #eafaff;
-  cursor: pointer;
 }
 
 .user-store-summary.open {
   background: rgba(14,80,150,0.96);
-  box-shadow: 0 0 70px #62d6fd66;
+  box-shadow: 0 0 80px #62d6fd88;
   color: #fff;
 }
 
 /* --- Caret indicator --- */
 .uss-caret {
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   color: #5ac8fa;
-  transition: transform 0.28s, color 0.23s;
+  transition: transform 0.28s ease, color 0.25s ease;
   user-select: none;
+  will-change: transform, color;
 }
+
 .user-store-summary.open .uss-caret {
   transform: rotate(90deg);
   color: #c3f3ff;
@@ -72,66 +75,75 @@
 .uss-name {
   flex: 1 1 auto;
   font-family: "Roboto Mono", monospace;
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   color: #a0d3ff;
-  text-shadow: 0 1px 10px #0a314b48;
+  text-shadow: 0 1px 12px #0a314b58;
   user-select: text;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* --- Staff/role mix pills --- */
 .uss-role-mix {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   user-select: none;
 }
 
 .store-pill {
-  padding: 6px 16px;
+  padding: 7px 18px;
   border-radius: 9999px;
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #e9f4ff;
-  box-shadow: 0 0 10px #48b4fa22;
+  box-shadow: 0 0 14px #48b4fa33;
   background: linear-gradient(90deg, #24c4e3 0%, #2280d6 80%);
-  opacity: 0.91;
+  opacity: 0.92;
   user-select: none;
-  transition: background 0.18s, box-shadow 0.18s;
+  transition: background 0.22s ease, box-shadow 0.22s ease;
 }
 
 .store-pill.lead {
   background: linear-gradient(90deg, #3da64e 0%, #41e876 80%);
   color: #fff;
+  box-shadow: 0 0 14px #35c157aa;
 }
+
 .store-pill.me {
   background: linear-gradient(90deg, #1177d1 0%, #55baff 80%);
   color: #fff;
+  box-shadow: 0 0 14px #55baffbb;
 }
 
 /* --- Progress --- */
 .uss-progress {
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: 1.07rem;
   color: #91d378;
   user-select: none;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.015em;
+  min-width: 70px;
+  text-align: right;
 }
 
 /* --- Admin input overrides --- */
 .store-staffgoal-input,
 .store-budget-input {
-  width: 82px;
-  background: rgba(21,32,57,0.93);
+  width: 86px;
+  background: rgba(21,32,57,0.95);
   border: 2px solid #51c8ff;
   color: #d3f5ff;
-  border-radius: 10px;
-  font-size: 1.03rem;
+  border-radius: 12px;
+  font-size: 1.05rem;
   font-weight: 700;
-  padding: 8px 13px;
+  padding: 9px 14px;
   text-align: center;
   user-select: text;
-  transition: border-color 0.22s;
+  transition: border-color 0.25s ease;
 }
+
 .store-staffgoal-input:focus,
 .store-budget-input:focus {
   border-color: #1e90ff;
@@ -141,45 +153,50 @@
 
 /* --- Expanded store details --- */
 .user-store-detail {
-  background: rgba(13, 42, 87, 0.83);
+  background: rgba(13, 42, 87, 0.88);
   border-radius: 16px;
-  margin-top: 1.3rem;
-  padding: 1.6rem 1.2rem 1.3rem 1.2rem;
-  box-shadow: 0 2px 34px #48b4fa24 inset;
+  margin-top: 1.4rem;
+  padding: 1.8rem 1.3rem 1.4rem 1.3rem;
+  box-shadow: 0 3px 38px #48b4fa33 inset;
   color: #d6f0ff;
   user-select: text;
   overflow-x: auto;
+  scroll-padding: 12px;
 }
 
 /* --- Store table --- */
 .store-table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 9px;
-  font-size: 1.07rem;
+  border-spacing: 0 11px;
+  font-size: 1.1rem;
 }
+
 .store-table thead th {
   text-align: left;
-  padding: 14px 19px;
+  padding: 16px 22px;
   font-weight: 700;
   color: #70c7ff;
-  border-bottom: 2px solid #4a8effaa;
+  border-bottom: 2.5px solid #4a8effbb;
   user-select: none;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.015em;
   background: transparent;
 }
+
 .store-table tbody td {
-  background: rgba(20,36,66,0.96);
-  padding: 12px 19px;
+  background: rgba(20,36,66,0.98);
+  padding: 14px 22px;
   color: #b8e1ff;
   font-weight: 600;
-  border-bottom: 1.2px solid #2d4c72b0;
-  border-radius: 10px;
-  transition: background 0.22s, color 0.18s;
+  border-bottom: 1.5px solid #2d4c72b0;
+  border-radius: 12px;
+  transition: background 0.28s ease, color 0.22s ease;
 }
+
 .store-table tbody tr:last-child td {
   border-bottom: none;
 }
+
 .store-table tbody tr:hover td {
   background: #1a335b;
   color: #e2f6ff;
@@ -188,17 +205,18 @@
 /* --- Table input fields --- */
 .store-table input[type="text"],
 .store-table input[type="number"] {
-  background: rgba(25,39,63,0.97);
-  border: 1.6px solid #4aa8ff90;
-  border-radius: 9px;
-  padding: 8px 13px;
+  background: rgba(25,39,63,0.98);
+  border: 1.8px solid #4aa8ffb0;
+  border-radius: 10px;
+  padding: 10px 14px;
   color: #c4e2ff;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1.03rem;
   width: 100%;
-  transition: border-color 0.18s;
+  transition: border-color 0.22s ease;
   user-select: text;
 }
+
 .store-table input[type="text"]:focus,
 .store-table input[type="number"]:focus {
   border-color: #55baff;
@@ -209,22 +227,24 @@
 /* --- Danger button (delete) --- */
 .store-table button.btn-danger {
   background: transparent;
-  border: 2px solid #ff5252;
+  border: 2.2px solid #ff5252;
   color: #ff5252;
-  padding: 7px 18px;
-  border-radius: 12px;
+  padding: 8px 20px;
+  border-radius: 14px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 0 8px #ff525225;
-  transition: background 0.18s, color 0.18s, box-shadow 0.15s, transform 0.14s;
+  box-shadow: 0 0 10px #ff525230;
+  transition: background 0.22s ease, color 0.22s ease, box-shadow 0.2s ease, transform 0.16s ease;
+  user-select: none;
 }
+
 .store-table button.btn-danger:hover,
 .store-table button.btn-danger:focus {
   background: #ff5252;
   color: #fff;
-  box-shadow: 0 0 18px #ff525250;
+  box-shadow: 0 0 28px #ff525250;
   outline: none;
-  transform: scale(1.09);
+  transform: scale(1.1);
 }
 
 /* --- Unassigned block style --- */
@@ -237,48 +257,92 @@
 
 /* --- Store block separation --- */
 .user-store-block {
-  margin-bottom: 1.7rem;
+  margin-bottom: 1.8rem;
   border-radius: 18px;
-  padding: 1.1rem 1.1rem;
-  background: rgba(7,15,28,0.81);
-  box-shadow: 0 2px 18px #1864bb26;
-  transition: background 0.2s, box-shadow 0.2s;
+  padding: 1.3rem 1.3rem;
+  background: rgba(7,15,28,0.83);
+  box-shadow: 0 2px 20px #1864bb33;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
 }
+
 .user-store-block.open {
-  background: rgba(8,58,108,0.89);
-  box-shadow: 0 0 40px #6dd0ff55;
+  background: rgba(8,58,108,0.95);
+  box-shadow: 0 0 48px #6dd0ff77;
 }
 
 /* --- Animations --- */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(18px);}
-  to   { opacity: 1; transform: translateY(0);}
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.stores-section, .user-store-summary, .user-store-detail {
+
+.stores-section,
+.user-store-summary,
+.user-store-detail {
   animation: fadeInUp 0.7s cubic-bezier(0.41,0,0.16,1) both;
 }
 
 /* --- Responsive --- */
 @media (max-width: 950px) {
-  .stores-section { padding: 1.1rem 0.5rem 1rem 0.5rem; }
-  .user-store-summary { padding: 0.8rem 1rem; font-size: 1rem; }
-  .uss-name { font-size: 1.1rem; }
-  .store-pill { font-size: 0.93rem; padding: 5px 10px; }
-  .user-store-detail { padding: 1rem 0.5rem; }
+  .stores-section {
+    padding: 1.2rem 0.7rem 1rem 0.7rem;
+  }
+  .user-store-summary {
+    padding: 0.9rem 1.2rem;
+    font-size: 1.05rem;
+    gap: 14px;
+  }
+  .uss-name {
+    font-size: 1.15rem;
+  }
+  .store-pill {
+    font-size: 0.95rem;
+    padding: 5px 11px;
+  }
+  .user-store-detail {
+    padding: 1.2rem 0.7rem;
+  }
   .store-table thead th,
-  .store-table tbody td { font-size: 0.97rem; padding: 8px 10px; }
+  .store-table tbody td {
+    font-size: 0.98rem;
+    padding: 10px 12px;
+  }
 }
 
 @media (max-width: 600px) {
-  .stores-section { padding: 0.5rem 0.1rem 0.7rem 0.1rem; }
-  .user-store-summary { padding: 0.65rem 0.5rem; gap: 7px; }
-  .user-store-block { padding: 0.7rem 0.1rem; }
-  .user-store-detail { padding: 0.6rem 0.1rem; }
-  .uss-name { font-size: 0.99rem; }
-  .store-table thead th, .store-table tbody td {
-    font-size: 0.89rem;
-    padding: 6px 4px;
+  .stores-section {
+    padding: 0.7rem 0.3rem 0.9rem 0.3rem;
   }
-  .store-pill { padding: 3px 7px; font-size: 0.86rem; }
-  .store-table button.btn-danger { padding: 6px 10px; font-size: 0.96rem; }
+  .user-store-summary {
+    padding: 0.7rem 0.6rem;
+    gap: 8px;
+  }
+  .user-store-block {
+    padding: 0.9rem 0.5rem;
+  }
+  .user-store-detail {
+    padding: 0.7rem 0.3rem;
+  }
+  .uss-name {
+    font-size: 1rem;
+  }
+  .store-table thead th,
+  .store-table tbody td {
+    font-size: 0.9rem;
+    padding: 6px 8px;
+  }
+  .store-pill {
+    padding: 3px 8px;
+    font-size: 0.88rem;
+  }
+  .store-table button.btn-danger {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+  }
 }
