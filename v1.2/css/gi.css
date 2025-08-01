@@ -19,22 +19,7 @@
 }
 
 /* Guest Card - Glassy style */
-.guest-card {
-  background: rgba(23, 30, 45, 0.6);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 30px rgba(30, 144, 255, 0.15);
-  backdrop-filter: blur(12px) saturate(130%);
-  border: 1.5px solid rgba(80, 160, 255, 0.2);
-  padding: 1.2rem 1.6rem;
-  margin: 1rem 0;
-  color: #e7f2ff;
-  font-size: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  user-select: none;
-  transition: box-shadow 0.3s ease;
-}
+
 
 .guest-card:hover {
   box-shadow: 0 8px 40px rgba(30, 144, 255, 0.3);
