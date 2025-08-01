@@ -1,196 +1,119 @@
 /* ==========================================================================
-   Guest Info Section Container - Refined Glassy Style (No Glows)
+   Water-like Animated UI Elements - Full Update
    ========================================================================== */
-.guestinfo-section {
-  background: transparent;
-}
 
-.guestinfo-section:hover {
-  background: rgba(30, 144, 255, 0.05);
-  box-shadow: none;
-}
-
-/* Guest Card - flat subtle hover */
-.guest-card:hover {
-  background: rgba(255, 255, 255, 0.03);
-  box-shadow: none;
-}
-
-/* Status badges - no glow, subtle tint */
-.role-badge {
+/* Shared base for all water-animated elements */
+.water-animated {
+  position: relative;
+  overflow: hidden;
+  background-size: 300% 300%;
+  animation: waterFlowSlow 20s ease-in-out infinite;
+  box-shadow: none !important;
+  transition: none !important;
+  user-select: none;
+  color: #e7f2ff;
+  border-radius: 9999px;
+  border: 1px solid rgba(80, 160, 255, 0.15);
+  white-space: nowrap;
   font-weight: 700;
   font-size: 0.85rem;
   padding: 0.3em 0.9em;
-  border-radius: 9999px;
-  color: #e7f2ff;
   text-transform: uppercase;
-  background: rgba(23, 30, 45, 0.3);
-  border: 1px solid rgba(80, 160, 255, 0.15);
-  user-select: none;
-  white-space: nowrap;
-  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.role-badge.role-guest  { background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.15); }
-.role-badge.role-lead   { background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.15); }
-.role-badge.role-dm     { background: rgba(37, 99, 235, 0.2); border-color: rgba(37, 99, 235, 0.15); }
-.role-badge.role-admin  { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.15); }
+/* Role badges */
+.role-badge.water-animated {
+  background: linear-gradient(270deg, rgba(23, 30, 45, 0.3), rgba(23, 30, 45, 0.15));
+}
+.role-badge.role-guest.water-animated {
+  background: linear-gradient(270deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.1));
+  border-color: rgba(99, 102, 241, 0.15);
+}
+.role-badge.role-lead.water-animated {
+  background: linear-gradient(270deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+  border-color: rgba(16, 185, 129, 0.15);
+}
+.role-badge.role-dm.water-animated {
+  background: linear-gradient(270deg, rgba(37, 99, 235, 0.2), rgba(37, 99, 235, 0.1));
+  border-color: rgba(37, 99, 235, 0.15);
+}
+.role-badge.role-admin.water-animated {
+  background: linear-gradient(270deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+  border-color: rgba(239, 68, 68, 0.15);
+}
 
-/* Pitch % pill - flat with subtle transparency */
-.guest-pitch-pill {
+/* Pitch % pill */
+.guest-pitch-pill.water-animated {
+  background: linear-gradient(270deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-weight: 700;
   font-size: 0.85rem;
   padding: 0.25em 0.85em;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.08);
-  color: #e7f2ff;
   user-select: none;
   white-space: nowrap;
-  box-shadow: none;
 }
 
-/* Buttons base - refined water animation, subtle shimmer, no glow */
-.btn, .guestinfo-controls button, .new-lead-btn {
-  font-weight: 700;
-  border-radius: var(--radius-md);
-  padding: 0.48em 1.3em;
-  font-size: 1rem;
-  color: #f9fdff;
-  border: none;
+/* Phone number menu buttons */
+.phone-menu-button.water-animated {
+  background: linear-gradient(270deg, rgba(23, 30, 45, 0.25), rgba(23, 30, 45, 0.15));
+  border: 1px solid rgba(80, 160, 255, 0.12);
+  padding: 0.4em 1em;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 12px;
+  color: #dbe9ff;
   cursor: pointer;
-  user-select: none;
+  transition: background 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.phone-menu-button.water-animated:hover {
+  background-position: 100% 50%;
+}
+
+/* Employee name badges */
+.employee-name.water-animated {
+  background: linear-gradient(270deg, rgba(23, 30, 45, 0.3), rgba(23, 30, 45, 0.15));
+  border: 1px solid rgba(80, 160, 255, 0.12);
+  padding: 0.3em 0.75em;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-radius: 16px;
+  color: #cde6ff;
   white-space: nowrap;
-  backdrop-filter: saturate(180%) blur(6px);
-  position: relative;
-  overflow: hidden;
-
-  background: linear-gradient(270deg, #0e5acc55, #3f9fff88, #0e5acc55);
-  background-size: 600% 600%;
-  animation: waterFlow 12s ease-in-out infinite;
-  transition: transform 0.25s ease;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn::before, 
-.guestinfo-controls button::before,
-.new-lead-btn::before {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background:
-    radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.12), transparent 50%),
-    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.08), transparent 45%);
-  opacity: 0.25;
-  pointer-events: none;
-  animation: shimmerMove 10s linear infinite;
-  border-radius: var(--radius-md);
-  z-index: 0;
+/* Guest info labels, tags, etc */
+.guest-info-label.water-animated {
+  background: linear-gradient(270deg, rgba(23, 30, 45, 0.25), rgba(23, 30, 45, 0.1));
+  border: 1px solid rgba(80, 160, 255, 0.10);
+  padding: 0.25em 0.7em;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-radius: 14px;
+  color: #d0e1ff;
+  white-space: nowrap;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn:hover, .guestinfo-controls button:hover, .new-lead-btn:hover,
-.btn:focus, .guestinfo-controls button:focus, .new-lead-btn:focus {
-  animation-play-state: running;
-  animation-duration: 4s !important;
-  transform: scale(1.07);
-  outline: none;
-  box-shadow: none;
-}
-
-.btn:active, .guestinfo-controls button:active, .new-lead-btn:active {
-  animation-play-state: paused !important;
-  transform: scale(0.95);
-  box-shadow: none;
-}
-
-.btn:not(:hover), .guestinfo-controls button:not(:hover), .new-lead-btn:not(:hover) {
-  animation-duration: 12s !important;
-}
-
-/* Text/content above shimmer */
-.btn > *, .guestinfo-controls button > *, .new-lead-btn > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* Animation keyframes */
-@keyframes waterFlow {
+/* Shared animation keyframes */
+@keyframes waterFlowSlow {
   0%, 100% {
     background-position: 0% 50%;
   }
   50% {
     background-position: 100% 50%;
   }
-}
-
-@keyframes shimmerMove {
-  0% {
-    transform: translate(0%, 0%);
-  }
-  100% {
-    transform: translate(20%, 20%);
-  }
-}
-
-/* Filters wrapper with inline layout */
-.guestinfo-controls {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  margin-bottom: 1.6rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-
-/* Filter Icon Button - hidden since filters removed */
-.filter-icon-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
-  border: none;
-  cursor: pointer;
-  transition: background 0.3s ease, transform 0.15s ease;
-  backdrop-filter: saturate(180%) blur(6px);
-  display: none; /* hidden */
-  justify-content: center;
-  align-items: center;
-  color: #f9fdff;
-  font-size: 1.4rem;
-  user-select: none;
-  box-shadow: none;
-}
-
-.filter-icon-btn:hover,
-.filter-icon-btn:focus {
-  background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
-  transform: scale(1.1);
-  outline: none;
-  box-shadow: none;
-}
-
-/* Responsive adjustments */
-@media (max-width: 600px) {
-  .guestinfo-controls {
-    padding-left: 1rem;
-    padding-right: 1rem;
-    gap: 0.8rem;
-  }
-  .new-lead-btn {
-    min-width: auto;
-    max-width: 140px;
-    width: 100%;
-    font-size: 0.95rem;
-  }
-}
-
-/* Hide old filter inputs and clear buttons */
-#filter-name,
-#filter-emp,
-#filter-date,
-#filter-name + .clear-btn,
-#filter-emp + .clear-btn,
-#filter-date + .clear-btn {
-  display: none !important;
 }
