@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Guest Info Section CSS - Polished, Minimal, Glassy, No Glows
+   Guest Info Section CSS - Polished, Minimal, Glassy, No Glows, Corrected
    ========================================================================== */
 
 .guestinfo-section {
@@ -42,9 +42,10 @@
   user-select: text;
   border: 1px solid rgba(74, 168, 255, 0.15);
   backdrop-filter: saturate(120%) blur(8px);
+  transition: max-height 0.3s ease;
 }
 
-/* Inputs: subtle border + no glowing */
+/* Inputs: subtle border, no glow */
 .search-wrapper input[type="text"],
 .search-wrapper input[type="date"] {
   width: 100%;
@@ -63,7 +64,7 @@
 .search-wrapper input[type="text"]:focus,
 .search-wrapper input[type="date"]:focus {
   border-color: #4aa8ffcc;
-  box-shadow: none; /* No glow */
+  box-shadow: none;
   outline: none;
 }
 
@@ -89,7 +90,7 @@
   opacity: 0.9;
 }
 
-/* Buttons: flat with subtle backgrounds, no shadow */
+/* Buttons: flat with subtle backgrounds, no shadows */
 .btn, .btn-sm {
   cursor: pointer;
   border-radius: 12px;
