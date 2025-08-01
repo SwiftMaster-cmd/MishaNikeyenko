@@ -9,7 +9,7 @@ import {
 } from "./gp-firebase.js";
 
 const gpQuestions = [
-  { id: "currentPlan", label: "What plan are you currently on and how much do you pay per month?", type: "text", weight: 15 },
+  { id: "currentPlan", label: "What carrier are you currently on and how much do you pay per month?", type: "text", weight: 15 },
   { id: "topFrustration", label: "What’s your #1 frustration with your current carrier or service?", type: "text", weight: 14 },
   { id: "familyNeeds", label: "Is your account just for you or do you have family members using your plan?", type: "text", weight: 12 },
   { id: "coveragePriority", label: "How important is coverage where you live, work, or travel?", type: "text", weight: 10 },

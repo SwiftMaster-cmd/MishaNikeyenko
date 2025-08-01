@@ -1,20 +1,22 @@
 /* ==========================================================================
-   Guest Info Section Container - Glassy style with rounded corners
+   Guest Info Section Container - Refined Glassy Style (No Glows)
    ========================================================================== */
 .guestinfo-section {
   background: transparent;
 }
 
 .guestinfo-section:hover {
-  box-shadow: 0 12px 50px rgba(30, 144, 255, 0.35);
+  background: rgba(30, 144, 255, 0.05);
+  box-shadow: none;
 }
 
-/* Guest Card - Glassy style */
+/* Guest Card - flat subtle hover */
 .guest-card:hover {
-  box-shadow: 0 8px 40px rgba(30, 144, 255, 0.3);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: none;
 }
 
-/* Status badges - glassy with subtle tints */
+/* Status badges - no glow, subtle tint */
 .role-badge {
   font-weight: 700;
   font-size: 0.85rem;
@@ -22,32 +24,32 @@
   border-radius: 9999px;
   color: #e7f2ff;
   text-transform: uppercase;
-  background: rgba(23, 30, 45, 0.5);
-  box-shadow: 0 0 8px rgba(30, 144, 255, 0.6);
+  background: rgba(23, 30, 45, 0.3);
+  border: 1px solid rgba(80, 160, 255, 0.15);
   user-select: none;
   white-space: nowrap;
-  border: 1px solid rgba(80, 160, 255, 0.3);
+  box-shadow: none;
 }
 
-.role-badge.role-guest  { background: rgba(99, 102, 241, 0.3); }
-.role-badge.role-lead   { background: rgba(16, 185, 129, 0.3); }
-.role-badge.role-dm     { background: rgba(37, 99, 235, 0.3); }
-.role-badge.role-admin  { background: rgba(239, 68, 68, 0.3); }
+.role-badge.role-guest  { background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.15); }
+.role-badge.role-lead   { background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.15); }
+.role-badge.role-dm     { background: rgba(37, 99, 235, 0.2); border-color: rgba(37, 99, 235, 0.15); }
+.role-badge.role-admin  { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.15); }
 
-/* Pitch % pill - glassy style */
+/* Pitch % pill - flat with subtle transparency */
 .guest-pitch-pill {
   font-size: 0.85rem;
   padding: 0.25em 0.85em;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255 255 255 / 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
   color: #e7f2ff;
   user-select: none;
   white-space: nowrap;
-  box-shadow: 0 0 6px rgba(30, 144, 255, 0.5);
+  box-shadow: none;
 }
 
-/* Buttons base */
+/* Buttons base - refined flat gradients, no glow */
 .btn, .guestinfo-controls button {
   font-weight: 700;
   border-radius: var(--radius-md);
@@ -55,32 +57,28 @@
   font-size: 1rem;
   background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
   color: #f9fdff;
-  box-shadow:
-    inset 0 1px 1px rgba(255 255 255 / 0.3),
-    0 3px 10px rgba(0 123 255 / 0.5);
   border: none;
   cursor: pointer;
-  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+  transition: background 0.3s ease, transform 0.15s ease;
   backdrop-filter: saturate(180%) blur(6px);
   user-select: none;
   white-space: nowrap;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: none;
 }
 
 .btn:hover, .btn:focus,
 .guestinfo-controls button:hover,
 .guestinfo-controls button:focus {
   background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
-  box-shadow:
-    inset 0 2px 3px rgba(255 255 255 / 0.5),
-    0 6px 18px rgba(30 144 255 / 0.8);
   transform: scale(1.05);
   outline: none;
+  box-shadow: none;
 }
 
-/* Filters wrapper replaced with icon + new lead inline */
+/* Filters wrapper with inline layout */
 .guestinfo-controls {
   display: flex;
   gap: 1rem;
@@ -90,38 +88,34 @@
   padding-right: 1rem;
 }
 
-/* Filter Icon Button */
+/* Filter Icon Button - hidden since filters removed */
 .filter-icon-btn {
   width: 44px;
   height: 44px;
   border-radius: 50%;
   background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
-  box-shadow:
-    inset 0 1px 1px rgba(255 255 255 / 0.3),
-    0 3px 10px rgba(0 123 255 / 0.5);
   border: none;
   cursor: pointer;
-  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+  transition: background 0.3s ease, transform 0.15s ease;
   backdrop-filter: saturate(180%) blur(6px);
-  display: flex;
+  display: none; /* hidden */
   justify-content: center;
   align-items: center;
   color: #f9fdff;
   font-size: 1.4rem;
   user-select: none;
+  box-shadow: none;
 }
 
 .filter-icon-btn:hover,
 .filter-icon-btn:focus {
   background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
-  box-shadow:
-    inset 0 2px 3px rgba(255 255 255 / 0.5),
-    0 6px 18px rgba(30 144 255 / 0.8);
   transform: scale(1.1);
   outline: none;
+  box-shadow: none;
 }
 
-/* New Lead Button next to filter icon */
+/* New Lead Button - flat gradient, no glow */
 .new-lead-btn {
   flex-shrink: 0;
   min-width: 120px;
@@ -133,25 +127,20 @@
   font-size: 1rem;
   background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
   color: #f9fdff;
-  box-shadow:
-    inset 0 1px 1px rgba(255 255 255 / 0.3),
-    0 3px 10px rgba(0 123 255 / 0.5);
   border: none;
   cursor: pointer;
-  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+  transition: background 0.3s ease, transform 0.15s ease;
   backdrop-filter: saturate(180%) blur(6px);
   user-select: none;
-  white-space: nowrap;
+  box-shadow: none;
 }
 
 .new-lead-btn:hover,
 .new-lead-btn:focus {
   background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
-  box-shadow:
-    inset 0 2px 3px rgba(255 255 255 / 0.5),
-    0 6px 18px rgba(30 144 255 / 0.8);
   transform: scale(1.05);
   outline: none;
+  box-shadow: none;
 }
 
 /* Responsive adjustments */
@@ -168,38 +157,8 @@
     font-size: 0.95rem;
   }
 }
-/* Filters wrapper: keep buttons inline */
-.guestinfo-controls {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  margin-bottom: 1.6rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
 
-/* Filter Icon Button */
-.filter-icon-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
-  box-shadow:
-    inset 0 1px 1px rgba(255 255 255 / 0.3),
-    0 3px 10px rgba(0 123 255 / 0.5);
-  border: none;
-  cursor: pointer;
-  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
-  backdrop-filter: saturate(180%) blur(6px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #f9fdff;
-  font-size: 1.4rem;
-  user-select: none;
-}
-
-/* Hide filter icon button entirely since filters are hidden */
+/* Hide old filter inputs and clear buttons */
 #filter-name,
 #filter-emp,
 #filter-date,
@@ -207,57 +166,4 @@
 #filter-emp + .clear-btn,
 #filter-date + .clear-btn {
   display: none !important;
-}
-
-/* Also hide filter icon button since no filters visible */
-.filter-icon-btn {
-  display: none !important;
-}
-
-/* New Lead Button next to filter icon */
-.new-lead-btn {
-  flex-shrink: 0;
-  min-width: 120px;
-  max-width: 160px;
-  white-space: nowrap;
-  border-radius: 24px;
-  padding: 0.48em 1.2em;
-  font-weight: 700;
-  font-size: 1rem;
-  background: linear-gradient(90deg, #17b2ff2a, #007bffa2 95%);
-  color: #f9fdff;
-  box-shadow:
-    inset 0 1px 1px rgba(255 255 255 / 0.3),
-    0 3px 10px rgba(0 123 255 / 0.5);
-  border: none;
-  cursor: pointer;
-  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
-  backdrop-filter: saturate(180%) blur(6px);
-  user-select: none;
-  white-space: nowrap;
-}
-
-.new-lead-btn:hover,
-.new-lead-btn:focus {
-  background: linear-gradient(90deg, #3fcbff2a, #0f43c8b0 95%);
-  box-shadow:
-    inset 0 2px 3px rgba(255 255 255 / 0.5),
-    0 6px 18px rgba(30 144 255 / 0.8);
-  transform: scale(1.05);
-  outline: none;
-}
-
-/* Responsive adjustments */
-@media (max-width: 600px) {
-  .guestinfo-controls {
-    padding-left: 1rem;
-    padding-right: 1rem;
-    gap: 0.8rem;
-  }
-  .new-lead-btn {
-    min-width: auto;
-    max-width: 140px;
-    width: 100%;
-    font-size: 0.95rem;
-  }
 }
