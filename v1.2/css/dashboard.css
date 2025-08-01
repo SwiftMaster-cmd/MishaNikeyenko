@@ -114,7 +114,11 @@ html, body {
   .admin-header {
     flex-direction: column;
     gap: 0.8rem;
-    padding: 1rem 1.5rem; /* reduce horizontal padding */
+    padding: 1rem 1.5rem;
+    max-width: 96vw;
+    margin: 0.6rem auto 0 auto;
+    border-radius: 28px;
+    box-shadow: 0 6px 22px rgba(30, 144, 255, 0.45);
   }
   .admin-header h2 {
     font-size: 1.5rem;
@@ -123,13 +127,50 @@ html, body {
   .admin-header .header-buttons {
     width: 100%;
     justify-content: center;
-    flex-wrap: wrap;  /* allow buttons to wrap to next line */
+    flex-wrap: wrap;
     gap: 0.5rem;
   }
   .admin-header button {
     width: auto;
     max-width: 45%;
     min-width: 120px;
+  }
+  /* Remove the word "Form" from specific buttons on mobile */
+  .header-buttons button.guest-form-button::after {
+    content: attr(data-short-label);
+  }
+  .header-buttons button.guest-form-button {
+    font-size: 0; /* hide original text */
+    position: relative;
+  }
+  .header-buttons button.guest-form-button::after {
+    position: absolute;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f9fdff;
+    white-space: nowrap;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .header-buttons button.review-form-button::after {
+    content: attr(data-short-label);
+  }
+  .header-buttons button.review-form-button {
+    font-size: 0;
+    position: relative;
+  }
+  .header-buttons button.review-form-button::after {
+    position: absolute;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f9fdff;
+    white-space: nowrap;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
   }
 }
   
