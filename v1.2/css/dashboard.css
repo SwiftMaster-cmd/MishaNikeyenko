@@ -1,12 +1,12 @@
 /* ==========================================================================
-   OSL Admin Dashboard CSS Overhaul - Glassy & Reactive Apple Style
+   OSL Admin Dashboard CSS Overhaul - Polished Glassy & Refined Style
    ========================================================================== */
 
 /* --- Design Tokens & Variables --- */
 :root {
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
 
   --brand: #0071e3;
   --brand-light: #4aa8ff;
@@ -14,26 +14,24 @@
 
   --bg-dark: #0c1119;
   --bg-darker: #080b13;
-  --bg-glass: rgba(20, 25, 40, 0.85);
+  --bg-glass: rgba(20, 25, 40, 0.82);
 
   --text-main: #e0e6f0;
-  --text-muted: #8a90a6;
+  --text-muted: #7f8597;
   --text-hi: #ffffff;
 
-  --shadow-glow: 0 0 15px var(--brand);
-  --shadow-glow-strong: 0 0 30px var(--brand-light);
-  --shadow-glow-faint: 0 0 8px rgba(0, 113, 227, 0.3);
+  --shadow-glow: 0 0 12px var(--brand);
+  --shadow-glow-strong: 0 0 24px var(--brand-light);
+  --shadow-glow-faint: 0 0 6px rgba(0, 113, 227, 0.25);
 
   --z-header: 9999;
-  --transition-speed: 0.35s;
+  --transition-speed: 0.33s;
   --font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* --- Global & Layout --- */
 html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
+  margin: 0; padding: 0; height: 100%;
   font-family: var(--font-family);
   background: linear-gradient(270deg, #0c1119, #14293d, #080b13, #14293d);
   background-size: 800% 800%;
@@ -56,9 +54,9 @@ html, body {
   position: sticky;
   top: 0;
   background: var(--bg-glass);
-  backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: saturate(170%) blur(12px);
   border-bottom: 2px solid var(--brand);
-  box-shadow: 0 6px 16px rgba(0, 113, 227, 0.6);
+  box-shadow: 0 5px 14px rgba(0, 113, 227, 0.5);
   z-index: var(--z-header);
   padding: 1.25rem 3rem;
   display: flex;
@@ -68,20 +66,10 @@ html, body {
   font-size: 1.6rem;
   color: var(--text-hi);
   transition: box-shadow var(--transition-speed) ease;
-  animation: headerPulseGlow 8s ease-in-out infinite;
   user-select: none;
 }
 
-@keyframes headerPulseGlow {
-  0%, 100% {
-    box-shadow: 0 6px 16px rgba(0, 113, 227, 0.4);
-  }
-  50% {
-    box-shadow: 0 8px 30px rgba(0, 113, 227, 0.9);
-  }
-}
-
-/* Header buttons */
+/* Header button style */
 .admin-header button {
   background: var(--bg-glass);
   color: var(--brand-light);
@@ -93,10 +81,11 @@ html, body {
   font-weight: 700;
   font-size: 1rem;
   box-shadow: var(--shadow-glow-faint);
-  transition: background-color var(--transition-speed) ease,
-              color var(--transition-speed) ease,
-              box-shadow var(--transition-speed) ease,
-              transform var(--transition-speed) ease;
+  transition:
+    background-color var(--transition-speed) ease,
+    color var(--transition-speed) ease,
+    box-shadow var(--transition-speed) ease,
+    transform var(--transition-speed) ease;
   user-select: none;
   will-change: transform, box-shadow;
 }
@@ -107,14 +96,14 @@ html, body {
   color: var(--text-hi);
   box-shadow: var(--shadow-glow-strong);
   outline: none;
-  transform: scale(1.08);
+  transform: scale(1.07);
 }
 
 /* --- Main app container --- */
 #adminApp {
   max-width: 1400px;
   margin: 2.5rem auto 6rem auto;
-  padding: 0 1.5rem;
+  padding: 0 1.75rem;
   display: flex;
   flex-direction: column;
   gap: 3rem;
@@ -125,11 +114,13 @@ html, body {
 .admin-section {
   background: var(--bg-glass);
   border-radius: var(--radius-lg);
-  padding: 2rem 2.5rem;
+  padding: 2rem 3rem;
   box-shadow:
-    0 0 20px rgba(0, 113, 227, 0.35),
-    inset 0 0 25px rgba(0, 113, 227, 0.07);
-  transition: box-shadow var(--transition-speed) ease, background-color var(--transition-speed) ease;
+    0 0 18px rgba(0, 113, 227, 0.3),
+    inset 0 0 22px rgba(0, 113, 227, 0.07);
+  transition:
+    box-shadow var(--transition-speed) ease,
+    background-color var(--transition-speed) ease;
   position: relative;
   animation: pulseGlowSlow 10s ease-in-out infinite;
   user-select: text;
@@ -137,34 +128,33 @@ html, body {
 
 .admin-section:hover {
   box-shadow:
-    0 0 40px rgba(0, 113, 227, 0.75),
-    inset 0 0 40px rgba(0, 113, 227, 0.15);
-  background-color: rgba(28, 34, 55, 0.98);
+    0 0 36px rgba(0, 113, 227, 0.6),
+    inset 0 0 36px rgba(0, 113, 227, 0.14);
+  background-color: rgba(28, 34, 55, 0.95);
   cursor: default;
 }
 
-/* Pulsing glow keyframe */
 @keyframes pulseGlowSlow {
   0%, 100% {
     box-shadow:
-      0 0 20px rgba(0, 113, 227, 0.35),
-      inset 0 0 25px rgba(0, 113, 227, 0.07);
+      0 0 18px rgba(0, 113, 227, 0.3),
+      inset 0 0 22px rgba(0, 113, 227, 0.07);
   }
   50% {
     box-shadow:
-      0 0 40px rgba(0, 113, 227, 0.75),
-      inset 0 0 40px rgba(0, 113, 227, 0.15);
+      0 0 36px rgba(0, 113, 227, 0.6),
+      inset 0 0 36px rgba(0, 113, 227, 0.14);
   }
 }
 
-/* Section titles */
+/* Section Titles */
 .admin-section h2 {
-  margin: 0 0 1.2rem 0;
+  margin: 0 0 1.25rem 0;
   font-weight: 800;
-  font-size: 2rem;
+  font-size: 2.1rem;
   color: var(--text-hi);
-  text-shadow: 0 0 12px var(--brand-light);
-  letter-spacing: 0.03em;
+  text-shadow: 0 0 14px var(--brand-light);
+  letter-spacing: 0.035em;
   user-select: none;
 }
 
@@ -175,7 +165,7 @@ button,
   border: none;
   color: var(--text-hi);
   padding: 0.75rem 1.6rem;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 700;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-glow);
@@ -190,15 +180,15 @@ button:hover,
 button:focus,
 .button:focus {
   background-color: var(--brand-light);
-  box-shadow: 0 0 35px var(--brand-light);
+  box-shadow: 0 0 36px var(--brand-light);
   transform: scale(1.1);
   outline: none;
 }
 
 /* Large button variant */
 .button--large {
-  font-size: 1.3rem;
-  padding: 1.1rem 2.2rem;
+  font-size: 1.35rem;
+  padding: 1.1rem 2.3rem;
 }
 
 /* --- Tables --- */
@@ -207,16 +197,16 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   color: var(--text-main);
-  box-shadow: 0 0 18px rgba(0, 113, 227, 0.2);
+  box-shadow: 0 0 18px rgba(0, 113, 227, 0.22);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: rgba(12, 17, 25, 0.75);
+  background: rgba(12, 17, 25, 0.82);
   user-select: text;
   transition: background-color var(--transition-speed) ease;
 }
 
 thead tr {
-  background: rgba(22, 32, 52, 0.85);
+  background: rgba(22, 32, 52, 0.9);
   text-align: left;
   color: var(--text-hi);
   font-weight: 800;
@@ -224,20 +214,20 @@ thead tr {
 }
 
 tbody tr {
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  transition: background-color 0.35s ease, box-shadow 0.35s ease;
   cursor: default;
   user-select: text;
 }
 
 tbody tr:hover {
-  background-color: rgba(0, 113, 227, 0.14);
-  box-shadow: 0 0 18px rgba(0, 113, 227, 0.28);
+  background-color: rgba(0, 113, 227, 0.16);
+  box-shadow: 0 0 18px rgba(0, 113, 227, 0.32);
   cursor: pointer;
 }
 
 /* Table cells */
 td, th {
-  padding: 1rem 1.4rem;
+  padding: 1rem 1.6rem;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
@@ -259,9 +249,8 @@ tbody tr td:last-child {
   user-select: none;
   color: var(--brand-light);
   font-weight: 800;
-  font-size: 1.4rem;
+  font-size: 1.45rem;
   line-height: 1;
-  user-select: none;
 }
 
 .expanded .caret, .expanded .uss-caret {
@@ -274,15 +263,15 @@ tbody tr td:last-child {
   background: var(--bg-glass);
   border: none;
   border-radius: var(--radius-md);
-  padding: 0.7rem 1.2rem;
-  margin-right: 1rem;
+  padding: 0.75rem 1.4rem;
+  margin-right: 1.25rem;
   font-weight: 800;
   color: var(--text-main);
   box-shadow: var(--shadow-glow-faint);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   transition: all var(--transition-speed) ease;
   user-select: none;
   will-change: box-shadow, transform;
@@ -292,8 +281,8 @@ tbody tr td:last-child {
 .perf-hl-btn:focus {
   box-shadow: var(--shadow-glow-strong);
   color: var(--brand-light);
-  background-color: rgba(0, 113, 227, 0.18);
-  transform: scale(1.12);
+  background-color: rgba(0, 113, 227, 0.22);
+  transform: scale(1.13);
   outline: none;
 }
 
@@ -310,7 +299,7 @@ tbody tr td:last-child {
 }
 
 .ph-icon {
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   user-select: none;
 }
 
@@ -326,9 +315,9 @@ tbody tr td:last-child {
 
 /* --- Guest caught up message --- */
 .guestinfo-empty-all p b {
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   color: var(--brand-light);
-  text-shadow: 0 0 16px var(--brand);
+  text-shadow: 0 0 18px var(--brand);
   user-select: none;
 }
 
@@ -337,9 +326,9 @@ input, select, textarea {
   background: rgba(20, 25, 40, 0.9);
   border: 2px solid var(--brand);
   border-radius: var(--radius-sm);
-  padding: 0.6rem 1.2rem;
+  padding: 0.65rem 1.3rem;
   color: var(--text-main);
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
   outline-offset: 3px;
   user-select: text;
@@ -347,12 +336,12 @@ input, select, textarea {
   font-family: var(--font-family);
   font-weight: 600;
   font-feature-settings: "tnum";
-  box-shadow: inset 0 2px 6px rgba(255 255 255 / 0.1);
+  box-shadow: inset 0 2px 6px rgba(255 255 255 / 0.12);
 }
 
 input:focus, select:focus, textarea:focus {
   border-color: var(--brand-light);
-  box-shadow: 0 0 12px var(--brand-light);
+  box-shadow: 0 0 14px var(--brand-light);
   outline: none;
 }
 
