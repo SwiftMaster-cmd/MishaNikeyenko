@@ -16,19 +16,15 @@
 
   const adminAppDiv = document.getElementById("adminApp");
   const logoutBtn = document.getElementById("logoutBtn");
-  const messagesBtn = document.getElementById("messagesBtn");
-  const messagesBadge = document.getElementById("messagesBadge");
 
   let currentUid = null;
   let currentRole = ROLES.ME;
   let _initialLoaded = false;
   let _rtBound = false;
 
-  window._stores = window._stores || {};
-  window._users = window._users || {};
-  window._reviews = window._reviews || {};
   window._guestinfo = window._guestinfo || {};
-  window._sales = window._sales || {};
+  window._reviews = window._reviews || {};
+  window._users = window._users || {};
 
   if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
@@ -61,54 +57,25 @@
 
     if (logoutBtn) logoutBtn.addEventListener("click", () => auth.signOut());
 
-    if (messagesBtn) {
-      messagesBtn.addEventListener("click", () => {
-        if (window.messages?.openOverlay) window.messages.openOverlay();
-      });
-    }
-    if (messagesBadge && window.messages?.setBadgeEl) {
-      window.messages.setBadgeEl(messagesBadge);
-    }
-
     await initialLoad();
     ensureRealtime();
 
     if (window.guestinfo?.ensureRealtime) window.guestinfo.ensureRealtime();
-
-    initMessagesModule();
+    if (window.reviews?.ensureRealtime) window.reviews.ensureRealtime();
   });
-
-  function initMessagesModule() {
-    if (!window.messages) return;
-    if (messagesBadge && window.messages.setBadgeEl) {
-      window.messages.setBadgeEl(messagesBadge);
-    }
-    if (typeof window.messages.init === "function") {
-      window.messages.init(currentUid, currentRole);
-    }
-  }
-  window.updateMessagesBadge = function (count) {
-    if (!messagesBadge) return;
-    messagesBadge.textContent = count > 0 ? String(count) : "";
-    messagesBadge.style.display = count > 0 ? "" : "none";
-  };
 
   async function initialLoad() {
     if (adminAppDiv) adminAppDiv.innerHTML = `<div>Loading data…</div>`;
 
-    const [storesSnap, usersSnap, reviewsSnap, guestSnap, salesSnap] = await Promise.all([
-      db.ref("stores").get(),
-      db.ref("users").get(),
-      db.ref("reviews").get(),
+    const [guestSnap, reviewsSnap, usersSnap] = await Promise.all([
       db.ref("guestinfo").get(),
-      db.ref("sales").get(),
+      db.ref("reviews").get(),
+      db.ref("users").get(),
     ]);
 
-    window._stores = storesSnap.val() || {};
-    window._users = usersSnap.val() || {};
-    window._reviews = reviewsSnap.val() || {};
     window._guestinfo = guestSnap.val() || {};
-    window._sales = salesSnap.val() || {};
+    window._reviews = reviewsSnap.val() || {};
+    window._users = usersSnap.val() || {};
 
     _initialLoaded = true;
     renderAdminApp();
@@ -117,133 +84,65 @@
   function renderAdminApp() {
     if (!_initialLoaded) return;
 
-    const { _stores: stores, _users: users, _reviews: reviews, _guestinfo: guestinfo, _sales: sales } = window;
+    const { _guestinfo: guestinfo, _reviews: reviews, _users: users, currentUid, currentRole } = window;
 
-    // Render everything except guestinfo inside main div
-    let storesHtml = "";
-    let usersHtml = "";
-    let reviewsHtml = "";
-
-    if (currentRole !== ROLES.ME && window.stores?.renderStoresSection) {
-      storesHtml = window.stores.renderStoresSection(stores, users, currentRole, sales);
-    }
-    usersHtml = window.users?.renderUsersSection
-      ? window.users.renderUsersSection(users, currentRole, currentUid)
-      : `<section class="admin-section users-section"><h2>Users</h2><p class="text-center">Module not loaded.</p></section>`;
-    reviewsHtml = window.reviews?.renderReviewsSection
-      ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
-      : `<section class="admin-section reviews-section"><h2>Reviews</h2><p class="text-center">Module not loaded.</p></section>`;
-
-    const roleMgmtHtml = typeof window.renderRoleManagementSection === "function"
-      ? window.renderRoleManagementSection(currentRole)
-      : "";
-
-    // Render the container with a dedicated guest info div placeholder
-    if (adminAppDiv) {
-      adminAppDiv.innerHTML = `
-        <div id="guestInfoContainer"></div>
-        ${storesHtml}
-        ${usersHtml}
-        ${reviewsHtml}
-        ${roleMgmtHtml}
-      `;
-    }
-
-    // Render guestinfo only inside its own container
-    renderGuestInfoSection();
-
-    // Prepare filtered reviews cache (same as before)
-    window._filteredReviews = window.reviews?.filterReviewsByRole
-      ? Object.entries(window.reviews.filterReviewsByRole(reviews, users, currentUid, currentRole)).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0))
-      : Object.entries(reviews).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
-  }
-
-  // Render guest info separately
-  function renderGuestInfoSection() {
-    const guestInfoContainer = document.getElementById("guestInfoContainer");
-    if (!guestInfoContainer) return;
-
-    const { _guestinfo: guestinfo, _users: users, currentUid, currentRole } = window;
-
-    let guestinfoHtml = guestsCaughtUp()
-      ? caughtUpUnifiedHtml()
-      : window.guestinfo?.renderGuestinfoSection
+    let guestinfoHtml = window.guestinfo?.renderGuestinfoSection
       ? window.guestinfo.renderGuestinfoSection(guestinfo, users, currentUid, currentRole)
       : `<section class="admin-section guestinfo-section"><h2>Guest Info</h2><p class="text-center">Module not loaded.</p></section>`;
 
-    guestInfoContainer.innerHTML = guestinfoHtml;
-  }
+    let reviewsHtml = window.reviews?.renderReviewsSection
+      ? window.reviews.renderReviewsSection(reviews, currentRole, users, currentUid)
+      : `<section class="admin-section reviews-section"><h2>Reviews</h2><p class="text-center">Module not loaded.</p></section>`;
 
-  function guestsCaughtUp() {
-    // Simplified, assume guests are caught up
-    return false;
-  }
-
-  function caughtUpUnifiedHtml(msg = "You're all caught up!") {
-    return `
-      <section class="admin-section guest-caughtup-section" id="guest-caughtup-section">
-        <h2>Guest Queue</h2>
-        <div class="guestinfo-empty-all text-center" style="margin-top:16px;">
-          <p><b>${msg}</b></p>
-          <p style="opacity:.8;">No open leads right now.</p>
-          <button class="button button--success button--large" onclick="window.guestinfo.createNewLead()">+ New Lead</button>
-        </div>
-      </section>
-    `;
+    if (adminAppDiv) {
+      adminAppDiv.innerHTML = `
+        <div id="guestInfoContainer">${guestinfoHtml}</div>
+        ${reviewsHtml}
+      `;
+    }
   }
 
   function ensureRealtime() {
     if (_rtBound) return;
     _rtBound = true;
 
-    // Only re-render guest info cards on guestinfo changes to avoid losing input focus elsewhere
     const scheduleGuestInfoRender = () => {
       if (window._guestInfoRerenderTO) return;
       window._guestInfoRerenderTO = setTimeout(() => {
         window._guestInfoRerenderTO = null;
-        renderGuestInfoSection();
+        renderAdminApp();
       }, 150);
     };
 
-    // For other sections, keep current full re-render strategy (can be optimized further)
-    const scheduleFullRender = () => {
-      if (_rtRerenderTO) return;
-      _rtRerenderTO = setTimeout(() => {
-        _rtRerenderTO = null;
+    const scheduleReviewsRender = () => {
+      if (window._reviewsRerenderTO) return;
+      window._reviewsRerenderTO = setTimeout(() => {
+        window._reviewsRerenderTO = null;
         renderAdminApp();
-      }, 300);
+      }, 200);
     };
 
-    function bindRefEvents(ref, objCache, onChildChangedExtra, isGuestinfo = false) {
+    const bindRefEvents = (ref, objCache, isGuestinfo = false, isReviews = false) => {
       ref.on("child_added", (snap) => {
         objCache[snap.key] = snap.val();
         if (isGuestinfo) scheduleGuestInfoRender();
-        else scheduleFullRender();
+        else if (isReviews) scheduleReviewsRender();
       });
       ref.on("child_changed", (snap) => {
         objCache[snap.key] = snap.val();
-        if (onChildChangedExtra) onChildChangedExtra(snap);
         if (isGuestinfo) scheduleGuestInfoRender();
-        else scheduleFullRender();
+        else if (isReviews) scheduleReviewsRender();
       });
       ref.on("child_removed", (snap) => {
         delete objCache[snap.key];
         if (isGuestinfo) scheduleGuestInfoRender();
-        else scheduleFullRender();
+        else if (isReviews) scheduleReviewsRender();
       });
-    }
+    };
 
-    bindRefEvents(db.ref("stores"), window._stores);
-    bindRefEvents(db.ref("users"), window._users, (snap) => {
-      if (snap.key === currentUid) {
-        currentRole = (snap.val()?.role || ROLES.ME).toLowerCase();
-        window.currentRole = currentRole;
-        initMessagesModule();
-      }
-    });
-    bindRefEvents(db.ref("reviews"), window._reviews);
-    bindRefEvents(db.ref("guestinfo"), window._guestinfo, null, true);
-    bindRefEvents(db.ref("sales"), window._sales);
+    bindRefEvents(db.ref("guestinfo"), window._guestinfo, true, false);
+    bindRefEvents(db.ref("reviews"), window._reviews, false, true);
+    bindRefEvents(db.ref("users"), window._users);
   }
 
   window.renderAdminApp = renderAdminApp;
