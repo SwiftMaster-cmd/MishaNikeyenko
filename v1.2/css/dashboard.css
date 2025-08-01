@@ -1,116 +1,109 @@
 /* ==========================================================================
-   OSL Dashboard - Core Shell (Apple-inspired, glassy)
+   OSL Dashboard - Sticky Glassy Header
    ========================================================================== */
 :root {
   --brand: #008cff;
   --brand-accent: #1e90ff;
   --bg-glass: rgba(23,30,45,0.89);
-  --bg-light: rgba(255,255,255,0.75);
   --border-glass: rgba(80,160,255,0.18);
   --glass-blur: blur(22px) saturate(130%);
-  --shadow-xl: 0 4px 40px 0 rgba(30,144,255,0.16);
   --shadow-inset: 0 2px 8px rgba(30,144,255,0.11) inset;
-  --radius-xl: 26px;
+  --shadow-xl: 0 4px 40px 0 rgba(30,144,255,0.16);
   --radius-md: 18px;
   --focus: 0 0 0 2.5px #63b3ed99;
   --main-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
-body, html {
-  font-family: var(--main-font);
-  background: linear-gradient(115deg, #182436 0%, #22304c 100%);
-  color: #e7f2ff;
-  min-height: 100vh;
-  margin: 0;
-  -webkit-font-smoothing: antialiased;
-  line-height: 1.57;
-  letter-spacing: .01em;
-}
-
-#adminApp {
-  margin: 0 auto;
-  max-width: 1200px;
-  padding: 2.5rem 1.2rem 4rem 1.2rem;
-}
-
-.admin-section {
+/* Sticky header container */
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 9999;
   background: var(--bg-glass);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
   backdrop-filter: var(--glass-blur);
-  border: 1.7px solid var(--border-glass);
-  margin-bottom: 2.5rem;
-  padding: 2.3rem 2.3rem 2rem 2.3rem;
-  transition: box-shadow 0.25s, background 0.2s;
-}
-
-.admin-section h2 {
-  font-size: 2.2rem;
-  font-weight: 900;
-  color: #44aaff;
-  margin-bottom: 1.2rem;
-  letter-spacing: .03em;
-  user-select: none;
-  text-shadow: 0 2px 18px #222d41cc;
-}
-
-.btn, button {
-  font-family: inherit;
-  font-weight: 700;
-  border-radius: 11px;
-  padding: .48em 1.3em;
-  font-size: 1.02rem;
-  border: none;
-  outline: none;
-  background: #2492ff linear-gradient(90deg,#17b2ff2a,#007bffa2 95%);
-  color: #f9fdff;
-  box-shadow: 0 2px 18px #2a99ff12;
-  cursor: pointer;
-  transition: background 0.18s, box-shadow 0.14s;
-}
-
-.btn:focus, button:focus {
-  box-shadow: var(--focus);
-  outline: none;
-}
-.btn-danger {
-  background: #eb3941 linear-gradient(90deg,#e900002a,#c91111b0 95%);
-}
-.btn-primary {
-  background: #147bff linear-gradient(90deg,#3fcbff2a,#0f43c8b0 95%);
-}
-.btn-success {
-  background: #3dcc5c linear-gradient(90deg,#77e6532a,#0f9c36b0 95%);
-}
-.btn-secondary {
-  background: #474b58 linear-gradient(90deg,#9bb6de2a,#303746b0 95%);
-}
-
-input, select, textarea {
-  border-radius: 10px;
-  border: 1.2px solid #2f4862;
-  background: rgba(255,255,255,0.10);
-  color: #e7f2ff;
-  font-family: inherit;
-  font-size: 1.02rem;
-  padding: .41em 1.1em;
+  border-bottom: 1.7px solid var(--border-glass);
   box-shadow: var(--shadow-inset);
-  outline: none;
-  transition: border .17s, box-shadow .17s;
-}
-input:focus, select:focus, textarea:focus {
-  border-color: #56bbff;
-  box-shadow: var(--focus);
+  padding: 1rem 2.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+  font-family: var(--main-font);
 }
 
-::-webkit-scrollbar {
-  width: 9px;
-  background: transparent;
+/* Header title */
+.admin-header h2 {
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.8rem;
+  color: #55baff;
+  text-shadow: 0 2px 12px #222d41cc;
+  letter-spacing: 0.04em;
 }
-::-webkit-scrollbar-thumb {
-  background: #38a7ff38;
-  border-radius: 10px;
+
+/* Button container (right side) */
+.admin-header .header-buttons {
+  display: flex;
+  gap: 1rem;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #38a7ffbb;
+
+/* Buttons in header */
+.admin-header button {
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 0.5em 1.4em;
+  font-size: 1rem;
+  background: var(--brand);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,140,255,0.5);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-header button:hover,
+.admin-header button:focus {
+  background: var(--brand-accent);
+  box-shadow: 0 6px 18px rgba(30,144,255,0.7);
+  outline: none;
+}
+
+/* Messages badge styling */
+#messagesBadge {
+  background: #ff4d4f;
+  color: white;
+  font-weight: 900;
+  font-size: 0.75rem;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 6px;
+  margin-left: 6px;
+  user-select: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .admin-header {
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 1rem;
+  }
+  .admin-header h2 {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  .admin-header .header-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+  .admin-header button {
+    width: 100%;
+    max-width: 200px;
+  }
 }
