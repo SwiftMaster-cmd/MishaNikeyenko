@@ -188,8 +188,23 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
 
-  // Glassy background for card
-  const bg = "rgba(23, 30, 45, 0.7)";
+  // Transparent glassy card background with blur and subtle refracted edges
+  const bg = "transparent";
+
+  // Glass blur and border for refracted edges effect
+  const cardStyle = `
+    background: ${bg};
+    border-radius: var(--radius-md);
+    padding: 12px 24px; /* more padding on sides */
+    position: relative;
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 8px 32px 0 rgba(31, 38, 135, 0.1),
+      inset 0 0 10px 0 rgba(255, 255, 255, 0.05);
+    color: #dbeafe;
+  `;
 
   // determine pitch %
   const savedPct = typeof g.completionPct === "number"
@@ -251,7 +266,7 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         padding: 2px 8px;
         border-radius: 999px;
         font-size: 0.9rem;
-        background: rgba(23,30,45,0.6);
+        background: rgba(23,30,45,0.3);
         color: #a5d6ff;
         box-shadow:
           0 0 6px 2px #55baffaa,
@@ -267,7 +282,7 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         padding: 2px 8px;
         border-radius: 999px;
         font-size: 0.85rem;
-        background: rgba(23,30,45,0.6);
+        background: rgba(23,30,45,0.3);
         color: #a5b4fc;
         transition: background 0.25s ease, color 0.25s ease;
         user-select: text;
@@ -287,27 +302,23 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
         padding: 2px 8px;
         border-radius: 999px;
         font-size: 0.75rem;
-        background: rgba(23,30,45,0.6);
+        background: rgba(23,30,45,0.3);
         color: #9ca3af;
         user-select: none;
       }
     </style>
 
-    <div class="guest-card" id="guest-card-${id}"
-         style="background:${bg};border-radius:var(--radius-md);padding:12px;position:relative;">
+    <div class="guest-card" id="guest-card-${id}" style="${cardStyle}">
       <!-- header: status + pitch + toggle -->
       <div style="display:flex;align-items:center;gap:8px;">
-        <span class="${statusCls}"
-              style="padding:2px 8px;border-radius:999px;font-size:.85em;">
+        <span class="${statusCls}" style="padding:2px 8px;border-radius:999px;font-size:.85em;">
           ${statusLbl}
         </span>
-        <span class="guest-pitch-pill"
-              style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};border:1px solid #fff;">
+        <span class="guest-pitch-pill" style="padding:2px 8px;border-radius:999px;font-size:.85em;background:transparent;border:1px solid #dbeafe;">
           ${pct}%
         </span>
-        <button class="btn-edit-actions"
-                style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
-                onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
+        <button class="btn-edit-actions" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
+          onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
       </div>
 
       <!-- customer name centered -->
@@ -332,8 +343,7 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
       </div>
 
       <!-- hidden actions -->
-      <div class="guest-card-actions"
-           style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
+      <div class="guest-card-actions" style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
         ${actions}
       </div>
 
