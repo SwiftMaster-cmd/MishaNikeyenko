@@ -8,6 +8,7 @@ import {
   attachCompletionListener
 } from "./gp-firebase.js";
 
+// Step 2 question structure
 const gpQuestions = [
   { id: "carrier", label: "What carrier are you with right now?", type: "text", weight: 15 },
   { id: "tenure", label: "How long have you been with them?", type: "text", weight: 14 },
@@ -16,6 +17,7 @@ const gpQuestions = [
   { id: "contract", label: "Are you in a contract or month-to-month?", type: "text", weight: 8 }
 ];
 
+// App logic
 export class GuestFormApp {
   constructor({ onLeadChange, onProgressUpdate }) {
     this.onLeadChange = onLeadChange;
@@ -23,6 +25,7 @@ export class GuestFormApp {
 
     this.progressBar = document.getElementById("progressBar");
     this.progressLabel = document.getElementById("progressLabel");
+    this.leadIdText = document.getElementById("leadIdText");
 
     this.custNameInput = document.getElementById("custName");
     this.custPhoneInput = document.getElementById("custPhone");
@@ -68,43 +71,28 @@ export class GuestFormApp {
   }
 
   calculateProgress(data) {
-    const weights = {
-      custName: 8,
-      custPhone: 7,
-      solution: 25
-    };
-
-    let earned = 0;
-    let total = 0;
-
+    const weights = { custName: 8, custPhone: 7, solution: 25 };
+    let earned = 0, total = 0;
     if (data.custName && data.custName.trim()) earned += weights.custName;
     total += weights.custName;
-
     if (data.custPhone && data.custPhone.trim()) earned += weights.custPhone;
     total += weights.custPhone;
-
     if (data.solution?.text && data.solution.text.trim()) earned += weights.solution;
     total += weights.solution;
-
     gpQuestions.forEach(q => {
       total += q.weight;
-      if (data.evaluate && data.evaluate[q.id] && data.evaluate[q.id].trim()) {
-        earned += q.weight;
-      }
+      if (data.evaluate && data.evaluate[q.id] && data.evaluate[q.id].trim()) earned += q.weight;
     });
-
     return Math.round((earned / total) * 100);
   }
 
   async saveGuestNow() {
     if (!this.guestKey) return;
-
     const evaluateData = {};
     gpQuestions.forEach(q => {
       const el = document.getElementById(q.id);
       evaluateData[q.id] = el ? el.value.trim() : "";
     });
-
     const dataToSave = {
       custName: this.custNameInput?.value.trim() || "",
       custPhone: this.custPhoneInput?.value.trim() || "",
@@ -112,16 +100,10 @@ export class GuestFormApp {
       evaluate: evaluateData,
       updatedAt: Date.now()
     };
-
     dataToSave.completionPct = this.calculateProgress(dataToSave);
-
     if (this.onProgressUpdate) this.onProgressUpdate(dataToSave.completionPct);
-
-    try {
-      await updateGuest(this.guestKey, dataToSave);
-    } catch (e) {
-      console.error("Error saving guest:", e);
-    }
+    try { await updateGuest(this.guestKey, dataToSave); }
+    catch (e) { console.error("Error saving guest:", e); }
   }
 
   async loadGuest(gid) {
@@ -129,24 +111,18 @@ export class GuestFormApp {
     try {
       const guest = await getGuest(gid);
       if (!guest) return;
-
       this.guestKey = gid;
       this.guestData = guest;
-
       if (this.custNameInput) this.custNameInput.value = guest.custName || "";
       if (this.custPhoneInput) this.custPhoneInput.value = guest.custPhone || "";
       if (this.solutionText) this.solutionText.value = guest.solution?.text || "";
-
       gpQuestions.forEach(q => {
         const el = document.getElementById(q.id);
         if (el) el.value = guest.evaluate?.[q.id] || "";
       });
-
       if (this.onLeadChange) this.onLeadChange(this.guestKey);
-
       const progress = guest.completionPct ?? this.calculateProgress(guest);
       if (this.onProgressUpdate) this.onProgressUpdate(progress);
-
       attachCompletionListener(this.guestKey, (pct) => {
         if (this.onProgressUpdate) this.onProgressUpdate(pct);
       });
@@ -169,52 +145,53 @@ export class GuestFormApp {
   }
 }
 
-/* ==========================================================================
-   HEADER / PROGRESS / LEAD ID UI LOGIC
-   ========================================================================== */
+// ---- UI Logic ----
+
+// Reference DOM nodes ONCE
 const progressLabel = document.getElementById("progressLabel");
 const leadIdText = document.getElementById("leadIdText");
+const progressBar = document.getElementById("progressBar");
+const dashboardBtn = document.getElementById("dashboardBtn");
+const newLeadBtn = document.getElementById("newLeadBtn");
+
 let leadIdTimeout = null;
 
+// % click to reveal lead ID
 progressLabel.addEventListener("click", () => {
   if (leadIdText.classList.contains("hidden")) {
     leadIdText.classList.remove("hidden");
     clearTimeout(leadIdTimeout);
-    leadIdTimeout = setTimeout(() => {
-      leadIdText.classList.add("hidden");
-    }, 3000);
+    leadIdTimeout = setTimeout(() => leadIdText.classList.add("hidden"), 3000);
   } else {
     leadIdText.classList.add("hidden");
   }
 });
 
-// Update lead ID in UI
+// Set lead ID
 function setLeadId(leadId) {
   leadIdText.textContent = leadId || "--";
   leadIdText.classList.add("hidden");
 }
-// Update progress bar and % in UI
+
+// Set progress value + %
 function setProgress(pct) {
-  document.getElementById("progressBar").value = pct;
+  progressBar.value = pct;
   progressLabel.textContent = pct + "%";
 }
 
-// Dashboard/back button handler (customize as needed)
-document.getElementById("dashboardBtn").onclick = () => {
-  // Implement navigation as you wish
-  window.location.href = "/dashboard"; // or custom logic
+// Back to dashboard
+dashboardBtn.onclick = () => {
+  window.location.href = "/dashboard";
 };
 
-// New lead button handler (calls your app logic)
-document.getElementById("newLeadBtn").onclick = async () => {
+// New lead (calls your app logic)
+newLeadBtn.onclick = async () => {
   if (window.gpApp && typeof window.gpApp.createNewLead === "function") {
     await window.gpApp.createNewLead();
   }
 };
 
-/* ==========================================================================
-   AUTH AND APP INITIALIZATION
-   ========================================================================== */
+// ---- Firebase Auth/App Init ----
 firebaseOnAuthStateChanged(async (user) => {
   if (user) {
     document.getElementById("authContainer").style.display = "none";
@@ -230,15 +207,12 @@ firebaseOnAuthStateChanged(async (user) => {
       }
     });
 
-    window.gpApp = app; // expose globally
+    window.gpApp = app;
 
     let lastLead = localStorage.getItem("last_guestinfo_key");
-    if (!lastLead) {
-      lastLead = await app.createNewLead();
-    }
+    if (!lastLead) lastLead = await app.createNewLead();
     await app.loadGuest(lastLead);
 
-    // No need for newLeadBtn.onclick here, handled above
   } else {
     document.getElementById("authContainer").style.display = "block";
     document.getElementById("guestApp").style.display = "none";
