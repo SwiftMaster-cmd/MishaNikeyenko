@@ -198,3 +198,104 @@
 .msg-overlay,
 .msg-overlay-panel,
 .msg-input-bar { z-index: 12000 !important; }
+/* --- Messages Overlay (keep previous styles for main overlay/panel/threads) --- */
+
+/* Floating Input Bar OUTSIDE the message container, full width, big enough to never zoom */
+.msg-input-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 12050;
+  display: flex;
+  justify-content: center;
+  pointer-events: all;
+  background: none;
+  padding-bottom: env(safe-area-inset-bottom, 0); /* For iPhones with notch */
+}
+
+/* Actual input container, max width, rounded, spaced from edges */
+.msg-input-wrap {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: rgba(16,30,52,0.95);
+  border-radius: 22px;
+  box-shadow: 0 3px 16px #1e90ff23, 0 1.5px 8px #00000023;
+  padding: 0.58em 0.8em 0.58em 0.68em;
+  max-width: 710px;
+  width: 97vw;
+  margin: 0 1vw 9px 1vw;
+  gap: 0.48em;
+  backdrop-filter: blur(8px) saturate(112%);
+}
+
+/* + Attach Button */
+.msg-attach {
+  background: rgba(60,160,255,0.18);
+  border: none;
+  border-radius: 12px;
+  padding: 0.38em 1.2em;
+  color: #63bbff;
+  font-weight: 800;
+  font-size: 1.30em; /* Big for thumb tap and >16px */
+  cursor: pointer;
+  box-shadow: 0 1px 4px #2492ff14;
+  transition: background 0.12s, color 0.12s;
+  margin-right: 0.13em;
+  outline: none;
+}
+.msg-attach:active,
+.msg-attach:hover {
+  background: rgba(60,160,255,0.27);
+  color: #fff;
+}
+
+/* Type Input */
+.msg-input-field {
+  flex: 1 1 auto;
+  border: none;
+  border-radius: 15px;
+  padding: 0.72em 1.12em;
+  background: rgba(24,36,57,0.97);
+  color: #e7f2ff;
+  font-size: 1.06em;
+  font-weight: 600;
+  box-shadow: 0 1px 6px #00000011;
+  outline: none;
+  min-width: 0;
+  font-size: 17px !important;  /* CRITICAL: Prevent iOS zoom */
+}
+.msg-input-field:focus {
+  background: rgba(38,80,157,0.17);
+}
+
+/* Send Button */
+.msg-send {
+  background: linear-gradient(96deg, #23d7ff 10%, #179aff 80%);
+  color: #fff;
+  font-weight: 800;
+  border: none;
+  border-radius: 11px;
+  font-size: 1.10em;  /* >16px always */
+  padding: 0 1.3em;
+  cursor: pointer;
+  box-shadow: 0 2px 9px #1e90ff24;
+  transition: background 0.18s;
+  margin-left: 0.18em;
+  margin-right: 0.1em;
+  display: flex; align-items: center; justify-content: center;
+  outline: none;
+}
+.msg-send:active,
+.msg-send:hover {
+  background: linear-gradient(95deg, #00f0a9 30%, #2297ff 95%);
+}
+
+/* On small screens: Full width, but not edge-to-edge */
+@media (max-width: 470px) {
+  .msg-input-wrap { width: 99vw; margin: 0 0.5vw 7px 0.5vw; }
+  .msg-input-field { font-size: 17px !important; }
+}
+
+@media (min-width: 700px) {
+  .msg-input-wrap { max-width: 550px; width: 97vw; }
+}
