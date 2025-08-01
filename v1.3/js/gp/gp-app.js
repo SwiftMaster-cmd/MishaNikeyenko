@@ -181,7 +181,7 @@ function setProgress(pct) {
 
 // Back to dashboard
 dashboardBtn.onclick = () => {
-  window.location.href = "/dashboard";
+  window.location.href = "../v1/html/admin.html";
 };
 
 // New lead (calls your app logic)
