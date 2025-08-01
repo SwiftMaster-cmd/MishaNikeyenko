@@ -10,8 +10,6 @@
 }
 
 /* Guest Card - Glassy style */
-
-
 .guest-card:hover {
   box-shadow: 0 8px 40px rgba(30, 144, 255, 0.3);
 }
@@ -136,6 +134,7 @@
   position: relative;
 }
 
+/* Focus states */
 .guestinfo-controls input[type="text"]:focus,
 .guestinfo-controls input[type="date"]:focus {
   border-color: var(--brand);
@@ -200,7 +199,8 @@
     width: 100%;
   }
 }
-/* Hide customer name, employee, and date filter inputs */
+
+/* Hide customer name, employee, and date filter inputs plus their clear buttons */
 #filter-name,
 #filter-emp,
 #filter-date,
