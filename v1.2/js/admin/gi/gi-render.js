@@ -1,7 +1,157 @@
+// guestinfo-render.js
+
+// ── Constants ───────────────────────────────────────────────────────────────
+export const PITCH_WEIGHTS = {
+  custName: 8, custPhone: 7,
+  currentCarrier: 12, numLines: 8, coverageZip: 8,
+  deviceStatus: 8, finPath: 12,
+  billPain: 4, dataNeed: 4, hotspotNeed: 2, intlNeed: 2,
+  solutionText: 25
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+export function hasVal(v) {
+  if (v == null) return false;
+  if (typeof v === "string")  return v.trim() !== "";
+  if (typeof v === "number")  return true;
+  if (typeof v === "boolean") return v;
+  if (Array.isArray(v))       return v.length > 0;
+  if (typeof v === "object")  return Object.keys(v).length > 0;
+  return false;
+}
+
+export function digitsOnly(s) {
+  return (s || "").replace(/\D+/g, "");
+}
+
+export function esc(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export function timeAgo(ts) {
+  if (!ts) return "-";
+  const diff = Date.now() - ts;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(diff / 3600000);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(diff / 86400000);
+  return `${days}d`;
+}
+
+// ── Core logic ─────────────────────────────────────────────────────────────
+export function detectStatus(g) {
+  const s = (g?.status || "").toLowerCase();
+  if (s) return s;
+  if (g?.solution && hasVal(g.solution.text)) return "proposal";
+  if (["currentCarrier","numLines","coverageZip","deviceStatus","finPath",
+       "billPain","dataNeed","hotspotNeed","intlNeed"]
+      .some(k => hasVal(g.evaluate?.[k]))
+  ) return "working";
+  return "new";
+}
+
+export function normGuest(src) {
+  src = src || {};
+  const custName  = src.custName  ?? src.guestName  ?? "";
+  const custPhone = src.custPhone ?? src.guestPhone ?? "";
+  const e = { ...(src.evaluate || {}) };
+  if (e.currentCarrier == null && src.currentCarrier != null) e.currentCarrier = src.currentCarrier;
+  if (e.numLines      == null && src.numLines      != null) e.numLines      = src.numLines;
+  if (e.coverageZip   == null && src.coverageZip   != null) e.coverageZip   = src.coverageZip;
+  if (e.deviceStatus  == null && src.deviceStatus  != null) e.deviceStatus  = src.deviceStatus;
+  if (e.finPath       == null && src.finPath       != null) e.finPath       = src.finPath;
+  const sol = { ...(src.solution || {}) };
+  if (sol.text == null && src.solutionText != null) sol.text = src.solutionText;
+
+  const out = {
+    ...src,
+    custName,
+    custPhone,
+    custPhoneDigits: digitsOnly(custPhone),
+    evaluate: e,
+    solution: sol,
+    prefilledStep1: src.prefilledStep1 || hasVal(custName) || hasVal(custPhone)
+  };
+  out.status = detectStatus(out);
+  return out;
+}
+
+export function getField(g, k) {
+  const e = g.evaluate || {}, sol = g.solution || {};
+  switch (k) {
+    case "custName":      return g?.custName;
+    case "custPhone":     return g?.custPhone;
+    case "currentCarrier":return e.currentCarrier;
+    case "numLines":      return e.numLines;
+    case "coverageZip":   return e.coverageZip;
+    case "deviceStatus":  return e.deviceStatus;
+    case "finPath":       return e.finPath;
+    case "billPain":      return e.billPain;
+    case "dataNeed":      return e.dataNeed;
+    case "hotspotNeed":   return e.hotspotNeed;
+    case "intlNeed":      return e.intlNeed;
+    case "solutionText":  return sol.text;
+    default: return undefined;
+  }
+}
+
+export function computeGuestPitchQuality(g, weights = PITCH_WEIGHTS) {
+  let earned = 0, max = 0;
+  for (const [k, wt] of Object.entries(weights)) {
+    max += wt;
+    if (hasVal(getField(g, k))) earned += wt;
+  }
+  return { pct: max ? Math.round(earned/max*100) : 0 };
+}
+
+export function statusBadge(status) {
+  const map = {
+    new:      ["role-badge role-guest", "NEW"],
+    working:  ["role-badge role-lead",  "WORKING"],
+    proposal: ["role-badge role-dm",    "PROPOSAL"],
+    sold:     ["role-badge role-admin", "SOLD"]
+  };
+  return map[status] || map.new;
+}
+
+export function groupByStatus(guestMap) {
+  const groups = { new:[], working:[], proposal:[], sold:[] };
+  for (const [id, g] of Object.entries(guestMap)) {
+    const st = detectStatus(g);
+    (groups[st] ||= []).push([id, g]);
+  }
+  for (const arr of Object.values(groups)) {
+    arr.sort((a, b) => {
+      const ta = Math.max(a[1].updatedAt||0, a[1].submittedAt||0, a[1].sale?.soldAt||0);
+      const tb = Math.max(b[1].updatedAt||0, b[1].submittedAt||0, b[1].sale?.soldAt||0);
+      return tb - ta;
+    });
+  }
+  return groups;
+}
+
+// ── Section renderer ───────────────────────────────────────────────────────
+export function statusSectionHtml(title, rows, users, currentUid, currentRole, highlight = false) {
+  if (!rows?.length) {
+    return `<div class="guestinfo-subsection-empty"><i>None.</i></div>`;
+  }
+  return rows.map(([id, g]) =>
+    guestCardHtml(id, g, users, currentUid, currentRole)
+  ).join("");
+}
+
+// ── Card renderer ──────────────────────────────────────────────────────────
 export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const submitter = users[g.userUid] || {};
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
 
+  // determine pitch %
   const savedPct = typeof g.completionPct === "number"
     ? g.completionPct
     : (g.completion?.pct ?? null);
@@ -9,201 +159,100 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
     ? savedPct
     : computeGuestPitchQuality(normGuest(g)).pct;
 
-  // Glassy muted backgrounds tinted by quality
-  let bgColor;
-  if (pct >= 75)      bgColor = "rgba(15, 75, 25, 0.38)";
-  else if (pct >= 40) bgColor = "rgba(75, 75, 15, 0.38)";
-  else                bgColor = "rgba(75, 15, 15, 0.38)";
+  // choose a dark muted background tinted by quality
+  let bg;
+  if (pct >= 75)      bg = "rgba(0, 80, 0, 0.4)";
+  else if (pct >= 40) bg = "rgba(80, 80, 0, 0.4)";
+  else                bg = "rgba(80, 0, 0, 0.4)";
 
-  const rawPhone = esc(g.custPhone || "");
-  const numDigits = digitsOnly(g.custPhone || "");
-  const last4 = numDigits.slice(-4).padStart(4, "0");
-  const maskedPhone = `XXX-${last4}`;
+  // mask phone
+  const raw    = esc(g.custPhone || "");
+  const num    = digitsOnly(g.custPhone || "");
+  const last4  = num.slice(-4).padStart(4, "0");
+  const masked = `XXX-${last4}`;
 
-  const timeAgoStr = timeAgo(g.submittedAt);
+  // time ago
+  const when = timeAgo(g.submittedAt);
 
-  const roleBadgeClass = currentRole === "me" ? "role-badge role-me"
-                     : currentRole === "lead" ? "role-badge role-lead"
-                     : currentRole === "dm" ? "role-badge role-dm"
-                     : "role-badge role-admin";
-  const submitterName = esc(submitter.name || submitter.email || "-");
+  // submitted by bubble
+  const roleCls = currentRole === "me"    ? "role-badge role-me"
+                 : currentRole === "lead" ? "role-badge role-lead"
+                 : currentRole === "dm"   ? "role-badge role-dm"
+                                           : "role-badge role-admin";
+  const nameLabel = esc(submitter.name || submitter.email || "-");
 
-  const sold = detectStatus(g) === "sold";
+  // actions hidden by default
+  const sold   = detectStatus(g) === "sold";
   const canEdit = ["admin","dm","lead"].includes(currentRole) || g.userUid === currentUid;
   const canSold = canEdit && !sold;
-
   const actions = [
     `<button class="btn btn-secondary btn-sm" onclick="window.guestinfo.openGuestInfoPage('${id}')">
        ${g.evaluate||g.solution||g.sale ? "Open" : "Continue"}
      </button>`,
     canEdit ? `<button class="btn btn-primary btn-sm" onclick="window.guestinfo.toggleEdit('${id}')">Quick Edit</button>` : "",
     canSold ? `<button class="btn btn-success btn-sm" onclick="window.guestinfo.markSold('${id}')">Mark Sold</button>` : "",
-    sold ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
+    sold    ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteSale('${id}')">Delete Sale</button>` : "",
     canEdit ? `<button class="btn btn-danger btn-sm" onclick="window.guestinfo.deleteGuestInfo('${id}')">Delete Lead</button>` : ""
   ].filter(Boolean).join("");
 
   return `
-  <div class="guest-card" id="guest-card-${id}" style="
-    background: ${bgColor};
-    backdrop-filter: saturate(160%) blur(14px);
-    border-radius: 14px;
-    box-shadow: 0 3px 15px rgba(0,0,0,0.14);
-    padding: 18px 22px;
-    margin-bottom: 1.6rem;
-    color: #e7f2ff;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  ">
-    <!-- Header: Status badge, pitch %, action toggle -->
-    <div style="display:flex; align-items:center; gap: 10px; margin-bottom: 14px;">
-      <span class="${statusCls}" style="
-        padding: 4px 14px;
-        border-radius: 9999px;
-        font-size: 0.85rem;
-        font-weight: 700;
-        box-shadow: 0 0 8px rgba(30,144,255,0.6);
-        user-select: none;
-      ">
-        ${statusLbl}
-      </span>
-      <span style="
-        padding: 4px 14px;
-        border-radius: 9999px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        border: 1.5px solid rgba(255,255,255,0.4);
-        background: rgba(255,255,255,0.1);
-        user-select: none;
-      ">
-        ${pct}%
-      </span>
-      <button class="btn-action-toggle" style="
-        margin-left: auto;
-        background: transparent;
-        border: none;
-        font-size: 1.3rem;
-        color: rgba(255,255,255,0.7);
-        cursor: pointer;
-        transition: color 0.2s ease;
-      " onclick="window.guestinfo.toggleActionButtons('${id}')"
-      aria-label="Toggle action buttons">⋮</button>
-    </div>
-
-    <!-- Customer Name -->
-    <div style="
-      text-align: center;
-      font-weight: 600;
-      font-size: 1.18rem;
-      color: #bbd7ff;
-      margin-bottom: 16px;
-      user-select: text;
-      letter-spacing: 0.01em;
-    ">
-      ${esc(g.custName || "-")}
-    </div>
-
-    <!-- Footer: Submitter badge, phone toggle, submitted time -->
-    <div style="display:flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: #a9c5ff;">
-      <span class="${roleBadgeClass}" style="
-        padding: 4px 10px;
-        border-radius: 9999px;
-        background: rgba(30,144,255,0.18);
-        box-shadow: 0 0 8px rgba(30,144,255,0.4);
-        user-select: none;
-        max-width: 140px;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      " title="${submitterName}">
-        ${submitterName}
-      </span>
-      <button class="guest-phone-toggle" style="
-        background: rgba(255,255,255,0.1);
-        border: none;
-        border-radius: 12px;
-        color: #c5dbff;
-        padding: 6px 14px;
-        cursor: pointer;
-        font-weight: 600;
-        user-select: none;
-        transition: background-color 0.25s ease;
-      " data-raw="${rawPhone}" data-mask="${maskedPhone}" onclick="window.guestinfo.togglePhone('${id}')"
-      aria-label="Toggle phone number">
-        ${maskedPhone}
-      </button>
-      <time datetime="${g.submittedAt}" style="color:#8fb8ff; font-variant-numeric: tabular-nums;">${timeAgoStr}</time>
-    </div>
-
-    <!-- Hidden action buttons -->
-    <div class="guest-card-actions" style="
-      display: none;
-      margin-top: 16px;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-    ">
-      ${actions}
-    </div>
-
-    <!-- Hidden edit form -->
-    <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none; margin-top: 18px;">
-      <label style="display:block; margin-bottom: 10px; font-weight: 600; font-size: 0.95rem; color:#aac8ff;">
-        Customer Name
-        <input type="text" name="custName" value="${esc(g.custName)}" style="
-          width: 100%;
-          padding: 7px 12px;
-          border-radius: 9px;
-          border: 1.5px solid rgba(30,144,255,0.3);
-          background: rgba(20,30,50,0.3);
-          color: #d5e6ff;
-          font-size: 1rem;
-          outline-offset: 2px;
-        " />
-      </label>
-      <label style="display:block; margin-bottom: 10px; font-weight: 600; font-size: 0.95rem; color:#aac8ff;">
-        Customer Phone
-        <input type="text" name="custPhone" value="${esc(g.custPhone)}" style="
-          width: 100%;
-          padding: 7px 12px;
-          border-radius: 9px;
-          border: 1.5px solid rgba(30,144,255,0.3);
-          background: rgba(20,30,50,0.3);
-          color: #d5e6ff;
-          font-size: 1rem;
-          outline-offset: 2px;
-        " />
-      </label>
-      <label style="display:block; margin-bottom: 10px; font-weight: 600; font-size: 0.95rem; color:#aac8ff;">
-        Service Type
-        <input type="text" name="serviceType" value="${esc(g.serviceType || "")}" style="
-          width: 100%;
-          padding: 7px 12px;
-          border-radius: 9px;
-          border: 1.5px solid rgba(30,144,255,0.3);
-          background: rgba(20,30,50,0.3);
-          color: #d5e6ff;
-          font-size: 1rem;
-          outline-offset: 2px;
-        " />
-      </label>
-      <label style="display:block; margin-bottom: 14px; font-weight: 600; font-size: 0.95rem; color:#aac8ff;">
-        Situation
-        <textarea name="situation" rows="3" style="
-          width: 100%;
-          padding: 9px 12px;
-          border-radius: 9px;
-          border: 1.5px solid rgba(30,144,255,0.3);
-          background: rgba(20,30,50,0.3);
-          color: #d5e6ff;
-          font-size: 1rem;
-          resize: vertical;
-          outline-offset: 2px;
-        ">${esc(g.situation || "")}</textarea>
-      </label>
-      <div style="display:flex; gap: 10px;">
-        <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')" style="flex-grow:1;">Save</button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')" style="flex-grow:1;">Cancel</button>
+    <div class="guest-card" id="guest-card-${id}"
+         style="background:${bg};border-radius:8px;padding:12px;position:relative;">
+      <!-- header: status + pitch + toggle -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="${statusCls}"
+              style="padding:2px 8px;border-radius:999px;font-size:.85em;">
+          ${statusLbl}
+        </span>
+        <span class="guest-pitch-pill"
+              style="padding:2px 8px;border-radius:999px;font-size:.85em;background:${bg};border:1px solid #fff;">
+          ${pct}%
+        </span>
+        <button class="btn-edit-actions"
+                style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;"
+                onclick="window.guestinfo.toggleActionButtons('${id}')">⋮</button>
       </div>
-    </form>
-  </div>
-  `;
+
+      <!-- customer name centered -->
+      <div style="text-align:center;font-weight:600;font-size:1.1em;margin:8px 0;">
+        ${esc(g.custName || "-")}
+      </div>
+
+      <!-- footer: submitted by, phone toggle, time -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span class="${roleCls}"
+              style="padding:2px 6px;border-radius:999px;font-size:.85em;background:${bg};">
+          ${nameLabel}
+        </span>
+        <span class="guest-phone"
+              data-raw="${raw}"
+              data-mask="${masked}"
+              style="padding:2px 6px;border-radius:999px;font-size:.85em;cursor:pointer;background:${bg};"
+              onclick="window.guestinfo.togglePhone('${id}')">
+          ${masked}
+        </span>
+        <span class="guest-time"
+              style="padding:2px 6px;border-radius:999px;font-size:.75em;background:${bg};">
+          ${when}
+        </span>
+      </div>
+
+      <!-- hidden actions -->
+      <div class="guest-card-actions"
+           style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;">
+        ${actions}
+      </div>
+
+      <!-- hidden edit form -->
+      <form class="guest-edit-form" id="guest-edit-form-${id}" style="display:none;margin-top:8px;">
+        <label>Customer Name <input type="text" name="custName" value="${esc(g.custName)}"/></label>
+        <label>Customer Phone<input type="text" name="custPhone" value="${esc(g.custPhone)}"/></label>
+        <label>Service Type  <input type="text" name="serviceType" value="${esc(g.serviceType||"")}"/></label>
+        <label>Situation     <textarea name="situation">${esc(g.situation||"")}</textarea></label>
+        <div style="margin-top:8px;">
+          <button type="button" class="btn btn-primary btn-sm" onclick="window.guestinfo.saveEdit('${id}')">Save</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="window.guestinfo.cancelEdit('${id}')">Cancel</button>
+        </div>
+      </form>
+    </div>`;
 }
