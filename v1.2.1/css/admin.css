@@ -1,0 +1,49 @@
+/* ==========================================================================
+   Admin Role Management (Apple Pro Glass)
+   ========================================================================== */
+.role-management-section {
+  background: rgba(242, 250, 255, 0.99);
+  border-radius: 13px;
+  box-shadow: 0 4px 18px #1e90ff18;
+  border: 2px solid #4a90e2;
+  padding: 2rem 2.1rem 1.2rem 2.1rem;
+  margin-bottom: 2.7rem;
+  color: #1b2633;
+  font-family: var(--main-font);
+}
+
+.role-management-section h2 {
+  font-weight: 900;
+  font-size: 1.63rem;
+  color: #0059b3;
+  margin-bottom: 1.2rem;
+}
+
+.role-management-section table {
+  width: 100%;
+  border-collapse: collapse;
+  background: transparent;
+  margin-bottom: .8rem;
+}
+.role-management-section th, .role-management-section td {
+  padding: 10px 13px;
+  text-align: center;
+  border-bottom: 1.1px solid #80bbff25;
+  font-size: 1.01rem;
+}
+
+.role-management-section th {
+  background: #e3f3ff;
+  color: #186fc1;
+  font-weight: 800;
+}
+.role-management-section tr:last-child td {
+  border-bottom: none;
+}
+.role-management-section input[type="checkbox"] {
+  width: 22px; height: 22px;
+  accent-color: #008cff;
+  border-radius: 7px;
+  cursor: pointer;
+  border: 1.2px solid #38a6ff88;
+}
