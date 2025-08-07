@@ -189,19 +189,19 @@ export function guestCardHtml(id, g, users, currentUid, currentRole) {
   const [statusCls, statusLbl] = statusBadge(detectStatus(g));
 
 const cardStyle = `
-  background: transparent;
-  border-radius: var(--radius-md);
-  padding: 12px 32px;
-  position: relative;
-  backdrop-filter: blur(4px) saturate(120%);
-  -webkit-backdrop-filter: blur(4px) saturate(120%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 4px 30px rgba(31, 38, 135, 0.1),
-    inset 0 0 10px rgba(255, 255, 255, 0.05);
-  color: inherit;
-  transition: box-shadow 0.3s ease;
-`;
+background: transparent;
+border-radius: var(--radius-md);
+padding: 12px 32px;
+padding-inline: 32px;
+position: relative;
+backdrop-filter: blur(4px) saturate(120%);
+-webkit-backdrop-filter: blur(4px) saturate(120%);
+border: 1px solid rgba(255, 255, 255, 0.12);
+box-shadow:
+  0 4px 30px rgba(31, 38, 135, 0.1),
+  inset 0 0 10px rgba(255, 255, 255, 0.05);
+color: inherit;
+transition: box-shadow 0.3s ease;
 
   const savedPct = typeof g.completionPct === "number"
     ? g.completionPct
