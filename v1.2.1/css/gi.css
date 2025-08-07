@@ -26,7 +26,7 @@ html, body {
   overflow-x: hidden;
   position: relative;
   min-height: 100vh;
-  background-color: #171e2d; /* subtle dark base */
+
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
