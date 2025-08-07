@@ -22,7 +22,6 @@ html, body {
   font-family: var(--main-font);
   color: #e7f2ff;
   overflow-x: hidden;
-
   position: relative;
   min-height: 100vh;
 }
@@ -315,7 +314,6 @@ body::after {
   margin-bottom: 1rem;
   padding-left: 16px;
   padding-right: 16px;
-  /* Added horizontal padding so content doesn't touch edges */
 }
 
 /* Header */
@@ -350,12 +348,16 @@ body::after {
 
 /* Edit actions button */
 .btn-edit-actions {
-  margin-left: auto;
+  position: absolute;
+  top: 0;
+  right: 0;
   background: none;
   border: none;
   font-size: 1.2rem;
   cursor: pointer;
   color: #dbeafe;
+  padding: 0;
+  margin: 0;
 }
 
 /* Customer name */
@@ -368,172 +370,81 @@ body::after {
   user-select: text;
   padding-left: 16px;
   padding-right: 16px;
-  /* Added horizontal padding */
 }
+
 @media (min-width: 768px) {
   .guest-name {
     font-size: 1.5rem;
   }
 }
 
-/* Submitter name */
-.submitter-name {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  background: rgba(23, 30, 45, 0.3);
-  color: #a5d6ff;
-  box-shadow:
-    0 0 6px 2px #55baffaa,
-    0 0 12px 4px #55baff66;
-  user-select: none;
-  white-space: nowrap;
-  cursor: default;
-}
-
-/* Guest phone */
-.guest-phone {
-  cursor: pointer;
-  padding: 2px 8px;
-  border-radius: 999px;
+/* Guest card footer */
+.guest-card-footer {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0.5rem 1rem;
+  min-height: 40px;
   font-size: 0.85rem;
-  background: rgba(23, 30, 45, 0.3);
-  color: #a5b4fc;
-  transition: background 0.25s ease, color 0.25s ease;
-  user-select: text;
-}
-.guest-phone:hover {
-  background: var(--brand);
-  color: #f0f9ff;
-}
-@media (min-width: 768px) {
-  .guest-phone {
-    font-size: 1rem;
-  }
-}
-
-/* Guest time */
-.guest-time {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  background: rgba(23, 30, 45, 0.3);
   color: #9ca3af;
   user-select: none;
 }
 
-/* Guest card actions container */
-.guest-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-/* Guest edit form */
-.guest-edit-form {
-  margin-top: 8px;
-}
-.guest-edit-form label {
-  display: block;
-  margin-bottom: 6px;
+/* Employee name bottom left */
+.submitter-name {
+  position: relative;
+  align-self: flex-end;
+  color: #a5d6ff;
   font-weight: 600;
-}
-.guest-edit-form input,
-.guest-edit-form textarea {
-  width: 100%;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(80, 160, 255, 0.3);
+  padding: 2px 8px;
+  border-radius: 9999px;
   background: rgba(23, 30, 45, 0.3);
-  color: #e7f2ff;
-  resize: vertical;
-  font-family: var(--main-font);
+  box-shadow: 0 0 6px 2px #55baffaa, 0 0 12px 4px #55baff66;
+  white-space: nowrap;
 }
-.guest-edit-form textarea {
-  min-height: 60px;
-}
-.edit-form-buttons {
-  margin-top: 8px;
+
+/* Container for right side (date) */
+.footer-right {
+  position: relative;
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  width: fit-content;
 }
 
-/* Buttons */
-.btn {
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 12px;
-  padding: 0.4em 1em;
-  font-size: 0.9rem;
-  user-select: none;
-  border: none;
-  color: #e7f2ff;
-  background-color: #008cff;
-  transition: opacity 0.3s ease;
-}
-
-.btn-primary {
-  background-color: #1e90ff;
-}
-
-.btn-secondary {
-  background-color: #4a90e2;
-}
-
-.btn-success {
-  background-color: #00c853;
-}
-
-.btn-danger {
-  background-color: #f44336;
-}
-
-.btn-sm {
+/* Date bottom right */
+.guest-time {
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(23, 30, 45, 0.3);
+  color: #9ca3af;
   font-size: 0.75rem;
-  padding: 0.25em 0.75em;
+  user-select: none;
+  align-self: flex-end;
 }
 
-.btn:hover,
-.btn-primary:hover,
-.btn-secondary:hover,
-.btn-success:hover,
-.btn-danger:hover {
-  opacity: 0.85;
-}
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .guest-card-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    min-height: auto;
+  }
 
-/* ==========================================================================
-   Controls bar layout fix (for JS-generated guestinfo-controls-bar)
-   ========================================================================== */
+  .footer-right {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 8px;
+  }
 
-.guestinfo-controls-bar {
-  display: flex !important;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 18px;
-  padding: 0 1.5rem;
-  box-sizing: border-box;
-}
-
-/* First div is flex:1, no override needed */
-
-.guestinfo-controls-bar > div:nth-child(2) {
-  flex: none;
-  margin: 0 auto;
-  display: flex;
-  justify-content: center;
-}
-
-.guestinfo-controls-bar > div:nth-child(3) {
-  flex: 1;
-  text-align: right;
-}
-#filter-customer,
-#filter-date,
-#filter-employee,
-#filter-customer + .clear-btn,
-#filter-date + .clear-btn,
-#filter-employee + .clear-btn,
-.clear-all-btn {
-  display: none !important;
+  .btn-edit-actions {
+    position: relative;
+    top: auto;
+    right: auto;
+    align-self: flex-end;
+  }
 }
