@@ -3,13 +3,16 @@
   --brand-accent: #1e90ff;
   --bg-glass: rgba(23, 30, 45, 0.75);
   --border-glass: rgba(80, 160, 255, 0.18);
-  --glass-blur: blur(22px) saturate(130%);
+  --glass-blur: blur(24px) saturate(140%);
   --shadow-inset: none;
-  --shadow-xl: none;
+  --shadow-xl: 0 0 20px 6px rgba(0, 140, 255, 0.35);
   --radius-md: 18px;
-  --focus: 0 0 0 2.5px #63b3ed99;
+  --focus: 0 0 0 3px #63b3edcc;
   --main-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   --particle-color: #2ba8ff;
+  --hover-glow: rgba(80, 160, 255, 0.25);
+  --btn-bg-gradient: linear-gradient(270deg, #0e5acc55, #3f9fff88, #0e5acc55);
+  --btn-bg-gradient-hover: linear-gradient(270deg, #3f9fffcc, #0e5acccc, #3f9fffcc);
 }
 
 /* Dark base background on html */
@@ -28,6 +31,8 @@ body {
   background: transparent;
   position: relative;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Layered blurred radial gradients (starry water flow) */
@@ -40,17 +45,15 @@ body::before {
   height: 140vh;
   pointer-events: none;
   z-index: -2;
-
   background:
     radial-gradient(circle at var(--star-bg-pos1, 25% 30%), rgba(30,144,255,0.35), transparent 60%),
     radial-gradient(circle at var(--star-bg-pos2, 70% 70%), rgba(15,85,255,0.3), transparent 55%),
     radial-gradient(circle at var(--star-bg-pos3, 85% 20%), rgba(72,195,255,0.25), transparent 65%);
-
   background-size: 200% 200%, 180% 180%, 220% 220%;
   background-repeat: no-repeat;
-
   filter: blur(140px);
   animation: waterFlowBG 45s ease-in-out infinite alternate;
+  will-change: background-position;
 }
 
 @keyframes waterFlowBG {
@@ -84,6 +87,7 @@ body::after {
     var(--star-particles-pos3, 0 0);
   animation: particlesDrift 90s linear infinite;
   opacity: 0.12;
+  will-change: background-position;
 }
 
 @keyframes particlesDrift {
@@ -104,30 +108,43 @@ body::after {
   backdrop-filter: var(--glass-blur);
   border-bottom: 1.7px solid var(--border-glass);
   box-shadow: none;
-  padding: 1rem 2.3rem;
+  padding: 1rem 2.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   user-select: none;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow 0.35s ease, background-color 0.35s ease;
   font-family: var(--main-font);
 }
 
-/* Header title */
+.admin-header:hover,
+.admin-header:focus-within {
+  box-shadow: var(--shadow-xl);
+  background-color: rgba(23, 30, 45, 0.85);
+}
+
 .admin-header h2 {
   margin: 0;
   font-weight: 900;
-  font-size: 1.8rem;
-  color: #55baff;
-  letter-spacing: 0.04em;
+  font-size: 1.9rem;
+  color: #5eb8ff;
+  letter-spacing: 0.05em;
   user-select: none;
+  text-shadow: 0 0 6px rgba(94, 184, 255, 0.7);
+  transition: color 0.3s ease;
+}
+
+.admin-header:hover h2,
+.admin-header:focus-within h2 {
+  color: #a1cfff;
 }
 
 /* Button container in header */
 .admin-header .header-buttons {
   display: flex;
-  gap: 1rem;
+  gap: 1.2rem;
+  align-items: center;
 }
 
 /* Messages badge styling */
@@ -145,6 +162,15 @@ body::after {
   padding: 0 6px;
   margin-left: 6px;
   user-select: none;
+  box-shadow: 0 0 8px 2px rgba(255, 77, 79, 0.8);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#messagesBadge:hover,
+#messagesBadge:focus {
+  transform: scale(1.15);
+  box-shadow: 0 0 14px 4px rgba(255, 77, 79, 1);
+  outline: none;
 }
 
 /* Water animated button base */
@@ -164,10 +190,11 @@ button,
   backdrop-filter: saturate(180%) blur(6px);
   position: relative;
   overflow: hidden;
-  background: linear-gradient(270deg, #0e5acc55, #3f9fff88, #0e5acc55);
+  background: var(--btn-bg-gradient);
   background-size: 600% 600%;
   animation: waterFlow 12s ease-in-out infinite;
-  transition: transform 0.25s ease;
+  transition: transform 0.25s ease, box-shadow 0.3s ease;
+  will-change: transform, box-shadow;
 }
 
 button::before,
@@ -190,7 +217,7 @@ button::before,
   z-index: 0;
 }
 
-/* Hover: speed up animation and scale up */
+/* Hover: speed up animation, scale up & glow */
 button:hover,
 .btn:hover,
 .guestinfo-controls button:hover,
@@ -202,8 +229,8 @@ button:focus,
   animation-play-state: running;
   animation-duration: 4s !important;
   transform: scale(1.07);
+  box-shadow: 0 0 15px 4px var(--brand-accent);
   outline: none;
-  box-shadow: none;
 }
 
 /* Click: pause animation and scale down */
