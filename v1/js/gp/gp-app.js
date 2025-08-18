@@ -9,13 +9,11 @@ import {
 } from "./gp-firebase.js";
 
 const gpQuestions = [
-  { id: "currentPlan", label: "What carrier are you currently on and how much do you pay per month?", type: "text", weight: 15 },
-  { id: "topFrustration", label: "What’s your #1 frustration with your current carrier or service?", type: "text", weight: 14 },
-  { id: "familyNeeds", label: "Is your account just for you or do you have family members using your plan?", type: "text", weight: 12 },
-  { id: "coveragePriority", label: "How important is coverage where you live, work, or travel?", type: "text", weight: 10 },
-  { id: "dataUsage", label: "Do you ever run into issues with slow data or data limits?", type: "text", weight: 8 }
+  { id: "people", label: "Who is on your account--just you, or do you share with family?", type: "text", weight: 15 }, // People
+  { id: "phone", label: "What phone are you currently using, and how do you feel about it?", type: "text", weight: 14 }, // Phone
+  { id: "plan", label: "What plan are you on right now, and what do you pay each month?", type: "text", weight: 12 }, // Plan
+  { id: "provider", label: "Which carrier are you with today, and how’s your experience been with them?", type: "text", weight: 10 } // Provider
 ];
-
 // App logic
 export class GuestFormApp {
   constructor({ onLeadChange, onProgressUpdate }) {
