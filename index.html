@@ -1,27 +1,116 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>OSL Portal Login</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="login.css" />
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Select a Birthday by Orbit</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:sans-serif}
+  #ui{position:absolute;top:10px;left:10px;color:#fff;z-index:10}
+  #ui input{background:#111;color:#fff;border:1px solid #555;padding:4px}
+  #counter{margin-top:8px}
+  #info{margin-top:8px;max-width:220px;line-height:1.2}
+  canvas{display:block;cursor:pointer}
+</style>
 </head>
 <body>
-  <div class="login-box">
-    <div class="login-title">OSL Team Portal</div>
-    <div class="desc">Sign in with your work email and password</div>
-    <form id="loginForm">
-      <input class="login-field" type="email" id="email" placeholder="Email" required autocomplete="username">
-      <input class="login-field" type="password" id="password" placeholder="Password" required autocomplete="current-password">
-      <button type="submit" class="login-btn">Sign In</button>
-      <div id="loginStatus"></div>
-      <span class="link" id="forgotLink">Forgot password?</span>
-      <span class="link" id="registerLink">Register new account</span>
-    </form>
-  </div>
-  <script src="login.js"></script>
+<div id="ui">
+  Start Birthday: <input id="birthday" type="date"><br>
+  <div id="counter"></div>
+  <div id="info"></div>
+</div>
+<canvas id="c"></canvas>
+<script>
+const PLANETS=[
+ {n:"Mercury",c:"#aaa",r:4,a:0.39,p:88},
+ {n:"Venus",c:"#f5d76e",r:6,a:0.72,p:225},
+ {n:"Earth",c:"#4da6ff",r:7,a:1.0,p:365},
+ {n:"Mars",c:"#ff4d4d",r:5,a:1.52,p:687},
+ {n:"Jupiter",c:"#d9b38c",r:12,a:5.2,p:4333},
+ {n:"Saturn",c:"#e5c07b",r:10,a:9.54,p:10759},
+ {n:"Uranus",c:"#8be9fd",r:9,a:19.2,p:30688},
+ {n:"Neptune",c:"#6fa8dc",r:9,a:30.1,p:60182},
+ {n:"Pluto",c:"#ccc",r:4,a:39.5,p:90560}
+];
+const AU=60;
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+window.onresize=resize;resize();
+
+let baseBirthday=new Date();
+document.getElementById('birthday').valueAsDate=baseBirthday;
+
+let selected=null,dragging=false,lastX=0;
+let angles=PLANETS.map(()=>0);
+
+canvas.onmousedown=e=>{
+  dragging=true;
+  lastX=e.clientX;
+};
+canvas.onmouseup=()=>dragging=false;
+canvas.onmousemove=e=>{
+  if(dragging && selected!==null){
+    const diff=e.clientX-lastX;
+    lastX=e.clientX;
+    // move planet according to horizontal drag
+    const p=PLANETS[selected];
+    const deltaAngle=diff*0.01; // adjust sensitivity
+    angles[selected]=(angles[selected]+deltaAngle)%(2*Math.PI);
+    updateInfo();
+  }
+};
+canvas.onclick=e=>{
+  const rect=canvas.getBoundingClientRect();
+  const x=e.clientX-rect.left, y=e.clientY-rect.top;
+  const cx=canvas.width/2, cy=canvas.height/2;
+  for(let i=0;i<PLANETS.length;i++){
+    const r=PLANETS[i].a*AU;
+    const px=cx+r*Math.cos(angles[i]);
+    const py=cy+r*Math.sin(angles[i]);
+    if(Math.hypot(x-px,y-py)<PLANETS[i].r+5){
+      selected=i;
+      updateInfo();
+      break;
+    }
+  }
+};
+
+function updateInfo(){
+  if(selected===null)return;
+  const p=PLANETS[selected];
+  const fraction=(angles[selected]%(2*Math.PI))/(2*Math.PI);
+  const earthDays=fraction*p.p;
+  const chosenDate=new Date(baseBirthday.getTime()+earthDays*86400000);
+  document.getElementById('counter').textContent=
+    `${p.n} moved ${earthDays.toFixed(1)} Earth days from start.`;
+  document.getElementById('info').innerHTML=
+    `<strong>${p.n}</strong><br>
+     Orbit: ${p.p} Earth days (~${(p.p/365).toFixed(2)} yr)<br>
+     New birthday: ${chosenDate.toDateString()}`;
+}
+
+function loop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const cx=canvas.width/2, cy=canvas.height/2;
+
+  ctx.fillStyle='yellow';
+  ctx.beginPath();ctx.arc(cx,cy,12,0,2*Math.PI);ctx.fill();
+
+  PLANETS.forEach((p,i)=>{
+    const r=p.a*AU;
+    const x=cx+r*Math.cos(angles[i]);
+    const y=cy+r*Math.sin(angles[i]);
+
+    ctx.strokeStyle='rgba(255,255,255,0.1)';
+    ctx.beginPath();ctx.arc(cx,cy,r,0,2*Math.PI);ctx.stroke();
+
+    ctx.fillStyle=p.c;
+    ctx.beginPath();ctx.arc(x,y,p.r,0,2*Math.PI);ctx.fill();
+  });
+
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
 </body>
 </html>
