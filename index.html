@@ -1,49 +1,41 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pod Checkpoint Dashboard</title>
 <style>
   :root {
     --bg:#0b0b0b; --fg:#f2f2f2; --gold:#d9b25f; --muted:#888;
-    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
-  html,body{
-    height:100%; width:100%; margin:0; padding:0; background:var(--bg);
-    color:var(--fg); font-family:var(--font); overflow:hidden;
-  }
+  html,body{height:100%;width:100%;margin:0;padding:0;background:var(--bg);color:var(--fg);
+    font-family:var(--font);overflow:hidden;}
   .card{
-    position:absolute; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center;
-    padding:3vw; box-sizing:border-box;
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;padding:3vw;box-sizing:border-box;
   }
-  .head{
-    font-size:7vw; font-weight:800; text-transform:uppercase; margin:0;
-  }
-  .subhead{font-size:3vw; color:var(--muted); margin:0.5vw 0 1vw;}
-  .rule{width:60%; height:0.4vw; background:var(--gold); margin:1vw 0 2vw;}
-  .stats{font-size:3.5vw; line-height:1.5;}
+  .head{font-size:7vw;font-weight:800;text-transform:uppercase;margin:0;}
+  .subhead{font-size:3vw;color:var(--muted);margin:0.5vw 0 1vw;}
+  .rule{width:60%;height:0.4vw;background:var(--gold);margin:1vw 0 2vw;}
+  .stats{font-size:3.5vw;line-height:1.5;}
   .gold{color:var(--gold);}
-  .quote{font-size:2.8vw; font-style:italic; margin-top:2vw;}
+  .quote{font-size:2.8vw;font-style:italic;margin-top:2vw;}
   [contenteditable]{outline:none;border-bottom:0.3vw solid transparent;}
   [contenteditable]:focus{border-color:var(--gold);}
-  /* Control buttons */
   .controls{
-    position:fixed; top:1vw; left:1vw; display:flex; flex-wrap:wrap;
-    gap:0.5vw; z-index:1000; background:rgba(0,0,0,0.6);
-    padding:0.6vw 0.8vw; border-radius:0.8vw;
+    position:fixed;top:1vw;left:1vw;display:flex;flex-wrap:wrap;gap:1vw;
+    z-index:1000;background:rgba(0,0,0,0.7);padding:1vw;border-radius:1vw;
   }
   button{
-    background:#1a1a1a; border:0.2vw solid #333; color:var(--fg);
-    padding:0.5vw 1vw; border-radius:0.5vw; cursor:pointer;
-    font-size:1.6vw;
+    background:#1a1a1a;border:0.3vw solid #333;color:var(--fg);
+    padding:1.2vw 2vw;border-radius:1vw;cursor:pointer;font-size:2.2vw;
   }
-  button.active{border-color:var(--gold); color:var(--gold);}
+  button.active{border-color:var(--gold);color:var(--gold);}
   #toggleControls{
-    position:fixed; bottom:1vw; right:1vw; background:var(--gold);
-    color:#000; font-weight:700; border:none; border-radius:50%;
-    width:4vw; height:4vw; font-size:2vw; cursor:pointer; z-index:1100;
+    position:fixed;bottom:1vw;right:1vw;background:var(--gold);color:#000;
+    font-weight:700;border:none;border-radius:50%;width:6vw;height:6vw;
+    font-size:2.8vw;cursor:pointer;z-index:1100;
   }
   .hide .controls{display:none;}
 </style>
@@ -51,7 +43,7 @@
 <body>
 <div class="controls">
   <button id="btn10" class="active">10 AM OPEN</button>
-  <button id="btn12">12 PM CHECKPOINT</button>
+  <button id="btn12">12 PM CHECK</button>
   <button id="btn2">2 PM PUSH</button>
   <button id="btn4">4 PM FINISH</button>
   <button id="btn6">6 PM POWER</button>
@@ -63,9 +55,9 @@
   <div class="subhead" contenteditable="true">LIVE LOOK • WHERE WE STAND</div>
   <div class="rule"></div>
   <div class="stats">
-    Current: <span contenteditable="true">4</span><br>
-    Target: <span contenteditable="true">6</span><br>
-    Pace: <span class="gold" contenteditable="true">67%</span><br>
+    Current: <span id="curr" contenteditable="true">4</span><br>
+    Target: <span id="targ" contenteditable="true">6</span><br>
+    Pace: <span id="pace" class="gold">67%</span><br>
     Goal: <span class="gold" contenteditable="true">9</span>
   </div>
   <div class="quote" contenteditable="true">Momentum wins. Two more and we reset the board.</div>
@@ -74,18 +66,22 @@
 <script>
 const data = {
   btn10:{head:"10 AM OPEN STRONG ⚡",sub:"ENERGY BUILDS FROM THE FIRST PITCH",
-    current:0,target:2,pace:"--",goal:9,quote:"Start hot. Set the tone."},
+    current:0,target:2,goal:9,quote:"Start hot. Set the tone."},
   btn12:{head:"12 PM CHECKPOINT ⚡",sub:"LIVE LOOK • WHERE WE STAND",
-    current:4,target:6,pace:"67%",goal:9,quote:"Momentum wins. Two more and we reset the board."},
+    current:4,target:6,goal:9,quote:"Momentum wins. Two more and we reset the board."},
   btn2:{head:"2 PM PUSH ⚡",sub:"RESET • HYDRATE • CLOSE 2 MORE",
-    current:5,target:6,pace:"83%",goal:9,quote:"Energy wins afternoons."},
+    current:5,target:6,goal:9,quote:"Energy wins afternoons."},
   btn4:{head:"4 PM FINISH STRONG ⚡",sub:"SIX WAS STANDARD -- FOUR MORE AND WE WIN THE DAY",
-    current:6,target:8,pace:"100%",goal:9,quote:"Keep the floor hot. Finish the run."},
+    current:6,target:8,goal:9,quote:"Keep the floor hot. Finish the run."},
   btn6:{head:"6 PM POWER HOUR ⚡",sub:"ALL GAS • NO BRAKE • LAST PUSH OF THE DAY",
-    current:7,target:9,pace:"110%",goal:9,quote:"End strong. No excuses."}
+    current:7,target:9,goal:9,quote:"End strong. No excuses."}
 };
 const buttons=document.querySelectorAll(".controls button");
 const card=document.getElementById("display");
+const curr=document.getElementById("curr");
+const targ=document.getElementById("targ");
+const pace=document.getElementById("pace");
+
 buttons.forEach(btn=>{
   btn.onclick=()=>{
     buttons.forEach(b=>b.classList.remove("active"));
@@ -93,20 +89,27 @@ buttons.forEach(btn=>{
     const d=data[btn.id];
     card.querySelector(".head").innerText=d.head;
     card.querySelector(".subhead").innerText=d.sub;
-    const spans=card.querySelectorAll(".stats span");
-    spans[0].innerText=d.current;
-    spans[1].innerText=d.target;
-    spans[2].innerText=d.pace;
-    spans[3].innerText=d.goal;
+    curr.innerText=d.current;
+    targ.innerText=d.target;
+    pace.innerText=calcPace(d.current,d.target)+"%";
     card.querySelector(".quote").innerText=d.quote;
   };
 });
-document.getElementById("toggleControls").onclick=()=>{
-  document.body.classList.toggle("hide");
-};
-document.querySelectorAll('[contenteditable]').forEach(el=>{
-  el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur();}});
+
+function calcPace(c,t){
+  c=parseFloat(c)||0; t=parseFloat(t)||0;
+  return t?Math.round((c/t)*100):0;
+}
+function updatePace(){
+  pace.innerText=calcPace(curr.innerText,targ.innerText)+"%";
+}
+[curr,targ].forEach(el=>{
+  el.addEventListener("input",updatePace);
+  el.addEventListener("blur",updatePace);
+  el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();el.blur();}});
 });
+
+document.getElementById("toggleControls").onclick=()=>document.body.classList.toggle("hide");
 </script>
 </body>
 </html>
