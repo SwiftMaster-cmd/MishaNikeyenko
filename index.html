@@ -3,80 +3,63 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>Pod Checkpoint Dashboard</title>
 <style>
-  :root{
-    --bg:#0b0b0b; --panel:#000000cc; --fg:#f2f2f2; --muted:#a9a9a9; --gold:#d9b25f;
-    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  }
-  html,body{height:100%;width:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);overflow:hidden;}
-  .app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;gap:1.2vmin;padding:1.8vmin;box-sizing:border-box;}
-  /* Controls */
-  .bar{display:flex;gap:1vmin;align-items:center;justify-content:center;background:var(--panel);
-       border:1px solid #222;border-radius:1.2vmin;padding:1vmin 1.2vmin;backdrop-filter:blur(8px);}
-  .bar .left,.bar .right{display:flex;gap:1vmin;align-items:center}
-  .bar .left{flex-wrap:wrap;justify-content:center}
-  button{
-    background:#121212;border:0.5vmin solid #2a2a2a;color:var(--fg);
-    padding:1.2vmin 2.4vmin;border-radius:1.2vmin;font-size:2.2vmin;font-weight:700;
-    cursor:pointer;touch-action:manipulation;min-width:10ch;
-  }
-  button:active{transform:translateY(0.2vmin)}
-  .tab.active{border-color:var(--gold);color:var(--gold);box-shadow:0 0 0.8vmin #000,0 0 1.2vmin #000,0 0 1.2vmin inset #000;}
-  .ghost{background:transparent;border-color:#333;color:#ccc}
-  /* Panel */
-  .panel{
-    position:relative;align-self:stretch;justify-self:stretch;
-    display:flex;align-items:center;justify-content:center;
-    padding:3vmin;background:linear-gradient(180deg,#000000e6,#000000f0);
-    border-radius:2vmin;border:1px solid #1a1a1a;box-shadow:0 1.4vmin 6vmin rgba(0,0,0,.55);
-  }
-  .card{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
-  .head{font-size:8.4vmin;font-weight:850;text-transform:uppercase;margin:.2em 0 .15em}
-  .sub{font-size:3.6vmin;color:var(--muted);margin:0 0 .7em}
-  .rule{width:min(70vmin,70%);height:.8vmin;background:var(--gold);border-radius:.6vmin;margin:0 0 2.2vmin}
-  .stats{font-size:4.2vmin;line-height:1.5}
-  .gold{color:var(--gold)}
-  .quote{font-size:3.2vmin;font-style:italic;margin-top:2.2vmin}
-  [contenteditable]{outline:none;border-bottom:.6vmin solid transparent;transition:border-color .15s}
-  [contenteditable]:focus{border-color:var(--gold)}
-  /* Footer */
-  .footer{display:flex;gap:1vmin;align-items:center;justify-content:center;background:var(--panel);
-          border:1px solid #222;border-radius:1.2vmin;padding:1vmin 1.2vmin}
-  /* Hide modes */
-  .hiddenUI .bar,.hiddenUI .footer{display:none}
-  .hiddenUI [contenteditable]{caret-color:transparent}
-  .hiddenUI .panel{box-shadow:none;border-color:#000}
-  /* Small devices text balance */
-  @media (max-aspect-ratio: 4/5){
-    .head{font-size:9vmin}
-    .stats{font-size:4.8vmin}
-    .quote{font-size:3.8vmin}
-  }
+:root{
+  --bg:#0b0b0b;--fg:#f2f2f2;--muted:#a9a9a9;--gold:#d9b25f;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+html,body{margin:0;height:100%;width:100%;background:var(--bg);color:var(--fg);
+  font-family:var(--font);overflow:hidden;}
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100%;gap:1.5vmin;padding:1.5vmin;box-sizing:border-box;}
+.bar,.footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:1vmin;background:#000000c0;border:1px solid #222;border-radius:1.2vmin;
+  padding:1vmin 1.5vmin;backdrop-filter:blur(8px);}
+button{
+  background:#121212;border:0.4vmin solid #2a2a2a;color:var(--fg);
+  padding:1.2vmin 2.2vmin;border-radius:1vmin;cursor:pointer;
+  font-size:2.2vmin;font-weight:700;min-width:10ch;touch-action:manipulation;
+}
+button.active{border-color:var(--gold);color:var(--gold);}
+button.ghost{background:transparent;border-color:#333;color:#bbb}
+.panel{display:flex;align-items:center;justify-content:center;border:1px solid #1a1a1a;
+  border-radius:2vmin;background:linear-gradient(180deg,#000000e0,#000000f0);
+  box-shadow:0 1vmin 6vmin rgba(0,0,0,.55);}
+.card{text-align:center}
+.head{font-size:8.5vmin;font-weight:850;text-transform:uppercase;margin:.2em 0 .1em}
+.sub{font-size:3.6vmin;color:var(--muted);margin-bottom:1em}
+.rule{width:70%;height:.6vmin;background:var(--gold);border-radius:.5vmin;margin:auto;margin-bottom:2vmin}
+.stats{font-size:4.2vmin;line-height:1.5}
+.gold{color:var(--gold)}
+.quote{font-size:3.2vmin;font-style:italic;margin-top:2vmin}
+[contenteditable]{outline:none;border-bottom:.4vmin solid transparent;transition:border-color .15s}
+[contenteditable]:focus{border-color:var(--gold)}
+.hiddenUI .bar,.hiddenUI .footer{display:none}
+.hiddenUI .panel{box-shadow:none}
+.slotBox{display:none;gap:0.8vmin;flex-wrap:wrap;justify-content:center;margin-top:0.5vmin}
+.slotBox.visible{display:flex}
+.slotBox button{font-size:1.8vmin;padding:0.8vmin 1.6vmin}
 </style>
 </head>
 <body>
 <div class="app" id="app">
-  <!-- Top controls -->
+
+  <!-- header -->
   <div class="bar">
-    <div class="left">
-      <button class="tab active" data-key="t10">10 AM OPEN</button>
-      <button class="tab" data-key="t12">12 PM CHECK</button>
-      <button class="tab" data-key="t2">2 PM PUSH</button>
-      <button class="tab" data-key="t4">4 PM FINISH</button>
-      <button class="tab" data-key="t6">6 PM POWER</button>
-    </div>
-    <div class="right">
-      <button id="btnHide" title="Toggle Screenshot Mode (hide UI)">👁 Screenshot</button>
-    </div>
+    <button class="tab active" data-key="t10">10 AM OPEN</button>
+    <button class="tab" data-key="t12">12 PM CHECK</button>
+    <button class="tab" data-key="t2">2 PM PUSH</button>
+    <button class="tab" data-key="t4">4 PM FINISH</button>
+    <button class="tab" data-key="t5">5 PM POWER</button>
+    <button id="btnHide">👁 Screenshot</button>
   </div>
 
-  <!-- Center panel -->
+  <!-- center -->
   <div class="panel">
-    <div class="card" aria-live="polite">
-      <div class="head" id="head" contenteditable="true">12 PM CHECKPOINT ⚡</div>
-      <div class="sub" id="sub" contenteditable="true">LIVE LOOK • WHERE WE STAND</div>
+    <div class="card">
+      <div id="head" class="head" contenteditable="true">12 PM CHECKPOINT ⚡</div>
+      <div id="sub" class="sub" contenteditable="true">LIVE LOOK • WHERE WE STAND</div>
       <div class="rule"></div>
       <div class="stats">
         Current: <span id="curr" contenteditable="true">4</span><br>
@@ -84,165 +67,125 @@
         Pace: <span id="pace" class="gold">67%</span><br>
         Goal: <span id="goal" class="gold" contenteditable="true">9</span>
       </div>
-      <div class="quote" id="quote" contenteditable="true">Momentum wins. Two more and we reset the board.</div>
+      <div id="quote" class="quote" contenteditable="true">
+        Momentum wins. Two more and we reset the board.
+      </div>
     </div>
   </div>
 
-  <!-- Footer controls -->
+  <!-- footer -->
   <div class="footer">
-    <button class="ghost" id="btnSave">💾 Save Now</button>
-    <button class="ghost" id="btnLoad">🔄 Load Saved</button>
-    <button class="ghost" id="btnReset">♻️ Reset Day</button>
-    <span style="color:#888;font-size:2vmin;">Autosaves as you type • Local only</span>
+    <button id="btnSave" class="ghost">💾 Save</button>
+    <button id="btnLoad" class="ghost">📂 Load</button>
+    <button id="btnReset" class="ghost">♻️ Reset Day</button>
+    <span style="color:#888;font-size:2vmin">Auto-saves as you type • Local only</span>
   </div>
+
+  <div id="slotBox" class="slotBox">
+    <button class="slot" data-slot="A">Save A</button>
+    <button class="slotLoad" data-slot="A">Load A</button>
+    <button class="slotClear" data-slot="A">Clear A</button>
+    <button class="slot" data-slot="B">Save B</button>
+    <button class="slotLoad" data-slot="B">Load B</button>
+    <button class="slotClear" data-slot="B">Clear B</button>
+    <button class="slot" data-slot="C">Save C</button>
+    <button class="slotLoad" data-slot="C">Load C</button>
+    <button class="slotClear" data-slot="C">Clear C</button>
+  </div>
+
 </div>
 
 <script>
-/* ---------- Prevent pinch/double-tap zoom for iOS ---------- */
-document.addEventListener('gesturestart', e => e.preventDefault());
-let lastTouchEnd = 0;
-document.addEventListener('touchend', function (e) {
-  const now = Date.now();
-  if (now - lastTouchEnd <= 350) e.preventDefault();
-  lastTouchEnd = now;
-}, {passive:false});
+/* --- zoom prevention --- */
+document.addEventListener('gesturestart', e=>e.preventDefault());
+let lastTouchEnd=0;
+document.addEventListener('touchend',e=>{
+  const now=Date.now();
+  if(now-lastTouchEnd<=350)e.preventDefault();
+  lastTouchEnd=now;
+},{passive:false});
 
-/* ---------- Data model & defaults ---------- */
-const DEFAULTS = {
-  active: 't12',
-  dayKey: dayStamp(),
-  tabs: {
-    t10: {head:'10 AM OPEN STRONG ⚡', sub:'ENERGY BUILDS FROM THE FIRST PITCH', current:'0', target:'2', goal:'9', quote:'Start hot. Set the tone.'},
-    t12: {head:'12 PM CHECKPOINT ⚡',   sub:'LIVE LOOK • WHERE WE STAND',       current:'4', target:'6', goal:'9', quote:'Momentum wins. Two more and we reset the board.'},
-    t2:  {head:'2 PM PUSH ⚡',          sub:'RESET • HYDRATE • CLOSE 2 MORE',   current:'5', target:'6', goal:'9', quote:'Energy wins afternoons.'},
-    t4:  {head:'4 PM FINISH STRONG ⚡', sub:'SIX WAS STANDARD -- FOUR MORE AND WE WIN THE DAY', current:'6', target:'8', goal:'9', quote:'Keep the floor hot. Finish the run.'},
-    t6:  {head:'6 PM POWER HOUR ⚡',    sub:'ALL GAS • NO BRAKE • LAST PUSH OF THE DAY', current:'7', target:'9', goal:'9', quote:'End strong. No excuses.'}
-  }
+/* --- defaults --- */
+const DEFAULTS={
+ active:'t12',
+ day:today(),
+ tabs:{
+  t10:{head:'10 AM OPEN STRONG ⚡',sub:'ENERGY BUILDS FROM THE FIRST PITCH',current:'0',target:'2',goal:'9',quote:'Start hot. Set the tone.'},
+  t12:{head:'12 PM CHECKPOINT ⚡',sub:'LIVE LOOK • WHERE WE STAND',current:'4',target:'6',goal:'9',quote:'Momentum wins. Two more and we reset the board.'},
+  t2:{head:'2 PM PUSH ⚡',sub:'RESET • HYDRATE • CLOSE 2 MORE',current:'5',target:'6',goal:'9',quote:'Energy wins afternoons.'},
+  t4:{head:'4 PM FINISH STRONG ⚡',sub:'SIX WAS STANDARD -- FOUR MORE AND WE WIN THE DAY',current:'6',target:'8',goal:'9',quote:'Keep the floor hot. Finish the run.'},
+  t5:{head:'5 PM POWER HOUR ⚡',sub:'ALL GAS • NO BRAKE • LAST PUSH OF THE DAY',current:'7',target:'9',goal:'9',quote:'End strong. No excuses.'}
+ }
 };
+const LS_KEY='podDashV3';let state=load()||structuredClone(DEFAULTS);
+if(state.day!==today()){Object.values(state.tabs).forEach(t=>t.current='0');state.day=today();save();}
+const app=document.getElementById('app');
+const tabs=[...document.querySelectorAll('.tab')];
+const els={head,sub,curr,targ,goal,quote,pace:document.getElementById('pace')};
+render();attach();
 
-const LS_KEY = 'podCheckpointV2';
-let state = loadState() || structuredClone(DEFAULTS);
-
-/* ---------- Elements ---------- */
-const app = document.getElementById('app');
-const tabs = Array.from(document.querySelectorAll('.tab'));
-const head = document.getElementById('head');
-const sub = document.getElementById('sub');
-const curr = document.getElementById('curr');
-const targ = document.getElementById('targ');
-const pace = document.getElementById('pace');
-const goal = document.getElementById('goal');
-const quote = document.getElementById('quote');
-
-/* ---------- Init ---------- */
-autoDayReset();
-renderActive();
-attachHandlers();
-updatePace();
-autosave();
-
-/* ---------- Functions ---------- */
-function dayStamp(){
-  const d = new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+/* --- helpers --- */
+function today(){const d=new Date();return d.toISOString().slice(0,10);}
+function load(key=LS_KEY){try{return JSON.parse(localStorage.getItem(key))||null}catch{return null}}
+function save(key=LS_KEY){localStorage.setItem(key,JSON.stringify(state));}
+function render(){
+ tabs.forEach(b=>b.classList.toggle('active',b.dataset.key===state.active));
+ const t=state.tabs[state.active];
+ els.head.textContent=t.head;els.sub.textContent=t.sub;
+ els.curr.textContent=t.current;els.targ.textContent=t.target;
+ els.goal.textContent=t.goal;els.quote.textContent=t.quote;
+ updatePace();
 }
-function loadState(){
-  try{
-    const raw = localStorage.getItem(LS_KEY);
-    return raw ? JSON.parse(raw) : null;
-  }catch(e){ return null; }
+function calcPace(c,t){c=parseFloat(c)||0;t=parseFloat(t)||0;return t?Math.round(c/t*100)+'%':'0%'}
+function updatePace(){els.pace.textContent=calcPace(els.curr.textContent,els.targ.textContent);}
+function snapshot(){
+ const t=state.tabs[state.active];
+ t.head=els.head.textContent.trim();
+ t.sub=els.sub.textContent.trim();
+ t.current=els.curr.textContent.trim();
+ t.target=els.targ.textContent.trim();
+ t.goal=els.goal.textContent.trim();
+ t.quote=els.quote.textContent.trim();
 }
-function saveState(){
-  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
-}
-function autoDayReset(){
-  if (state.dayKey !== dayStamp()){
-    // new day: keep heads/subs/goals/targets; reset current + quotes minimal
-    Object.keys(state.tabs).forEach(k=>{
-      state.tabs[k].current = '0';
-      // keep quote as-is; adjust if you prefer a daily default
-    });
-    state.dayKey = dayStamp();
-    saveState();
+function attach(){
+ tabs.forEach(b=>b.onclick=()=>{snapshot();state.active=b.dataset.key;save();render();});
+ [els.head,els.sub,els.curr,els.targ,els.goal,els.quote].forEach(el=>{
+  el.addEventListener('input',()=>{if(el===els.curr||el===els.targ)updatePace();snapshot();save();});
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur();}});
+ });
+ document.getElementById('btnHide').onclick=()=>{
+  app.classList.toggle('hiddenUI');
+ };
+ document.body.onclick=e=>{
+  if(app.classList.contains('hiddenUI')){app.classList.remove('hiddenUI');}
+ };
+ document.getElementById('btnSave').onclick=()=>{snapshot();save();flash('Saved Auto');};
+ document.getElementById('btnReset').onclick=()=>{
+  if(confirm('Reset current numbers for today?')){
+   Object.values(state.tabs).forEach(t=>t.current='0');
+   snapshot();save();render();flash('Reset');
   }
-}
-function setActive(k){
-  state.active = k;
-  saveState();
-  renderActive();
-}
-function renderActive(){
-  tabs.forEach(b=>b.classList.toggle('active', b.dataset.key===state.active));
-  const t = state.tabs[state.active];
-  head.textContent  = t.head;
-  sub.textContent   = t.sub;
-  curr.textContent  = t.current;
-  targ.textContent  = t.target;
-  goal.textContent  = t.goal;
-  quote.textContent = t.quote;
-  updatePace();
-}
-function calcPace(c,t){
-  const cc = parseFloat(String(c).replace(/[^0-9.\-]/g,'')) || 0;
-  const tt = parseFloat(String(t).replace(/[^0-9.\-]/g,'')) || 0;
-  if(!tt) return '0%';
-  return Math.round((cc/tt)*100) + '%';
-}
-function updatePace(){
-  pace.textContent = calcPace(curr.textContent, targ.textContent);
-}
-function snapshotFromDOM(){
-  const t = state.tabs[state.active];
-  t.head   = head.textContent.trim();
-  t.sub    = sub.textContent.trim();
-  t.current= curr.textContent.trim();
-  t.target = targ.textContent.trim();
-  t.goal   = goal.textContent.trim();
-  t.quote  = quote.textContent.trim();
-}
-function attachHandlers(){
-  tabs.forEach(btn=>{
-    btn.addEventListener('click', ()=> setActive(btn.dataset.key));
-  });
-  [head,sub,curr,targ,goal,quote].forEach(el=>{
-    el.addEventListener('input', ()=>{
-      if (el===curr || el===targ) updatePace();
-      snapshotFromDOM(); saveState();
-    });
-    el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); el.blur(); }});
-  });
-  document.getElementById('btnHide').addEventListener('click', ()=>{
-    app.classList.toggle('hiddenUI');
-    // blur any active editable to avoid cursor in screenshots
-    document.activeElement && document.activeElement.blur && document.activeElement.blur();
-  });
-  document.getElementById('btnSave').addEventListener('click', ()=>{ snapshotFromDOM(); saveState(); flash('Saved'); });
-  document.getElementById('btnLoad').addEventListener('click', ()=>{
-    const s = loadState(); if(!s) return;
-    state = s; renderActive(); flash('Loaded');
-  });
-  document.getElementById('btnReset').addEventListener('click', ()=>{
-    if(confirm('Reset currents to 0 for today?')){
-      Object.keys(state.tabs).forEach(k=> state.tabs[k].current='0');
-      snapshotFromDOM(); saveState(); renderActive(); flash('Reset');
-    }
-  });
-}
-function autosave(){
-  // redundant periodic save as safety
-  setInterval(()=>{ snapshotFromDOM(); saveState(); }, 5000);
+ };
+ const slotBox=document.getElementById('slotBox');
+ document.getElementById('btnLoad').onclick=()=>{
+   slotBox.classList.toggle('visible');
+ };
+ slotBox.querySelectorAll('.slot').forEach(b=>{
+   b.onclick=()=>{snapshot();localStorage.setItem(LS_KEY+'_'+b.dataset.slot,JSON.stringify(state));flash('Saved '+b.dataset.slot);}
+ });
+ slotBox.querySelectorAll('.slotLoad').forEach(b=>{
+   b.onclick=()=>{const d=load(LS_KEY+'_'+b.dataset.slot);if(d){state=d;render();flash('Loaded '+b.dataset.slot);}else flash('Empty');}
+ });
+ slotBox.querySelectorAll('.slotClear').forEach(b=>{
+   b.onclick=()=>{localStorage.removeItem(LS_KEY+'_'+b.dataset.slot);flash('Cleared '+b.dataset.slot);}
+ });
 }
 function flash(msg){
-  const f = document.createElement('div');
-  f.textContent = msg;
-  Object.assign(f.style,{
-    position:'fixed',bottom:'2vmin',left:'50%',transform:'translateX(-50%)',
-    background:'#111',color: '#ddd',border:'1px solid #333',padding:'1vmin 1.6vmin',
-    borderRadius:'1vmin',zIndex:2000,boxShadow:'0 .8vmin 2vmin rgba(0,0,0,.45)',
-    fontSize:'2vmin'
-  });
-  document.body.appendChild(f);
-  setTimeout(()=>{ f.remove(); }, 1200);
+ const f=document.createElement('div');
+ Object.assign(f.style,{position:'fixed',bottom:'2vmin',left:'50%',transform:'translateX(-50%)',
+   background:'#111',color:'#ddd',border:'1px solid #333',padding:'1vmin 1.6vmin',borderRadius:'1vmin',
+   zIndex:2000,boxShadow:'0 .8vmin 2vmin rgba(0,0,0,.45)',fontSize:'2vmin'});
+ f.textContent=msg;document.body.appendChild(f);setTimeout(()=>f.remove(),1200);
 }
 </script>
 </body>
