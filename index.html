@@ -4,97 +4,75 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Pod Checkpoint Dashboard</title>
+<title>Pod Dashboard PSA</title>
 <style>
 :root{
-  --bg:#0b0b0b; --panel:#000000cc; --fg:#f2f2f2; --muted:#a9a9a9; --gold:#d9b25f;
+  --bg:#0b0b0b;--fg:#f2f2f2;--muted:#a9a9a9;--gold:#d9b25f;
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-html,body{
-  margin:0;height:100%;width:100%;background:var(--bg);color:var(--fg);
-  font-family:var(--font);overflow:hidden;
-}
-.app{
-  height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:1.5vmin;
-  padding:1.5vmin;box-sizing:border-box;
-}
-.bar,.footer{
-  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:1vmin;
-  background:var(--panel);border:1px solid #222;border-radius:1.2vmin;
-  padding:1vmin 1.5vmin;backdrop-filter:blur(8px);
-}
-button{
-  background:#121212;border:0.45vmin solid #2a2a2a;color:var(--fg);
+html,body{margin:0;height:100%;width:100%;background:var(--bg);color:var(--fg);
+  font-family:var(--font);overflow:hidden;}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:1.5vmin;padding:1.5vmin;box-sizing:border-box;}
+.bar,.footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:1vmin;
+  background:#000000c0;border:1px solid #222;border-radius:1.2vmin;
+  padding:1vmin 1.5vmin;backdrop-filter:blur(8px);}
+button{background:#121212;border:0.4vmin solid #2a2a2a;color:var(--fg);
   padding:1.2vmin 2.2vmin;border-radius:1vmin;cursor:pointer;touch-action:manipulation;
-  font-size:2.2vmin;font-weight:800;min-width:10ch;
-}
-button:active{transform:translateY(0.2vmin)}
-button.active{border-color:var(--gold);color:var(--gold)}
-button.ghost{background:transparent;border-color:#333;color:#bbb}
-.panel{
-  display:flex;align-items:center;justify-content:center;border:1px solid #1a1a1a;
+  font-size:2.2vmin;font-weight:800;min-width:10ch;}
+button.active{border-color:var(--gold);color:var(--gold);}
+button.ghost{background:transparent;border-color:#333;color:#bbb;}
+.panel{display:flex;align-items:center;justify-content:center;border:1px solid #1a1a1a;
   border-radius:2vmin;background:linear-gradient(180deg,#000000e0,#000000f0);
-  box-shadow:0 1vmin 6vmin rgba(0,0,0,.55);
-}
-.card{text-align:center;max-width:min(92vw,110vmin);padding:2vmin}
-.head{
-  font-size:8.5vmin;font-weight:900;text-transform:uppercase;margin:.2em 0 .15em;
-}
-.sub{font-size:3.6vmin;color:var(--muted);margin:0 0 1em}
-.rule{width:70%;height:.6vmin;background:var(--gold);border-radius:.5vmin;margin:0 auto 2vmin}
-.stats{font-size:4.2vmin;line-height:1.5}
-.gold{color:var(--gold)}
-.quote{font-size:3.2vmin;font-style:italic;margin-top:2vmin}
-[contenteditable]{outline:none;border-bottom:.4vmin solid transparent;transition:border-color .15s}
-[contenteditable]:focus{border-color:var(--gold)}
-.hiddenUI .bar,.hiddenUI .footer{display:none}
-.hiddenUI .panel{box-shadow:none;border-color:#000}
-.slotBox{
-  display:none;gap:0.8vmin;flex-wrap:wrap;justify-content:center;margin-top:0.6vmin;
-}
-.slotBox.visible{display:flex}
-.slotBox button{font-size:1.9vmin;padding:0.8vmin 1.4vmin}
-@media (max-aspect-ratio:4/5){
-  .head{font-size:9.4vmin}
-  .stats{font-size:4.8vmin}
-  .quote{font-size:3.8vmin}
+  box-shadow:0 1vmin 6vmin rgba(0,0,0,.55);}
+.card{text-align:center;max-width:min(92vw,110vmin);padding:2vmin;}
+.head{font-size:8vmin;font-weight:900;text-transform:uppercase;margin:.2em 0 .15em;}
+.sub{font-size:3.6vmin;color:var(--muted);margin:0 0 1em;}
+.rule{width:70%;height:.6vmin;background:var(--gold);border-radius:.5vmin;margin:0 auto 2vmin;}
+.stats{font-size:4.2vmin;line-height:1.5;}
+.gold{color:var(--gold);}
+.psa{font-size:8vmin;font-weight:900;color:var(--gold);margin:0.2em 0;}
+.goalLine{font-size:3.8vmin;font-weight:700;}
+.quote{font-size:3.2vmin;font-style:italic;margin-top:2vmin;}
+[contenteditable]{outline:none;border-bottom:.4vmin solid transparent;transition:border-color .15s;}
+[contenteditable]:focus{border-color:var(--gold);}
+.hiddenUI .bar,.hiddenUI .footer{display:none;}
+.slotBox{display:none;gap:0.8vmin;flex-wrap:wrap;justify-content:center;margin-top:0.6vmin;}
+.slotBox.visible{display:flex;}
+.slotBox button{font-size:1.9vmin;padding:0.8vmin 1.4vmin;}
+@media(max-aspect-ratio:4/5){
+  .head{font-size:9.2vmin}.stats{font-size:4.8vmin}.psa{font-size:9vmin}
 }
 </style>
 </head>
 <body>
 <div class="app" id="app">
 
-  <!-- HEADER -->
   <div class="bar">
     <button class="tab active" data-key="t10">10 AM OPEN</button>
     <button class="tab" data-key="t12">12 PM CHECK</button>
     <button class="tab" data-key="t2">2 PM PUSH</button>
     <button class="tab" data-key="t4">4 PM FINISH</button>
     <button class="tab" data-key="t5">5 PM POWER</button>
-    <button id="btnHide" title="Screenshot mode (hide UI)">👁 Screenshot</button>
+    <button id="btnHide">👁 Screenshot</button>
   </div>
 
-  <!-- CENTER PANEL -->
   <div class="panel">
-    <div class="card" aria-live="polite">
+    <div class="card">
       <div id="head" class="head" contenteditable="true">12 PM CHECKPOINT ⚡</div>
       <div id="sub" class="sub" contenteditable="true">LIVE LOOK • WHERE WE STAND</div>
       <div class="rule"></div>
-
       <div class="stats">
-        Current: <span id="curr" contenteditable="true">24</span><br>
-        Target: <span id="targ" contenteditable="true">6</span><br>
-        Pace: <span id="pace" class="gold">400%</span><br>
-        Goal: <span id="goal" class="gold" contenteditable="true">9</span>
+        Current: <span id="curr" contenteditable="true">24</span>
+        <div id="psa" class="psa">0.3 PSA</div>
+        <div id="goalLine" class="goalLine">Goal: 1.5 PSA</div>
+        <div>Target: <span id="targ" contenteditable="true">6</span></div>
       </div>
-
       <div id="quote" class="quote" contenteditable="true">
         Momentum wins. Two more and we reset the board.
       </div>
     </div>
   </div>
 
-  <!-- FOOTER -->
   <div class="footer">
     <button id="btnSave" class="ghost">💾 Save</button>
     <button id="btnLoad" class="ghost">📂 Load</button>
@@ -102,7 +80,6 @@ button.ghost{background:transparent;border-color:#333;color:#bbb}
     <span style="color:#888;font-size:2vmin">Autosaves on edit • Local only</span>
   </div>
 
-  <!-- SLOT CONTROLS (shown after Load) -->
   <div id="slotBox" class="slotBox">
     <button class="slot" data-slot="A">Save A</button>
     <button class="slotLoad" data-slot="A">Load A</button>
@@ -118,183 +95,100 @@ button.ghost{background:transparent;border-color:#333;color:#bbb}
 </div>
 
 <script>
-/* --------- Prevent pinch/double-tap zoom (iOS-friendly) --------- */
-document.addEventListener('gesturestart', e => e.preventDefault());
-let lastTouchEnd = 0;
-document.addEventListener('touchend', e => {
-  const now = Date.now();
-  if (now - lastTouchEnd <= 350) e.preventDefault();
-  lastTouchEnd = now;
-}, {passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault());
+let lastTouchEnd=0;
+document.addEventListener('touchend',e=>{
+  const now=Date.now();if(now-lastTouchEnd<=350)e.preventDefault();lastTouchEnd=now;
+},{passive:false});
 
-/* --------- State model: shared numbers + per-tab text --------- */
-const DEFAULTS = {
-  active: 't12',
-  day: today(),
-  shared: { current: '24', target: '6', goal: '9' },  // shared across tabs
-  tabs: {
-    t10: { head:'10 AM OPEN STRONG ⚡', sub:'ENERGY BUILDS FROM THE FIRST PITCH', quote:'Start hot. Set the tone.' },
-    t12: { head:'12 PM CHECKPOINT ⚡',  sub:'LIVE LOOK • WHERE WE STAND',          quote:'Momentum wins. Two more and we reset the board.' },
-    t2:  { head:'2 PM PUSH ⚡',         sub:'RESET • HYDRATE • CLOSE 2 MORE',      quote:'Energy wins afternoons.' },
-    t4:  { head:'4 PM FINISH STRONG ⚡',sub:'SIX WAS STANDARD -- FOUR MORE AND WE WIN THE DAY', quote:'Keep the floor hot. Finish the run.' },
-    t5:  { head:'5 PM POWER HOUR ⚡',   sub:'ALL GAS • NO BRAKE • LAST PUSH OF THE DAY',       quote:'End strong. No excuses.' }
-  }
+const DEFAULTS={
+ active:'t12',
+ day:today(),
+ shared:{current:'24',target:'6'},
+ tabs:{
+  t10:{head:'10 AM OPEN STRONG ⚡',sub:'ENERGY BUILDS FROM THE FIRST PITCH',quote:'Start hot. Set the tone.'},
+  t12:{head:'12 PM CHECKPOINT ⚡',sub:'LIVE LOOK • WHERE WE STAND',quote:'Momentum wins. Two more and we reset the board.'},
+  t2:{head:'2 PM PUSH ⚡',sub:'RESET • HYDRATE • CLOSE 2 MORE',quote:'Energy wins afternoons.'},
+  t4:{head:'4 PM FINISH STRONG ⚡',sub:'SIX WAS STANDARD -- FOUR MORE AND WE WIN THE DAY',quote:'Keep the floor hot. Finish the run.'},
+  t5:{head:'5 PM POWER HOUR ⚡',sub:'ALL GAS • NO BRAKE • LAST PUSH OF THE DAY',quote:'End strong. No excuses.'}
+ }
 };
+const LS_KEY='podDashPSA';
+let state=load()||structuredClone(DEFAULTS);
+if(state.day!==today()){state.shared.current='0';state.day=today();save();}
 
-const LS_KEY = 'podDashV4';
-let state = load() || structuredClone(DEFAULTS);
+const app=document.getElementById('app');
+const tabs=[...document.querySelectorAll('.tab')];
+const head=document.getElementById('head');
+const sub=document.getElementById('sub');
+const quote=document.getElementById('quote');
+const curr=document.getElementById('curr');
+const targ=document.getElementById('targ');
+const psa=document.getElementById('psa');
+const goalLine=document.getElementById('goalLine');
+const slotBox=document.getElementById('slotBox');
 
-/* --------- New day reset: only reset Current --------- */
-if (state.day !== today()) {
-  state.shared.current = '0';
-  state.day = today();
-  save();
-}
+render();attach();
 
-/* --------- Elements --------- */
-const app = document.getElementById('app');
-const tabs = Array.from(document.querySelectorAll('.tab'));
-const head = document.getElementById('head');
-const sub = document.getElementById('sub');
-const quote = document.getElementById('quote');
-const curr = document.getElementById('curr');
-const targ = document.getElementById('targ');
-const goal = document.getElementById('goal');
-const pace = document.getElementById('pace');
-const slotBox = document.getElementById('slotBox');
-
-/* --------- Init --------- */
-render();
-attach();
-
-/* --------- Functions --------- */
-function today(){
-  const d = new Date();
-  return d.toISOString().slice(0,10);
+function today(){return new Date().toISOString().slice(0,10);}
+function load(k=LS_KEY){try{return JSON.parse(localStorage.getItem(k)||'null');}catch{return null}}
+function save(k=LS_KEY){localStorage.setItem(k,JSON.stringify(state));}
+function flash(msg){
+ const f=document.createElement('div');
+ Object.assign(f.style,{position:'fixed',bottom:'2vmin',left:'50%',transform:'translateX(-50%)',
+ background:'#111',color:'#ddd',border:'1px solid #333',padding:'1vmin 1.6vmin',borderRadius:'1vmin',
+ zIndex:2000,boxShadow:'0 .8vmin 2vmin rgba(0,0,0,.45)',fontSize:'2vmin'});
+ f.textContent=msg;document.body.appendChild(f);setTimeout(()=>f.remove(),1200);
 }
-function load(key=LS_KEY){
-  try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; }
-}
-function save(key=LS_KEY){
-  try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
-}
-function calcPace(c,t){
-  const cc = parseFloat(String(c).replace(/[^0-9.\-]/g,'')) || 0;
-  const tt = parseFloat(String(t).replace(/[^0-9.\-]/g,'')) || 0;
-  return tt ? Math.round((cc/tt)*100) + '%' : '0%';
-}
-function updatePace(){
-  pace.textContent = calcPace(state.shared.current, state.shared.target);
+function updatePSA(){
+ const c=parseFloat(state.shared.current)||0;
+ const t=parseFloat(state.shared.target)||0;
+ const val=t? (c/t).toFixed(1):'0.0';
+ psa.textContent=`${val} PSA`;
+ goalLine.textContent=`Goal: ${(1.5).toFixed(1)} PSA`;
 }
 function render(){
-  // tabs
-  tabs.forEach(b=>b.classList.toggle('active', b.dataset.key === state.active));
-  const t = state.tabs[state.active];
-
-  // per-tab text
-  head.textContent = t.head;
-  sub.textContent  = t.sub;
-  quote.textContent= t.quote;
-
-  // shared numbers
-  curr.textContent = state.shared.current;
-  targ.textContent = state.shared.target;
-  goal.textContent = state.shared.goal;
-
-  updatePace();
+ tabs.forEach(b=>b.classList.toggle('active',b.dataset.key===state.active));
+ const t=state.tabs[state.active];
+ head.textContent=t.head;sub.textContent=t.sub;quote.textContent=t.quote;
+ curr.textContent=state.shared.current;targ.textContent=state.shared.target;
+ updatePSA();
 }
-function snapshotShared(){
-  state.shared.current = curr.textContent.trim();
-  state.shared.target  = targ.textContent.trim();
-  state.shared.goal    = goal.textContent.trim();
-}
-function snapshotTab(){
-  const t = state.tabs[state.active];
-  t.head  = head.textContent.trim();
-  t.sub   = sub.textContent.trim();
-  t.quote = quote.textContent.trim();
-}
-function flash(msg){
-  const f = document.createElement('div');
-  Object.assign(f.style,{
-    position:'fixed',bottom:'2vmin',left:'50%',transform:'translateX(-50%)',
-    background:'#111',color:'#ddd',border:'1px solid #333',padding:'1vmin 1.6vmin',
-    borderRadius:'1vmin',zIndex:2000,boxShadow:'0 .8vmin 2vmin rgba(0,0,0,.45)',fontSize:'2vmin'
-  });
-  f.textContent = msg;
-  document.body.appendChild(f);
-  setTimeout(()=>f.remove(), 1200);
-}
-
-/* --------- Handlers --------- */
+function snapshotShared(){state.shared.current=curr.textContent.trim();state.shared.target=targ.textContent.trim();}
+function snapshotTab(){const t=state.tabs[state.active];t.head=head.textContent.trim();t.sub=sub.textContent.trim();t.quote=quote.textContent.trim();}
 function attach(){
-  // tab switching
-  tabs.forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      snapshotTab(); save();
-      state.active = btn.dataset.key; save();
-      render();
-    });
-  });
-
-  // editing: per-tab text (auto-save on change)
-  [head, sub, quote].forEach(el=>{
-    el.addEventListener('input', ()=>{ snapshotTab(); save(); });
-    el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); el.blur(); }});
-  });
-
-  // editing: shared numbers (auto-save on change + pace update)
-  [curr, targ, goal].forEach(el=>{
-    el.addEventListener('input', ()=>{
-      snapshotShared(); save(); updatePace();
-    });
-    el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); el.blur(); }});
-  });
-
-  // screenshot mode
-  document.getElementById('btnHide').addEventListener('click', ()=>{
-    app.classList.toggle('hiddenUI');
-    document.activeElement && document.activeElement.blur && document.activeElement.blur();
-  });
-  // tap anywhere to restore if hidden
-  document.body.addEventListener('click', ()=>{
-    if (app.classList.contains('hiddenUI')) app.classList.remove('hiddenUI');
-  });
-
-  // footer actions
-  document.getElementById('btnSave').addEventListener('click', ()=>{ snapshotTab(); snapshotShared(); save(); flash('Saved'); });
-  document.getElementById('btnReset').addEventListener('click', ()=>{
-    if (confirm('Reset Current for today?')) {
-      state.shared.current = '0'; save(); render(); flash('Current reset');
-    }
-  });
-
-  // load reveals slot box (Option A)
-  document.getElementById('btnLoad').addEventListener('click', ()=>{
-    slotBox.classList.toggle('visible');
-  });
-
-  // manual slots: save / load / clear
-  slotBox.querySelectorAll('.slot').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      snapshotTab(); snapshotShared();
-      localStorage.setItem(LS_KEY + '_' + b.dataset.slot, JSON.stringify(state));
-      flash('Saved ' + b.dataset.slot);
-    });
-  });
-  slotBox.querySelectorAll('.slotLoad').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      const s = load(LS_KEY + '_' + b.dataset.slot);
-      if (s){ state = s; save(); render(); flash('Loaded ' + b.dataset.slot); }
-      else { flash('Empty'); }
-    });
-  });
-  slotBox.querySelectorAll('.slotClear').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      localStorage.removeItem(LS_KEY + '_' + b.dataset.slot);
-      flash('Cleared ' + b.dataset.slot);
-    });
-  });
+ tabs.forEach(btn=>{
+  btn.addEventListener('click',()=>{snapshotTab();save();state.active=btn.dataset.key;save();render();});
+ });
+ [head,sub,quote].forEach(el=>{
+  el.addEventListener('input',()=>{snapshotTab();save();});
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur();}});
+ });
+ [curr,targ].forEach(el=>{
+  el.addEventListener('input',()=>{snapshotShared();save();updatePSA();});
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur();}});
+ });
+ document.getElementById('btnHide').addEventListener('click',()=>{
+  app.classList.toggle('hiddenUI');
+  document.activeElement&&document.activeElement.blur&&document.activeElement.blur();
+ });
+ document.body.addEventListener('click',()=>{
+  if(app.classList.contains('hiddenUI'))app.classList.remove('hiddenUI');
+ });
+ document.getElementById('btnSave').addEventListener('click',()=>{snapshotTab();snapshotShared();save();flash('Saved');});
+ document.getElementById('btnReset').addEventListener('click',()=>{
+  if(confirm('Reset Current for today?')){state.shared.current='0';save();render();flash('Current reset');}
+ });
+ document.getElementById('btnLoad').addEventListener('click',()=>{slotBox.classList.toggle('visible');});
+ slotBox.querySelectorAll('.slot').forEach(b=>{
+  b.addEventListener('click',()=>{snapshotTab();snapshotShared();localStorage.setItem(LS_KEY+'_'+b.dataset.slot,JSON.stringify(state));flash('Saved '+b.dataset.slot);});
+ });
+ slotBox.querySelectorAll('.slotLoad').forEach(b=>{
+  b.addEventListener('click',()=>{const s=load(LS_KEY+'_'+b.dataset.slot);if(s){state=s;save();render();flash('Loaded '+b.dataset.slot);}else flash('Empty');});
+ });
+ slotBox.querySelectorAll('.slotClear').forEach(b=>{
+  b.addEventListener('click',()=>{localStorage.removeItem(LS_KEY+'_'+b.dataset.slot);flash('Cleared '+b.dataset.slot);});
+ });
 }
 </script>
 </body>
