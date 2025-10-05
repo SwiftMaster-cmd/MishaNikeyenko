@@ -3,195 +3,110 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Pod Checkpoint Posters -- Editable</title>
+<title>Pod Checkpoint Dashboard</title>
 <style>
-  :root{
-    --bg:#0b0b0b;            /* deep matte black */
-    --fg:#f2f2f2;            /* crisp white */
-    --muted:#d9d9d9;         /* subtle gray for body text */
-    --gold:#d9b25f;          /* clean gold accent */
-    --card-w: 880px;         /* base canvas width */
-    --card-h: 1100px;        /* portrait height */
-    --radius: 28px;
-    --gap: 20px;
-    --font: ui-sans-serif, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    --tight: -0.5px;
+  :root {
+    --bg:#0b0b0b; --fg:#f2f2f2; --gold:#d9b25f; --muted:#888;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
-  html,body{height:100%;background:var(--bg);color:var(--fg);margin:0;font-family:var(--font);}
-  .wrap{max-width:1200px;margin:24px auto;padding:16px;}
-  .controls{
-    display:flex;flex-wrap:wrap;gap:10px;margin:0 0 12px 0;align-items:center;
-  }
-  .controls button{
-    background:#1a1a1a;border:1px solid #333;color:#ddd;padding:8px 12px;border-radius:10px;cursor:pointer;
-  }
-  .controls button[data-on="1"]{border-color:var(--gold);color:var(--gold)}
-  .grid{
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;
+  html,body{
+    height:100%; width:100%; margin:0; padding:0; background:var(--bg);
+    color:var(--fg); font-family:var(--font); overflow:hidden;
   }
   .card{
-    width:var(--card-w);
-    height:var(--card-h);
-    max-width:100%;
-    aspect-ratio: 1 / 1.25;        /* portrait default */
-    background:#000;
-    border-radius:var(--radius);
-    box-shadow:0 10px 40px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.04);
-    padding:56px 56px 40px;
-    display:flex;flex-direction:column;justify-content:flex-start;
-    margin-inline:auto;
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    padding:3vw; box-sizing:border-box;
   }
-  .square .card{aspect-ratio:1/1;height:auto}
   .head{
-    text-transform:uppercase;letter-spacing:.5px;
-    font-weight:800;font-size:80px;line-height:1.05;margin:0 0 10px; 
+    font-size:7vw; font-weight:800; text-transform:uppercase; margin:0;
   }
-  .subhead{
-    font-size:38px;letter-spacing:var(--tight);color:var(--muted);font-weight:750;
-    display:flex;align-items:center;gap:14px;margin:0 0 18px;
+  .subhead{font-size:3vw; color:var(--muted); margin:0.5vw 0 1vw;}
+  .rule{width:60%; height:0.4vw; background:var(--gold); margin:1vw 0 2vw;}
+  .stats{font-size:3.5vw; line-height:1.5;}
+  .gold{color:var(--gold);}
+  .quote{font-size:2.8vw; font-style:italic; margin-top:2vw;}
+  [contenteditable]{outline:none;border-bottom:0.3vw solid transparent;}
+  [contenteditable]:focus{border-color:var(--gold);}
+  /* Control buttons */
+  .controls{
+    position:fixed; top:1vw; left:1vw; display:flex; flex-wrap:wrap;
+    gap:0.5vw; z-index:1000; background:rgba(0,0,0,0.6);
+    padding:0.6vw 0.8vw; border-radius:0.8vw;
   }
-  .bolt{color:var(--gold);font-size:.9em}
-  .rule{height:3px;background:var(--gold);width:100%;opacity:.85;margin:8px 0 26px;border-radius:2px}
-  .stats{display:grid;grid-template-columns:1fr auto;row-gap:12px;column-gap:12px;}
-  .label{font-size:56px;font-weight:800;letter-spacing:var(--tight)}
-  .val{font-size:64px;font-weight:850;text-align:right}
-  .gold{color:var(--gold)}
-  .muted{color:var(--muted)}
-  .spacer{height:26px}
-  .quote{
-    margin-top:auto;
-    font-size:38px;line-height:1.25;font-weight:600;
-    font-style:italic;color:#e8e8e8;opacity:.95;
-    text-align:center;
+  button{
+    background:#1a1a1a; border:0.2vw solid #333; color:var(--fg);
+    padding:0.5vw 1vw; border-radius:0.5vw; cursor:pointer;
+    font-size:1.6vw;
   }
-  [contenteditable="true"]{
-    outline:none;border-bottom:2px solid transparent;transition:border-color .15s;
+  button.active{border-color:var(--gold); color:var(--gold);}
+  #toggleControls{
+    position:fixed; bottom:1vw; right:1vw; background:var(--gold);
+    color:#000; font-weight:700; border:none; border-radius:50%;
+    width:4vw; height:4vw; font-size:2vw; cursor:pointer; z-index:1100;
   }
-  [contenteditable="true"]:focus{border-color:var(--gold)}
-  /* size helpers */
-  .small .head{font-size:66px}
-  .small .label{font-size:44px}.small .val{font-size:52px}.small .quote{font-size:30px}
-  @media (max-width:980px){
-    .card{padding:44px}
-    .head{font-size:64px}.subhead{font-size:30px}
-    .label{font-size:44px}.val{font-size:52px}.quote{font-size:28px}
-  }
+  .hide .controls{display:none;}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="controls">
-    <strong style="color:#bbb">Layout:</strong>
-    <button id="btnPortrait" data-on="1">Portrait</button>
-    <button id="btnSquare">Square</button>
-    <button id="btnCompact">Compact Text</button>
-    <span style="flex:1"></span>
-    <span class="muted" style="font-size:14px">Tip: double-click any number/line to edit • screenshot to share</span>
+<div class="controls">
+  <button id="btn10" class="active">10 AM OPEN</button>
+  <button id="btn12">12 PM CHECKPOINT</button>
+  <button id="btn2">2 PM PUSH</button>
+  <button id="btn4">4 PM FINISH</button>
+  <button id="btn6">6 PM POWER</button>
+</div>
+<button id="toggleControls">👁</button>
+
+<div id="display" class="card">
+  <h1 class="head" contenteditable="true">12 PM CHECKPOINT ⚡</h1>
+  <div class="subhead" contenteditable="true">LIVE LOOK • WHERE WE STAND</div>
+  <div class="rule"></div>
+  <div class="stats">
+    Current: <span contenteditable="true">4</span><br>
+    Target: <span contenteditable="true">6</span><br>
+    Pace: <span class="gold" contenteditable="true">67%</span><br>
+    Goal: <span class="gold" contenteditable="true">9</span>
   </div>
-
-  <div id="board" class="grid">
-
-    <!-- 10 AM -- OPEN STRONG -->
-    <section class="card small" data-time="10 AM">
-      <h1 class="head"><span contenteditable="true">10 AM</span> OPEN STRONG</h1>
-      <div class="subhead">ENERGY BUILDS FROM THE FIRST PITCH <span class="bolt">⚡</span></div>
-      <div class="rule"></div>
-      <div class="stats">
-        <div class="label">Current:</div><div class="val" contenteditable="true">0</div>
-        <div class="label">Target:</div><div class="val" contenteditable="true">2</div>
-        <div class="label">Pace:</div><div class="val" contenteditable="true">--</div>
-        <div class="label gold">Goal:</div><div class="val gold" contenteditable="true">9</div>
-      </div>
-      <div class="spacer"></div>
-      <div class="quote" contenteditable="true">Start hot. Set the tone.</div>
-    </section>
-
-    <!-- 12 PM -- CHECKPOINT -->
-    <section class="card" data-time="12 PM">
-      <h1 class="head"><span contenteditable="true">12 PM</span> CHECKPOINT <span class="bolt">⚡</span></h1>
-      <div class="subhead">LIVE LOOK • WHERE WE STAND</div>
-      <div class="rule"></div>
-      <div class="stats">
-        <div class="label">Current:</div><div class="val" contenteditable="true">4</div>
-        <div class="label">Target:</div><div class="val" contenteditable="true">6</div>
-        <div class="label">Pace:</div><div class="val gold" contenteditable="true">67%</div>
-        <div class="label gold">Goal:</div><div class="val gold" contenteditable="true">9</div>
-      </div>
-      <div class="spacer"></div>
-      <div class="quote" contenteditable="true">Momentum wins. Two more and we reset the board.</div>
-    </section>
-
-    <!-- 2 PM -- PUSH -->
-    <section class="card" data-time="2 PM">
-      <h1 class="head"><span contenteditable="true">2 PM</span> PUSH</h1>
-      <div class="subhead">RESET • HYDRATE • CLOSE 2 MORE</div>
-      <div class="rule"></div>
-      <div class="stats">
-        <div class="label">Current:</div><div class="val" contenteditable="true">5</div>
-        <div class="label">Target:</div><div class="val" contenteditable="true">6</div>
-        <div class="label">Pace:</div><div class="val" contenteditable="true">83%</div>
-        <div class="label gold">Goal:</div><div class="val gold" contenteditable="true">9</div>
-      </div>
-      <div class="spacer"></div>
-      <div class="quote" contenteditable="true">Energy wins afternoons.</div>
-    </section>
-
-    <!-- 4 PM -- FINISH STRONG -->
-    <section class="card" data-time="4 PM">
-      <h1 class="head"><span contenteditable="true">4 PM</span> FINISH STRONG</h1>
-      <div class="subhead">SIX WAS STANDARD -- FOUR MORE AND WE WIN THE DAY</div>
-      <div class="rule"></div>
-      <div class="stats">
-        <div class="label">Current:</div><div class="val" contenteditable="true">6</div>
-        <div class="label">Target:</div><div class="val" contenteditable="true">8</div>
-        <div class="label">Pace:</div><div class="val" contenteditable="true">100%</div>
-        <div class="label gold">Goal:</div><div class="val gold" contenteditable="true">9</div>
-      </div>
-      <div class="spacer"></div>
-      <div class="quote" contenteditable="true">Keep the floor hot. Finish the run.</div>
-    </section>
-
-    <!-- 6 PM -- POWER HOUR / END STRONG -->
-    <section class="card" data-time="6 PM">
-      <h1 class="head"><span contenteditable="true">6 PM</span> POWER HOUR</h1>
-      <div class="subhead">ALL GAS, NO BRAKE • LAST PUSH OF THE DAY</div>
-      <div class="rule"></div>
-      <div class="stats">
-        <div class="label">Current:</div><div class="val" contenteditable="true">7</div>
-        <div class="label">Target:</div><div class="val" contenteditable="true">9</div>
-        <div class="label">Pace:</div><div class="val" contenteditable="true">110%</div>
-        <div class="label gold">Goal:</div><div class="val gold" contenteditable="true">9</div>
-      </div>
-      <div class="spacer"></div>
-      <div class="quote" contenteditable="true">End strong. No excuses.</div>
-    </section>
-
-  </div>
+  <div class="quote" contenteditable="true">Momentum wins. Two more and we reset the board.</div>
 </div>
 
 <script>
-  // size toggles (portrait / square / compact text)
-  const board = document.getElementById('board');
-  const btnPortrait = document.getElementById('btnPortrait');
-  const btnSquare = document.getElementById('btnSquare');
-  const btnCompact = document.getElementById('btnCompact');
-  function setOn(btn, on){
-    [btnPortrait,btnSquare,btnCompact].forEach(b=>b.dataset.on="0");
-    btn.dataset.on = on ? "1":"0";
-  }
-  btnPortrait.onclick = ()=>{ document.body.classList.remove('square'); setOn(btnPortrait,1); };
-  btnSquare.onclick   = ()=>{ document.body.classList.add('square'); setOn(btnSquare,1); };
-  btnCompact.onclick  = ()=>{
-    const toggle = document.body.classList.toggle('small');
-    setOn(btnCompact, toggle);
+const data = {
+  btn10:{head:"10 AM OPEN STRONG ⚡",sub:"ENERGY BUILDS FROM THE FIRST PITCH",
+    current:0,target:2,pace:"--",goal:9,quote:"Start hot. Set the tone."},
+  btn12:{head:"12 PM CHECKPOINT ⚡",sub:"LIVE LOOK • WHERE WE STAND",
+    current:4,target:6,pace:"67%",goal:9,quote:"Momentum wins. Two more and we reset the board."},
+  btn2:{head:"2 PM PUSH ⚡",sub:"RESET • HYDRATE • CLOSE 2 MORE",
+    current:5,target:6,pace:"83%",goal:9,quote:"Energy wins afternoons."},
+  btn4:{head:"4 PM FINISH STRONG ⚡",sub:"SIX WAS STANDARD -- FOUR MORE AND WE WIN THE DAY",
+    current:6,target:8,pace:"100%",goal:9,quote:"Keep the floor hot. Finish the run."},
+  btn6:{head:"6 PM POWER HOUR ⚡",sub:"ALL GAS • NO BRAKE • LAST PUSH OF THE DAY",
+    current:7,target:9,pace:"110%",goal:9,quote:"End strong. No excuses."}
+};
+const buttons=document.querySelectorAll(".controls button");
+const card=document.getElementById("display");
+buttons.forEach(btn=>{
+  btn.onclick=()=>{
+    buttons.forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    const d=data[btn.id];
+    card.querySelector(".head").innerText=d.head;
+    card.querySelector(".subhead").innerText=d.sub;
+    const spans=card.querySelectorAll(".stats span");
+    spans[0].innerText=d.current;
+    spans[1].innerText=d.target;
+    spans[2].innerText=d.pace;
+    spans[3].innerText=d.goal;
+    card.querySelector(".quote").innerText=d.quote;
   };
-
-  // Quick helper: on Enter, blur (keeps single-line vibe)
-  document.querySelectorAll('[contenteditable="true"]').forEach(el=>{
-    el.addEventListener('keydown', e=>{
-      if(e.key==='Enter'){ e.preventDefault(); el.blur(); }
-    });
-  });
+});
+document.getElementById("toggleControls").onclick=()=>{
+  document.body.classList.toggle("hide");
+};
+document.querySelectorAll('[contenteditable]').forEach(el=>{
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur();}});
+});
 </script>
 </body>
 </html>
