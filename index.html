@@ -1,112 +1,152 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <meta name="viewport"
       content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Pod Dashboard -- Profiles + PSA</title>
+<title>Pod Dashboard -- PSA + Profiles (v3)</title>
 <style>
 :root{
-  --bg:#0b0b0b; --panel:#000000cc; --fg:#f2f2f2; --muted:#a9a9a9; --gold:#d9b25f;
+  --bg:#0b0b0b; --panel:#000000d0; --fg:#f2f2f2; --muted:#a9a9a9; --gold:#d9b25f;
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --vh:100vh; /* set by JS to kill iOS toolbar jumps */
 }
-html,body{margin:0;height:100%;width:100%;background:var(--bg);color:var(--fg);
-  font-family:var(--font);overflow:hidden;}
-.app{height:100%;display:grid;grid-template-rows:auto 1fr auto auto;gap:1.2vmin;
-  padding:1.4vmin;box-sizing:border-box;}
-.bar,.footer,.profiles{
-  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:1vmin;
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);overflow:hidden}
+
+/* ===== App Layout ===== */
+.app{
+  height:var(--vh);
+  display:grid;gap:1.1vmin;padding:1.1vmin;
+  grid-template-rows:auto 1fr auto; /* Dock / Board / Footer */
+}
+
+/* ===== Command Dock (balanced single bar) ===== */
+.dock{
+  display:grid;align-items:center;gap:1vmin;
+  grid-template-columns: 1fr auto 1fr; /* left / center / right */
   background:var(--panel);border:1px solid #222;border-radius:1.2vmin;
-  padding:1vmin 1.5vmin;backdrop-filter:blur(8px);
+  backdrop-filter:blur(8px);
+  padding:0.8vmin 1.1vmin;
+  box-shadow:0 .6vmin 2.2vmin rgba(0,0,0,.35);
 }
-.profiles{justify-content:space-between;padding:0.8vmin 1.2vmin}
-.profile-left{display:flex;gap:1vmin;align-items:center}
-.profile-right{display:flex;gap:1vmin;align-items:center}
-.tag{font-size:2vmin;color:#ccc}
-.badge{padding:0.2vmin 0.9vmin;border:1px solid #333;border-radius:0.8vmin;color:#ddd;font-size:1.8vmin}
+.dock-left,.dock-center,.dock-right{display:flex;align-items:center;gap:1vmin}
+.dock-left{justify-content:flex-start;min-width:0}
+.dock-center{justify-content:center;flex-wrap:wrap}
+.dock-right{justify-content:flex-end;flex-wrap:wrap}
+
+/* Active profile chip + autosave dot */
+.badge{padding:.3vmin .9vmin;border:1px solid #333;border-radius:.9vmin;color:#ddd;font-size:1.9vmin}
+.dot{width:1.1vmin;height:1.1vmin;border-radius:50%;background:#2ecc71;display:inline-block;margin-left:.7vmin;opacity:0;transition:opacity .25s}
+.dot.on{opacity:1}
+
+/* Buttons */
 button{
-  background:#121212;border:0.4vmin solid #2a2a2a;color:var(--fg);
-  padding:1.2vmin 2.2vmin;border-radius:1vmin;cursor:pointer;touch-action:manipulation;
-  font-size:2.2vmin;font-weight:800;min-width:10ch;
+  background:#141414;border:.35vmin solid #2a2a2a;color:var(--fg);
+  padding:1vmin 1.9vmin;border-radius:1vmin;cursor:pointer;touch-action:manipulation;
+  font-weight:800;font-size:2vmin;min-width:9.5ch;letter-spacing:.1px;
+  transition:transform .04s ease, box-shadow .12s ease, border-color .12s ease, color .12s ease;
 }
-button:active{transform:translateY(0.2vmin)}
-button.active{border-color:var(--gold);color:var(--gold)}
+button:active{transform:translateY(.2vmin)}
+button.active{border-color:var(--gold);color:var(--gold);box-shadow:0 0 0 .2vmin rgba(217,178,95,.15),0 0 1.2vmin rgba(217,178,95,.18) inset}
 button.ghost{background:transparent;border-color:#333;color:#bbb}
+
+/* ===== Board Panel ===== */
 .panel{
-  display:flex;align-items:center;justify-content:center;border:1px solid #1a1a1a;
-  border-radius:2vmin;background:linear-gradient(180deg,#000000e0,#000000f0);
-  box-shadow:0 1vmin 6vmin rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid #1a1a1a;border-radius:1.8vmin;
+  background:linear-gradient(180deg,#000000e8,#000000f2);
+  box-shadow:0 .9vmin 4vmin rgba(0,0,0,.45);
+  padding:1.2vmin;
 }
-.card{text-align:center;max-width:min(92vw,110vmin);padding:2vmin}
-.head{font-size:8.4vmin;font-weight:900;text-transform:uppercase;margin:.2em 0 .15em}
-.sub{font-size:3.6vmin;color:var(--muted);margin:0 0 1em}
-.rule{width:70%;height:.6vmin;background:var(--gold);border-radius:.5vmin;margin:0 auto 2vmin}
-.stats{font-size:4.2vmin;line-height:1.5}
+.card{max-width:min(92vw,110vmin);text-align:center;padding:2vmin 2.2vmin}
+
+/* Smooth tab fade */
+.card.fade{opacity:0;transition:opacity .22s ease}
+.card.ready{opacity:1}
+
+/* Head + sub */
+.head{font-size:7.6vmin;font-weight:900;text-transform:uppercase;margin:.15em 0 .1em}
+.sub{font-size:3.2vmin;color:var(--muted);margin:0 0 .8em}
+
+/* Gold rule tight */
+.rule{width:66%;height:.55vmin;background:var(--gold);border-radius:.5vmin;margin:.2vmin auto 1.6vmin}
+
+/* Data block: tight, zero fluff */
+.stats{display:grid;gap:0.2em;font-size:3.9vmin;line-height:1.35;justify-items:center}
+.psa{font-size:6.8vmin;font-weight:900;color:var(--gold);margin:.15em 0 .05em}
+.goalLine{font-size:3.6vmin;font-weight:750;margin:.05em 0 .3em}
 .gold{color:var(--gold)}
-.psa{font-size:8.8vmin;font-weight:900;color:var(--gold);margin:.25em 0 .1em}
-.goalLine{font-size:3.9vmin;font-weight:750;margin:.15em 0}
-.quote{font-size:3.2vmin;font-style:italic;margin-top:2vmin}
-[contenteditable]{outline:none;border-bottom:.4vmin solid transparent;transition:border-color .15s}
+.quote{font-size:3vmin;font-style:italic;margin-top:1.2vmin}
+
+/* Editable focus */
+[contenteditable]{outline:none;border-bottom:.35vmin solid transparent;transition:border-color .12s}
 [contenteditable]:focus{border-color:var(--gold)}
-.hiddenUI .bar,.hiddenUI .footer,.hiddenUI .profiles{display:none}
+
+/* Footer */
+.footer{
+  display:flex;gap:1vmin;align-items:center;justify-content:center;
+  background:var(--panel);border:1px solid #222;border-radius:1.2vmin;padding:.7vmin 1.1vmin
+}
+
+/* Modals (Load / Save As) */
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:2000}
+.sheet{background:#111;border:1px solid #333;border-radius:1.1vmin;min-width:60vmin;max-width:92vmin;padding:1.4vmin;box-shadow:0 1vmin 3.5vmin rgba(0,0,0,.55)}
+.list{display:flex;flex-direction:column;gap:.6vmin;max-height:60vmin;overflow:auto;margin-top:.8vmin}
+.row{display:flex;align-items:center;justify-content:space-between;gap:.8vmin;background:#0d0d0d;border:1px solid #262626;border-radius:.8vmin;padding:.8vmin 1vmin}
+.row .name{font-size:2.1vmin}
+input[type="text"]{background:#0e0e0e;color:#eee;border:1px solid #333;border-radius:.8vmin;padding:.8vmin 1vmin;font-size:2vmin;min-width:26vmin}
+
+/* Screenshot mode */
+.hiddenUI .dock,.hiddenUI .footer{display:none}
 .hiddenUI .panel{box-shadow:none;border-color:#000}
-.slotBox{display:none;gap:0.8vmin;flex-wrap:wrap;justify-content:center;margin-top:0.6vmin}
-.slotBox.visible{display:flex}
-.modal{
-  position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:2000;
-}
-.modal .sheet{
-  background:#111;border:1px solid #333;border-radius:1.2vmin;min-width:60vmin;max-width:90vmin;
-  padding:1.6vmin;box-shadow:0 1vmin 4vmin rgba(0,0,0,.6)
-}
-.list{display:flex;flex-direction:column;gap:0.6vmin;max-height:60vmin;overflow:auto;margin-top:0.8vmin}
-.row{display:flex;gap:0.8vmin;align-items:center;justify-content:space-between;background:#0c0c0c;border:1px solid #262626;border-radius:0.8vmin;padding:0.8vmin 1vmin}
-.row .name{font-size:2.2vmin}
-input[type="text"]{
-  background:#0e0e0e;color:#eee;border:1px solid #333;border-radius:0.8vmin;padding:0.8vmin 1vmin;
-  font-size:2.2vmin;min-width:25vmin
-}
+
+/* Small screens */
 @media (max-aspect-ratio:4/5){
-  .head{font-size:9.4vmin}.stats{font-size:4.8vmin}.psa{font-size:9.8vmin}
+  .head{font-size:8.4vmin}
+  .psa{font-size:7.6vmin}
+  .stats{font-size:4.4vmin}
 }
 </style>
 </head>
 <body>
 <div class="app" id="app">
 
-  <!-- PROFILES BAR -->
-  <div class="profiles">
-    <div class="profile-left">
-      <span class="badge">Active:</span>
-      <span id="activeName" class="tag">Default</span>
+  <!-- ===== Command Dock (balanced) ===== -->
+  <div class="dock">
+    <div class="dock-left">
+      <span class="badge">Active:
+        <span id="activeName">Default</span>
+        <span id="saveDot" class="dot"></span>
+      </span>
     </div>
-    <div class="profile-right">
+
+    <div class="dock-center">
+      <button class="tab active" data-key="t10">10 AM OPEN</button>
+      <button class="tab" data-key="t12">12 PM CHECK</button>
+      <button class="tab" data-key="t2">2 PM PUSH</button>
+      <button class="tab" data-key="t4">4 PM FINISH</button>
+      <button class="tab" data-key="t5">5 PM POWER</button>
+    </div>
+
+    <div class="dock-right">
       <button id="btnSaveAs" class="ghost">💾 Save As…</button>
       <button id="btnLoad" class="ghost">📂 Load</button>
       <button id="btnDelete" class="ghost">🗑 Delete</button>
+      <button id="btnHide">👁 Screenshot</button>
     </div>
   </div>
 
-  <!-- TABS -->
-  <div class="bar">
-    <button class="tab active" data-key="t10">10 AM OPEN</button>
-    <button class="tab" data-key="t12">12 PM CHECK</button>
-    <button class="tab" data-key="t2">2 PM PUSH</button>
-    <button class="tab" data-key="t4">4 PM FINISH</button>
-    <button class="tab" data-key="t5">5 PM POWER</button>
-    <button id="btnHide" title="Screenshot mode (hide UI)">👁 Screenshot</button>
-  </div>
-
-  <!-- BOARD -->
+  <!-- ===== Board ===== -->
   <div class="panel">
-    <div class="card" aria-live="polite">
+    <div class="card fade" id="card">
       <div id="head" class="head" contenteditable="true">12 PM CHECKPOINT ⚡</div>
       <div id="sub" class="sub" contenteditable="true">LIVE LOOK • WHERE WE STAND</div>
       <div class="rule"></div>
 
       <div class="stats">
-        Current: <span id="curr" contenteditable="true">24</span>
-        <div id="psa" class="psa">0.3 PSA</div>
+        <div>Current: <span id="curr" contenteditable="true">24</span></div>
+        <div id="psa" class="psa">4.0 PSA</div>
         <div id="goalLine" class="goalLine">Goal: <span id="psaGoal" contenteditable="true">1.5</span> PSA</div>
         <div>Target: <span id="targ" contenteditable="true">6</span></div>
       </div>
@@ -117,28 +157,28 @@ input[type="text"]{
     </div>
   </div>
 
-  <!-- FOOTER -->
+  <!-- ===== Footer (tight) ===== -->
   <div class="footer">
     <button id="btnReset" class="ghost">♻️ Reset Current</button>
     <span style="color:#888;font-size:2vmin">Autosaves on edit • Local only</span>
   </div>
 
-  <!-- LOAD MODAL -->
+  <!-- ===== Load Modal ===== -->
   <div id="loadModal" class="modal">
     <div class="sheet">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:1vmin">
-        <strong style="font-size:2.4vmin">Load a Saved Profile</strong>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1vmin;margin-bottom:.6vmin">
+        <strong style="font-size:2.3vmin">Load a Saved Profile</strong>
         <button id="closeLoad" class="ghost">Close</button>
       </div>
-      <div class="list" id="saveList"></div>
+      <div id="saveList" class="list"></div>
     </div>
   </div>
 
-  <!-- SAVE AS MODAL -->
+  <!-- ===== Save As Modal ===== -->
   <div id="saveAsModal" class="modal">
     <div class="sheet">
-      <div style="display:flex;align-items:center;gap:0.8vmin;flex-wrap:wrap">
-        <strong style="font-size:2.4vmin">Save As</strong>
+      <div style="display:flex;align-items:center;gap:.8vmin;flex-wrap:wrap">
+        <strong style="font-size:2.3vmin">Save As</strong>
         <input id="saveName" type="text" placeholder="e.g., Monday, Oct-05, Evening Run">
         <button id="confirmSaveAs">Save</button>
         <button id="closeSaveAs" class="ghost">Cancel</button>
@@ -149,19 +189,21 @@ input[type="text"]{
 </div>
 
 <script>
-/* ---------- Prevent zoom (iOS friendly) ---------- */
-document.addEventListener('gesturestart', e => e.preventDefault());
-let lastTouchEnd = 0;
-document.addEventListener('touchend', e => {
-  const now = Date.now(); if (now - lastTouchEnd <= 350) e.preventDefault(); lastTouchEnd = now;
-}, {passive:false});
+/* ===== iOS toolbar-safe viewport ===== */
+function setVh(){ document.documentElement.style.setProperty('--vh', `${window.innerHeight}px`); }
+setVh(); addEventListener('resize', setVh);
 
-/* ---------- Storage Model: profiles (named saves) ---------- */
-const LS_KEY = 'podDashProfilesV2';
+/* ===== Prevent zoom on iOS (double-tap/pinch) ===== */
+document.addEventListener('gesturestart', e=>e.preventDefault());
+let lastTouchEnd=0;
+document.addEventListener('touchend', e=>{const now=Date.now(); if(now-lastTouchEnd<=350) e.preventDefault(); lastTouchEnd=now;},{passive:false});
+
+/* ===== Storage Model: Named Profiles ===== */
+const LS_KEY = 'podDashProfilesV3';
 const DEFAULT_PROFILE = {
-  meta: { active: 't12', day: today() },
-  shared: { current:'24', target:'6', psaGoal:'1.5' }, // shared numbers
-  tabs: {
+  meta: { active:'t12', day: today() },
+  shared:{ current:'24', target:'6', psaGoal:'1.5' },
+  tabs:{
     t10:{head:'10 AM OPEN STRONG ⚡', sub:'ENERGY BUILDS FROM THE FIRST PITCH', quote:'Start hot. Set the tone.'},
     t12:{head:'12 PM CHECKPOINT ⚡',  sub:'LIVE LOOK • WHERE WE STAND',          quote:'Momentum wins. Two more and we reset the board.'},
     t2: {head:'2 PM PUSH ⚡',         sub:'RESET • HYDRATE • CLOSE 2 MORE',      quote:'Energy wins afternoons.'},
@@ -169,18 +211,18 @@ const DEFAULT_PROFILE = {
     t5: {head:'5 PM POWER HOUR ⚡',   sub:'ALL GAS • NO BRAKE • LAST PUSH OF THE DAY',       quote:'End strong. No excuses.'}
   }
 };
-const DEFAULT_STATE = {
-  activeName: 'Default',
-  saves: { 'Default': structuredClone(DEFAULT_PROFILE) }
-};
+const DEFAULT_STATE = { activeName:'Default', saves:{ 'Default': structuredClone(DEFAULT_PROFILE) } };
 
 let db = loadAll() || structuredClone(DEFAULT_STATE);
-autoDayResetActive(); // reset 'current' at midnight for the active profile
+autoDayResetActive();
 
-/* ---------- Elements ---------- */
+/* ===== Elements ===== */
 const app = document.getElementById('app');
+const card = document.getElementById('card');
 const activeNameEl = document.getElementById('activeName');
-const tabs = Array.from(document.querySelectorAll('.tab'));
+const saveDot = document.getElementById('saveDot');
+
+const tabs = [...document.querySelectorAll('.tab')];
 const head = document.getElementById('head');
 const sub = document.getElementById('sub');
 const quote = document.getElementById('quote');
@@ -188,7 +230,6 @@ const curr = document.getElementById('curr');
 const targ = document.getElementById('targ');
 const psaGoal = document.getElementById('psaGoal');
 const psa = document.getElementById('psa');
-const goalLine = document.getElementById('goalLine');
 
 const btnHide = document.getElementById('btnHide');
 const btnReset = document.getElementById('btnReset');
@@ -197,23 +238,24 @@ const btnLoad = document.getElementById('btnLoad');
 const btnDelete = document.getElementById('btnDelete');
 
 const loadModal = document.getElementById('loadModal');
-const saveAsModal = document.getElementById('saveAsModal');
 const saveList = document.getElementById('saveList');
 const closeLoad = document.getElementById('closeLoad');
+const saveAsModal = document.getElementById('saveAsModal');
 const saveName = document.getElementById('saveName');
 const confirmSaveAs = document.getElementById('confirmSaveAs');
 const closeSaveAs = document.getElementById('closeSaveAs');
 
-/* ---------- Init ---------- */
-render();
+/* ===== Init ===== */
+render(true);
 attach();
 
-/* ---------- Helpers ---------- */
+/* ===== Helpers ===== */
 function today(){ return new Date().toISOString().slice(0,10); }
 function loadAll(){ try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch { return null; } }
-function saveAll(){ localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+function saveAll(){ localStorage.setItem(LS_KEY, JSON.stringify(db)); pulseDot(); }
 function getActive(){ return db.saves[db.activeName]; }
 function ensureActive(){ if(!db.saves[db.activeName]) db.activeName = Object.keys(db.saves)[0] || 'Default'; }
+function pulseDot(){ saveDot.classList.add('on'); setTimeout(()=>saveDot.classList.remove('on'), 350); }
 function autoDayResetActive(){
   ensureActive();
   const p = getActive();
@@ -223,78 +265,77 @@ function autoDayResetActive(){
     saveAll();
   }
 }
+
+/* ===== Render ===== */
+function render(initial=false){
+  ensureActive();
+  const p = getActive();
+  activeNameEl.textContent = db.activeName;
+
+  tabs.forEach(b=>b.classList.toggle('active', b.dataset.key===p.meta.active));
+  const t = p.tabs[p.meta.active];
+
+  // fade swap for tab changes
+  if(!initial){ card.classList.remove('ready'); card.classList.add('fade'); }
+  requestAnimationFrame(()=>{
+    head.textContent = t.head;
+    sub.textContent  = t.sub;
+    quote.textContent= t.quote;
+    curr.textContent = p.shared.current;
+    targ.textContent = p.shared.target;
+    psaGoal.textContent = p.shared.psaGoal;
+    updatePSA();
+    card.classList.add('ready');
+  });
+}
+
+/* ===== PSA Math ===== */
 function updatePSA(){
   const p = getActive();
   const c = parseFloat(p.shared.current)||0;
   const t = parseFloat(p.shared.target)||0;
-  const goal = parseFloat(p.shared.psaGoal)||0;
   const val = t ? (c/t).toFixed(1) : '0.0';
   psa.textContent = `${val} PSA`;
-  goalLine.querySelector('#psaGoal').textContent = (goal || 0).toString();
 }
 
-/* ---------- Render ---------- */
-function render(){
-  ensureActive();
-  const p = getActive();
-  activeNameEl.textContent = db.activeName;
-  // tabs
-  tabs.forEach(b=>b.classList.toggle('active', b.dataset.key===p.meta.active));
-  const t = p.tabs[p.meta.active];
-  head.textContent = t.head;
-  sub.textContent = t.sub;
-  quote.textContent = t.quote;
-  // shared numbers
-  curr.textContent = p.shared.current;
-  targ.textContent = p.shared.target;
-  psaGoal.textContent = p.shared.psaGoal;
-  updatePSA();
-}
-
-/* ---------- Snapshot (auto-save on edit) ---------- */
+/* ===== Snapshot ===== */
 function snapTab(){
-  const p = getActive();
-  const k = p.meta.active;
+  const p = getActive(); const k = p.meta.active;
   p.tabs[k].head = head.textContent.trim();
-  p.tabs[k].sub = sub.textContent.trim();
-  p.tabs[k].quote = quote.textContent.trim();
+  p.tabs[k].sub  = sub.textContent.trim();
+  p.tabs[k].quote= quote.textContent.trim();
   saveAll();
 }
 function snapShared(){
   const p = getActive();
   p.shared.current = curr.textContent.trim();
-  p.shared.target = targ.textContent.trim();
-  p.shared.psaGoal = psaGoal.textContent.trim();
+  p.shared.target  = targ.textContent.trim();
+  p.shared.psaGoal = psaGoal.textContent.trim(); /* editable goal value */
   saveAll();
 }
 
-/* ---------- UI Attach ---------- */
+/* ===== UI ===== */
 function attach(){
-  // Tab switching
+  // Tabs
   tabs.forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      const p = getActive();
-      snapTab();
-      p.meta.active = btn.dataset.key;
-      saveAll();
+      const p = getActive(); snapTab();
+      p.meta.active = btn.dataset.key; saveAll();
       render();
     });
   });
 
-  // Edit fields (auto-save on change)
+  // Edits (no layout jump on Enter)
   [head,sub,quote].forEach(el=>{
-    el.addEventListener('input', ()=>{ snapTab(); });
+    el.addEventListener('input', ()=> snapTab());
     el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); el.blur(); }});
   });
   [curr,targ,psaGoal].forEach(el=>{
-    el.addEventListener('input', ()=>{
-      snapShared();
-      updatePSA();
-    });
+    el.addEventListener('input', ()=>{ snapShared(); updatePSA(); });
     el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); el.blur(); }});
   });
 
-  // Screenshot mode
+  // Screenshot toggle
   btnHide.addEventListener('click', ()=>{
     app.classList.toggle('hiddenUI');
     document.activeElement && document.activeElement.blur && document.activeElement.blur();
@@ -303,103 +344,80 @@ function attach(){
     if (app.classList.contains('hiddenUI')) app.classList.remove('hiddenUI');
   });
 
-  // Reset only Current (for active profile)
+  // Reset current (active profile only)
   btnReset.addEventListener('click', ()=>{
-    if (confirm('Reset CURRENT for this active profile?')){
-      const p = getActive();
-      p.shared.current = '0';
-      saveAll(); render();
+    if(confirm('Reset CURRENT for this active profile?')){
+      const p=getActive(); p.shared.current='0'; saveAll(); render();
     }
   });
 
-  // Save As
+  // Save As flow
   btnSaveAs.addEventListener('click', ()=>{
-    saveName.value = '';
-    saveAsModal.style.display = 'flex';
-    setTimeout(()=>saveName.focus(), 50);
+    saveName.value=''; saveAsModal.style.display='flex'; setTimeout(()=>saveName.focus(),30);
   });
   confirmSaveAs.addEventListener('click', ()=>{
-    const name = (saveName.value || '').trim();
-    if(!name){ alert('Enter a name.'); return; }
-    // Save a full copy under new name and switch active
+    const name=(saveName.value||'').trim(); if(!name){ alert('Enter a name.'); return; }
     db.saves[name] = structuredClone(getActive());
-    db.activeName = name;
-    saveAll();
-    saveAsModal.style.display = 'none';
-    render();
+    db.activeName = name; saveAll();
+    saveAsModal.style.display='none'; render();
   });
-  closeSaveAs.addEventListener('click', ()=> saveAsModal.style.display = 'none');
+  closeSaveAs.addEventListener('click', ()=> saveAsModal.style.display='none');
 
-  // Load (list all saves)
-  btnLoad.addEventListener('click', ()=>{
-    rebuildSaveList();
-    loadModal.style.display = 'flex';
-  });
-  closeLoad.addEventListener('click', ()=> loadModal.style.display = 'none');
+  // Load flow
+  btnLoad.addEventListener('click', ()=>{ rebuildSaveList(); loadModal.style.display='flex'; });
+  closeLoad.addEventListener('click', ()=> loadModal.style.display='none');
 
-  // Delete current
+  // Delete current profile
   btnDelete.addEventListener('click', ()=>{
-    const name = db.activeName;
-    if (!db.saves[name]) return;
-    if (confirm(`Delete profile "${name}"? This cannot be undone.`)){
+    const name = db.activeName; if(!db.saves[name]) return;
+    if(confirm(`Delete profile "${name}"?`)){
       delete db.saves[name];
-      // pick another active
       const keys = Object.keys(db.saves);
-      if(keys.length===0){
-        db.saves['Default'] = structuredClone(DEFAULT_PROFILE);
-        db.activeName = 'Default';
-      } else {
-        db.activeName = keys[0];
-      }
+      if(keys.length===0){ db.saves['Default']=structuredClone(DEFAULT_PROFILE); db.activeName='Default'; }
+      else { db.activeName=keys[0]; }
       saveAll(); render();
     }
   });
 }
 
-/* ---------- Save List UI ---------- */
+/* ===== Save List Builder ===== */
 function rebuildSaveList(){
-  saveList.innerHTML = '';
-  const names = Object.keys(db.saves).sort((a,b)=>a.localeCompare(b));
+  saveList.innerHTML='';
+  const names=Object.keys(db.saves).sort((a,b)=>a.localeCompare(b));
   if(names.length===0){
-    const row = document.createElement('div'); row.className='row';
-    row.innerHTML = `<div class="name">No saves yet</div>`;
-    saveList.appendChild(row); return;
+    const r=document.createElement('div'); r.className='row';
+    r.innerHTML='<div class="name">No saves yet</div>'; saveList.appendChild(r); return;
   }
   names.forEach(n=>{
-    const row = document.createElement('div'); row.className='row';
-    const meta = db.saves[n].meta || {};
-    row.innerHTML = `
-      <div class="name">${n} <span class="tag" style="margin-left:0.8vmin">(${meta.day||today()})</span></div>
-      <div style="display:flex;gap:0.6vmin">
+    const r=document.createElement('div'); r.className='row';
+    const meta=db.saves[n].meta||{};
+    r.innerHTML=`
+      <div class="name">${n} <span style="color:#888;margin-left:.7vmin">(${meta.day||today()})</span></div>
+      <div style="display:flex;gap:.6vmin">
         <button data-action="load" data-name="${n}">Load</button>
         <button class="ghost" data-action="rename" data-name="${n}">Rename</button>
         <button class="ghost" data-action="delete" data-name="${n}">Delete</button>
       </div>`;
-    row.querySelector('[data-action="load"]').onclick = ()=>{
-      db.activeName = n; saveAll(); render(); loadModal.style.display='none';
+    r.querySelector('[data-action="load"]').onclick=()=>{ db.activeName=n; saveAll(); render(); loadModal.style.display='none'; };
+    r.querySelector('[data-action="rename"]').onclick=()=>{
+      const nn = prompt('Rename profile:', n);
+      if(!nn || nn.trim()===n) return;
+      const t=nn.trim(); if(db.saves[t]){ alert('Name exists.'); return; }
+      db.saves[t]=db.saves[n]; delete db.saves[n];
+      if(db.activeName===n) db.activeName=t; saveAll(); rebuildSaveList(); render();
     };
-    row.querySelector('[data-action="rename"]').onclick = ()=>{
-      const newName = prompt('Rename profile:', n);
-      if(!newName || newName.trim()===n) return;
-      const trimmed = newName.trim();
-      if(db.saves[trimmed]){ alert('Name already exists.'); return; }
-      db.saves[trimmed] = db.saves[n];
-      delete db.saves[n];
-      if(db.activeName===n) db.activeName = trimmed;
-      saveAll(); rebuildSaveList(); render();
-    };
-    row.querySelector('[data-action="delete"]').onclick = ()=>{
+    r.querySelector('[data-action="delete"]').onclick=()=>{
       if(confirm(`Delete "${n}"?`)){
         delete db.saves[n];
         if(db.activeName===n){
-          const keys = Object.keys(db.saves);
-          db.activeName = keys[0] || 'Default';
+          const keys=Object.keys(db.saves);
+          db.activeName=keys[0]||'Default';
           if(!db.saves[db.activeName]) db.saves['Default']=structuredClone(DEFAULT_PROFILE);
         }
         saveAll(); rebuildSaveList(); render();
       }
     };
-    saveList.appendChild(row);
+    saveList.appendChild(r);
   });
 }
 </script>
