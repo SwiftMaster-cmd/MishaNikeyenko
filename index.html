@@ -4,191 +4,403 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Pod Dashboard PSA</title>
+<title>Pod Dashboard -- Profiles + PSA</title>
 <style>
 :root{
-  --bg:#0b0b0b;--fg:#f2f2f2;--muted:#a9a9a9;--gold:#d9b25f;
+  --bg:#0b0b0b; --panel:#000000cc; --fg:#f2f2f2; --muted:#a9a9a9; --gold:#d9b25f;
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
 html,body{margin:0;height:100%;width:100%;background:var(--bg);color:var(--fg);
   font-family:var(--font);overflow:hidden;}
-.app{height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:1.5vmin;padding:1.5vmin;box-sizing:border-box;}
-.bar,.footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:1vmin;
-  background:#000000c0;border:1px solid #222;border-radius:1.2vmin;
-  padding:1vmin 1.5vmin;backdrop-filter:blur(8px);}
-button{background:#121212;border:0.4vmin solid #2a2a2a;color:var(--fg);
+.app{height:100%;display:grid;grid-template-rows:auto 1fr auto auto;gap:1.2vmin;
+  padding:1.4vmin;box-sizing:border-box;}
+.bar,.footer,.profiles{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:1vmin;
+  background:var(--panel);border:1px solid #222;border-radius:1.2vmin;
+  padding:1vmin 1.5vmin;backdrop-filter:blur(8px);
+}
+.profiles{justify-content:space-between;padding:0.8vmin 1.2vmin}
+.profile-left{display:flex;gap:1vmin;align-items:center}
+.profile-right{display:flex;gap:1vmin;align-items:center}
+.tag{font-size:2vmin;color:#ccc}
+.badge{padding:0.2vmin 0.9vmin;border:1px solid #333;border-radius:0.8vmin;color:#ddd;font-size:1.8vmin}
+button{
+  background:#121212;border:0.4vmin solid #2a2a2a;color:var(--fg);
   padding:1.2vmin 2.2vmin;border-radius:1vmin;cursor:pointer;touch-action:manipulation;
-  font-size:2.2vmin;font-weight:800;min-width:10ch;}
-button.active{border-color:var(--gold);color:var(--gold);}
-button.ghost{background:transparent;border-color:#333;color:#bbb;}
-.panel{display:flex;align-items:center;justify-content:center;border:1px solid #1a1a1a;
+  font-size:2.2vmin;font-weight:800;min-width:10ch;
+}
+button:active{transform:translateY(0.2vmin)}
+button.active{border-color:var(--gold);color:var(--gold)}
+button.ghost{background:transparent;border-color:#333;color:#bbb}
+.panel{
+  display:flex;align-items:center;justify-content:center;border:1px solid #1a1a1a;
   border-radius:2vmin;background:linear-gradient(180deg,#000000e0,#000000f0);
-  box-shadow:0 1vmin 6vmin rgba(0,0,0,.55);}
-.card{text-align:center;max-width:min(92vw,110vmin);padding:2vmin;}
-.head{font-size:8vmin;font-weight:900;text-transform:uppercase;margin:.2em 0 .15em;}
-.sub{font-size:3.6vmin;color:var(--muted);margin:0 0 1em;}
-.rule{width:70%;height:.6vmin;background:var(--gold);border-radius:.5vmin;margin:0 auto 2vmin;}
-.stats{font-size:4.2vmin;line-height:1.5;}
-.gold{color:var(--gold);}
-.psa{font-size:8vmin;font-weight:900;color:var(--gold);margin:0.2em 0;}
-.goalLine{font-size:3.8vmin;font-weight:700;}
-.quote{font-size:3.2vmin;font-style:italic;margin-top:2vmin;}
-[contenteditable]{outline:none;border-bottom:.4vmin solid transparent;transition:border-color .15s;}
-[contenteditable]:focus{border-color:var(--gold);}
-.hiddenUI .bar,.hiddenUI .footer{display:none;}
-.slotBox{display:none;gap:0.8vmin;flex-wrap:wrap;justify-content:center;margin-top:0.6vmin;}
-.slotBox.visible{display:flex;}
-.slotBox button{font-size:1.9vmin;padding:0.8vmin 1.4vmin;}
-@media(max-aspect-ratio:4/5){
-  .head{font-size:9.2vmin}.stats{font-size:4.8vmin}.psa{font-size:9vmin}
+  box-shadow:0 1vmin 6vmin rgba(0,0,0,.55);
+}
+.card{text-align:center;max-width:min(92vw,110vmin);padding:2vmin}
+.head{font-size:8.4vmin;font-weight:900;text-transform:uppercase;margin:.2em 0 .15em}
+.sub{font-size:3.6vmin;color:var(--muted);margin:0 0 1em}
+.rule{width:70%;height:.6vmin;background:var(--gold);border-radius:.5vmin;margin:0 auto 2vmin}
+.stats{font-size:4.2vmin;line-height:1.5}
+.gold{color:var(--gold)}
+.psa{font-size:8.8vmin;font-weight:900;color:var(--gold);margin:.25em 0 .1em}
+.goalLine{font-size:3.9vmin;font-weight:750;margin:.15em 0}
+.quote{font-size:3.2vmin;font-style:italic;margin-top:2vmin}
+[contenteditable]{outline:none;border-bottom:.4vmin solid transparent;transition:border-color .15s}
+[contenteditable]:focus{border-color:var(--gold)}
+.hiddenUI .bar,.hiddenUI .footer,.hiddenUI .profiles{display:none}
+.hiddenUI .panel{box-shadow:none;border-color:#000}
+.slotBox{display:none;gap:0.8vmin;flex-wrap:wrap;justify-content:center;margin-top:0.6vmin}
+.slotBox.visible{display:flex}
+.modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:2000;
+}
+.modal .sheet{
+  background:#111;border:1px solid #333;border-radius:1.2vmin;min-width:60vmin;max-width:90vmin;
+  padding:1.6vmin;box-shadow:0 1vmin 4vmin rgba(0,0,0,.6)
+}
+.list{display:flex;flex-direction:column;gap:0.6vmin;max-height:60vmin;overflow:auto;margin-top:0.8vmin}
+.row{display:flex;gap:0.8vmin;align-items:center;justify-content:space-between;background:#0c0c0c;border:1px solid #262626;border-radius:0.8vmin;padding:0.8vmin 1vmin}
+.row .name{font-size:2.2vmin}
+input[type="text"]{
+  background:#0e0e0e;color:#eee;border:1px solid #333;border-radius:0.8vmin;padding:0.8vmin 1vmin;
+  font-size:2.2vmin;min-width:25vmin
+}
+@media (max-aspect-ratio:4/5){
+  .head{font-size:9.4vmin}.stats{font-size:4.8vmin}.psa{font-size:9.8vmin}
 }
 </style>
 </head>
 <body>
 <div class="app" id="app">
 
+  <!-- PROFILES BAR -->
+  <div class="profiles">
+    <div class="profile-left">
+      <span class="badge">Active:</span>
+      <span id="activeName" class="tag">Default</span>
+    </div>
+    <div class="profile-right">
+      <button id="btnSaveAs" class="ghost">💾 Save As…</button>
+      <button id="btnLoad" class="ghost">📂 Load</button>
+      <button id="btnDelete" class="ghost">🗑 Delete</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
   <div class="bar">
     <button class="tab active" data-key="t10">10 AM OPEN</button>
     <button class="tab" data-key="t12">12 PM CHECK</button>
     <button class="tab" data-key="t2">2 PM PUSH</button>
     <button class="tab" data-key="t4">4 PM FINISH</button>
     <button class="tab" data-key="t5">5 PM POWER</button>
-    <button id="btnHide">👁 Screenshot</button>
+    <button id="btnHide" title="Screenshot mode (hide UI)">👁 Screenshot</button>
   </div>
 
+  <!-- BOARD -->
   <div class="panel">
-    <div class="card">
+    <div class="card" aria-live="polite">
       <div id="head" class="head" contenteditable="true">12 PM CHECKPOINT ⚡</div>
       <div id="sub" class="sub" contenteditable="true">LIVE LOOK • WHERE WE STAND</div>
       <div class="rule"></div>
+
       <div class="stats">
         Current: <span id="curr" contenteditable="true">24</span>
         <div id="psa" class="psa">0.3 PSA</div>
-        <div id="goalLine" class="goalLine">Goal: 1.5 PSA</div>
+        <div id="goalLine" class="goalLine">Goal: <span id="psaGoal" contenteditable="true">1.5</span> PSA</div>
         <div>Target: <span id="targ" contenteditable="true">6</span></div>
       </div>
+
       <div id="quote" class="quote" contenteditable="true">
         Momentum wins. Two more and we reset the board.
       </div>
     </div>
   </div>
 
+  <!-- FOOTER -->
   <div class="footer">
-    <button id="btnSave" class="ghost">💾 Save</button>
-    <button id="btnLoad" class="ghost">📂 Load</button>
     <button id="btnReset" class="ghost">♻️ Reset Current</button>
     <span style="color:#888;font-size:2vmin">Autosaves on edit • Local only</span>
   </div>
 
-  <div id="slotBox" class="slotBox">
-    <button class="slot" data-slot="A">Save A</button>
-    <button class="slotLoad" data-slot="A">Load A</button>
-    <button class="slotClear" data-slot="A">Clear A</button>
-    <button class="slot" data-slot="B">Save B</button>
-    <button class="slotLoad" data-slot="B">Load B</button>
-    <button class="slotClear" data-slot="B">Clear B</button>
-    <button class="slot" data-slot="C">Save C</button>
-    <button class="slotLoad" data-slot="C">Load C</button>
-    <button class="slotClear" data-slot="C">Clear C</button>
+  <!-- LOAD MODAL -->
+  <div id="loadModal" class="modal">
+    <div class="sheet">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1vmin">
+        <strong style="font-size:2.4vmin">Load a Saved Profile</strong>
+        <button id="closeLoad" class="ghost">Close</button>
+      </div>
+      <div class="list" id="saveList"></div>
+    </div>
+  </div>
+
+  <!-- SAVE AS MODAL -->
+  <div id="saveAsModal" class="modal">
+    <div class="sheet">
+      <div style="display:flex;align-items:center;gap:0.8vmin;flex-wrap:wrap">
+        <strong style="font-size:2.4vmin">Save As</strong>
+        <input id="saveName" type="text" placeholder="e.g., Monday, Oct-05, Evening Run">
+        <button id="confirmSaveAs">Save</button>
+        <button id="closeSaveAs" class="ghost">Cancel</button>
+      </div>
+    </div>
   </div>
 
 </div>
 
 <script>
-document.addEventListener('gesturestart',e=>e.preventDefault());
-let lastTouchEnd=0;
-document.addEventListener('touchend',e=>{
-  const now=Date.now();if(now-lastTouchEnd<=350)e.preventDefault();lastTouchEnd=now;
-},{passive:false});
+/* ---------- Prevent zoom (iOS friendly) ---------- */
+document.addEventListener('gesturestart', e => e.preventDefault());
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now(); if (now - lastTouchEnd <= 350) e.preventDefault(); lastTouchEnd = now;
+}, {passive:false});
 
-const DEFAULTS={
- active:'t12',
- day:today(),
- shared:{current:'24',target:'6'},
- tabs:{
-  t10:{head:'10 AM OPEN STRONG ⚡',sub:'ENERGY BUILDS FROM THE FIRST PITCH',quote:'Start hot. Set the tone.'},
-  t12:{head:'12 PM CHECKPOINT ⚡',sub:'LIVE LOOK • WHERE WE STAND',quote:'Momentum wins. Two more and we reset the board.'},
-  t2:{head:'2 PM PUSH ⚡',sub:'RESET • HYDRATE • CLOSE 2 MORE',quote:'Energy wins afternoons.'},
-  t4:{head:'4 PM FINISH STRONG ⚡',sub:'SIX WAS STANDARD -- FOUR MORE AND WE WIN THE DAY',quote:'Keep the floor hot. Finish the run.'},
-  t5:{head:'5 PM POWER HOUR ⚡',sub:'ALL GAS • NO BRAKE • LAST PUSH OF THE DAY',quote:'End strong. No excuses.'}
- }
+/* ---------- Storage Model: profiles (named saves) ---------- */
+const LS_KEY = 'podDashProfilesV2';
+const DEFAULT_PROFILE = {
+  meta: { active: 't12', day: today() },
+  shared: { current:'24', target:'6', psaGoal:'1.5' }, // shared numbers
+  tabs: {
+    t10:{head:'10 AM OPEN STRONG ⚡', sub:'ENERGY BUILDS FROM THE FIRST PITCH', quote:'Start hot. Set the tone.'},
+    t12:{head:'12 PM CHECKPOINT ⚡',  sub:'LIVE LOOK • WHERE WE STAND',          quote:'Momentum wins. Two more and we reset the board.'},
+    t2: {head:'2 PM PUSH ⚡',         sub:'RESET • HYDRATE • CLOSE 2 MORE',      quote:'Energy wins afternoons.'},
+    t4: {head:'4 PM FINISH STRONG ⚡',sub:'SIX WAS STANDARD -- FOUR MORE AND WE WIN THE DAY', quote:'Keep the floor hot. Finish the run.'},
+    t5: {head:'5 PM POWER HOUR ⚡',   sub:'ALL GAS • NO BRAKE • LAST PUSH OF THE DAY',       quote:'End strong. No excuses.'}
+  }
 };
-const LS_KEY='podDashPSA';
-let state=load()||structuredClone(DEFAULTS);
-if(state.day!==today()){state.shared.current='0';state.day=today();save();}
+const DEFAULT_STATE = {
+  activeName: 'Default',
+  saves: { 'Default': structuredClone(DEFAULT_PROFILE) }
+};
 
-const app=document.getElementById('app');
-const tabs=[...document.querySelectorAll('.tab')];
-const head=document.getElementById('head');
-const sub=document.getElementById('sub');
-const quote=document.getElementById('quote');
-const curr=document.getElementById('curr');
-const targ=document.getElementById('targ');
-const psa=document.getElementById('psa');
-const goalLine=document.getElementById('goalLine');
-const slotBox=document.getElementById('slotBox');
+let db = loadAll() || structuredClone(DEFAULT_STATE);
+autoDayResetActive(); // reset 'current' at midnight for the active profile
 
-render();attach();
+/* ---------- Elements ---------- */
+const app = document.getElementById('app');
+const activeNameEl = document.getElementById('activeName');
+const tabs = Array.from(document.querySelectorAll('.tab'));
+const head = document.getElementById('head');
+const sub = document.getElementById('sub');
+const quote = document.getElementById('quote');
+const curr = document.getElementById('curr');
+const targ = document.getElementById('targ');
+const psaGoal = document.getElementById('psaGoal');
+const psa = document.getElementById('psa');
+const goalLine = document.getElementById('goalLine');
 
-function today(){return new Date().toISOString().slice(0,10);}
-function load(k=LS_KEY){try{return JSON.parse(localStorage.getItem(k)||'null');}catch{return null}}
-function save(k=LS_KEY){localStorage.setItem(k,JSON.stringify(state));}
-function flash(msg){
- const f=document.createElement('div');
- Object.assign(f.style,{position:'fixed',bottom:'2vmin',left:'50%',transform:'translateX(-50%)',
- background:'#111',color:'#ddd',border:'1px solid #333',padding:'1vmin 1.6vmin',borderRadius:'1vmin',
- zIndex:2000,boxShadow:'0 .8vmin 2vmin rgba(0,0,0,.45)',fontSize:'2vmin'});
- f.textContent=msg;document.body.appendChild(f);setTimeout(()=>f.remove(),1200);
+const btnHide = document.getElementById('btnHide');
+const btnReset = document.getElementById('btnReset');
+const btnSaveAs = document.getElementById('btnSaveAs');
+const btnLoad = document.getElementById('btnLoad');
+const btnDelete = document.getElementById('btnDelete');
+
+const loadModal = document.getElementById('loadModal');
+const saveAsModal = document.getElementById('saveAsModal');
+const saveList = document.getElementById('saveList');
+const closeLoad = document.getElementById('closeLoad');
+const saveName = document.getElementById('saveName');
+const confirmSaveAs = document.getElementById('confirmSaveAs');
+const closeSaveAs = document.getElementById('closeSaveAs');
+
+/* ---------- Init ---------- */
+render();
+attach();
+
+/* ---------- Helpers ---------- */
+function today(){ return new Date().toISOString().slice(0,10); }
+function loadAll(){ try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch { return null; } }
+function saveAll(){ localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+function getActive(){ return db.saves[db.activeName]; }
+function ensureActive(){ if(!db.saves[db.activeName]) db.activeName = Object.keys(db.saves)[0] || 'Default'; }
+function autoDayResetActive(){
+  ensureActive();
+  const p = getActive();
+  if (p.meta.day !== today()){
+    p.shared.current = '0';
+    p.meta.day = today();
+    saveAll();
+  }
 }
 function updatePSA(){
- const c=parseFloat(state.shared.current)||0;
- const t=parseFloat(state.shared.target)||0;
- const val=t? (c/t).toFixed(1):'0.0';
- psa.textContent=`${val} PSA`;
- goalLine.textContent=`Goal: ${(1.5).toFixed(1)} PSA`;
+  const p = getActive();
+  const c = parseFloat(p.shared.current)||0;
+  const t = parseFloat(p.shared.target)||0;
+  const goal = parseFloat(p.shared.psaGoal)||0;
+  const val = t ? (c/t).toFixed(1) : '0.0';
+  psa.textContent = `${val} PSA`;
+  goalLine.querySelector('#psaGoal').textContent = (goal || 0).toString();
 }
+
+/* ---------- Render ---------- */
 function render(){
- tabs.forEach(b=>b.classList.toggle('active',b.dataset.key===state.active));
- const t=state.tabs[state.active];
- head.textContent=t.head;sub.textContent=t.sub;quote.textContent=t.quote;
- curr.textContent=state.shared.current;targ.textContent=state.shared.target;
- updatePSA();
+  ensureActive();
+  const p = getActive();
+  activeNameEl.textContent = db.activeName;
+  // tabs
+  tabs.forEach(b=>b.classList.toggle('active', b.dataset.key===p.meta.active));
+  const t = p.tabs[p.meta.active];
+  head.textContent = t.head;
+  sub.textContent = t.sub;
+  quote.textContent = t.quote;
+  // shared numbers
+  curr.textContent = p.shared.current;
+  targ.textContent = p.shared.target;
+  psaGoal.textContent = p.shared.psaGoal;
+  updatePSA();
 }
-function snapshotShared(){state.shared.current=curr.textContent.trim();state.shared.target=targ.textContent.trim();}
-function snapshotTab(){const t=state.tabs[state.active];t.head=head.textContent.trim();t.sub=sub.textContent.trim();t.quote=quote.textContent.trim();}
+
+/* ---------- Snapshot (auto-save on edit) ---------- */
+function snapTab(){
+  const p = getActive();
+  const k = p.meta.active;
+  p.tabs[k].head = head.textContent.trim();
+  p.tabs[k].sub = sub.textContent.trim();
+  p.tabs[k].quote = quote.textContent.trim();
+  saveAll();
+}
+function snapShared(){
+  const p = getActive();
+  p.shared.current = curr.textContent.trim();
+  p.shared.target = targ.textContent.trim();
+  p.shared.psaGoal = psaGoal.textContent.trim();
+  saveAll();
+}
+
+/* ---------- UI Attach ---------- */
 function attach(){
- tabs.forEach(btn=>{
-  btn.addEventListener('click',()=>{snapshotTab();save();state.active=btn.dataset.key;save();render();});
- });
- [head,sub,quote].forEach(el=>{
-  el.addEventListener('input',()=>{snapshotTab();save();});
-  el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur();}});
- });
- [curr,targ].forEach(el=>{
-  el.addEventListener('input',()=>{snapshotShared();save();updatePSA();});
-  el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur();}});
- });
- document.getElementById('btnHide').addEventListener('click',()=>{
-  app.classList.toggle('hiddenUI');
-  document.activeElement&&document.activeElement.blur&&document.activeElement.blur();
- });
- document.body.addEventListener('click',()=>{
-  if(app.classList.contains('hiddenUI'))app.classList.remove('hiddenUI');
- });
- document.getElementById('btnSave').addEventListener('click',()=>{snapshotTab();snapshotShared();save();flash('Saved');});
- document.getElementById('btnReset').addEventListener('click',()=>{
-  if(confirm('Reset Current for today?')){state.shared.current='0';save();render();flash('Current reset');}
- });
- document.getElementById('btnLoad').addEventListener('click',()=>{slotBox.classList.toggle('visible');});
- slotBox.querySelectorAll('.slot').forEach(b=>{
-  b.addEventListener('click',()=>{snapshotTab();snapshotShared();localStorage.setItem(LS_KEY+'_'+b.dataset.slot,JSON.stringify(state));flash('Saved '+b.dataset.slot);});
- });
- slotBox.querySelectorAll('.slotLoad').forEach(b=>{
-  b.addEventListener('click',()=>{const s=load(LS_KEY+'_'+b.dataset.slot);if(s){state=s;save();render();flash('Loaded '+b.dataset.slot);}else flash('Empty');});
- });
- slotBox.querySelectorAll('.slotClear').forEach(b=>{
-  b.addEventListener('click',()=>{localStorage.removeItem(LS_KEY+'_'+b.dataset.slot);flash('Cleared '+b.dataset.slot);});
- });
+  // Tab switching
+  tabs.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p = getActive();
+      snapTab();
+      p.meta.active = btn.dataset.key;
+      saveAll();
+      render();
+    });
+  });
+
+  // Edit fields (auto-save on change)
+  [head,sub,quote].forEach(el=>{
+    el.addEventListener('input', ()=>{ snapTab(); });
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); el.blur(); }});
+  });
+  [curr,targ,psaGoal].forEach(el=>{
+    el.addEventListener('input', ()=>{
+      snapShared();
+      updatePSA();
+    });
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); el.blur(); }});
+  });
+
+  // Screenshot mode
+  btnHide.addEventListener('click', ()=>{
+    app.classList.toggle('hiddenUI');
+    document.activeElement && document.activeElement.blur && document.activeElement.blur();
+  });
+  document.body.addEventListener('click', ()=>{
+    if (app.classList.contains('hiddenUI')) app.classList.remove('hiddenUI');
+  });
+
+  // Reset only Current (for active profile)
+  btnReset.addEventListener('click', ()=>{
+    if (confirm('Reset CURRENT for this active profile?')){
+      const p = getActive();
+      p.shared.current = '0';
+      saveAll(); render();
+    }
+  });
+
+  // Save As
+  btnSaveAs.addEventListener('click', ()=>{
+    saveName.value = '';
+    saveAsModal.style.display = 'flex';
+    setTimeout(()=>saveName.focus(), 50);
+  });
+  confirmSaveAs.addEventListener('click', ()=>{
+    const name = (saveName.value || '').trim();
+    if(!name){ alert('Enter a name.'); return; }
+    // Save a full copy under new name and switch active
+    db.saves[name] = structuredClone(getActive());
+    db.activeName = name;
+    saveAll();
+    saveAsModal.style.display = 'none';
+    render();
+  });
+  closeSaveAs.addEventListener('click', ()=> saveAsModal.style.display = 'none');
+
+  // Load (list all saves)
+  btnLoad.addEventListener('click', ()=>{
+    rebuildSaveList();
+    loadModal.style.display = 'flex';
+  });
+  closeLoad.addEventListener('click', ()=> loadModal.style.display = 'none');
+
+  // Delete current
+  btnDelete.addEventListener('click', ()=>{
+    const name = db.activeName;
+    if (!db.saves[name]) return;
+    if (confirm(`Delete profile "${name}"? This cannot be undone.`)){
+      delete db.saves[name];
+      // pick another active
+      const keys = Object.keys(db.saves);
+      if(keys.length===0){
+        db.saves['Default'] = structuredClone(DEFAULT_PROFILE);
+        db.activeName = 'Default';
+      } else {
+        db.activeName = keys[0];
+      }
+      saveAll(); render();
+    }
+  });
+}
+
+/* ---------- Save List UI ---------- */
+function rebuildSaveList(){
+  saveList.innerHTML = '';
+  const names = Object.keys(db.saves).sort((a,b)=>a.localeCompare(b));
+  if(names.length===0){
+    const row = document.createElement('div'); row.className='row';
+    row.innerHTML = `<div class="name">No saves yet</div>`;
+    saveList.appendChild(row); return;
+  }
+  names.forEach(n=>{
+    const row = document.createElement('div'); row.className='row';
+    const meta = db.saves[n].meta || {};
+    row.innerHTML = `
+      <div class="name">${n} <span class="tag" style="margin-left:0.8vmin">(${meta.day||today()})</span></div>
+      <div style="display:flex;gap:0.6vmin">
+        <button data-action="load" data-name="${n}">Load</button>
+        <button class="ghost" data-action="rename" data-name="${n}">Rename</button>
+        <button class="ghost" data-action="delete" data-name="${n}">Delete</button>
+      </div>`;
+    row.querySelector('[data-action="load"]').onclick = ()=>{
+      db.activeName = n; saveAll(); render(); loadModal.style.display='none';
+    };
+    row.querySelector('[data-action="rename"]').onclick = ()=>{
+      const newName = prompt('Rename profile:', n);
+      if(!newName || newName.trim()===n) return;
+      const trimmed = newName.trim();
+      if(db.saves[trimmed]){ alert('Name already exists.'); return; }
+      db.saves[trimmed] = db.saves[n];
+      delete db.saves[n];
+      if(db.activeName===n) db.activeName = trimmed;
+      saveAll(); rebuildSaveList(); render();
+    };
+    row.querySelector('[data-action="delete"]').onclick = ()=>{
+      if(confirm(`Delete "${n}"?`)){
+        delete db.saves[n];
+        if(db.activeName===n){
+          const keys = Object.keys(db.saves);
+          db.activeName = keys[0] || 'Default';
+          if(!db.saves[db.activeName]) db.saves['Default']=structuredClone(DEFAULT_PROFILE);
+        }
+        saveAll(); rebuildSaveList(); render();
+      }
+    };
+    saveList.appendChild(row);
+  });
 }
 </script>
 </body>
