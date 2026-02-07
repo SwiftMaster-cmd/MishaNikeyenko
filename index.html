@@ -1,30 +1,394 @@
-<!-- /index.html  (login page) -->
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Login · YourBrand</title>
+<meta charset="utf-8" />
+<meta name="viewport"
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Pod Dashboard -- v4</title>
+<style>
+:root{
+  --bg:#0b0b0b; --panel:#000000d0; --fg:#f2f2f2; --muted:#a9a9a9; --gold:#d9b25f;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --vh:100vh;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);overflow:hidden}
+.app{height:var(--vh);display:grid;gap:1.1vmin;padding:1.1vmin;grid-template-rows:auto auto 1fr auto}
 
-  <link rel="stylesheet" href="CSS/variables.css">
-  <link rel="stylesheet" href="CSS/index.css">
+/* ===== Header (no overlap) ===== */
+.header, .footer{
+  background:var(--panel);border:1px solid #222;border-radius:1.2vmin;
+  backdrop-filter:blur(8px);padding:.9vmin 1.1vmin;box-shadow:0 .6vmin 2.2vmin rgba(0,0,0,.35);
+}
+.header{display:grid;grid-template-rows:auto auto;gap:.7vmin}
+
+/* Top line: Active + autosave dot */
+.header-top{display:flex;justify-content:space-between;align-items:center;gap:1vmin}
+.chip{padding:.3vmin .9vmin;border:1px solid #333;border-radius:.9vmin;color:#ddd;font-size:1.9vmin}
+.dot{width:1.1vmin;height:1.1vmin;border-radius:50%;background:#2ecc71;display:inline-block;margin-left:.7vmin;opacity:0;transition:opacity .25s}
+.dot.on{opacity:1}
+
+/* Mode toggle (centered) */
+.mode-switch{display:flex;justify-content:center;gap:.8vmin}
+.segment{display:flex;border:1px solid #333;border-radius:999px;overflow:hidden}
+.segment button{
+  border:none;background:#121212;color:#ddd;padding:.8vmin 1.8vmin;font-weight:800;font-size:2vmin;
+  cursor:pointer;min-width:10ch;border-right:1px solid #333;
+}
+.segment button:last-child{border-right:none}
+.segment button.active{background:#1b1b1b;color:var(--gold);border-color:#444}
+
+/* Manager row (Time or Profile) */
+.manager{display:flex;justify-content:center;gap:.8vmin;flex-wrap:wrap}
+
+/* Pills */
+.pill{
+  background:#0f0f0f;border:.35vmin solid #2a2a2a;color:#f0f0f0;
+  padding:1vmin 2vmin;border-radius:999px;cursor:pointer;touch-action:manipulation;
+  font-weight:800;font-size:2vmin;min-width:10.5ch;letter-spacing:.1px;
+  transition:transform .04s ease, border-color .12s ease, color .12s ease, background .12s ease;
+}
+.pill:active{transform:translateY(.2vmin)}
+.pill.active{border-color:var(--gold);color:var(--gold);background:#141414}
+
+/* Panel */
+.panel{
+  display:flex;align-items:center;justify-content:center;border:1px solid #1a1a1a;border-radius:1.8vmin;
+  background:linear-gradient(180deg,#000000e8,#000000f2);box-shadow:0 .9vmin 4vmin rgba(0,0,0,.45);padding:1.2vmin
+}
+.card{max-width:min(92vw,110vmin);text-align:center;padding:2vmin 2.2vmin}
+.card.fade{opacity:0;transition:opacity .22s ease}
+.card.ready{opacity:1}
+
+/* Text + Data */
+.head{font-size:7.6vmin;font-weight:900;text-transform:uppercase;margin:.15em 0 .1em}
+.sub{font-size:3.2vmin;color:var(--muted);margin:0 0 .8em}
+.rule{width:66%;height:.55vmin;background:var(--gold);border-radius:.5vmin;margin:.2vmin auto 1.6vmin}
+.stats{display:grid;gap:.2em;font-size:3.9vmin;line-height:1.35;justify-items:center}
+.psa{font-size:6.8vmin;font-weight:900;color:var(--gold);margin:.15em 0 .05em}
+.goalLine{font-size:3.6vmin;font-weight:750;margin:.05em 0 .3em}
+.quote{font-size:3vmin;font-style:italic;margin-top:1.2vmin}
+[contenteditable]{outline:none;border-bottom:.35vmin solid transparent;transition:border-color .12s}
+[contenteditable]:focus{border-color:var(--gold)}
+
+/* Footer */
+.footer{display:flex;gap:1vmin;align-items:center;justify-content:center}
+.footer .pill{background:transparent;border-color:#333;color:#bbb}
+
+/* Modals */
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:2000}
+.sheet{background:#111;border:1px solid #333;border-radius:1.1vmin;min-width:60vmin;max-width:92vmin;padding:1.4vmin;box-shadow:0 1vmin 3.5vmin rgba(0,0,0,.55)}
+.list{display:flex;flex-direction:column;gap:.6vmin;max-height:60vmin;overflow:auto;margin-top:.8vmin}
+.row{display:flex;align-items:center;justify-content:space-between;gap:.8vmin;background:#0d0d0d;border:1px solid #262626;border-radius:.8vmin;padding:.8vmin 1vmin}
+.row .name{font-size:2.1vmin}
+input[type="text"]{background:#0e0e0e;color:#eee;border:1px solid #333;border-radius:.8vmin;padding:.8vmin 1vmin;font-size:2vmin;min-width:26vmin}
+
+/* Small screens */
+@media (max-aspect-ratio:4/5){
+  .head{font-size:8.4vmin}
+  .psa{font-size:7.6vmin}
+  .stats{font-size:4.4vmin}
+}
+</style>
 </head>
 <body>
-  <main class="auth-container">
-    <h1>Sign in</h1>
-    <form id="login-form" novalidate>
-      <input type="email"    id="login-email"    placeholder="Email"    autocomplete="email"             required>
-      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password"   required>
-      <button class="btn-solid" type="submit">Login</button>
-    </form>
+<div class="app" id="app">
 
-    <div id="login-message"></div>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <span class="chip">Active: <strong id="activeName">Default</strong><span id="saveDot" class="dot"></span></span>
+      <div class="mode-switch">
+        <div class="segment">
+          <button id="btnModeTime" class="active" aria-pressed="true">Time Manager</button>
+          <button id="btnModeProfile" aria-pressed="false">Profile Manager</button>
+        </div>
+      </div>
+      <span class="chip" id="todayChip"></span>
+    </div>
 
-    <p class="alt">Don’t have an account?
-      <a href="HTML/register.html">Create one</a>
-    </p>
-  </main>
-  <script type="module" src="JS/Firebase/firebase.js"></script>
-  <script type="module" src="JS/Firebase/auth.js"></script>
+    <!-- Manager row switches content -->
+    <div id="managerRow" class="manager">
+      <!-- Time Manager (default) -->
+      <button class="pill ttab active" data-key="t10">10 AM</button>
+      <button class="pill ttab" data-key="t12">12 PM</button>
+      <button class="pill ttab" data-key="t2">2 PM</button>
+      <button class="pill ttab" data-key="t4">4 PM</button>
+      <button class="pill ttab" data-key="t5">5 PM</button>
+    </div>
+
+    <!-- Profile Manager template (hidden initially; injected on toggle) -->
+    <template id="profileTpl">
+      <span class="chip">Profile tools:</span>
+      <button class="pill ghost" id="btnSaveAs">💾 Save As…</button>
+      <button class="pill ghost" id="btnLoad">📂 Load</button>
+      <button class="pill ghost" id="btnDelete">🗑 Delete</button>
+    </template>
+  </div>
+
+  <!-- Board -->
+  <div class="panel">
+    <div class="card fade" id="card">
+      <div id="head" class="head" contenteditable="true">12 PM CHECKPOINT ⚡</div>
+      <div id="sub" class="sub" contenteditable="true">LIVE LOOK • WHERE WE STAND</div>
+      <div class="rule"></div>
+      <div class="stats">
+        <div>Current: <span id="curr" contenteditable="true">24</span></div>
+        <div id="psa" class="psa">4.0 PSA</div>
+        <div id="goalLine" class="goalLine">Goal: <span id="psaGoal" contenteditable="true">1.5</span> PSA</div>
+        <div>Target: <span id="targ" contenteditable="true">6</span></div>
+      </div>
+      <div id="quote" class="quote" contenteditable="true">Momentum wins. Two more and we reset the board.</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <button id="btnReset" class="pill ghost">♻️ Reset Current</button>
+    <span style="color:#888;font-size:2vmin">Autosaves on edit • Local only</span>
+  </div>
+
+  <!-- Load Modal -->
+  <div id="loadModal" class="modal">
+    <div class="sheet">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1vmin;margin-bottom:.6vmin">
+        <strong style="font-size:2.3vmin">Load a Saved Profile</strong>
+        <button id="closeLoad" class="pill ghost">Close</button>
+      </div>
+      <div id="saveList" class="list"></div>
+    </div>
+  </div>
+
+  <!-- Save As Modal -->
+  <div id="saveAsModal" class="modal">
+    <div class="sheet">
+      <div style="display:flex;align-items:center;gap:.8vmin;flex-wrap:wrap">
+        <strong style="font-size:2.3vmin">Save As</strong>
+        <input id="saveName" type="text" placeholder="e.g., Monday, Oct-05, Evening Run">
+        <button id="confirmSaveAs" class="pill">Save</button>
+        <button id="closeSaveAs" class="pill ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* Viewport fit for iOS toolbars */
+function setVh(){ document.documentElement.style.setProperty('--vh', `${window.innerHeight}px`); }
+setVh(); addEventListener('resize', setVh);
+
+/* Prevent pinch/double-tap zoom (iOS) */
+document.addEventListener('gesturestart', e=>e.preventDefault());
+let lastTouchEnd=0; document.addEventListener('touchend', e=>{const now=Date.now(); if(now-lastTouchEnd<=350) e.preventDefault(); lastTouchEnd=now;},{passive:false});
+
+/* ===== Storage: Named Profiles ===== */
+const LS_KEY='podDashProfilesV4';
+const DEFAULT_PROFILE={
+  meta:{active:'t12',day:today()},
+  shared:{current:'24',target:'6',psaGoal:'1.5'},
+  tabs:{
+    t10:{head:'10 AM OPEN STRONG ⚡',sub:'ENERGY BUILDS FROM THE FIRST PITCH',quote:'Start hot. Set the tone.'},
+    t12:{head:'12 PM CHECKPOINT ⚡',sub:'LIVE LOOK • WHERE WE STAND',quote:'Momentum wins. Two more and we reset the board.'},
+    t2:{head:'2 PM PUSH ⚡',sub:'RESET • HYDRATE • CLOSE 2 MORE',quote:'Energy wins afternoons.'},
+    t4:{head:'4 PM FINISH STRONG ⚡',sub:'SIX WAS STANDARD -- FOUR MORE AND WE WIN THE DAY',quote:'Keep the floor hot. Finish the run.'},
+    t5:{head:'5 PM POWER HOUR ⚡',sub:'ALL GAS • NO BRAKE • LAST PUSH OF THE DAY',quote:'End strong. No excuses.'}
+  }
+};
+const DEFAULT_STATE={activeName:'Default',saves:{'Default':structuredClone(DEFAULT_PROFILE)}};
+
+let db=loadAll()||structuredClone(DEFAULT_STATE);
+autoDayResetActive();
+
+/* ===== Elements ===== */
+const app=document.getElementById('app');
+const managerRow=document.getElementById('managerRow');
+const profileTpl=document.getElementById('profileTpl');
+const activeNameEl=document.getElementById('activeName');
+const saveDot=document.getElementById('saveDot');
+const todayChip=document.getElementById('todayChip');
+const card=document.getElementById('card');
+
+const head=document.getElementById('head');
+const sub=document.getElementById('sub');
+const quote=document.getElementById('quote');
+const curr=document.getElementById('curr');
+const targ=document.getElementById('targ');
+const psaGoal=document.getElementById('psaGoal');
+const psa=document.getElementById('psa');
+
+const btnModeTime=document.getElementById('btnModeTime');
+const btnModeProfile=document.getElementById('btnModeProfile');
+const timeButtons=()=>[...document.querySelectorAll('.ttab')];
+
+const btnReset=document.getElementById('btnReset');
+const loadModal=document.getElementById('loadModal');
+const saveList=document.getElementById('saveList');
+const closeLoad=document.getElementById('closeLoad');
+const saveAsModal=document.getElementById('saveAsModal');
+const saveName=document.getElementById('saveName');
+const confirmSaveAs=document.getElementById('confirmSaveAs');
+const closeSaveAs=document.getElementById('closeSaveAs');
+
+/* ===== Init ===== */
+todayChip.textContent=new Date().toLocaleDateString();
+render(true);
+attach();
+
+/* ===== Utils ===== */
+function today(){return new Date().toISOString().slice(0,10);}
+function loadAll(){try{return JSON.parse(localStorage.getItem(LS_KEY)||'null');}catch{return null}}
+function saveAll(){localStorage.setItem(LS_KEY,JSON.stringify(db)); pulse();}
+function getActive(){return db.saves[db.activeName];}
+function ensureActive(){if(!db.saves[db.activeName]) db.activeName=Object.keys(db.saves)[0]||'Default';}
+function pulse(){saveDot.classList.add('on'); setTimeout(()=>saveDot.classList.remove('on'),300);}
+function autoDayResetActive(){ensureActive();const p=getActive();if(p.meta.day!==today()){p.shared.current='0';p.meta.day=today();saveAll();}}
+
+/* ===== Render ===== */
+function render(initial=false){
+  ensureActive();
+  const p=getActive();
+  activeNameEl.textContent=db.activeName;
+
+  // time buttons state
+  timeButtons().forEach(b=>b.classList.toggle('active',b.dataset.key===p.meta.active));
+
+  const t=p.tabs[p.meta.active];
+  if(!initial){card.classList.remove('ready');card.classList.add('fade');}
+  requestAnimationFrame(()=>{
+    head.textContent=t.head; sub.textContent=t.sub; quote.textContent=t.quote;
+    curr.textContent=p.shared.current; targ.textContent=p.shared.target; psaGoal.textContent=p.shared.psaGoal;
+    updatePSA();
+    card.classList.add('ready');
+  });
+}
+
+/* ===== PSA ===== */
+function updatePSA(){
+  const p=getActive();
+  const c=parseFloat(p.shared.current)||0;
+  const t=parseFloat(p.shared.target)||0;
+  const val=t?(c/t).toFixed(1):'0.0';
+  psa.textContent=`${val} PSA`;
+}
+
+/* ===== Snapshots (autosave on edit) ===== */
+function snapTab(){const p=getActive();const k=p.meta.active;p.tabs[k].head=head.textContent.trim();p.tabs[k].sub=sub.textContent.trim();p.tabs[k].quote=quote.textContent.trim();saveAll();}
+function snapShared(){const p=getActive();p.shared.current=curr.textContent.trim();p.shared.target=targ.textContent.trim();p.shared.psaGoal=psaGoal.textContent.trim();saveAll();}
+
+/* ===== Attach events ===== */
+function attach(){
+  // Mode toggle
+  btnModeTime.onclick=()=>switchMode('time');
+  btnModeProfile.onclick=()=>switchMode('profile');
+
+  // Time tab clicks
+  timeButtons().forEach(b=>{
+    b.addEventListener('click',()=>{const p=getActive(); snapTab(); p.meta.active=b.dataset.key; saveAll(); render();});
+  });
+
+  // Edits
+  [head,sub,quote].forEach(el=>{
+    el.addEventListener('input',()=>snapTab());
+    el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur();}});
+  });
+  [curr,targ,psaGoal].forEach(el=>{
+    el.addEventListener('input',()=>{snapShared();updatePSA();});
+    el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur();}});
+  });
+
+  // Reset current
+  btnReset.onclick=()=>{if(confirm('Reset CURRENT for this active profile?')){const p=getActive();p.shared.current='0';saveAll();render();}};
+
+  // Load modal controls
+  closeLoad.onclick=()=>loadModal.style.display='none';
+  closeSaveAs.onclick=()=>saveAsModal.style.display='none';
+}
+
+/* ===== Mode switching ===== */
+function switchMode(mode){
+  const isTime = (mode==='time');
+  btnModeTime.classList.toggle('active', isTime);
+  btnModeProfile.classList.toggle('active', !isTime);
+  btnModeTime.setAttribute('aria-pressed', isTime);
+  btnModeProfile.setAttribute('aria-pressed', !isTime);
+
+  managerRow.innerHTML='';
+  if(isTime){
+    // Recreate time pills
+    ['t10','t12','t2','t4','t5'].forEach(k=>{
+      const btn=document.createElement('button');
+      btn.className='pill ttab'+(getActive().meta.active===k?' active':'');
+      btn.dataset.key=k;
+      btn.textContent=({t10:'10 AM',t12:'12 PM',t2:'2 PM',t4:'4 PM',t5:'5 PM'})[k];
+      btn.onclick=()=>{const p=getActive(); snapTab(); p.meta.active=k; saveAll(); render(); managerRow.querySelectorAll('.pill').forEach(x=>x.classList.remove('active')); btn.classList.add('active');};
+      managerRow.appendChild(btn);
+    });
+  }else{
+    // Inject profile manager pills
+    const frag=profileTpl.content.cloneNode(true);
+    managerRow.appendChild(frag);
+    document.getElementById('btnSaveAs').onclick=()=>{document.getElementById('saveName').value=''; saveAsModal.style.display='flex'; setTimeout(()=>document.getElementById('saveName').focus(),30);};
+    document.getElementById('btnLoad').onclick=()=>{rebuildSaveList(); loadModal.style.display='flex';};
+    document.getElementById('btnDelete').onclick=()=>{
+      const name=db.activeName;
+      if(!db.saves[name])return;
+      if(confirm(`Delete profile "${name}"?`)){
+        delete db.saves[name];
+        const keys=Object.keys(db.saves);
+        db.activeName=keys[0]||'Default';
+        if(!db.saves[db.activeName]) db.saves['Default']=structuredClone(DEFAULT_PROFILE);
+        saveAll(); render();
+      }
+    };
+  }
+}
+switchMode('time'); // initial
+
+/* ===== Save As + Load ===== */
+document.getElementById('confirmSaveAs').onclick=()=>{
+  const name=(document.getElementById('saveName').value||'').trim();
+  if(!name){alert('Enter a name.');return;}
+  db.saves[name]=structuredClone(getActive());
+  db.activeName=name; saveAll(); render(); saveAsModal.style.display='none';
+};
+function rebuildSaveList(){
+  const list=document.getElementById('saveList'); list.innerHTML='';
+  const names=Object.keys(db.saves).sort((a,b)=>a.localeCompare(b));
+  if(names.length===0){const r=document.createElement('div'); r.className='row'; r.innerHTML='<div class="name">No saves yet</div>'; list.appendChild(r); return;}
+  names.forEach(n=>{
+    const r=document.createElement('div'); r.className='row';
+    const meta=db.saves[n].meta||{};
+    r.innerHTML=`
+      <div class="name">${n} <span style="color:#888;margin-left:.7vmin">(${meta.day||today()})</span></div>
+      <div style="display:flex;gap:.6vmin">
+        <button class="pill" data-action="load" data-name="${n}">Load</button>
+        <button class="pill ghost" data-action="rename" data-name="${n}">Rename</button>
+        <button class="pill ghost" data-action="delete" data-name="${n}">Delete</button>
+      </div>`;
+    r.querySelector('[data-action="load"]').onclick=()=>{db.activeName=n; saveAll(); render(); loadModal.style.display='none';};
+    r.querySelector('[data-action="rename"]').onclick=()=>{
+      const nn=prompt('Rename profile:', n); if(!nn||nn.trim()===n) return;
+      const t=nn.trim(); if(db.saves[t]){alert('Name exists.');return;}
+      db.saves[t]=db.saves[n]; delete db.saves[n];
+      if(db.activeName===n) db.activeName=t; saveAll(); rebuildSaveList(); render();
+    };
+    r.querySelector('[data-action="delete"]').onclick=()=>{
+      if(confirm(`Delete "${n}"?`)){
+        delete db.saves[n];
+        if(db.activeName===n){
+          const keys=Object.keys(db.saves); db.activeName=keys[0]||'Default';
+          if(!db.saves[db.activeName]) db.saves['Default']=structuredClone(DEFAULT_PROFILE);
+        }
+        saveAll(); rebuildSaveList(); render();
+      }
+    };
+    list.appendChild(r);
+  });
+}
+
+/* Utility */
+function today(){return new Date().toISOString().slice(0,10);}
+</script>
 </body>
 </html>
